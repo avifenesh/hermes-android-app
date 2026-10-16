@@ -1,0 +1,29 @@
+Google ML Kit / Google Play services — separate contractual terms
+================================================================
+Component: com.google.android.gms:play-services-code-scanner:16.1.0
+Purpose: Google code scanner used for pairing QR codes on supported devices.
+Provider: Google
+
+The official Maven POM identifies its license as "ML Kit Terms of Service":
+https://dl.google.com/dl/android/maven2/com/google/android/gms/play-services-code-scanner/16.1.0/play-services-code-scanner-16.1.0.pom
+A byte-for-byte copy of that POM is included as ML-Kit-code-scanner-16.1.0.pom.
+
+Terms: https://developers.google.com/ml-kit/terms
+Incorporated Google APIs Terms of Service: https://developers.google.com/terms
+Google Privacy Policy: https://policies.google.com/privacy
+Android data disclosure guidance:
+https://developers.google.com/ml-kit/android-data-disclosure
+
+This is a component notice and reference, not a replacement or complete copy of
+Google's contractual terms. Review the current terms at the URLs above before
+distribution/use. This component must NOT be represented as Apache-2.0 or MIT
+simply because the app, another dependency, or Google's documentation uses an
+open-source/content license. No commercial clearance or Google endorsement is
+claimed here. Other Google SDK/service terms also require distribution review.
+
+Privacy summary (not a replacement for the upstream policy): Google's ML Kit
+terms/privacy page, last modified May 14, 2025, states that input processing is
+on-device, but APIs may contact Google for updates and send performance and
+utilization metrics. It places responsibility on app developers to inform users
+of Google's processing of metrics as required by applicable law. A blanket
+claim that the entire app/SDK never contacts Google would be inaccurate.

@@ -1,0 +1,9 @@
+# Preserve checksum-pinned upstream legal texts byte-for-byte.
+licenses/Android-NDK-r29-NOTICE-toolchain.txt -whitespace
+licenses/KissFFT-COPYING.txt -whitespace
+licenses/TFLite-Micro-AUTHORS.txt -whitespace
+android/app/src/main/assets/legal/Android-NDK-r29-NOTICE-toolchain.txt -whitespace
+android/app/src/main/assets/legal/KissFFT-COPYING.txt -whitespace
+android/app/src/main/assets/legal/TFLite-Micro-AUTHORS.txt -whitespace
+android/app/src/main/assets/legal/OFL-1.1-Instrument.txt -whitespace
+android/app/src/main/assets/legal/OFL-1.1.txt -whitespace

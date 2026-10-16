@@ -1,0 +1,39 @@
+name: mobile
+label: Hermes Mobile
+kind: platform
+version: 0.16.2
+description: >
+  Native Android client for Hermes. Serves a small authenticated HTTP + SSE API
+  (bind to localhost, expose over Tailscale) that the Hermes Android app uses for
+  chats, live runs, approvals, steer/stop, cron and pulse. Devices pair with a
+  one-time code from `hermes mobile pair` and get a revocable token.
+author: avifenesh
+optional_env:
+  - name: MOBILE_ENABLED
+    description: "Set to 1 to start the mobile API inside the gateway"
+    prompt: "Enable Hermes Mobile"
+    password: false
+  - name: MOBILE_BIND
+    description: "host:port for the mobile API (default 127.0.0.1:47930)"
+    prompt: "Mobile API bind"
+    password: false
+  - name: MOBILE_PUBLIC_URL
+    description: "HTTPS URL the phone uses (tailscale serve or a tunnel), e.g. https://myhost.tailnet.ts.net:9445"
+    prompt: "Mobile public URL"
+    password: false
+  - name: MOBILE_HOME_CHANNEL
+    description: "Chat id cron deliveries land in (default: digests)"
+    prompt: "Mobile home channel"
+    password: false
+  - name: MOBILE_AGENT_NAME
+    description: "Agent name the app shows (default: the name in SOUL.md, else Hermes)"
+    prompt: "Agent display name"
+    password: false
+  - name: MOBILE_USER_NAME
+    description: "Your name, used in the agent's platform hint and wake prompts (optional)"
+    prompt: "Your name"
+    password: false
+  - name: MOBILE_PHONE_CC
+    description: "Country code for local phone numbers in wake escalation, e.g. 972 (optional)"
+    prompt: "Phone country code"
+    password: false

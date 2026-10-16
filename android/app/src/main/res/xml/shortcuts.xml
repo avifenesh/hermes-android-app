@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="talk" android:enabled="true" android:icon="@drawable/ic_stat" android:shortcutShortLabel="@string/sc_talk">
+        <intent android:action="dev.avifenesh.hermes.talk" android:targetPackage="dev.avifenesh.hermes" android:targetClass="dev.avifenesh.hermes.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="new" android:enabled="true" android:icon="@drawable/ic_stat" android:shortcutShortLabel="@string/sc_new">
+        <intent android:action="dev.avifenesh.hermes.compose" android:targetPackage="dev.avifenesh.hermes" android:targetClass="dev.avifenesh.hermes.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="fleet" android:enabled="true" android:icon="@drawable/ic_stat" android:shortcutShortLabel="@string/sc_fleet">
+        <intent android:action="dev.avifenesh.hermes.fleet" android:targetPackage="dev.avifenesh.hermes" android:targetClass="dev.avifenesh.hermes.MainActivity" />
+    </shortcut>
+</shortcuts>

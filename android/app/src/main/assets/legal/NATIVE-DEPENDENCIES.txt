@@ -1,0 +1,96 @@
+Native offline wake dependencies
+================================
+Engine source: home-assistant/android
+Commit: 110809fb146429a613cabeaa0eb2165be57939b9
+License source: https://raw.githubusercontent.com/home-assistant/android/110809fb146429a613cabeaa0eb2165be57939b9/LICENSE.md
+Build recipe reviewed: https://raw.githubusercontent.com/home-assistant/android/110809fb146429a613cabeaa0eb2165be57939b9/microwakeword/src/main/cpp/CMakeLists.txt
+Attribution: Home Assistant Android contributors. Hermes adapts this engine;
+retain any original headers. See NOTICE for Hermes change attribution.
+
+Exact native dependency archives were downloaded and their SHA-256 values
+matched the pinned build recipe. Root license/NOTICE candidates were inspected.
+No separate upstream root NOTICE was present in these five pinned archives.
+TFLM Hexagon/Xtensa accelerator licenses are not used by this generic Android
+source list; FlatBuffers Dart/Swift components are not used. This is a selected
+native-source audit, not a full final-link or Android dependency SBOM.
+
+Apache-2.0.txt is an exact byte-identical copy of the LICENSE in each pinned
+TFLM, FlatBuffers, gemmlowp and ruy source archive. Separate attribution:
+- TensorFlow Lite Micro / microfrontend: The TensorFlow Authors. See the
+  original TFLite-Micro-AUTHORS.txt. Source-file copyright headers are retained.
+- FlatBuffers: Google Inc. and contributors (copyright in source headers).
+- gemmlowp: The Gemmlowp Authors. See original gemmlowp-AUTHORS.txt.
+- ruy: Google LLC (2020 in profiler/instrumentation.h).
+- KissFFT: Copyright (c) 2003-2010 Mark Borgerding . All rights reserved.
+  COPYING refers to LICENSES/BSD-3-Clause. Both unmodified files are included:
+  KissFFT-COPYING.txt and KissFFT-BSD-3-Clause.txt. The template copyright in
+  the full BSD text does not replace the actual attribution in COPYING.
+
+
+kissfft
+-------
+repository: https://github.com/mborgerding/kissfft
+commit: 7bce4153c6bc8aba2db0e889e576f9d00505cbe1
+archive_url: https://github.com/mborgerding/kissfft/archive/7bce4153c6bc8aba2db0e889e576f9d00505cbe1.tar.gz
+archive_sha256: 7ad1124648a46977b16ddde03bf243bcd52fc452516c57016584ab4b4f2baadc
+license: BSD-3-Clause
+license_source_url: https://raw.githubusercontent.com/mborgerding/kissfft/7bce4153c6bc8aba2db0e889e576f9d00505cbe1/COPYING
+license_sha256: a2840585f8411be8e6826a31ef15ae65c950bd74a2437a73b013398a934ad0c6
+license_document: KissFFT-COPYING.txt
+
+tflite_micro
+------------
+repository: https://github.com/tensorflow/tflite-micro
+commit: 2747abd5c82a95fb1624106a946fc671c31f16e8
+archive_url: https://github.com/tensorflow/tflite-micro/archive/2747abd5c82a95fb1624106a946fc671c31f16e8.tar.gz
+archive_sha256: 6ac0c8ef35f267cf3baf05dc094d4fd158864d4cc830d490b752994e58add8c8
+license: Apache-2.0
+license_source_url: https://raw.githubusercontent.com/tensorflow/tflite-micro/2747abd5c82a95fb1624106a946fc671c31f16e8/LICENSE
+license_sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+license_document: Apache-2.0.txt
+
+flatbuffers
+-----------
+repository: https://github.com/google/flatbuffers
+commit: 0100f6a5779831fa7a651e4b67ef389a8752bd9b
+archive_url: https://github.com/google/flatbuffers/archive/0100f6a5779831fa7a651e4b67ef389a8752bd9b.tar.gz
+archive_sha256: 85db3520acc4010b21984e2fb5ead3ec0d2c48df8009b614cb73562a82846554
+license: Apache-2.0
+license_source_url: https://raw.githubusercontent.com/google/flatbuffers/0100f6a5779831fa7a651e4b67ef389a8752bd9b/LICENSE
+license_sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+license_document: Apache-2.0.txt
+
+gemmlowp
+--------
+repository: https://github.com/google/gemmlowp
+commit: fda83bdc38b118cc6b56753bd540caa49e570745
+archive_url: https://github.com/google/gemmlowp/archive/fda83bdc38b118cc6b56753bd540caa49e570745.tar.gz
+archive_sha256: 0f990732a0d541be514dfc5c1c45969626e9f349faa851baec01b9a9dcb4ae4b
+license: Apache-2.0
+license_source_url: https://raw.githubusercontent.com/google/gemmlowp/fda83bdc38b118cc6b56753bd540caa49e570745/LICENSE
+license_sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+license_document: Apache-2.0.txt
+
+ruy
+---
+repository: https://github.com/google/ruy
+commit: 54774a7a2cf85963777289193629d4bd42de4a59
+archive_url: https://github.com/google/ruy/archive/54774a7a2cf85963777289193629d4bd42de4a59.tar.gz
+archive_sha256: 91993e7eb2aa56e62e9f4abc1158b2b46333574aa81f1a7431b06df80a42b7fa
+license: Apache-2.0
+license_source_url: https://raw.githubusercontent.com/google/ruy/54774a7a2cf85963777289193629d4bd42de4a59/LICENSE
+license_sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+license_document: Apache-2.0.txt
+
+Android NDK runtime notices
+---------------------------
+Build pin: Android NDK 29.0.14206865 (r29), c++_shared.
+Official archive: https://dl.google.com/android/repository/android-ndk-r29-linux.zip
+The unabridged root NOTICE and NOTICE.toolchain from that archive are packaged
+as Android-NDK-r29-NOTICE.txt and Android-NDK-r29-NOTICE-toolchain.txt. These
+include LLVM's Apache-2.0 with LLVM exception, legacy MIT/University of Illinois
+and BSD notices relevant to the C++ runtime, compiler runtime and system headers.
+They are upstream omnibus notices, not an assertion that every listed tool or
+platform component is linked into Hermes. No separate GNU C++ runtime is selected.
+The inventory records exact member hashes and the SDK source.properties hash.
+Recheck against the installed build NDK with check_legal.py --ndk PATH.

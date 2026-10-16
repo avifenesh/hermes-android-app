@@ -1,0 +1,30 @@
+# Signing and local config
+keystore.properties
+*.jks
+*.keystore
+local.properties
+google-services*.json
+
+# Build output
+build/
+.cxx/
+.gradle/
+.kotlin/
+*.iml
+.idea/
+captures/
+
+# Shipped builds and pairing artifacts
+dist/
+
+# Python
+__pycache__/
+*.pyc
+
+# Server-side secrets that may land next to the plugin
+server/**/fcm-service-account.json
+server/**/fcm-client.json
+server/**/cf-access.json
+server/**/*secret*.json
+server/**/*.db
+.env

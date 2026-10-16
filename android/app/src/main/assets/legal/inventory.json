@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "retrieved_at_utc": "2026-10-16T01:47:25.291933+00:00",
+  "scope": "Selected bundled license texts, notices, model and font provenance; not an exhaustive dependency/native SBOM or commercial clearance.",
+  "self_hash_note": "inventory.json is excluded from its own document list; check_legal.py prints its hash, checks the source/asset mirrors, and compares exact bytes to the APK.",
+  "documents": [
+    {
+      "file": "NOTICE.txt",
+      "title": "Notices, model grant and provenance caveat",
+      "repo_path": "NOTICE",
+      "bytes": 5682,
+      "sha256": "9d10cf389355a0cb6cce2138ea7c5ad27accbbf662999b441a441e0605f08b84",
+      "source_url": "",
+      "upstream_exact": false,
+      "source_note": "Project-authored notice or application license; not a downloaded third-party legal text."
+    },
+    {
+      "file": "Hermes-MIT.txt",
+      "title": "Hermes application code - MIT",
+      "repo_path": "LICENSE",
+      "bytes": 1067,
+      "sha256": "865367984df228c2bbf9df7e790b26c3b083376b705375db36a8a032daa03a25",
+      "source_url": "",
+      "upstream_exact": false,
+      "source_note": "Project-authored notice or application license; not a downloaded third-party legal text."
+    },
+    {
+      "file": "MODEL-PROVENANCE.txt",
+      "title": "Model attribution, versions and hashes",
+      "repo_path": "licenses/MODEL-PROVENANCE.txt",
+      "bytes": 3646,
+      "sha256": "1b5278ca293ab1f917136a86e05735500fc36486527a857a541836ab2002140e",
+      "source_url": "",
+      "upstream_exact": false,
+      "source_note": "Project-authored notice or application license; not a downloaded third-party legal text."
+    },
+    {
+      "file": "Apache-2.0.txt",
+      "title": "Apache License 2.0",
+      "repo_path": "licenses/Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source_url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "upstream_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "upstream_exact": true
+    },
+    {
+      "file": "OFL-1.1.txt",
+      "title": "Geist and Geist Mono - full OFL 1.1",
+      "repo_path": "licenses/OFL-1.1.txt",
+      "bytes": 4387,
+      "sha256": "1781d2806a07d91c4edf4740b88449fab7d0eadad53f7c351b94cd4d4eb8c00f",
+      "source_url": "https://raw.githubusercontent.com/vercel/geist-font/main/OFL.txt",
+      "upstream_sha256": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90",
+      "upstream_exact": false,
+      "source_note": "Preserved original local OFL verbatim, including author URL ending .git. Current upstream differs only by removing .git from that URL; full license and author wording unchanged."
+    },
+    {
+      "file": "OFL-1.1-Instrument.txt",
+      "title": "Instrument Serif - full OFL 1.1",
+      "repo_path": "licenses/OFL-1.1-Instrument.txt",
+      "bytes": 4405,
+      "sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+      "source_url": "https://raw.githubusercontent.com/Instrument/instrument-serif/main/OFL.txt",
+      "upstream_sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+      "upstream_exact": true
+    },
+    {
+      "file": "Google-ML-Kit-NOTICE.txt",
+      "title": "Google ML Kit - separate terms and privacy references",
+      "repo_path": "licenses/Google-ML-Kit-NOTICE.txt",
+      "bytes": 1805,
+      "sha256": "6eb8e6febe32187e6c32f64a50019f9cdd0fa95a203d6e709e51fb6761fd2c28",
+      "source_url": "",
+      "upstream_exact": false,
+      "source_note": "Project-authored notice or application license; not a downloaded third-party legal text."
+    },
+    {
+      "file": "ML-Kit-code-scanner-16.1.0.pom",
+      "title": "Google code scanner 16.1.0 - official license declaration",
+      "repo_path": "licenses/ML-Kit-code-scanner-16.1.0.pom",
+      "bytes": 3316,
+      "sha256": "bc2ed0ddc8f2e3a27275d0bea19236fa726054ac1deb66714d13fd11e1530416",
+      "source_url": "https://dl.google.com/dl/android/maven2/com/google/android/gms/play-services-code-scanner/16.1.0/play-services-code-scanner-16.1.0.pom",
+      "upstream_sha256": "bc2ed0ddc8f2e3a27275d0bea19236fa726054ac1deb66714d13fd11e1530416",
+      "upstream_exact": true
+    },
+    {
+      "file": "microWakeWord-models-README.md",
+      "title": "microWakeWord models: explicit weight grant",
+      "repo_path": "licenses/microWakeWord-models-README.md",
+      "bytes": 920,
+      "sha256": "bee9ce31bfae0e24aaa1ef71eec099300aaa3486be5e125d32a07831191a674a",
+      "source_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/README.md",
+      "upstream_sha256": "bee9ce31bfae0e24aaa1ef71eec099300aaa3486be5e125d32a07831191a674a",
+      "upstream_exact": true
+    },
+    {
+      "file": "microWakeWord-models-NOTICE.txt",
+      "title": "microWakeWord models: publisher NOTICE",
+      "repo_path": "licenses/microWakeWord-models-NOTICE.txt",
+      "bytes": 738,
+      "sha256": "bf6c416d88749af557faecbaf874861c6a808c5d45f4c28a2e25f9f613ce91ad",
+      "source_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/NOTICE",
+      "upstream_sha256": "bf6c416d88749af557faecbaf874861c6a808c5d45f4c28a2e25f9f613ce91ad",
+      "upstream_exact": true
+    },
+    {
+      "file": "microWakeWord-models-LICENSE.txt",
+      "title": "microWakeWord model weights: Apache-2.0",
+      "repo_path": "licenses/microWakeWord-models-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "source_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/LICENSE",
+      "upstream_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "upstream_exact": true
+    },
+    {
+      "file": "Home-Assistant-Android-LICENSE.txt",
+      "title": "Home Assistant Android engine: Apache-2.0",
+      "repo_path": "licenses/Home-Assistant-Android-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "source_url": "https://raw.githubusercontent.com/home-assistant/android/110809fb146429a613cabeaa0eb2165be57939b9/LICENSE.md",
+      "upstream_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "upstream_exact": true
+    },
+    {
+      "file": "KissFFT-COPYING.txt",
+      "title": "KissFFT: Mark Borgerding attribution",
+      "repo_path": "licenses/KissFFT-COPYING.txt",
+      "bytes": 246,
+      "sha256": "a2840585f8411be8e6826a31ef15ae65c950bd74a2437a73b013398a934ad0c6",
+      "source_url": "https://raw.githubusercontent.com/mborgerding/kissfft/7bce4153c6bc8aba2db0e889e576f9d00505cbe1/COPYING",
+      "upstream_sha256": "a2840585f8411be8e6826a31ef15ae65c950bd74a2437a73b013398a934ad0c6",
+      "upstream_exact": true
+    },
+    {
+      "file": "KissFFT-BSD-3-Clause.txt",
+      "title": "KissFFT: full BSD-3-Clause terms",
+      "repo_path": "licenses/KissFFT-BSD-3-Clause.txt",
+      "bytes": 1830,
+      "sha256": "4d6bcab46f27d6d0c878e8305d4bdcfe040d52bf6656b9771f04c9fb9902c0ed",
+      "source_url": "https://raw.githubusercontent.com/mborgerding/kissfft/7bce4153c6bc8aba2db0e889e576f9d00505cbe1/LICENSES/BSD-3-Clause",
+      "upstream_sha256": "4d6bcab46f27d6d0c878e8305d4bdcfe040d52bf6656b9771f04c9fb9902c0ed",
+      "upstream_exact": true
+    },
+    {
+      "file": "TFLite-Micro-AUTHORS.txt",
+      "title": "TensorFlow Lite Micro: original authors",
+      "repo_path": "licenses/TFLite-Micro-AUTHORS.txt",
+      "bytes": 348,
+      "sha256": "d10975e78ed80f3c138e0b4734db20bbcb0679f43176d28531c542bc2e6be534",
+      "source_url": "https://raw.githubusercontent.com/tensorflow/tflite-micro/2747abd5c82a95fb1624106a946fc671c31f16e8/AUTHORS",
+      "upstream_sha256": "d10975e78ed80f3c138e0b4734db20bbcb0679f43176d28531c542bc2e6be534",
+      "upstream_exact": true
+    },
+    {
+      "file": "gemmlowp-AUTHORS.txt",
+      "title": "gemmlowp: original authors",
+      "repo_path": "licenses/gemmlowp-AUTHORS.txt",
+      "bytes": 390,
+      "sha256": "916234caa03bbb2769b278e165515a8ca9fa9d8f60b7b57a5dd6a4f026208ce2",
+      "source_url": "https://raw.githubusercontent.com/google/gemmlowp/fda83bdc38b118cc6b56753bd540caa49e570745/AUTHORS",
+      "upstream_sha256": "916234caa03bbb2769b278e165515a8ca9fa9d8f60b7b57a5dd6a4f026208ce2",
+      "upstream_exact": true
+    },
+    {
+      "file": "NATIVE-DEPENDENCIES.txt",
+      "title": "Native engine: pins, archive hashes and attribution",
+      "repo_path": "licenses/NATIVE-DEPENDENCIES.txt",
+      "source_url": "",
+      "upstream_exact": false,
+      "source_note": "Project-authored audit of the pinned native build recipe; not a complete dependency SBOM.",
+      "bytes": 5492,
+      "sha256": "264a69b3baf1437de25bdefb7a827d7be8746716e7187fc4db5a66efb0db2ce6"
+    },
+    {
+      "file": "Android-NDK-r29-NOTICE.txt",
+      "title": "Android NDK r29: upstream platform notices (omnibus)",
+      "repo_path": "licenses/Android-NDK-r29-NOTICE.txt",
+      "bytes": 516438,
+      "sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e",
+      "source_url": "https://dl.google.com/android/repository/android-ndk-r29-linux.zip",
+      "source_archive_member": "android-ndk-r29/NOTICE",
+      "ndk_path": "NOTICE",
+      "upstream_exact": true,
+      "source_note": "Unabridged archive member retrieved via HTTP Range from the official NDK r29 ZIP; ZIP CRC verified. Not a raw plaintext URL. Recheck against installed NDK with --ndk PATH. Omnibus includes toolchain/platforms not all linked into this app.",
+      "upstream_sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e"
+    },
+    {
+      "file": "Android-NDK-r29-NOTICE-toolchain.txt",
+      "title": "Android NDK r29: LLVM / C++ runtime notices (omnibus)",
+      "repo_path": "licenses/Android-NDK-r29-NOTICE-toolchain.txt",
+      "bytes": 799639,
+      "sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a",
+      "source_url": "https://dl.google.com/android/repository/android-ndk-r29-linux.zip",
+      "source_archive_member": "android-ndk-r29/NOTICE.toolchain",
+      "ndk_path": "NOTICE.toolchain",
+      "upstream_exact": true,
+      "source_note": "Unabridged archive member retrieved via HTTP Range from the official NDK r29 ZIP; ZIP CRC verified. Not a raw plaintext URL. Recheck against installed NDK with --ndk PATH. Omnibus includes toolchain/platforms not all linked into this app.",
+      "upstream_sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a"
+    }
+  ],
+  "models": [
+    {
+      "file": "hey_jarvis.tflite",
+      "repo_path": "android/app/src/main/assets/microwakeword/hey_jarvis.tflite",
+      "apk_path": "assets/microwakeword/hey_jarvis.tflite",
+      "source_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/hey_jarvis.tflite",
+      "commit": "40ff33f57f8fc6ad71a75ef085abbf742495b225",
+      "model_id": "mww_hey_jarvis_v2",
+      "model_version": 2,
+      "license_status": "Apache-2.0",
+      "license_evidence": [
+        "microWakeWord-models-README.md",
+        "microWakeWord-models-NOTICE.txt"
+      ],
+      "changes": "None; byte-identical publisher asset",
+      "bytes": 52272,
+      "sha256": "21a7976add39ee24ec96c63d96b7aaa18e24d1d9824b963e451da8feb4b78b77"
+    },
+    {
+      "file": "hey_jarvis.json",
+      "repo_path": "android/app/src/main/assets/microwakeword/hey_jarvis.json",
+      "apk_path": "assets/microwakeword/hey_jarvis.json",
+      "source_url": "https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/hey_jarvis.json",
+      "commit": "40ff33f57f8fc6ad71a75ef085abbf742495b225",
+      "model_id": "mww_hey_jarvis_v2",
+      "model_version": 2,
+      "license_status": "Apache-2.0",
+      "license_evidence": [
+        "microWakeWord-models-README.md",
+        "microWakeWord-models-NOTICE.txt"
+      ],
+      "changes": "None; byte-identical publisher asset",
+      "bytes": 388,
+      "sha256": "b153867d818675d8abcc9dace474afe7f83551ae0d5a9b1d71a98681320185af"
+    }
+  ],
+  "fonts": [
+    {
+      "repo_path": "android/app/src/main/res/font/geist.ttf",
+      "apk_path": "res/font/geist.ttf",
+      "license": "SIL-OFL-1.1",
+      "bytes": 169056,
+      "sha256": "73894e0448cae90a92b6c2f8732b7bb9acb7b94c418bff559dad4a18e1de9659"
+    },
+    {
+      "repo_path": "android/app/src/main/res/font/geist_mono.ttf",
+      "apk_path": "res/font/geist_mono.ttf",
+      "license": "SIL-OFL-1.1",
+      "bytes": 171948,
+      "sha256": "d00e590b8eb3a59acc329b2d044fd143ae935090b7da33199ebee27cc7de8196"
+    },
+    {
+      "repo_path": "android/app/src/main/res/font/instrument_serif.ttf",
+      "apk_path": "res/font/instrument_serif.ttf",
+      "license": "SIL-OFL-1.1",
+      "bytes": 70012,
+      "sha256": "498efd461f6ddfcb7a111bf9a565709d2085d48201d501ead960d93e84ffbb88"
+    },
+    {
+      "repo_path": "android/app/src/main/res/font/instrument_serif_italic.ttf",
+      "apk_path": "res/font/instrument_serif_italic.ttf",
+      "license": "SIL-OFL-1.1",
+      "bytes": 71592,
+      "sha256": "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385"
+    }
+  ],
+  "dependency_contract": {
+    "com.google.android.gms:play-services-code-scanner": "16.1.0"
+  },
+  "remaining_blockers": [
+    "Training provenance remains unresolved: the explicit Apache-2.0 weight grant does not establish an all-permissive training-data chain. Exact checkpoint use of the author-linked CC-BY-NC-4.0 feature dataset and any effect on resulting rights remain unestablished.",
+    "Wake-word names convey no third-party trademark rights or endorsement.",
+    "Google SDK/service terms and complete resolved-dependency/native final-link applicability review remain required. This is not legal certification."
+  ],
+  "native_dependencies": [
+    {
+      "name": "kissfft",
+      "repository": "https://github.com/mborgerding/kissfft",
+      "commit": "7bce4153c6bc8aba2db0e889e576f9d00505cbe1",
+      "archive_url": "https://github.com/mborgerding/kissfft/archive/7bce4153c6bc8aba2db0e889e576f9d00505cbe1.tar.gz",
+      "archive_sha256": "7ad1124648a46977b16ddde03bf243bcd52fc452516c57016584ab4b4f2baadc",
+      "license": "BSD-3-Clause",
+      "license_source_url": "https://raw.githubusercontent.com/mborgerding/kissfft/7bce4153c6bc8aba2db0e889e576f9d00505cbe1/COPYING",
+      "license_sha256": "a2840585f8411be8e6826a31ef15ae65c950bd74a2437a73b013398a934ad0c6",
+      "license_document": "KissFFT-COPYING.txt"
+    },
+    {
+      "name": "tflite_micro",
+      "repository": "https://github.com/tensorflow/tflite-micro",
+      "commit": "2747abd5c82a95fb1624106a946fc671c31f16e8",
+      "archive_url": "https://github.com/tensorflow/tflite-micro/archive/2747abd5c82a95fb1624106a946fc671c31f16e8.tar.gz",
+      "archive_sha256": "6ac0c8ef35f267cf3baf05dc094d4fd158864d4cc830d490b752994e58add8c8",
+      "license": "Apache-2.0",
+      "license_source_url": "https://raw.githubusercontent.com/tensorflow/tflite-micro/2747abd5c82a95fb1624106a946fc671c31f16e8/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license_document": "Apache-2.0.txt"
+    },
+    {
+      "name": "flatbuffers",
+      "repository": "https://github.com/google/flatbuffers",
+      "commit": "0100f6a5779831fa7a651e4b67ef389a8752bd9b",
+      "archive_url": "https://github.com/google/flatbuffers/archive/0100f6a5779831fa7a651e4b67ef389a8752bd9b.tar.gz",
+      "archive_sha256": "85db3520acc4010b21984e2fb5ead3ec0d2c48df8009b614cb73562a82846554",
+      "license": "Apache-2.0",
+      "license_source_url": "https://raw.githubusercontent.com/google/flatbuffers/0100f6a5779831fa7a651e4b67ef389a8752bd9b/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license_document": "Apache-2.0.txt"
+    },
+    {
+      "name": "gemmlowp",
+      "repository": "https://github.com/google/gemmlowp",
+      "commit": "fda83bdc38b118cc6b56753bd540caa49e570745",
+      "archive_url": "https://github.com/google/gemmlowp/archive/fda83bdc38b118cc6b56753bd540caa49e570745.tar.gz",
+      "archive_sha256": "0f990732a0d541be514dfc5c1c45969626e9f349faa851baec01b9a9dcb4ae4b",
+      "license": "Apache-2.0",
+      "license_source_url": "https://raw.githubusercontent.com/google/gemmlowp/fda83bdc38b118cc6b56753bd540caa49e570745/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license_document": "Apache-2.0.txt"
+    },
+    {
+      "name": "ruy",
+      "repository": "https://github.com/google/ruy",
+      "commit": "54774a7a2cf85963777289193629d4bd42de4a59",
+      "archive_url": "https://github.com/google/ruy/archive/54774a7a2cf85963777289193629d4bd42de4a59.tar.gz",
+      "archive_sha256": "91993e7eb2aa56e62e9f4abc1158b2b46333574aa81f1a7431b06df80a42b7fa",
+      "license": "Apache-2.0",
+      "license_source_url": "https://raw.githubusercontent.com/google/ruy/54774a7a2cf85963777289193629d4bd42de4a59/LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license_document": "Apache-2.0.txt"
+    }
+  ],
+  "engine": {
+    "repository": "https://github.com/home-assistant/android",
+    "commit": "110809fb146429a613cabeaa0eb2165be57939b9",
+    "license": "Apache-2.0",
+    "cmake_repo_path": "android/app/src/main/cpp/microwakeword/CMakeLists.txt"
+  },
+  "ndk": {
+    "revision": "29.0.14206865",
+    "source_properties_sha256": "716f3518a923198cfab037abb32dc3f1b1f7e9a9dcdcda6b66be5906215d2658",
+    "source_url": "https://dl.google.com/android/repository/android-ndk-r29-linux.zip"
+  }
+}

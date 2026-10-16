@@ -1,0 +1,98 @@
+{
+  "_source": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "_fetched": "2026-10-03",
+  "_note": "Per-1M USD list rates, used when Hermes' built-in table has no price or cannot split 1h vs 5m cache writes. cache_write = 5-minute write, cache_write_1h = 1-hour write. Bedrock global profiles bill these rates; regional us./eu./apac. profiles add 10%. Full 1M context at standard rates.",
+  "anthropic": {
+    "opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "cache_write_1h": 8.0
+    },
+    "opus-5": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "cache_write_1h": 10.0
+    },
+    "sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "cache_write_1h": 4.0
+    },
+    "sonnet-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "cache_write_1h": 4.0
+    },
+    "fable-5-1": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_read": 0.25,
+      "cache_write": 12.5,
+      "cache_write_1h": 20.0
+    },
+    "fable-5": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_read": 1.0,
+      "cache_write": 12.5,
+      "cache_write_1h": 20.0
+    },
+    "opus-4-8": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "cache_write_1h": 10.0
+    },
+    "opus-4-7": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "cache_write_1h": 10.0
+    },
+    "opus-4-6": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "cache_write_1h": 10.0
+    },
+    "opus-4-5": {
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "cache_write_1h": 10.0
+    },
+    "sonnet-4-6": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.3,
+      "cache_write": 3.75,
+      "cache_write_1h": 6.0
+    },
+    "sonnet-4-5": {
+      "input": 3.0,
+      "output": 15.0,
+      "cache_read": 0.3,
+      "cache_write": 3.75,
+      "cache_write_1h": 6.0
+    },
+    "haiku-4-5": {
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.1,
+      "cache_write": 1.25,
+      "cache_write_1h": 2.0
+    }
+  }
+}

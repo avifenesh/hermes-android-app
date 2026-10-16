@@ -1,0 +1,96 @@
+Hermes for Android
+Copyright (c) 2026 Avi Fenesh
+Application code: MIT License. See LICENSE (in the APK: legal/Hermes-MIT.txt).
+Third-party software and assets retain their own licenses and terms. This is
+not a declaration that the entire APK is MIT or legally cleared for every use.
+
+Offline wake model: microWakeWord v2 Hey Jarvis
+----------------------------------------------
+Model author: Kevin Ahrendt (https://www.kevinahrendt.com/).
+Collection: Copyright 2024-2026 Open Home Foundation.
+Publisher: https://github.com/esphome/micro-wake-word-models
+Pinned commit: 40ff33f57f8fc6ad71a75ef085abbf742495b225
+Bundled files: microwakeword/hey_jarvis.tflite and microwakeword/hey_jarvis.json.
+Model ID: mww_hey_jarvis_v2. Changes to model and manifest: none.
+
+The publisher's README and NOTICE explicitly license the trained .tflite
+weights AND .json manifests under Apache-2.0, with no additional binary
+terms. This is an explicit weight grant, not an inference from a code license.
+The unmodified README, NOTICE and LICENSE are packaged as
+microWakeWord-models-README.md, microWakeWord-models-NOTICE.txt and
+microWakeWord-models-LICENSE.txt. Exact sources and SHA-256 hashes are in
+MODEL-PROVENANCE.txt and inventory.json.
+
+Training provenance remains unresolved. The upstream license clarification
+did not resolve the checkpoint's training-data chain. An author-linked
+negative-feature dataset is marked CC-BY-NC-4.0; exact use by this checkpoint
+and the effect, if any, on resulting weight rights have not been established.
+This is not a claim that all training inputs are permissively licensed or a
+legal certification. Do not conflate this caveat with the removed openWakeWord
+CC BY-NC-SA classifier: that classifier, both ONNX preprocessing/backbone
+assets and ONNX Runtime are not part of the replacement shipping inventory.
+The artifact checker must confirm their absence from each delivered APK.
+Wake-word names identify detection targets only. No affiliation, endorsement
+or rights to third-party trademarks are granted.
+
+Android engine and native dependencies
+---------------------------------------
+The microWakeWord JNI/C++ integration is adapted from Home Assistant Android
+at 110809fb146429a613cabeaa0eb2165be57939b9, Apache-2.0.
+Project: https://github.com/home-assistant/android
+Attribution: Home Assistant Android contributors. Upstream license is packaged
+as Home-Assistant-Android-LICENSE.txt. Hermes adaptations include its package,
+logging, asset/lifecycle integration and build wiring; these are not upstream
+unmodified source. Preserve source headers and change notices when vendoring.
+
+The native build uses TensorFlow Lite Micro (TFLM) and its algorithmic
+microfrontend, KissFFT, FlatBuffers, gemmlowp and ruy. Their exact source
+commits, archive hashes and license sources are recorded in
+NATIVE-DEPENDENCIES.txt and inventory.json. Apache-2.0 full texts and upstream
+attribution files are bundled. KissFFT requires BSD-3-Clause, including Mark
+Borgerding's copyright; BOTH its COPYING notice and full LICENSES/BSD-3-Clause
+text are packaged. COPYING alone is not the full BSD license.
+
+Geist and Geist Mono fonts
+--------------------------
+Android: android/app/src/main/res/font/geist.ttf (1.800), geist_mono.ttf (1.701).
+Source design copies: design/v2/fonts/f02.woff2 through f07.woff2 (Geist/Geist Mono).
+Project: https://github.com/vercel/geist-font
+Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
+License: SIL Open Font License 1.1. Full original notice and text retained in
+licenses/OFL-1.1.txt. The original copyright/author wording is not replaced
+with a marketing credit for Vercel or Basement Studio.
+
+Instrument Serif font
+---------------------
+Android: android/app/src/main/res/font/instrument_serif.ttf and
+instrument_serif_italic.ttf (1.000).
+Source design copies: design/v2/fonts/f00.woff2 and f01.woff2.
+Project: https://github.com/Instrument/instrument-serif
+Copyright 2022 The Instrument Serif Project Authors (https://github.com/Instrument/instrument-serif)
+License: SIL Open Font License 1.1. Full original notice and text retained in
+licenses/OFL-1.1-Instrument.txt.
+
+Other Android dependencies and Google terms
+-------------------------------------------
+Apache-2.0 text is included for Apache-licensed components, including AndroidX
+native graphics-path:1.0.1 (libandroidx.graphics.path.so) and
+androidx.datastore:datastore-core-android:1.1.7 (libdatastore_shared_counter.so),
+as identified in the audited release dependency graph. Dependency versions and
+retained META-INF notices must be rechecked on each final artifact. These selected
+notices are not an exhaustive resolved-dependency or native constituent SBOM.
+
+Google code scanner com.google.android.gms:play-services-code-scanner:16.1.0
+is listed under ML Kit Terms of Service in its official Maven POM, NOT MIT or
+Apache-2.0. See licenses/Google-ML-Kit-NOTICE.txt for separate terms and privacy
+references. Google service/API terms are not replaced by the app's MIT license
+or by the license of documentation describing those services.
+
+Offline access and verification
+-------------------------------
+Android assets legal/ contain this NOTICE and the referenced license texts,
+provenance, and inventory. In the app: Me > Licenses. The reader uses packaged
+assets, not a web page or server request, and is also available before pairing through the first-run Licenses button. The inventory records source URLs and hashes.
+Run python3 licenses/check_legal.py, then after a build run it with --apk PATH
+against the exact artifact to check packaged bytes. Source checks alone do not
+prove APK packaging, UI rendering, or legal compliance.

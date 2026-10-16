@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes phone control</string>
+    <string name="phone_service_desc">Lets your Hermes agent read the screen and tap, type and swipe on this phone. It only acts while Control is turned on in the app (Me, This phone, Control).</string>
+</resources>

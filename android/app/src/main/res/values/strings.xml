@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_desc">Agents waiting on you, what\'s running, and one-tap Talk</string>
+    <string name="tile_talk">Talk</string>
+    <string name="sc_talk">Talk</string>
+    <string name="sc_new">New chat</string>
+    <string name="sc_fleet">Fleet</string>
+    <string name="report_problem">Report a problem</string>
+    <string name="report_message">Report message</string>
+    <string name="report_include">Include selected message (optional)</string>
+    <string name="report_notice">Review a support email to hello@tiyuvta.ai. Opening your mail app shares the draft with it; you choose whether to send.</string>
+    <string name="report_subject">Hermes issue report</string>
+    <string name="report_email">hello@tiyuvta.ai</string>
+</resources>

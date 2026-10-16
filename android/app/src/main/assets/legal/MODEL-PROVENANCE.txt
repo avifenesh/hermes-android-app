@@ -1,0 +1,58 @@
+microWakeWord v2 Hey Jarvis: shipping model provenance
+=====================================================
+Publisher repository: https://github.com/esphome/micro-wake-word-models
+Pinned commit: 40ff33f57f8fc6ad71a75ef085abbf742495b225
+Model author: Kevin Ahrendt, https://www.kevinahrendt.com/
+Collection copyright: 2024-2026 Open Home Foundation
+Model ID: mww_hey_jarvis_v2
+Local directory: android/app/src/main/assets/microwakeword/
+Changes: none to either file; byte-identical publisher weights and manifest.
+No separately trained embedding or melspectrogram model is used.
+
+hey_jarvis.tflite
+Source: https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/hey_jarvis.tflite
+SHA-256: 21a7976add39ee24ec96c63d96b7aaa18e24d1d9824b963e451da8feb4b78b77
+Bytes: 52272
+
+hey_jarvis.json
+Source: https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/models/v2/hey_jarvis.json
+SHA-256: b153867d818675d8abcc9dace474afe7f83551ae0d5a9b1d71a98681320185af
+Bytes: 388
+The unchanged manifest identifies author Kevin Ahrendt and model version 2.
+
+Explicit per-weight grant: Apache-2.0
+-------------------------------------
+The pinned publisher README says:
+"These terms cover the entire contents of this repository, including the trained model weights (`.tflite`) and their manifests (`.json`). There are no separate or additional terms for the model binaries."
+The publisher NOTICE independently includes weights and manifests in the grant.
+Read the complete original documents, not only this quote:
+https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/README.md
+https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/NOTICE
+https://raw.githubusercontent.com/esphome/micro-wake-word-models/40ff33f57f8fc6ad71a75ef085abbf742495b225/LICENSE
+Offline copies: microWakeWord-models-README.md, microWakeWord-models-NOTICE.txt,
+microWakeWord-models-LICENSE.txt. No third-party trademark rights are granted.
+
+Training-provenance caveat, not a replacement of the public weight grant
+------------------------------------------------------------------------
+The upstream clarification was merged in PR 33:
+https://github.com/esphome/micro-wake-word-models/pull/33
+Its training-provenance request remains unresolved. Model V2 introduction:
+https://github.com/esphome/micro-wake-word-models/pull/7
+The author-linked training feature dataset is marked CC-BY-NC-4.0:
+https://huggingface.co/datasets/kahrendt/microwakeword
+It lists CHiME6/DipCo, FMA/FSD50K/WHAM and LibriSpeech/VOiCES sources.
+The exact dataset/checkpoint usage and source-by-source rights have not been
+audited. Neither use of that NC dataset for this exact model nor attachment of
+its conditions to the weights has been established here. Do not claim either
+conclusion, or that all training data is permissive. An explicit publisher
+weight grant is evidence of its distribution terms, not clearance of every
+possible underlying right. Seek provenance/rights review if the release requires
+a fully audited permissive training chain. These notices are not legal advice.
+
+Replacement boundary
+--------------------
+This is a different detector, not a conversion or rename of openWakeWord's
+CC BY-NC-SA Hey Jarvis v0.1. The release must contain no old .onnx assets,
+ONNX Runtime native libraries or ai.onnxruntime Java classes. check_legal.py
+checks source inventory and, with --apk, the exact artifact. No final APK,
+wake accuracy, battery use or device behavior is certified by this document.
