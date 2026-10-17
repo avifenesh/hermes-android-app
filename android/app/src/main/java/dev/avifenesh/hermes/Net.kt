@@ -24,7 +24,14 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okio.Buffer
+import okhttp3.RequestBody
+import okio.BufferedSink
+import okio.ForwardingSink
+import okio.HashingSink
+import okio.blackholeSink
+import okio.buffer
+import java.io.File
+import java.io.InputStream
 import org.json.JSONObject
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -196,6 +203,73 @@ internal suspend fun <T> Call.awaitBody(read: (Response) -> T): T = suspendCance
     })
 }
 
+/** Hash the serialized wire body, not metadata; only an Okio segment is buffered. */
+internal fun requestBodySha256(body: RequestBody?, checkpoint: () -> Unit = {}): String {
+    checkpoint()
+    if (body != null && (body.isOneShot() || body.isDuplex()))
+        throw IOException("Signing requires a repeatable request body")
+    val hash = HashingSink.sha256(blackholeSink())
+    val sink = object : ForwardingSink(hash) {
+        override fun write(source: okio.Buffer, byteCount: Long) {
+            checkpoint()
+            super.write(source, byteCount)
+        }
+    }.buffer()
+    sink.use { body?.writeTo(it) }
+    checkpoint()
+    return hash.hash.hex()
+}
+
+/** Copy once from potentially non-repeatable providers; caller owns the completed snapshot. */
+internal fun spoolUpload(input: InputStream, directory: File, checkpoint: () -> Unit): File {
+    var temp: File? = null
+    try {
+        input.use { source ->
+            checkpoint()
+            val file = File.createTempFile("hm-upload-", ".part", directory)
+            temp = file
+            file.outputStream().use { out ->
+                val bytes = ByteArray(64 * 1024)
+                while (true) {
+                    checkpoint()
+                    val count = source.read(bytes)
+                    checkpoint()
+                    if (count < 0) break
+                    out.write(bytes, 0, count)
+                }
+            }
+            checkpoint()
+            return file
+        }
+    } catch (e: Throwable) {
+        temp?.delete()
+        throw e
+    }
+}
+
+/** Only use with a private, completed snapshot kept alive until the call finishes. */
+internal fun uploadFileBody(file: File, mime: String, checkpoint: () -> Unit): RequestBody = object : RequestBody() {
+    private val length = file.length()
+    override fun contentType() = mime.toMediaType()
+    override fun contentLength() = length
+    override fun writeTo(sink: BufferedSink) {
+        checkpoint()
+        file.inputStream().use { input ->
+            val bytes = ByteArray(64 * 1024)
+            var sent = 0L
+            while (true) {
+                checkpoint()
+                val count = input.read(bytes)
+                checkpoint()
+                if (count < 0) break
+                sink.write(bytes, 0, count)
+                sent += count
+            }
+            if (sent != length) throw IOException("Upload snapshot size changed")
+        }
+    }
+}
+
 object Api {
     internal val epoch = SessionEpoch()
     private data class Gate(val epoch: SessionEpoch, val generation: Long)
@@ -231,11 +305,16 @@ object Api {
         val tok = identity.token
         if (tok != null) {
             val ts = r.header("X-HM-Ts") ?: (System.currentTimeMillis() / 1000).toString()
-            val body = r.body?.let { val buf = Buffer(); it.writeTo(buf); buf.readByteArray() } ?: ByteArray(0)
+            val digest = requestBodySha256(r.body) {
+                if (chain.call().isCanceled()) throw IOException("Canceled")
+                checkIdentity(identity)
+            }
             val q = r.url.encodedQuery
-            val canon = "${r.method}\n${r.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n${sha256(body)}"
+            val canon = "${r.method}\n${r.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n$digest"
             b.header("Authorization", "Bearer $tok").header("X-HM-Ts", ts).header("X-HM-Sig", Keys.sign(canon.toByteArray()))
         }
+        checkIdentity(identity)
+        if (chain.call().isCanceled()) throw IOException("Canceled")
         return chain.proceed(b.build())
     }
 
@@ -279,6 +358,18 @@ object Api {
         exec(epoch.commit(generation) {
             request("/v1/upload?name=${Uri.encode(name)}&mime=${Uri.encode(mime)}").post(bytes.toRequestBody(mime.toMediaType())).build()
         })
+    /** The media helpers own and retain this private snapshot through completion/cancellation. */
+    internal suspend fun upload(name: String, mime: String, snapshot: File, generation: Long): JSONObject {
+        val context = currentCoroutineContext()
+        val body = uploadFileBody(snapshot, mime) {
+            context.ensureActive()
+            epoch.commit(generation) { }
+        }
+        return exec(epoch.commit(generation) {
+            request("/v1/upload?name=${Uri.encode(name)}&mime=${Uri.encode(mime)}").post(body).build()
+        })
+    }
+
     /** Preserve positional and trailing progress-lambda callers without metadata. */
     suspend fun download(p: String, dest: java.io.File, progress: (Float) -> Unit) =
         download(p, dest, null, progress)

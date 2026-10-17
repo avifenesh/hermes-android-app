@@ -1,7 +1,7 @@
 name: mobile
 label: Hermes Mobile
 kind: platform
-version: 0.16.2
+version: 0.16.7
 description: >
   Native Android client for Hermes. Serves a small authenticated HTTP + SSE API
   (bind to localhost, expose over Tailscale) that the Hermes Android app uses for

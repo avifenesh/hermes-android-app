@@ -10,7 +10,7 @@ For ordinary installation help, use the same address with a sanitized descriptio
 
 ## Supported security baseline
 
-The public distribution target is the full Android package **`dev.avifenesh.hermes`**, on **Android 12+**. The **0.16.4 / versionCode 36** candidate has [artifact-specific verification](docs/release-0.16.4.md); availability is shown on the Releases page. Use the latest qualified signed release and its matching bundled plugin. Older releases do not have a promised backport/support window. Play and reviewer hosting are deferred and are not prerequisites for GitHub sideloading.
+The public distribution target is the full Android package **`dev.avifenesh.hermes`**, on **Android 12+**. The **0.16.7 / versionCode 39** candidate has [artifact-specific verification](docs/release-0.16.7.md); availability is shown on the Releases page. Use the latest qualified signed release and its matching bundled plugin. Older releases do not have a promised backport/support window. Play and reviewer hosting are deferred and are not prerequisites for GitHub sideloading.
 
 The server security minimum is **`security.signature_replay: 2`**, advertised by `/v1/health` and authenticated metadata. Missing or older values do not meet this baseline. Install the **entire** bundled `server/mobile/` directory, not selected files from mixed versions, and activate it through your gateway's supported service control. An app update alone does not repair an old gateway. See [installation and updates](README.md#install-the-gateway-plugin) and the [replay security design](docs/request-replay-security.md).
 
@@ -21,9 +21,9 @@ The marker is not an attestation and does not establish that a server is trustwo
 Use the APK and checksum from the same repository release. Compare `sha256sum` output to that release's APK checksum, then verify the signature using Android SDK Build Tools:
 
 ```sh
-APK=Hermes-0.16.4.apk  # replace with the exact published filename
+APK=Hermes-0.16.7.apk  # replace with the exact published filename
 printf '%s  %s\n' \
-  5dc20a1dda2e7659030538041707c5b2c1047ec7bac9c076dd37cd28c22c884e "$APK" | sha256sum --check -
+  b4388d46bc943a79ac0b5705eb79b9cd0987d97ff7fe2a35d26299c5a0ee2021 "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 
@@ -42,6 +42,7 @@ A certificate fingerprint identifies a signer; it is not the file hash. Comparin
 - **Pairing:** one-use, expiring codes enroll device and approval public keys. Keep links/QRs private. Device tokens are revocable. Revoke a lost phone with `hermes mobile revoke <device-id>` against the correct home/profile.
 - **Requests:** a P-256 device signature binds method, raw path/query, timestamp and body hash. Persistent normalized signature claims prevent exact and equivalent-signature replays. The clock and replay database are part of the security boundary.
 - **Power-widening actions:** a separate Android Keystore key, unlocked with biometrics or device credentials, signs the exact guarded action. Request authorization is not a substitute for the approval signature. Read each confirmation before approving.
+- **Kitty input:** named keys, clicks and remote scrolling always need a fresh approval proof under the separate `fleet-input` domain, bound to the exact agent and raw request-body hash. A fixed server-side helper checks foreground identity and uses Kitty's native encoders. Clicks and scrolling reject stale frames. Mouse-disabled terminal apps receive no fabricated mouse escape text; use keys instead.
 - **Full-flavor phone control:** Accessibility can read visible screen content and act in other apps. It requires local opt-in, server arming and a visible Stop notification. Stop locally, disable the service or revoke the device when access is no longer needed. Password/protected-screen restrictions are defenses, not a guarantee that all private content is hidden.
 - **Push:** FCM sends wake hints/identifiers, not chat or phone-command payloads. Google still handles tokens and service/SDK data. Commands are fetched over the signed API by the target armed device. FCM configuration is optional; it is not a security bypass or a delivery guarantee.
 - **Storage/providers:** app pairing keys use Android Keystore; gateway data and configured providers have separate storage and retention. Revocation and unpairing are not deletion. System speech recognition can use cloud processing. See [privacy](docs/privacy-policy.md).

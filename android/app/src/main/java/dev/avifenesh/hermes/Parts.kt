@@ -96,6 +96,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import androidx.compose.ui.graphics.asAndroidBitmap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -240,22 +242,34 @@ fun Elapsed(since: Double, style: androidx.compose.ui.text.TextStyle) {
 fun mediaDir(c: Context) = File(c.cacheDir, "media").apply { mkdirs() }
 fun newMediaFile(c: Context, prefix: String, ext: String) = File(mediaDir(c), "$prefix-${System.currentTimeMillis()}$ext")
 
-suspend fun uploadUri(c: Context, u: Uri, kind: String? = null, generation: Long = Api.epoch.capture()): JSONObject {
-    Api.epoch.commit(generation) { }
+suspend fun uploadUri(c: Context, u: Uri, kind: String? = null, generation: Long = Api.epoch.capture()): JSONObject = withContext(Dispatchers.IO) {
+    val context = kotlinx.coroutines.currentCoroutineContext()
+    val checkpoint = { context.ensureActive(); Api.epoch.commit(generation) { }; Unit }
+    checkpoint()
     val cr = c.contentResolver
     val mime = cr.getType(u) ?: "application/octet-stream"
     var name = "file"
     runCatching { cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) name = it.getString(0) ?: name } }
-    val bytes = withContext(Dispatchers.IO) { cr.openInputStream(u)!!.use { it.readBytes() } }
-    val o = Api.upload(name, mime, bytes, generation)
-    o.put("kind", kind ?: when { mime.startsWith("image/") -> "image"; mime.startsWith("audio/") -> "voice"; else -> "file" })
-    return o
+    checkpoint()
+    val snapshot = spoolUpload(cr.openInputStream(u) ?: throw java.io.IOException("Couldn't open attachment"), c.cacheDir, checkpoint)
+    try {
+        Api.upload(name, mime, snapshot, generation).put("kind", kind ?: when {
+            mime.startsWith("image/") -> "image"; mime.startsWith("audio/") -> "voice"; else -> "file"
+        })
+    } finally { snapshot.delete() }
 }
 
 suspend fun uploadFile(f: File, mime: String, kind: String): JSONObject {
     val generation = Api.epoch.capture()
-    val bytes = withContext(Dispatchers.IO) { f.readBytes() }
-    return Api.upload(f.name, mime, bytes, generation).put("kind", kind)
+    return withContext(Dispatchers.IO) {
+        val context = kotlinx.coroutines.currentCoroutineContext()
+        val checkpoint = { context.ensureActive(); Api.epoch.commit(generation) { }; Unit }
+        checkpoint()
+        // Snapshot files too: a recorder/caller may change the original between signing and retries.
+        val snapshot = spoolUpload(f.inputStream(), Hub.app.cacheDir, checkpoint)
+        try { Api.upload(f.name, mime, snapshot, generation).put("kind", kind) }
+        finally { snapshot.delete() }
+    }
 }
 
 suspend fun fetchMedia(c: Context, name: String, fileName: String?, size: Long? = null, progress: (Float) -> Unit = {}): File = withContext(Dispatchers.IO) {
@@ -321,9 +335,29 @@ object Player {
 }
 
 object Img {
-    val cache = LruCache<String, ImageBitmap>(40)
+    // Android's bitmap-cache guide recommends maxMemory / 8. Count allocation bytes,
+    // not images or width*height (which misses reused bitmap backing allocations).
+    // https://developer.android.com/topic/performance/graphics/cache-bitmap
+    val cache = object : LruCache<String, ImageBitmap>((Runtime.getRuntime().maxMemory() / 8)
+        .coerceIn(1, Int.MAX_VALUE.toLong()).toInt()) {
+        override fun sizeOf(key: String, value: ImageBitmap) = value.asAndroidBitmap().allocationByteCount
+        // Never recycle: visible Compose images may still hold an evicted bitmap.
+    }
+    private var trimGeneration = 0L
+    fun trimMemory(level: Int) = synchronized(cache) {
+        trimGeneration++ // An in-flight decode must not immediately refill a trimmed cache.
+        when {
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> cache.evictAll()
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> cache.trimToSize(cache.size() / 2)
+            else -> Unit
+        }
+    }
     suspend fun load(key: String, remote: Boolean): ImageBitmap? = withContext(Dispatchers.IO) {
-        cache.get(key)?.let { return@withContext it }
+        val generation = synchronized(cache) {
+            cache.get(key)?.let { return@withContext it }
+            trimGeneration
+        }
         val bytes = if (remote) Api.plain.newCall(Request.Builder().url(key).build()).execute().use { it.body.bytes() }
         else Api.bytes("/v1/media/" + Uri.encode(key))
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -331,7 +365,11 @@ object Img {
         var s = 1
         while (o.outWidth / s > 1600 || o.outHeight / s > 1600) s *= 2
         val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = s }) ?: return@withContext null
-        bmp.asImageBitmap().also { cache.put(key, it) }
+        bmp.asImageBitmap().also {
+            synchronized(cache) {
+                if (generation == trimGeneration && bmp.allocationByteCount <= cache.maxSize()) cache.put(key, it)
+            }
+        }
     }
 }
 
