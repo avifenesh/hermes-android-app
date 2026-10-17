@@ -151,7 +151,7 @@ fun WakeScreen(act: WakeActivity) {
     var err by remember { mutableStateOf<String?>(null) }
     val tick = rememberTick(1000)
     act.mode = mode
-    LaunchedEffect(Unit) {
+    VisibleEffect(Unit) {
         while (true) {
             try { Wake.pull(ticket) } catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { Api.epoch.commit(ticket) { Wake.offline.value = true } }

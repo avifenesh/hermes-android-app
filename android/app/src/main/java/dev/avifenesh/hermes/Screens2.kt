@@ -76,8 +76,8 @@ fun PulseScreen() {
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
     suspend fun load() { runCatching { pulse = Api.get("/v1/pulse"); err = null }.onFailure { err = it.message } }
-    val top = Ui.stack.isEmpty()
-    LaunchedEffect(top) { while (top) { load(); delay(15000) } }
+    val top = Ui.stack.isEmpty() && !Ui.composeOpen.value
+    VisibleEffect(top) { while (top) { load(); delay(15000) } }
     val pending = appr.values.filter { it.state == "pending" }.sortedByDescending { it.ts }
     val recent = chats.values.filter { !it.archived && it.lastRole != "user" && it.updated > nowS() - 86400 }.sortedByDescending { it.updated }.take(8)
     val live = pulse?.optJSONArray("live_sessions").objs().filter { it.str("source") != "mobile" }
@@ -158,8 +158,8 @@ fun CronScreen() {
     var err by remember { mutableStateOf<String?>(null) }
     var showOff by remember { mutableStateOf(false) }
     suspend fun load() { runCatching { jobs = Api.get("/v1/cron").optJSONArray("jobs").objs(); err = null }.onFailure { err = it.message } }
-    val top = Ui.stack.isEmpty()
-    LaunchedEffect(top) { while (top) { load(); delay(30000) } }  // reload when returning from a job/editor
+    val top = Ui.stack.isEmpty() && !Ui.composeOpen.value
+    VisibleEffect(top) { while (top) { load(); delay(30000) } }  // reload when returning from a job/editor
     val all = jobs.orEmpty().sortedBy { parseTime(it.opt("next_run_at")) ?: Double.MAX_VALUE }
     val on = all.filter { it.optBoolean("enabled", true) }
     val off = all.filter { !it.optBoolean("enabled", true) }

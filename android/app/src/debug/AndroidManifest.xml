@@ -4,12 +4,17 @@
     xmlns:tools="http://schemas.android.com/tools">
     <application android:networkSecurityConfig="@xml/debug_network">
         <activity android:name=".UiAuditActivity" android:exported="true" />
+        <activity android:name=".BatteryPollingActivity" android:exported="false" />
         <activity android:name=".WakeIsolationProbeActivity" android:exported="true" />
         <activity android:name=".MachineStorageProbeActivity" android:exported="true" />
         <activity android:name=".DownloadIntegrityProbeActivity" android:exported="true" />
         <activity android:name=".RedirectIsolationProbeActivity" android:exported="true" />
     </application>
     <!-- Invoke explicitly on an isolated emulator; excluded from release. -->
+    <instrumentation
+        android:name=".BatteryPollingProbe"
+        android:targetPackage="${applicationId}"
+        android:label="Background polling regression probe" />
     <instrumentation
         android:name=".VoiceIngressProbe"
         android:targetPackage="${applicationId}"

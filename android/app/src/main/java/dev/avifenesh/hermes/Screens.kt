@@ -614,7 +614,7 @@ fun RunScreen(cid: String) {
     var retry by remember(cid) { mutableStateOf(0) }
     var steer by rememberSaveable(cid) { mutableStateOf("") }
     val since = work[cid]
-    LaunchedEffect(cid, all[cid]?.size, since, retry) {
+    VisibleEffect(cid, all[cid]?.size, since, retry) {
         loadErr = null
         do {
             try { info = Api.get("/v1/chats/$cid/run"); loadErr = null }

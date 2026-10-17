@@ -223,7 +223,10 @@ fun sizeStr(n: Long): String = when {
 @Composable
 fun rememberTick(ms: Long = 1000): Long {
     var t by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(ms) { while (true) { delay(ms); t = System.currentTimeMillis() } }
+    VisibleEffect(ms) {
+        t = System.currentTimeMillis()
+        while (true) { delay(ms); t = System.currentTimeMillis() }
+    }
     return t
 }
 

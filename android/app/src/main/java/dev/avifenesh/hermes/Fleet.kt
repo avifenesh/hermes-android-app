@@ -196,8 +196,9 @@ fun FleetSection() {
     val snap by Fleet.snap.collectAsState()
     val err by Fleet.err.collectAsState()
     var showAll by remember { mutableStateOf(false) }
-    LaunchedEffect(showAll) {
-        while (true) {
+    val visible = Ui.stack.isEmpty() && !Ui.composeOpen.value
+    VisibleEffect(showAll, visible) {
+        while (visible) {
             try { Fleet.load(showAll) } catch (e: CancellationException) { throw e } catch (e: Exception) { Fleet.err.value = e.message }
             delay(if (showAll) 20000 else 6000)
         }
@@ -259,7 +260,7 @@ fun AgentScreen(id: String, name: String) {
     var busy by remember { mutableStateOf(false) }
     val list = rememberLazyListState()
     LaunchedEffect(id, feat.fleet) { if (feat.fleet) { Fleet.cancel(Hub.app, id); runCatching { Fleet.load(true) } } }
-    LaunchedEffect(id, feat.fleet) {
+    VisibleEffect(id, feat.fleet) {
         lines = emptyList(); err = null
         while (feat.fleet) {
             runCatching { Fleet.tail(id, 80) }.onSuccess { o ->
