@@ -27,8 +27,8 @@ android {
         applicationId = "dev.avifenesh.hermes"
         minSdk = 31
         targetSdk = 36
-        versionCode = 37
-        versionName = "0.16.5"
+        versionCode = 38
+        versionName = "0.16.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         externalNativeBuild {

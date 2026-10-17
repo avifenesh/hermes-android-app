@@ -31,7 +31,7 @@ over an authenticated API; your phone, gateway and configured providers keep the
   explicitly granted Accessibility service, with a persistent Stop notification and device
   authentication. Off by default.
 
-[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.5.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
+[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.6.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
 
 ## Install the full APK
 
@@ -45,9 +45,9 @@ Before installation, verify the downloaded APK using `sha256sum` and Android SDK
 
 ```sh
 # Set APK to the file you downloaded. Compare this digest with its release checksum.
-APK=Hermes-0.16.5.apk
+APK=Hermes-0.16.6.apk
 printf '%s  %s\n' \
-  37f658750c225eddde518d17c5da5193d2e3013d79b74ce841206853f5fdc91b "$APK" | sha256sum --check -
+  975b448d7ab3aee3a431cb3b15ced8daa897887b66aad327027837cd8a08c008 "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 

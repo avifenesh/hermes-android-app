@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <application android:networkSecurityConfig="@xml/debug_network">
         <activity android:name=".UiAuditActivity" android:exported="true" />
+        <activity android:name=".MarkdownProbeActivity" android:exported="true" />
         <activity android:name=".BatteryPollingActivity" android:exported="false" />
         <activity android:name=".WakeIsolationProbeActivity" android:exported="true" />
         <activity android:name=".MachineStorageProbeActivity" android:exported="true" />

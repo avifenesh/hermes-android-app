@@ -364,7 +364,6 @@ private val reHead = Regex("^(#{1,6})\\s+(.*)$")
 private val reItem = Regex("^(\\s*)([-*+•]|\\d{1,3}[.)])\\s+(.*)$")
 private val reRule = Regex("^\\s*([-*_])(\\s*\\1){2,}\\s*$")
 private val reSep = Regex("^:?-{2,}:?$")
-private val reInline = Regex("(`[^`\\n]+`)|(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\s][^*\\n]*\\*)|(\\[[^\\]\\n]+\\]\\([^)\\s]+\\))|(https?://[^\\s)\\]>]+)")
 
 fun parseMd(src: String): List<Blk> {
     val out = ArrayList<Blk>()
@@ -410,27 +409,204 @@ fun parseMd(src: String): List<Blk> {
 
 fun safeLink(u: String): Boolean = u.startsWith("https://", true) || u.startsWith("http://", true) || u.startsWith("mailto:", true)
 
-fun inline(s: String, p: Pal): AnnotatedString = buildAnnotatedString {
-    var i = 0
-    val link = TextLinkStyles(SpanStyle(color = p.acct, textDecoration = TextDecoration.Underline))
-    for (m in reInline.findAll(s)) {
-        append(s.substring(i, m.range.first))
-        val v = m.value
-        when {
-            v.startsWith("`") -> withStyle(SpanStyle(fontFamily = Mono, background = p.s3, fontSize = 0.86.em)) { append("\u2009" + v.trim('`') + "\u2009") }
-            v.startsWith("**") -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(v.substring(2, v.length - 2)) }
-            v.startsWith("*") -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(v.substring(1, v.length - 1)) }
-            v.startsWith("[") -> {
-                val t = v.substring(1, v.indexOf("]("))
-                val u = v.substring(v.indexOf("](") + 2, v.length - 1)
-                // Agent-written text is untrusted: only web links are tappable (no hermes://pair, intent:, file:, content:)
-                if (safeLink(u)) withLink(LinkAnnotation.Url(u, link)) { append(t) } else append("$t ($u)")
-            }
-            else -> if (safeLink(v)) withLink(LinkAnnotation.Url(v, link)) { append(v) } else append(v)
+// Delimiter matching is indexed once per render range, never rescanned from each
+// opener. Three reverse emphasis tables skip code/links and nested bold in O(1).
+// Each pass is O(n) time/space; the existing literal-fallback nesting bound makes
+// rendering O(32 * n), including substring/index construction, on untrusted text.
+internal data class InlineLink(val labelEnd: Int, val urlStart: Int, val urlEnd: Int, val end: Int)
+
+internal class InlineDelimiters(private val s: String) {
+    // Deterministic work counter for adversarial-input regression tests.
+    var indexedSteps: Long = 0
+        private set
+    val tickLength = IntArray(s.length)
+    val codeEnd = IntArray(s.length) { -1 }
+    private val labelEnd = IntArray(s.length) { -1 }
+    private val parenEnd = IntArray(s.length) { -1 }
+    private val emphasis = Array(3) { IntArray(s.length + 1) { -1 } }
+
+    init {
+        // Maximal tick runs only: unmatched runs are emitted as one literal token.
+        // Equal-length runs are paired using the next run on the same line.
+        var i = 0
+        while (i < s.length) {
+            indexedSteps++
+            if (s[i] != '`') { i++; continue }
+            val start = i
+            while (i < s.length && s[i] == '`') { indexedSteps++; i++ }
+            tickLength[start] = i - start
         }
-        i = m.range.last + 1
+        val nextTick = IntArray(s.length + 1)
+        val tickLine = IntArray(s.length + 1) { -1 }
+        var line = 0
+        for (at in s.lastIndex downTo 0) {
+            indexedSteps++
+            if (s[at] == '\n') line++
+            val count = tickLength[at]
+            if (count > 0) {
+                if (tickLine[count] == line) codeEnd[at] = nextTick[count] + count
+                nextTick[count] = at
+                tickLine[count] = line
+            }
+        }
+        // Each bracket/parenthesis is pushed and popped at most once. Destinations
+        // stop at whitespace; labels stop at newlines and ignore escapes/code.
+        val brackets = ArrayList<Int>()
+        i = 0
+        while (i < s.length) {
+            indexedSteps++
+            when {
+                s[i] == '\n' -> brackets.clear()
+                s[i] == '\\' -> { i += 2; continue }
+                codeEnd[i] > i -> { i = codeEnd[i]; continue }
+                s[i] == '[' -> brackets.add(i)
+                s[i] == ']' && brackets.isNotEmpty() -> labelEnd[brackets.removeAt(brackets.lastIndex)] = i
+            }
+            i++
+        }
+        val parens = ArrayList<Int>()
+        for (at in s.indices) {
+            indexedSteps++
+            when {
+                s[at].isWhitespace() -> parens.clear()
+                s[at] == '(' -> parens.add(at)
+                s[at] == ')' && parens.isNotEmpty() -> parenEnd[parens.removeAt(parens.lastIndex)] = at
+            }
+        }
+        // A table entry is the next closing delimiter at/after this position.
+        // All dependencies point rightward, so even failed searches are O(1).
+        for (at in s.lastIndex downTo 0) {
+            val target = linkAt(at)
+            for (width in 1..3) {
+                indexedSteps++
+                val table = emphasis[width - 1]
+                fun after(end: Int): Int = table[end.coerceAtMost(s.length)]
+                val skip = when {
+                    s[at] == '\n' -> -1
+                    s[at] == '\\' -> after(at + 2)
+                    codeEnd[at] > at -> after(codeEnd[at])
+                    target != null -> after(target.end)
+                    // A complete nested triple run belongs to its own span, not
+                    // to a surrounding single/double-star closer.
+                    width < 3 && s.startsWith("***", at) && canOpen(at, 3) &&
+                        emphasisEnd(at, 3) > at + 3 -> after(emphasisEnd(at, 3) + 3)
+                    // Recognize nested bold BEFORE testing the preceding space.
+                    width == 1 && s.startsWith("**", at) -> {
+                        if (s.startsWith("***", at) && at > 0 && !s[at - 1].isWhitespace()) at
+                        else {
+                            val end = emphasisEnd(at, 2)
+                            after(if (end > at + 2 && canOpen(at, 2)) end + 2 else at + 2)
+                        }
+                    }
+                    // In **outer *inner*** the first final star closes italic;
+                    // the remaining two close bold, rather than eating italic.
+                    width == 2 && s[at] == '*' && !s.startsWith("**", at) && canOpen(at, 1) -> {
+                        val end = emphasisEnd(at, 1)
+                        if (end > at + 1) after(end + 1) else after(at + 1)
+                    }
+                    s.startsWith(when (width) { 1 -> "*"; 2 -> "**"; else -> "***" }, at) &&
+                        at > 0 && !s[at - 1].isWhitespace() -> at
+                    else -> after(at + 1)
+                }
+                table[at] = skip
+            }
+        }
     }
-    append(s.substring(i))
+
+    private fun canOpen(start: Int, width: Int): Boolean =
+        start + width < s.length && !s[start + width].isWhitespace()
+
+    fun emphasisEnd(start: Int, width: Int): Int =
+        emphasis[width - 1][(start + width).coerceAtMost(s.length)]
+
+    fun linkAt(start: Int): InlineLink? {
+        val close = labelEnd[start]
+        if (close < 0 || s.getOrNull(close + 1) != '(') return null
+        val end = parenEnd[close + 1]
+        return if (end < 0) null else InlineLink(close, close + 2, end, end + 1)
+    }
+}
+
+private fun inlineUrlEnd(s: String, start: Int): Int {
+    var i = start
+    var parens = 0
+    while (i < s.length && !s[i].isWhitespace() && s[i] !in "<>[]`*\"'") {
+        if (s[i] == '(') parens++
+        if (s[i] == ')') { if (parens == 0) break; parens-- }
+        i++
+    }
+    while (i > start && s[i - 1] in ".,;:!?") i--
+    return i
+}
+
+fun inline(s: String, p: Pal): AnnotatedString = buildAnnotatedString {
+    val link = TextLinkStyles(SpanStyle(color = p.acct, textDecoration = TextDecoration.Underline))
+    fun render(text: String, allowLinks: Boolean = true, depth: Int = 0) {
+        // Bound recursion for untrusted, deeply nested model output.
+        if (depth >= 32) { append(text); return }
+        val delimiters = InlineDelimiters(text)
+        var i = 0
+        while (i < text.length) {
+            if (text[i] == '\\' && text.getOrNull(i + 1) in listOf('*', '`', '[', ']', '(', ')', '\\')) {
+                append(text[i + 1]); i += 2; continue
+            }
+            if (text[i] == '`') {
+                val end = delimiters.codeEnd[i]
+                if (end > i) {
+                    val ticks = delimiters.tickLength[i]
+                    withStyle(SpanStyle(fontFamily = Mono, background = p.s3, fontSize = 0.86.em)) {
+                        append("\u2009" + text.substring(i + ticks, end - ticks) + "\u2009")
+                    }
+                    i = end; continue
+                }
+                val ticks = delimiters.tickLength[i]
+                if (ticks > 0) { append(text.substring(i, i + ticks)); i += ticks; continue }
+            }
+            if (text[i] == '[') {
+                val target = delimiters.linkAt(i)
+                if (target != null) {
+                    val label = text.substring(i + 1, target.labelEnd)
+                    val url = text.substring(target.urlStart, target.urlEnd)
+                    // Keep the existing whitelist; never activate app/deep-link schemes.
+                    if (allowLinks && safeLink(url)) {
+                        withLink(LinkAnnotation.Url(url, link)) { render(label, false, depth + 1) }
+                    } else {
+                        render(label, false, depth + 1)
+                        append(" ($url)")
+                    }
+                    i = target.end; continue
+                }
+            }
+            if (text[i] == '*') {
+                val marker = when {
+                    text.startsWith("***", i) -> "***"
+                    text.startsWith("**", i) -> "**"
+                    else -> "*"
+                }
+                val start = i + marker.length
+                if (start < text.length && !text[start].isWhitespace()) {
+                    val end = delimiters.emphasisEnd(i, marker.length)
+                    if (end > start) {
+                        withStyle(SpanStyle(
+                            fontWeight = if (marker.length >= 2) FontWeight.SemiBold else null,
+                            fontStyle = if (marker.length != 2) FontStyle.Italic else null,
+                        )) { render(text.substring(start, end), allowLinks, depth + 1) }
+                        i = end + marker.length; continue
+                    }
+                }
+            }
+            if (allowLinks && (i == 0 || (!text[i - 1].isLetterOrDigit() && text[i - 1] !in "_:")) &&
+                (text.startsWith("https://", i, true) || text.startsWith("http://", i, true))) {
+                val end = inlineUrlEnd(text, i)
+                val url = text.substring(i, end)
+                if (safeLink(url)) withLink(LinkAnnotation.Url(url, link)) { append(url) }
+                else append(url)
+                i = end; continue
+            }
+            append(text[i]); i++
+        }
+    }
+    render(s)
 }
 
 @Composable
