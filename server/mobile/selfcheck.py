@@ -33,6 +33,16 @@ KV = "selfcheck"
 DEVICE = {"id": "selfcheck", "name": "selfcheck", "created": 0, "pub": "", "apub": "", "revoked": 0}
 PKG_DIR = Path(__file__).resolve().parent
 
+# This fixed helper executes inside Kitty, not in the gateway interpreter.
+# Validate these four SDK symbols through the real Kitty integration harness.
+# Keep auditing its syntax, stdlib imports and any unknown SDK symbols here.
+KITTY_RUNTIME_IMPORTS = frozenset({
+    ("kitty_terminal.py", "kittens.tui.handler", "result_handler"),
+    ("kitty_terminal.py", "kitty.fast_data_types", "PRESS"),
+    ("kitty_terminal.py", "kitty.fast_data_types", "RELEASE"),
+    ("kitty_terminal.py", "kitty.fast_data_types", "send_mouse_event"),
+})
+
 
 def _short(e: BaseException) -> str:
     return f"{type(e).__name__}: {e}"[:300]
@@ -71,6 +81,8 @@ def import_problems(pkg_dir: Path = PKG_DIR) -> List[Dict[str, str]]:
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module and node.module != "__future__":
                 for a in node.names:
+                    if (f.name, node.module, a.name) in KITTY_RUNTIME_IMPORTS:
+                        continue
                     try:
                         obj = _resolve(node.module, a.name)
                     except Exception as e:
