@@ -49,6 +49,16 @@ class App : Application() {
         if (Prefs.paired) schedule(this)
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Img.trimMemory(level)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Img.trimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+    }
+
     companion object {
         fun schedule(c: Context) {
             WorkManager.getInstance(c).enqueueUniquePeriodicWork("sync", ExistingPeriodicWorkPolicy.KEEP,

@@ -23,6 +23,8 @@ over an authenticated API; your phone, gateway and configured providers keep the
   confirmation, bound to the exact request, with durable replay protection on the server.
 - **Pulse: the day at a glance.** Spend, runs, failures, a 7-day usage chart, what needs you right
   now, fleet agents and recently finished work.
+- **Kitty terminal controls.** Visible Send, named keys and one-shot modifiers, numbered choices,
+  native mouse-aware clicks and remote scrolling, with a separate approval for each input.
 - **Cron, Wake alarms, Talk.** Manage schedules, set alarms with proofs, dictate with on-device or
   server speech, and wake the app hands-free with on-device "Hey Jarvis" detection.
 - **Projects, Radar, Hub.** Browse repos with diffs and PRs, scan releases and papers, install
@@ -31,7 +33,7 @@ over an authenticated API; your phone, gateway and configured providers keep the
   explicitly granted Accessibility service, with a persistent Stop notification and device
   authentication. Off by default.
 
-[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.6.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
+[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.7.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
 
 ## Install the full APK
 
@@ -45,9 +47,9 @@ Before installation, verify the downloaded APK using `sha256sum` and Android SDK
 
 ```sh
 # Set APK to the file you downloaded. Compare this digest with its release checksum.
-APK=Hermes-0.16.6.apk
+APK=Hermes-0.16.7.apk
 printf '%s  %s\n' \
-  975b448d7ab3aee3a431cb3b15ced8daa897887b66aad327027837cd8a08c008 "$APK" | sha256sum --check -
+  b4388d46bc943a79ac0b5705eb79b9cd0987d97ff7fe2a35d26299c5a0ee2021 "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 

@@ -51,6 +51,22 @@ plugin/Hub, fleet or git proof. Invalid signatures do not reserve an identity.
 A proof is consumed even if the later action fails; retrying a guarded action
 requires a newly authorized biometric signature, not reuse of the old proof.
 
+## Kitty terminal input
+
+`POST /v1/fleet/{agent_id}/input` always requires a new approval signature,
+regardless of the agent's ordinary command-approval mode. The approval message is:
+
+```text
+fleet-input\nagent_id\nsha256(exact_raw_JSON_body_bytes)\ntimestamp_seconds
+```
+
+The outer signed request remains unchanged. Named keys/modifiers, mouse cell
+coordinates and frame-bound scrolling use a fixed schema, never caller-supplied
+escape sequences or executable paths. The same durable approval replay claim
+is consumed before the Kitty action; a failed/stale action still needs a new
+confirmation to retry. This domain is separate from the existing `fleet` text-reply
+proof, so those proofs cannot authorize terminal input.
+
 ## Compatibility and limits
 
 No nonce header, canonical-message change, Android edit or key rotation is

@@ -50,7 +50,8 @@ FORBIDDEN_DEX_STRINGS = (
 )
 FULL_CLASSES = ("PhoneService", "PhoneStopReceiver", "PhoneNotice", "PhoneControlKt")
 DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
-                 "MarkdownProbeActivity",
+                 "MarkdownProbeActivity", "FleetProbeActivity", "ReleaseLinkageProbe",
+                 "ImageMemoryTest", "TerminalUnicodeWidthTest",
                  "BatteryPollingActivity", "BatteryPollingProbe",
                  "WakeIsolationProbeActivity", "MachineStorageProbeActivity",
                  "DownloadIntegrityProbeActivity", "RedirectIsolationProbeActivity")

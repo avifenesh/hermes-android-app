@@ -21,12 +21,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import sig as SG
+from .terminal import ANSI, KittyTerminal, validate_input
 
 logger = logging.getLogger(__name__)
 
 HOME = Path.home()
 STATUS = Path(os.environ.get("HM_FLEET_STATUS") or HOME / ".cache/claude-ctrl/status.json")
-ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
+
 WAIT = {"waiting", "needs_input", "awaiting", "permission", "input"}
 WORK = {"working", "busy", "running", "thinking"}
 
@@ -201,6 +202,7 @@ async def kitty(sock: str, *args: str, timeout: float = 10) -> tuple[int, str]:
 class Fleet:
     def __init__(self, ad):
         self.ad = ad
+        self.terminal = KittyTerminal()
         self._cache: tuple[float, List[Dict[str, Any]], List[Dict[str, Any]]] = (0.0, [], [])
         self._task: Optional[asyncio.Task] = None
         self._states: Dict[str, str] = {}
@@ -259,7 +261,14 @@ class Fleet:
         err = None
         agents: List[Dict[str, Any]] = []
         try:
-            agents = [view(a) for a in await self.raw(recent=recent)]
+            raw = await self.raw(recent=recent)
+            agents = [view(a) for a in raw]
+            async def capabilities(a, v):
+                terminal = await self.terminal.snapshot(a, kitty_target(a)) if a.get("live") and kitty_target(a) else {}
+                v.update({"can_keys": bool(terminal.get("available")),
+                          "can_click": bool(terminal.get("available") and terminal.get("mouse")),
+                          "can_scroll": bool(terminal.get("available"))})
+            await asyncio.gather(*(capabilities(a, v) for a, v in zip(raw, agents)))
         except Exception as e:
             err = str(e)
         agents = self.hermes_runs() + agents
@@ -278,21 +287,33 @@ class Fleet:
     # ---------------------------------------------------------------- actions
     async def tail(self, aid: str, n: int = 60) -> Dict[str, Any]:
         if aid.startswith("hm:"):
-            return {"lines": [], "chat_id": aid[3:]}
+            return {"lines": [], "chat_id": aid[3:], "terminal": {"available": False}}
         if aid.startswith("hs:"):
             sid = aid[3:]
             with self.ad._state_db() as c:
                 rows = c.execute("SELECT role, content FROM messages WHERE session_id=? AND role IN ('user','assistant')"
                                  " AND COALESCE(content,'')!='' ORDER BY id DESC LIMIT ?", (sid, min(n, 40))).fetchall()
-            return {"lines": [f"{r['role'].upper()}: {r['content'][:600]}" for r in rows][::-1]}
+            return {"lines": [f"{r['role'].upper()}: {r['content'][:600]}" for r in rows][::-1],
+                    "terminal": {"available": False}}
         a = await self.find(aid)
         if not a:
             return {"error": "no such session"}
+        terminal = await self.terminal.snapshot(a, kitty_target(a)) if a.get("live") and kitty_target(a) else {"available": False}
+        if terminal.get("available"):
+            return {"lines": terminal["lines"],
+                    "agent": {**view(a), "can_keys": True, "can_click": terminal["mouse"], "can_scroll": True},
+                    "terminal": terminal}
         rc, out, err = await _run("tail", self._q(a), str(max(5, min(n, 200))), timeout=20)
         if rc != 0:
             return {"error": (err or out).strip()[:300]}
-        lines = [ANSI.sub("", ln).rstrip() for ln in out.splitlines()]
-        return {"lines": lines[-n:], "agent": view(a)}
+        lines = ANSI.sub("", out).splitlines()
+        return {"lines": lines[-n:], "agent": view(a), "terminal": {"available": False}}
+
+    async def input(self, aid: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        a = await self.find(aid)
+        if not a:
+            return {"ok": False, "error": "no such session"}
+        return await self.terminal.input(a, kitty_target(a), body)
 
     @staticmethod
     def _q(a: Dict[str, Any]) -> str:
@@ -415,7 +436,32 @@ def routes(r, fleet: Fleet, j) -> None:
         res = await fleet.interrupt(request.match_info["aid"])
         return j(res, 200 if res.get("ok") else 409)
 
+    async def h_input(request):
+        aid = request.match_info["aid"]
+        raw = await request.read()
+        ts = request.headers.get("X-HM-Ts", "")
+        msg = f"fleet-input\n{aid}\n{hashlib.sha256(raw).hexdigest()}\n{ts}".encode()
+        # Always require the durable biometric proof, regardless of agent
+        # permissions, action type, or session kind. Use the existing proof
+        # consumer; do not introduce a second replay implementation.
+        if not SG.approval_ok(request, msg):
+            return j({"ok": False, "error": "biometric confirmation required", "need_sig": True}, 403)
+        try:
+            def unique(pairs):
+                result = {}
+                for key, value in pairs:
+                    if key in result:
+                        raise ValueError("duplicate input field")
+                    result[key] = value
+                return result
+            body = validate_input(json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=unique))
+        except (ValueError, UnicodeError):
+            return j({"ok": False, "error": "malformed terminal input"}, 400)
+        res = await fleet.input(aid, body)
+        return j(res, 200 if res.get("ok") else 409)
+
     r.add_get("/v1/fleet", h_fleet)
     r.add_get("/v1/fleet/{aid}/tail", h_tail)
     r.add_post("/v1/fleet/{aid}/send", h_send)
     r.add_post("/v1/fleet/{aid}/stop", h_stop)
+    r.add_post("/v1/fleet/{aid}/input", h_input)

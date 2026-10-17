@@ -27,9 +27,10 @@ android {
         applicationId = "dev.avifenesh.hermes"
         minSdk = 31
         targetSdk = 36
-        versionCode = 38
-        versionName = "0.16.6"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 39
+        versionName = "0.16.7"
+        testInstrumentationRunner = if (providers.gradleProperty("hermesTestBuildType").orNull == "release")
+            "dev.avifenesh.hermes.ReleaseLinkageProbe" else "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         externalNativeBuild {
             cmake {
@@ -59,9 +60,13 @@ android {
             keyPassword = ks.getProperty("keyPassword")
         }
     }
+    // Instrument the actual minified artifact when qualifying a release.
+    testBuildType = providers.gradleProperty("hermesTestBuildType").orElse("debug").get()
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Release tasks fail closed without publisher signing. Fresh clones use assembleDebug.
             signingConfig = if (hasReleaseKey) signingConfigs.getByName("rel") else null
             // Universal sideload build: ARM phones/tablets and x86 Android devices.
