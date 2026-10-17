@@ -308,6 +308,13 @@ servers, real SQLite/P-256/auth/biometric guards and synthetic devices. Its 15 c
 FCM credentials/network and do not demonstrate Android execution, real push, production deployment
 or full compatibility. See [QA](docs/android-qa.md).
 
+## Development
+
+[`avifenesh/hermes-android-app`](https://github.com/avifenesh/hermes-android-app) is the single
+development and release repository for both the Android client and its gateway plugin. Open issues
+and pull requests here against `main`. There is no separate development repo or export/sync step.
+Use the build instructions below and the [distribution checks](docs/distribution-flavors.md).
+
 ## Build the full app
 
 Needs JDK 21, Android compile SDK 37 / target SDK 36, NDK 29.0.14206865 and CMake 3.22.1. Initial

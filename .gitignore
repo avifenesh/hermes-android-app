@@ -1,4 +1,5 @@
 # Signing and local config
+android/keys/
 keystore.properties
 *.jks
 *.keystore
