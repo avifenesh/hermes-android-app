@@ -554,13 +554,45 @@ def routes(r, ctl: Control, j) -> None:
         body = await request.json()
         replies: List[str] = []
         scope = "--global" if body.get("scope") == "global" else "--session"
+
+        async def result(error="", confirm=None):
+            return j({"ok": not error, "replies": replies, "error": error, "confirm": confirm,
+                      "state": await asyncio.to_thread(ctl.chat_state, cid)})
+
         try:
             model = str(body.get("model") or "").strip()
             if model:
                 prov = str(body.get("provider") or "").strip()
                 if not re.fullmatch(r"[\w.:/@+\-]+", model) or (prov and not re.fullmatch(r"[\w.:\-]+", prov)):
                     return j({"error": "bad model name"}, 400)
+                if cid in getattr(ctl.ad, "_working", {}):
+                    return await result("Agent is running. Wait or stop the run before switching models.")
+                from tools import slash_confirm as SC
+                sk = ctl.runner._session_key_for_source(ctl.source(cid)) if ctl.runner else None
+                previous = SC.get_pending(sk) if sk else None
+                previous_id = previous.get("confirm_id") if previous else None
                 replies.append(await ctl.command(cid, f"/model {model}" + (f" --provider {prov}" if prov else "") + f" {scope}"))
+                # A confirmation is not a completed switch. Do not change reasoning/fast
+                # on the old model while the user is deciding whether to switch.
+                pend = SC.get_pending(sk) if sk else None
+                if (pend and pend.get("command") == "model" and pend.get("confirm_id") != previous_id
+                        and time.time() - float(pend.get("created_at") or 0) < 30):
+                    return await result(confirm={"id": pend["confirm_id"], "message": replies[-1]})
+                if replies[-1].lstrip().startswith(("❌", "⚠")):
+                    return await result(replies[-1])
+                # The slash handler owns alias/provider resolution. Its localized
+                # success receipt must name the canonical route we can read back;
+                # matching old state alone cannot prove that it accepted this command.
+                state = await asyncio.to_thread(ctl.chat_state, cid)
+                target = state.get("default", {}) if scope == "--global" else state
+                from hermes_cli.model_switch import format_model_for_display
+                from hermes_cli.models import normalize_provider
+                from agent.i18n import t
+                receipt = t("gateway.model.switched", model=format_model_for_display(target.get("model") or ""))
+                accepted = bool(replies[-1]) and replies[-1].splitlines()[0] == receipt
+                if not accepted or (prov and target.get("provider") != normalize_provider(prov)):
+                    detail = replies[-1] or "The previous selection is still active."
+                    return await result("Model change was not applied. " + detail)
             eff = str(body.get("reasoning") or "").strip().lower()
             if eff:
                 if eff not in EFFORTS + ["reset"]:
@@ -571,17 +603,8 @@ def routes(r, ctl: Control, j) -> None:
         except Exception as e:
             logger.exception("[mobile] chat control failed")
             return j({"error": str(e), "replies": replies}, 500)
-        confirm = None
-        try:
-            from tools import slash_confirm as SC
-            pend = SC.get_pending(ctl.runner._session_key_for_source(ctl.source(cid))) if ctl.runner else None
-            if pend and pend.get("command") == "model" and time.time() - float(pend.get("created_at") or 0) < 30:
-                confirm = {"id": pend["confirm_id"], "message": replies[-1] if replies else ""}
-        except Exception:
-            pass
-        failed = [x for x in replies if x.lstrip().startswith(("❌", "⚠"))] if not confirm else []
-        return j({"ok": not failed, "replies": replies, "error": failed[0] if failed else "", "confirm": confirm,
-                  "state": await asyncio.to_thread(ctl.chat_state, cid)})
+        failed = [x for x in replies if x.lstrip().startswith(("❌", "⚠"))]
+        return await result(failed[0] if failed else "")
 
     async def h_settings(request):
         return j(await asyncio.to_thread(settings_view))
