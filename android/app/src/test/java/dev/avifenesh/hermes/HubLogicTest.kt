@@ -42,6 +42,27 @@ class HubLogicTest {
         assertEquals(listOf("a", "z"), s[0].second.map { it.n })
     }
 
+    @Test fun discoveryFiltersComposeWithoutAQuery() {
+        val discover = HubLogic.Filters()
+        assertEquals(false, discover.matches(true, "official", "research", ""))
+        assertEquals(true, discover.matches(false, "official", "research", ""))
+        val filtered = HubLogic.Filters(source = "github", category = "research")
+        assertEquals(false, filtered.matches(false, "official", "research", ""))
+        assertEquals(false, filtered.matches(false, "github", "coding", ""))
+        assertEquals(true, filtered.matches(false, "github", "research", ""))
+    }
+
+    @Test fun installedAndAllKeepOtherFilters() {
+        val installed = HubLogic.Filters(scope = "installed", query = "PDF", category = "docs")
+        assertEquals(true, installed.matches(true, "official", "docs", "Read pdf files"))
+        assertEquals(false, installed.matches(false, "official", "docs", "Read pdf files"))
+        assertEquals(false, installed.matches(true, "official", "coding", "Read pdf files"))
+        assertEquals(false, installed.matches(true, "official", "docs", "Read images"))
+        val all = HubLogic.Filters(scope = "all", query = "  PDF  ")
+        assertEquals(true, all.matches(true, "github", "docs", "pdf"))
+        assertEquals(true, all.matches(false, "github", "docs", "pdf"))
+    }
+
     @Test fun tail() {
         assertEquals("c\nd", HubLogic.logTail("a\nb\nc\nd\n\n", 2))
     }
