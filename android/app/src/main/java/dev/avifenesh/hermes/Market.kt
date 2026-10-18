@@ -101,6 +101,11 @@ object Mk {
 
 private fun JSONObject.counts(): Map<String, Int> = optJSONObject("severity_counts")?.let { c -> HubLogic.SEVERITIES.associateWith { c.optInt(it) } } ?: emptyMap()
 private fun JSONArray?.objList(): List<JSONObject> = objs()
+private fun JSONObject.skillText(): String = listOf(str("name"), str("description"), str("identifier"),
+    optJSONArray("tags").strs().joinToString(" ")).joinToString(" ")
+private fun JSONObject.skillCategory(): String = str("category").ifBlank {
+    if (str("source") == "official") str("identifier").removePrefix("official/").substringBefore('/', "general") else "general"
+}
 
 @Composable
 private fun trustColors(t: String): Pair<Color, Color> {
@@ -154,97 +159,120 @@ fun HubSkillsTab(prof: String) {
     val co = rememberCoroutineScope()
     var browse by remember(prof) { mutableStateOf<JSONObject?>(null) }
     var err by remember(prof) { mutableStateOf<String?>(null) }
-    var q by remember { mutableStateOf("") }
-    var source by remember { mutableStateOf("all") }
-    var results by remember { mutableStateOf<JSONObject?>(null) }
-    var searching by remember { mutableStateOf(false) }
-    var searchErr by remember { mutableStateOf<String?>(null) }
+    var q by remember(prof) { mutableStateOf("") }
+    var scope by remember(prof) { mutableStateOf("discover") }
+    var source by remember(prof) { mutableStateOf("all") }
+    var category by remember(prof) { mutableStateOf("all") }
+    var results by remember(prof) { mutableStateOf<JSONObject?>(null) }
+    var searching by remember(prof) { mutableStateOf(false) }
+    var searchErr by remember(prof) { mutableStateOf<String?>(null) }
     var updates by remember(prof) { mutableStateOf<List<JSONObject>?>(null) }
-    var checking by remember { mutableStateOf(false) }
+    var checking by remember(prof) { mutableStateOf(false) }
     var retry by remember { mutableStateOf(0) }
-    LaunchedEffect(prof, retry) { err = null; runCatching { browse = Api.get(HubLogic.withProfile("/v1/hub/skills/browse", prof)) }.onFailure { err = it.message } }
-    LaunchedEffect(q, source, prof) {
+    val foreground = Ui.stack.lastOrNull() == Route.HubR
+    LaunchedEffect(prof, retry, foreground) {
+        if (!foreground) return@LaunchedEffect
+        err = null
+        try { browse = Api.get(HubLogic.withProfile("/v1/hub/skills/browse", prof)) }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { err = e.message }
+    }
+    LaunchedEffect(q, source, prof, scope, retry, foreground) {
+        results = null; searchErr = null; searching = false
         val t = q.trim()
-        if (t.length < 2) { results = null; searchErr = null; return@LaunchedEffect }
-        delay(450)
+        if (!foreground || t.length < 2 || scope == "installed") return@LaunchedEffect
         searching = true
-        runCatching { Api.get(HubLogic.withProfile("/v1/hub/skills/search?q=${HubLogic.enc(t)}&source=${HubLogic.enc(source)}&limit=40", prof)) }
-            .onSuccess { results = it; searchErr = null }.onFailure { searchErr = it.message }
-        searching = false
+        try {
+            delay(450)
+            results = Api.get(HubLogic.withProfile("/v1/hub/skills/search?q=${HubLogic.enc(t)}&source=${HubLogic.enc(source)}&limit=50", prof))
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { searchErr = e.message }
+        finally { searching = false }
     }
     val b = browse
     val installed = b?.optJSONObject("installed") ?: JSONObject()
+    val catalog = (b?.optJSONArray("official").objList() + b?.optJSONArray("featured").objList()).distinctBy { it.str("identifier") }
+    val inventory = b?.optJSONArray("local").objList()
+    val managed = installed.keys().asSequence().map { ident ->
+        val e = installed.optJSONObject(ident) ?: JSONObject()
+        val metadata = catalog.firstOrNull { it.str("identifier") == ident }
+            ?: inventory.firstOrNull { it.str("identifier") == ident }
+        JSONObject(e.toString()).put("identifier", ident).put("installed", true).put("managed", true)
+            .put("category", metadata?.skillCategory() ?: "general").put("description", metadata?.str("description").orEmpty())
+    }.toList()
+    val local = inventory.filter { !it.optBoolean("managed") }.map {
+        JSONObject(it.toString()).put("installed", true).put("source", "local")
+    }
+    val remote = q.trim().length >= 2 && scope != "installed"
+    val available = if (remote) results?.optJSONArray("results").objList() else catalog
+    val candidates = when {
+        scope == "installed" -> managed + local
+        scope == "all" -> available + (managed + local).filter { row ->
+            (source == "all" || row.str("source") == source) &&
+                (q.isBlank() || row.skillText().contains(q.trim(), true)) && available.none {
+                (row.str("identifier").isNotBlank() && it.str("identifier") == row.str("identifier")) ||
+                    it.str("installed_name") == row.str("name")
+            }
+        }
+        else -> available
+    }
+    val filters = HubLogic.Filters(scope, if (remote) "all" else source, category, if (remote) "" else q)
+    val featuredIds = b?.optJSONArray("featured").objList().map { it.str("identifier") }.toSet()
+    val list = candidates.filter { e -> filters.matches(e.optBoolean("installed"),
+        if (source == "hermes-index" && e.str("identifier") in featuredIds) "hermes-index" else e.str("source"), e.skillCategory(),
+        e.skillText()) }
+        .sortedBy { it.str("name").lowercase() }
+    val categories = (catalog + candidates).map { it.skillCategory() }.distinct().sorted()
     LazyColumn(Modifier.fillMaxSize()) {
         item {
-            InputBox(q, { q = it }, "Search every skill registry", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
-            val srcs = b?.optJSONArray("sources").objList().filter { it.str("id") !in setOf("url", "well-known") }
-            if (srcs.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("All sources", source == "all") { source = "all" }
-                for (s in srcs) Chip(s.str("label"), source == s.str("id")) { source = s.str("id") }
+            HubScopes(scope) { scope = it; category = "all"; source = "all" }
+            InputBox(q, { q = it }, if (scope == "installed") "Search installed skills" else "Search every skill registry", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
+            val srcs = b?.optJSONArray("sources").objList().filter { it.str("id") !in setOf("url", "well-known") && it.optBoolean("available", true) }
+            if (scope != "installed" && srcs.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("All sources", source == "all") { source = "all"; category = "all" }
+                for (s in srcs) Chip(s.str("label"), source == s.str("id")) { source = s.str("id"); category = "all" }
             }
+            if (categories.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("All categories", category == "all") { category = "all" }
+                for (c in categories) Chip(HubLogic.pretty(c), category == c) { category = c }
+            }
+            Text(if (scope == "discover") "Only skills not installed in ${Mk.shownProfile()}. Search to explore more registries." else "Skills in ${Mk.shownProfile()}. Source and category filters apply to this list.",
+                style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+            Section(if (remote) "Search results" else if (scope == "installed") "Installed skills" else "Browse skills", if (searching) "searching…" else list.size.toString())
+            if (scope == "installed" && managed.isNotEmpty()) {
+                Btn(if (checking) "Checking…" else "Check for updates", Modifier.padding(horizontal = 16.dp), primary = false, enabled = !checking) {
+                    co.launch {
+                        checking = true
+                        runCatching { updates = Api.get(HubLogic.withProfile("/v1/hub/skills/updates", prof)).optJSONArray("updates").objList() }.onFailure { Ui.say(it.message) }
+                        checking = false
+                    }
+                }
+                updates?.let { u -> Text("${u.count { it.str("status") == "update_available" }} Hub updates available", style = mono(12.5f, 500, p.mu), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+            }
+            val timedOut = results?.optJSONArray("timed_out").strs()
+            if (timedOut.isNotEmpty()) Text("Timed out: " + timedOut.joinToString(", "), style = mono(11.5f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp))
         }
-        if (q.trim().length >= 2) {
-            val r = results
-            item {
-                Section("Results", when { searching -> "searching…"; r != null -> r.optJSONArray("results")?.length()?.toString() ?: "0"; else -> null })
-                val to = r?.optJSONArray("timed_out").strs()
-                if (to.isNotEmpty()) Text("Timed out: " + to.joinToString(", "), style = mono(11.5f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp))
-                searchErr?.let { Text(it, style = mono(12.5f, 500, p.bad), modifier = Modifier.padding(horizontal = 20.dp)) }
-            }
-            val list = r?.optJSONArray("results").objList()
-            if (r != null && list.isEmpty() && !searching) item { Empty("Nothing found", "Try another word, or All sources.") }
-            items(list, key = { "r:" + it.str("identifier") }) { s -> SkillRow(s) }
-        } else {
-            if (b == null) item { Loading(err) { retry++ } }
-            else {
-                val featured = b.optJSONArray("featured").objList()
-                if (featured.isNotEmpty()) {
-                    item { Section("Featured", if (b.optBoolean("index_available")) "Hermes index" else null) }
-                    item {
-                        LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(featured, key = { "f:" + it.str("identifier") }) { s -> SkillCard(s, wide = true) }
-                        }
-                    }
-                }
-                val mine = installed.keys().asSequence().toList().sorted()
-                item {
-                    Section("Installed from the hub", "${mine.size} in ${Mk.shownProfile()}")
-                    Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Btn(if (checking) "Checking…" else "Check for updates", primary = false, enabled = !checking && mine.isNotEmpty()) {
-                            co.launch {
-                                checking = true
-                                runCatching { updates = Api.get(HubLogic.withProfile("/v1/hub/skills/updates", prof)).optJSONArray("updates").objList() }
-                                    .onFailure { Ui.say(it.message) }
-                                checking = false
-                            }
-                        }
-                        updates?.let { u ->
-                            Spacer(Modifier.width(12.dp))
-                            val n = u.count { it.str("status") == "update_available" }
-                            Text(if (n == 0) "All up to date" else "$n update" + (if (n == 1) "" else "s"), style = mono(12.5f, 600, if (n == 0) p.good else p.att))
-                        }
-                    }
-                }
-                items(mine, key = { "i:$it" }) { ident ->
-                    val e = installed.optJSONObject(ident) ?: JSONObject()
-                    val upd = updates?.firstOrNull { it.str("identifier") == ident }?.str("status")
-                    SkillRow(JSONObject().put("identifier", ident).put("name", e.str("name")).put("trust_level", e.str("trust_level"))
-                        .put("source", e.str("source")).put("installed", true).put("description", "Scan: " + e.str("scan_verdict") +
-                            (upd?.let { " · " + it.replace('_', ' ') } ?: "")))
-                }
-                val shelves = HubLogic.shelves(b.optJSONArray("official").objList(), { it.str("category") }, { it.str("name") })
-                if (shelves.isNotEmpty()) item { Section("Official catalog", b.optJSONArray("official")?.length()?.toString()) }
-                for ((cat, list) in shelves) {
-                    item(key = "shelf:$cat") {
-                        Text(HubLogic.pretty(cat), style = serif(24f, p.tx), modifier = Modifier.padding(start = 20.dp, top = 10.dp, bottom = 6.dp))
-                        LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(list, key = { "o:" + it.str("identifier") }) { s -> SkillCard(s, wide = false) }
-                        }
-                    }
-                }
-            }
+        when {
+            b == null -> item { Loading(err) { retry++ } }
+            remote && searchErr != null -> item { ErrorPanel(searchErr.orEmpty()) { retry++ } }
+            remote && searching -> item { Skeleton() }
+            list.isEmpty() -> item { Empty("No matching skills", if (scope == "discover") "Try another category, source or search. Installed skills are in Installed." else "Try another category or search word.") }
+        }
+        items(list, key = { "skill:" + it.str("identifier").ifBlank { it.str("inventory_id").ifBlank { it.str("name") } } }) { s ->
+            if (s.optBoolean("installed") && !s.optBoolean("managed") && s.str("identifier").isBlank()) {
+                NavRow(Ic.blocks, s.str("name"), s.str("description").ifBlank { "Installed locally · manage in Extensions" }) { Ui.push(Route.ExtR) }
+            } else SkillRow(s)
         }
         item { Spacer(Modifier.height(30.dp)) }
+    }
+}
+
+@Composable
+private fun HubScopes(scope: String, onPick: (String) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Chip("Discover", scope == "discover") { onPick("discover") }
+        Chip("Installed", scope == "installed") { onPick("installed") }
+        Chip("All", scope == "all") { onPick("all") }
     }
 }
 
@@ -354,6 +382,7 @@ fun HubSkillScreen(ident: String) {
     LaunchedEffect(ident) { runCatching { scan = Api.get("/v1/hub/skills/scan?identifier=${HubLogic.enc(ident)}") }.onFailure { scanErr = it.message } }
     val o = d
     val inst = o?.optJSONObject("installed")
+    val installedLocal = o?.optBoolean("installed_local") == true
     val running = job?.str("state") == "running"
     val gate = HubLogic.gate(scan?.str("policy"), scanErr != null)
 
@@ -384,7 +413,7 @@ fun HubSkillScreen(ident: String) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TrustPill(o.str("trust_level"))
                         Spacer(Modifier.width(6.dp)); Pill(o.str("source_label").ifBlank { o.str("source") }, p.tx2, p.s3)
-                        if (inst != null) { Spacer(Modifier.width(6.dp)); Pill("installed in ${Mk.shownProfile()}", p.good, p.s3) }
+                        if (inst != null || installedLocal) { Spacer(Modifier.width(6.dp)); Pill("installed in ${Mk.shownProfile()}", p.good, p.s3) }
                     }
                     Spacer(Modifier.height(10.dp))
                     if (o.str("description").isNotBlank()) Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f))
@@ -435,13 +464,15 @@ fun HubSkillScreen(ident: String) {
                 item {
                     JobPanel(job, when (job?.str("action")) { "uninstall" -> "Removing"; "update" -> "Updating"; else -> "Installing" })
                     Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (inst == null) Btn("Install", Modifier.weight(1f), enabled = gate == HubLogic.Gate.ALLOW && !running) { ask = "install" }
-                        else {
+                        if (inst == null && !installedLocal) Btn("Install", Modifier.weight(1f), enabled = gate == HubLogic.Gate.ALLOW && !running) { ask = "install" }
+                        else if (inst != null) {
                             Btn("Update", Modifier.weight(1f), primary = false, enabled = !running) { ask = "update" }
                             Btn("Uninstall", Modifier.weight(1f), danger = true, enabled = !running) { ask = "uninstall" }
+                        } else {
+                            Btn("Manage in Extensions", Modifier.weight(1f), primary = false) { Ui.push(Route.ExtR) }
                         }
                     }
-                    if (inst == null && gate == HubLogic.Gate.REFUSED) Text("Hermes' scan policy refuses this skill. There is no override from the phone; review it on the machine if you must.",
+                    if (inst == null && !installedLocal && gate == HubLogic.Gate.REFUSED) Text("Hermes' scan policy refuses this skill. There is no override from the phone; review it on the machine if you must.",
                         style = sans(12.5f, 400, p.dim, 17f))
                 }
                 val files = o.optJSONArray("files").strs()
@@ -477,28 +508,32 @@ fun HubPluginsTab() {
     var data by remember { mutableStateOf<JSONObject?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var q by remember { mutableStateOf("") }
+    var scope by remember { mutableStateOf("discover") }
     var cat by remember { mutableStateOf("all") }
     var retry by remember { mutableStateOf(0) }
-    LaunchedEffect(retry) {
+    val foreground = Ui.stack.lastOrNull() == Route.HubR
+    LaunchedEffect(retry, foreground) {
+        if (!foreground) return@LaunchedEffect
         err = null
         runCatching { Api.get("/v1/hub/plugins") }.onSuccess { o -> data = o; o.optJSONArray("entries").objList().forEach { Mk.plugins[it.str("name")] = it } }
             .onFailure { err = it.message }
     }
     val all = data?.optJSONArray("entries").objList()
+    val filters = HubLogic.Filters(scope = scope, category = cat, query = q)
     val list = all.filter { e ->
-        (cat == "all" || (cat == "installed" && e.optBoolean("installed")) || e.str("category") == cat) &&
-            (q.isBlank() || listOf("name", "title", "description", "maintainer").any { e.str(it).contains(q.trim(), true) })
-    }.sortedWith(compareByDescending<JSONObject> { it.optBoolean("installed") }.thenBy { if (it.str("tier") == "official") 0 else 1 }.thenBy { it.str("title").ifBlank { it.str("name") }.lowercase() })
+        filters.matches(e.optBoolean("installed"), "", e.str("category"), listOf("name", "title", "description", "maintainer").joinToString(" ") { e.str(it) })
+    }.sortedWith(compareBy<JSONObject> { if (it.str("tier") == "official") 0 else 1 }.thenBy { it.str("title").ifBlank { it.str("name") }.lowercase() })
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             RestartBanner()
+            HubScopes(scope) { scope = it }
             InputBox(q, { q = it }, "Search ${all.size} catalog plugins", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
             val cats = data?.optJSONArray("categories").strs().filter { c -> all.any { it.str("category") == c } }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("All", cat == "all") { cat = "all" }
-                Chip("Installed ${all.count { it.optBoolean("installed") }}", cat == "installed") { cat = "installed" }
+                Chip("All categories", cat == "all") { cat = "all" }
                 for (c in cats) Chip(HubLogic.pretty(c), cat == c) { cat = c }
             }
+            Section(if (scope == "discover") "Available plugins" else if (scope == "installed") "Installed plugins" else "All plugins", list.size.toString())
         }
         if (data == null) item { Loading(err) { retry++ } }
         else if (list.isEmpty()) item { Empty("Nothing here", "Try another shelf or word.") }
@@ -517,7 +552,7 @@ fun HubPluginsTab() {
                 Icn(Ic.chevR, p.mu, 18.dp)
             }
         }
-        data?.optJSONArray("removed").objList().takeIf { it.isNotEmpty() }?.let { rm ->
+        data?.optJSONArray("removed").objList().takeIf { scope != "discover" && it.isNotEmpty() }?.let { rm ->
             item { Section("Pulled from the catalog", rm.size.toString()) }
             items(rm) { r -> Text("${r.str("name")}: ${r.str("reason")}", style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 3.dp)) }
         }
@@ -645,21 +680,27 @@ fun HubMcpTab() {
     var data by remember { mutableStateOf<JSONObject?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var q by remember { mutableStateOf("") }
+    var scope by remember { mutableStateOf("discover") }
     var retry by remember { mutableStateOf(0) }
-    LaunchedEffect(retry) {
+    val foreground = Ui.stack.lastOrNull() == Route.HubR
+    LaunchedEffect(retry, foreground) {
+        if (!foreground) return@LaunchedEffect
         err = null
         runCatching { Api.get("/v1/hub/mcp") }.onSuccess { o -> data = o; o.optJSONArray("entries").objList().forEach { Mk.mcp[it.str("name")] = it } }
             .onFailure { err = it.message }
     }
     val all = data?.optJSONArray("entries").objList()
-    val list = all.filter { q.isBlank() || it.str("name").contains(q.trim(), true) || it.str("description").contains(q.trim(), true) }
-        .sortedWith(compareByDescending<JSONObject> { it.optBoolean("installed") }.thenBy { it.str("name") })
+    val filters = HubLogic.Filters(scope = scope, query = q)
+    val list = all.filter { filters.matches(it.optBoolean("installed"), "", "", it.str("name") + " " + it.str("description")) }
+        .sortedBy { it.str("name").lowercase() }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             RestartBanner()
+            HubScopes(scope) { scope = it }
             InputBox(q, { q = it }, "Search ${all.size} MCP servers", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
             Text("The Nous-approved MCP catalog. Each entry shows exactly what it runs before you install it.", style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+            Section(if (scope == "discover") "Available servers" else if (scope == "installed") "Installed servers" else "All servers", list.size.toString())
         }
         if (data == null) item { Loading(err) { retry++ } }
         else if (list.isEmpty()) item {

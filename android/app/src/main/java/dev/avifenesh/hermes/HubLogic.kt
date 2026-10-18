@@ -41,6 +41,20 @@ object HubLogic {
             .sortedWith(compareByDescending<Pair<String, List<T>>> { it.second.size }.thenBy { it.first })
             .map { (k, v) -> k to v.sortedBy(name) }
 
+    /** One predicate for browse and search; discovery never promotes already installed items. */
+    data class Filters(
+        val scope: String = "discover",
+        val source: String = "all",
+        val category: String = "all",
+        val query: String = "",
+    ) {
+        fun matches(installed: Boolean, itemSource: String, itemCategory: String, text: String): Boolean =
+            (scope == "all" || if (scope == "installed") installed else !installed) &&
+                (source == "all" || source == itemSource) &&
+                (category == "all" || category == itemCategory.ifBlank { "general" }) &&
+                (query.isBlank() || text.contains(query.trim(), ignoreCase = true))
+    }
+
     fun trustLabel(t: String): String = when (t) { "builtin" -> "official"; "trusted" -> "trusted"; "community" -> "community"; else -> t }
 
     fun pretty(slug: String): String = slug.replace('-', ' ').replace('_', ' ').replaceFirstChar { it.uppercase() }

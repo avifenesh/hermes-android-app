@@ -20,6 +20,7 @@ Long actions run as jobs the app polls (``GET /v1/hub/jobs/{id}``).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
@@ -55,19 +56,26 @@ def _profile(raw: Any) -> str:
     p = str(raw or "").strip()
     if not p or p == _gateway_profile():
         return ""
-    if p not in PR.profile_names() or PR.profile_home(p) is None:
-        raise ValueError(f"unknown profile {p!r}")
+    _skill_home(p)
     return p
+
+
+def _skill_home(profile: str) -> Path:
+    from hermes_constants import get_default_hermes_root, get_hermes_home
+    if not profile:
+        return get_hermes_home()
+    if profile not in PR.profile_names():
+        raise ValueError(f"unknown profile {profile!r}")
+    root = get_default_hermes_root(home=get_hermes_home())
+    home = root if profile == "default" else root / "profiles" / profile
+    if not home.is_dir():
+        raise ValueError(f"unknown profile {profile!r}")
+    return home
 
 
 def _lock(profile: str):
     from tools.skills_hub import HubLockFile
-    if not profile:
-        return HubLockFile()
-    home = PR.profile_home(profile)
-    if home is None:
-        raise ValueError(f"unknown profile {profile!r}")
-    return HubLockFile(home / "skills" / ".hub" / "lock.json")
+    return HubLockFile(_skill_home(profile) / "skills" / ".hub" / "lock.json")
 
 
 def installed_skills(profile: str = "") -> Dict[str, Dict[str, Any]]:
@@ -82,6 +90,70 @@ def installed_skills(profile: str = "") -> Dict[str, Dict[str, Any]]:
     except Exception as e:
         logger.debug("[mobile] hub lock unreadable: %s", e)
         return {}
+
+
+def local_skills(profile: str = "", installed: Optional[Dict[str, Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """Read the profile's physical inventory, not Hub provenance or offer-time gates.
+
+    Use the shared scanners (including create_dir/external_dirs and exclusions),
+    but not project skills: the gateway's cwd is not the phone user's project.
+    Disabled and platform-hidden skills still occupy their installed identity.
+    A context-local home avoids changing process environment across aiohttp threads.
+    """
+    from agent.skill_utils import get_skill_search_roots, iter_skill_index_files, parse_frontmatter, resolve_skill_catalog
+    from hermes_constants import reset_hermes_home_override, set_hermes_home_override
+    home = _skill_home(profile)
+    installed = installed_skills(profile) if installed is None else installed
+    token = set_hermes_home_override(home)
+    try:
+        scanned = []
+        for tier, root in get_skill_search_roots(include_project=False):
+            for md in iter_skill_index_files(root, "SKILL.md"):
+                try:
+                    fm, _ = parse_frontmatter(md.read_text(encoding="utf-8-sig"))
+                except (OSError, UnicodeError):
+                    continue
+                rel = md.parent.relative_to(root).as_posix()
+                scanned.append({"name": str(fm.get("name") or md.parent.name),
+                                "description": str(fm.get("description") or ""),
+                                "category": rel.split("/", 1)[0] if "/" in rel else "general",
+                                "path": md, "root": root, "tier": tier})
+        out = []
+        for row in resolve_skill_catalog(scanned):
+            # Only the actual Hub install directory owns lock-backed actions.
+            ident = next((ident for ident, entry in installed.items()
+                          if row["path"].parent == home / "skills" / str(entry.get("name") or "")), None)
+            out.append({"inventory_id": hashlib.sha256(str(row["path"]).encode()).hexdigest(),
+                        "name": row.get("load_name") or row["relative_path"],
+                        "description": row["description"], "category": row["category"],
+                        "relative_path": row["relative_path"], "directory_name": row["path"].parent.name,
+                        "identifier": ident, "managed": ident is not None})
+        return sorted(out, key=lambda row: (row["category"], row["name"]))
+    finally:
+        reset_hermes_home_override(token)
+
+
+def _local_match(d: Dict[str, Any], local: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    ident = str(d.get("identifier") or "")
+    for row in local:
+        if row.get("identifier") == ident:
+            return row
+    # Official optional installs may have been bundled, copied, or imported
+    # without a lock. Never apply this alias fallback to community repositories,
+    # nor to a same-named skill whose lock proves a different source identity.
+    if d.get("source") == "official" and ident.startswith("official/"):
+        rel = ident[len("official/"):]
+        name = rel.rsplit("/", 1)[-1]
+        return next((row for row in local if not row["managed"] and
+                     (row["relative_path"] == rel or row["name"] == name or row["directory_name"] == name)), None)
+    return None
+
+
+def _mark_installed(d: Dict[str, Any], installed: Dict[str, Dict[str, Any]], local: List[Dict[str, Any]]) -> None:
+    match = _local_match(d, local)
+    entry = installed.get(d["identifier"])
+    d.update(installed=bool(entry or match), installed_local=bool(match),
+             installed_name=entry.get("name") if entry else match["name"] if match else None)
 
 
 def _meta(m) -> Dict[str, Any]:
@@ -111,24 +183,27 @@ def skills_browse(profile: str) -> Dict[str, Any]:
                     logger.debug("[mobile] hub featured failed: %s", ex)
         sources.append(e)
     installed = installed_skills(profile)
+    local = local_skills(profile, installed)
     official = []
     for m in OptionalSkillSource().list_local():
         d = _meta(m)
         rel = d["identifier"].split("/", 1)[-1] if "/" in d["identifier"] else d["identifier"]
         d["category"] = rel.split("/", 1)[0] if "/" in rel else "general"
-        d["installed"] = d["identifier"] in installed
+        _mark_installed(d, installed, local)
         official.append(d)
     for d in featured:
-        d["installed"] = d["identifier"] in installed
-    return {"sources": sources, "index_available": index, "featured": featured, "official": official, "installed": installed}
+        _mark_installed(d, installed, local)
+    return {"sources": sources, "index_available": index, "featured": featured, "official": official,
+            "installed": installed, "local": local}
 
 
 def skills_search(q: str, source: str, limit: int, profile: str) -> Dict[str, Any]:
     from tools.skills_hub_search import create_source_router, parallel_search_sources
     q = (q or "").strip()
     installed = installed_skills(profile)
+    local = local_skills(profile, installed)
     if not q:
-        return {"results": [], "source_counts": {}, "timed_out": [], "installed": installed}
+        return {"results": [], "source_counts": {}, "timed_out": [], "installed": installed, "local": local}
     res, counts, timed_out = parallel_search_sources(create_source_router(), query=q, source_filter=source or "all",
                                                      overall_timeout=30)
     seen: Dict[str, Any] = {}
@@ -138,8 +213,9 @@ def skills_search(q: str, source: str, limit: int, profile: str) -> Dict[str, An
             seen[r.identifier] = r
     out = [_meta(m) for m in list(seen.values())[:max(1, min(limit, 50))]]
     for d in out:
-        d["installed"] = d["identifier"] in installed
-    return {"results": out, "source_counts": counts, "timed_out": list(timed_out or []), "installed": installed}
+        _mark_installed(d, installed, local)
+    return {"results": out, "source_counts": counts, "timed_out": list(timed_out or []),
+            "installed": installed, "local": local}
 
 
 def _resolve(ident: str):
@@ -166,12 +242,15 @@ def skill_preview(ident: str, profile: str) -> Optional[Dict[str, Any]]:
     ident2 = getattr(m, "identifier", ident) or ident
     src = getattr(m, "source", "") or ""
     inst = installed_skills(profile)
+    match = _local_match({"identifier": ident2, "source": src}, local_skills(profile, inst))
+    entry = inst.get(ident2) or inst.get(ident)
     return {"name": getattr(m, "name", ident), "description": getattr(m, "description", "") or "",
             "source": src, "source_label": _SOURCE_LABELS.get(src, src),
             "identifier": ident2, "trust_level": getattr(m, "trust_level", "community") or "community",
             "repo": getattr(m, "repo", None), "tags": list(getattr(m, "tags", None) or []),
             "skill_md": (files.get("SKILL.md") or "")[:200000], "files": sorted(files),
-            "installed": inst.get(ident2) or inst.get(ident)}
+            "installed": entry, "installed_local": bool(match),
+            "installed_name": entry.get("name") if entry else match["name"] if match else None}
 
 
 def skill_scan(ident: str) -> Optional[Dict[str, Any]]:
@@ -443,7 +522,9 @@ def routes(r, j) -> Jobs:
             prof = prof_of(request.query.get("profile"))
         except ValueError as e:
             return bad(str(e), 404)
-        return j({"installed": await asyncio.to_thread(installed_skills, prof), "profile": prof or _gateway_profile(),
+        installed = await asyncio.to_thread(installed_skills, prof)
+        return j({"installed": installed, "local": await asyncio.to_thread(local_skills, prof, installed),
+                  "profile": prof or _gateway_profile(),
                   "profiles": PR.profile_names(), "gateway_profile": _gateway_profile()})
 
     async def h_updates(request):

@@ -10,7 +10,7 @@ For ordinary installation help, use the same address with a sanitized descriptio
 
 ## Supported security baseline
 
-The public distribution target is the full Android package **`dev.avifenesh.hermes`**, on **Android 12+**. The **0.16.7 / versionCode 39** candidate has [artifact-specific verification](docs/release-0.16.7.md); availability is shown on the Releases page. Use the latest qualified signed release and its matching bundled plugin. Older releases do not have a promised backport/support window. Play and reviewer hosting are deferred and are not prerequisites for GitHub sideloading.
+The public distribution target is the full Android package **`dev.avifenesh.hermes`**, on **Android 12+**. The **0.16.8 / versionCode 40** candidate has [artifact-specific verification](docs/release-0.16.8.md); availability is shown on the Releases page. Use the latest qualified signed release and its matching bundled plugin. Older releases do not have a promised backport/support window. Play and reviewer hosting are deferred and are not prerequisites for GitHub sideloading.
 
 The server security minimum is **`security.signature_replay: 2`**, advertised by `/v1/health` and authenticated metadata. Missing or older values do not meet this baseline. Install the **entire** bundled `server/mobile/` directory, not selected files from mixed versions, and activate it through your gateway's supported service control. An app update alone does not repair an old gateway. See [installation and updates](README.md#install-the-gateway-plugin) and the [replay security design](docs/request-replay-security.md).
 
@@ -21,9 +21,9 @@ The marker is not an attestation and does not establish that a server is trustwo
 Use the APK and checksum from the same repository release. Compare `sha256sum` output to that release's APK checksum, then verify the signature using Android SDK Build Tools:
 
 ```sh
-APK=Hermes-0.16.7.apk  # replace with the exact published filename
+APK=Hermes-0.16.8.apk  # replace with the exact published filename
 printf '%s  %s\n' \
-  b4388d46bc943a79ac0b5705eb79b9cd0987d97ff7fe2a35d26299c5a0ee2021 "$APK" | sha256sum --check -
+  0eba259b916979fa7da1ba80077f19611ca7693916d30de95e17166545bd0f71 "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 
