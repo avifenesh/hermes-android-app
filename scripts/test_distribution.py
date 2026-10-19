@@ -25,6 +25,13 @@ def manifest(flavor="play", extra="", permission=""):
 
 
 class DistributionGuardTests(unittest.TestCase):
+    def test_publisher_reporting_test_components_never_ship(self):
+        for name in ('PublisherReportProbeActivity', 'PublisherReportsTest', 'PublisherReportFenceTest'):
+            with self.subTest(name=name):
+                xml = manifest().replace('</application>', f'<activity android:name="dev.avifenesh.hermes.{name}" /></application>')
+                with self.assertRaises(ValueError):
+                    check.manifest_check(xml, 'play')
+
     def test_current_source_boundary(self):
         self.assertEqual(check.source_check()["source"], "PASS")
 

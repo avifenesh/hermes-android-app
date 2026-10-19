@@ -533,6 +533,7 @@ fun ComposeSheet() {
             InputBox(text, { text = it }, "Ask ${agentName()} anything, or type / for commands", Modifier.fillMaxWidth().heightIn(min = 120.dp), minLines = 4, maxLines = 10)
             SlashSuggest(text, { text = it }, Modifier.padding(top = 6.dp))
             if (atts.isNotEmpty()) AttRow(atts)
+            AttachmentPrivacyNotice(Modifier.padding(top = 8.dp))
             Spacer(Modifier.height(14.dp))
             val r = rec
             if (r != null) {
@@ -563,6 +564,12 @@ fun ComposeSheet() {
             else add(shared.uri, generation = generation, externalFlags = shared.flags)
         }
     })
+}
+
+@Composable
+fun AttachmentPrivacyNotice(modifier: Modifier = Modifier) {
+    Text("Files and photos upload to your paired gateway when selected, before Send. Removing a draft does not delete its server copy.",
+        style = sans(12.5f, 400, P.tx2, 18f), modifier = modifier)
 }
 
 @Composable

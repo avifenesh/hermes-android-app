@@ -11,6 +11,7 @@
         <activity android:name=".MachineStorageProbeActivity" android:exported="true" />
         <activity android:name=".DownloadIntegrityProbeActivity" android:exported="true" />
         <activity android:name=".RedirectIsolationProbeActivity" android:exported="true" />
+        <activity android:name=".PublisherReportProbeActivity" android:exported="true" />
     </application>
     <!-- Invoke explicitly on an isolated emulator; excluded from release. -->
     <instrumentation

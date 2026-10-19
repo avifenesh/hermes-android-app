@@ -427,6 +427,8 @@ fun TalkScreen() {
         if (notice.isNotBlank()) Text(notice, style = sans(13f, 500, p.mu), textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 6.dp))
         Text(label, style = sans(15f, 600, if (state.startsWith("error")) p.bad else p.tx2), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text("Talk may send audio to your system speech provider. Transcripts go to your paired gateway; spoken replies may use its voice provider or your phone's TTS service.",
+            style = sans(12.5f, 400, p.tx2, 18f), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp))
         Spacer(Modifier.height(18.dp))
         val pulse by rememberInfiniteTransition(label = "orb").animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "s")
         val active = state in setOf("listening", "speaking", "waiting", "sending", "thinking")

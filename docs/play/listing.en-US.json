@@ -1,0 +1,22 @@
+{
+  "status": "draft, not submitted",
+  "language": "en-US",
+  "title": "Hermes for Android",
+  "short_description": "Chat with your own Hermes agent. Review approvals, manage schedules, use voice.",
+  "full_description": "Your Hermes Agent, connected to the gateway you run.\n\nHermes for Android is a native client for your own configured Hermes gateway. Read streaming replies, send files, review sensitive-action approvals and manage agent work from your phone.\n\nCHAT AND FILES\nKeep conversations, formatted replies, code and attachments together. Stream replies, steer or stop a run, and inspect activity and usage.\n\nAPPROVALS AND CONTROL\nReview sensitive requests before approving them with Android device authentication. Access cron schedules, agent sessions, projects and optional gateway integrations supported by your server.\n\nVOICE AND WAKE\nDictate messages, use Talk, listen to spoken replies and optionally enable on-device Hey Jarvis wake-word detection. Speech recognition and TTS may use your system or gateway providers. Optional Wake alarms can use answers, photos or step events as proof.\n\nYOUR GATEWAY\nRequires Android 12 or later and a reachable, configured Hermes gateway with the compatible mobile plugin. The publisher does not host your chats or provide AI model credits. Your gateway's model/API providers may charge separately. Features depend on gateway configuration, connectivity and Android permissions.\n\nThe Play edition does not include autonomous Android Accessibility phone control or APK installation. Those are separate sideload-edition capabilities.\n\nNo automatic publisher analytics or crash-reporting program. Messages, files and enabled voice/proof features can leave your phone for your chosen gateway and its providers. Optional Google push/scanning and system speech services have their own data flows. See the privacy policy before pairing.\n\nThis is an independently developed client, not an official Nous Research app.",
+  "support_email": "hello@tiyuvta.ai",
+  "website": "https://github.com/avifenesh/hermes-android-app",
+  "proposed_package": "dev.avifenesh.hermes.play",
+  "privacy_policy_url": null,
+  "owner_approval_required": [
+    "final title/package",
+    "Play App Signing choice",
+    "target audience/content rating",
+    "Data Safety and permissions declarations"
+  ],
+  "assets": {
+    "icon": "assets/icon-512.png",
+    "feature_graphic": "assets/feature-1024x500.png",
+    "phone_screenshots": []
+  }
+}

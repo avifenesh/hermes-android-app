@@ -54,7 +54,8 @@ DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "ImageMemoryTest", "TerminalUnicodeWidthTest",
                  "BatteryPollingActivity", "BatteryPollingProbe",
                  "WakeIsolationProbeActivity", "MachineStorageProbeActivity",
-                 "DownloadIntegrityProbeActivity", "RedirectIsolationProbeActivity")
+                 "DownloadIntegrityProbeActivity", "RedirectIsolationProbeActivity",
+                 "PublisherReportProbeActivity", "PublisherReportsTest", "PublisherReportFenceTest")
 
 
 def require(ok: bool, message: str) -> None:

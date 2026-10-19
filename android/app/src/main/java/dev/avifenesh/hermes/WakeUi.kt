@@ -295,12 +295,12 @@ fun WakeScreen(act: WakeActivity) {
                         ProofCard("Read · 2 min", if (content != null) content.str("title") else "Preparing today's reading…", content != null) {
                             readStart = System.currentTimeMillis(); Wake.touch(); mode = "read"
                         }
-                        ProofCard("Bathroom photo", if (hasCamera) "Walk there, take a fresh photo of the sink or mirror." else "This device has no camera. Use another proof.", hasCamera) {
+                        ProofCard("Bathroom photo", if (hasCamera) "Take a fresh photo of the sink or mirror. The photo uploads to your gateway and its vision provider for checking." else "This device has no camera. Use another proof.", hasCamera) {
                             Wake.touch(150_000); err = null
                             if (ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) openCamera()
                             else act.unlockThen { camPerm.launch(Manifest.permission.CAMERA) }
                         }
-                        ProofCard("Walk ${s?.optInt("steps_needed", 120) ?: 120} steps", if (hasStepSensor) "Get up and walk around. The phone counts your steps." else "This phone has no step sensor.", hasStepSensor) {
+                        ProofCard("Walk ${s?.optInt("steps_needed", 120) ?: 120} steps", if (hasStepSensor) "The phone counts your steps and sends their timestamps to your gateway to check the proof." else "This phone has no step sensor.", hasStepSensor) {
                             err = null
                             if (ctx.checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) mode = "steps"
                             else act.unlockThen { stepPerm.launch(Manifest.permission.ACTIVITY_RECOGNITION) }

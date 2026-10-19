@@ -8,8 +8,9 @@ Your [Hermes Agent](https://github.com/NousResearch/hermes-agent), in your pocke
 client for the gateway **you** run. Chat, approvals, cron, fleet and optional phone control, with
 every request signed by a key that never leaves the phone.
 
-No publisher backend. No accounts. No telemetry. The app pairs to your own server and speaks to it
-over an authenticated API; your phone, gateway and configured providers keep the data.
+No publisher-hosted chat backend or publisher account registration. No automatic publisher analytics
+or crash-reporting program. The app pairs to your own server over an authenticated API; gateway,
+provider, Google SDK and voluntary support/reporting data flows are described in the privacy policy.
 
 <p align="center">
   <img src="docs/screenshots/row2.png" alt="Inbox and offline privacy policy">
