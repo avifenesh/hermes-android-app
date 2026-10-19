@@ -1,4 +1,4 @@
-"""Pure ZIP-parity regression tests. Fixtures are not Android build artifacts."""
+"""Pure qualification-guard regressions. ZIP fixtures are not Android artifacts."""
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -9,6 +9,55 @@ spec = importlib.util.spec_from_file_location('qualify_play', Path(__file__).wit
 assert spec and spec.loader
 qualify = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(qualify)
+
+
+class TestExecutionTests(unittest.TestCase):
+    def test_entirely_skipped_suite_is_rejected(self):
+        with self.assertRaises(AssertionError):
+            qualify.validate_test_counts({'tests': 3, 'skipped': 3, 'failures': 0, 'errors': 0})
+
+
+build_spec = importlib.util.spec_from_file_location('build_play_candidate', Path(__file__).with_name('build_play_candidate.py'))
+assert build_spec and build_spec.loader
+build = importlib.util.module_from_spec(build_spec)
+build_spec.loader.exec_module(build)
+
+
+class BuildProvenanceTests(unittest.TestCase):
+    def setUp(self):
+        self.sources = {'source.kt': 'source-digest'}
+        self.outputs = {'candidate.apk': 'artifact-digest', 'TEST-report.xml': 'test-digest', 'lint.xml': 'lint-digest'}
+        self.record = {'format': 1, 'return_code': 0, 'command': build.BUILD_COMMAND.copy(), 'sources': self.sources.copy(), 'outputs': self.outputs.copy()}
+
+    def test_matching_actual_build_snapshot_is_accepted(self):
+        build.validate_provenance(self.record, self.sources, self.outputs)
+
+    def test_missing_provenance_is_rejected(self):
+        with self.assertRaisesRegex(AssertionError, 'successful build provenance'):
+            build.validate_provenance({}, self.sources, self.outputs)
+
+    def test_changed_source_content_is_rejected(self):
+        with self.assertRaisesRegex(AssertionError, 'source snapshot differs'):
+            build.validate_provenance(self.record, {'source.kt': 'different-content'}, self.outputs)
+
+    def test_replaced_xml_or_artifact_is_rejected(self):
+        for name in self.outputs:
+            with self.subTest(output=name), self.assertRaisesRegex(AssertionError, 'artifact/report hashes differ'):
+                build.validate_provenance(self.record, self.sources, {**self.outputs, name: 'unrelated-content'})
+
+    def test_wrong_build_command_is_rejected(self):
+        self.record['command'] = ['true']
+        with self.assertRaisesRegex(AssertionError, 'build command'):
+            build.validate_provenance(self.record, self.sources, self.outputs)
+
+
+class ApkIdentityTests(unittest.TestCase):
+    def test_correct_candidate_is_accepted(self):
+        qualify.validate_apk_identity("package: name='dev.avifenesh.hermes.play' versionCode='41' versionName='0.16.9'", 41, '0.16.9')
+
+    def test_old_signed_package_version_is_rejected(self):
+        with self.assertRaisesRegex(AssertionError, 'version mismatch'):
+            qualify.validate_apk_identity("package: name='dev.avifenesh.hermes.play' versionCode='1' versionName='0.0.1'", 41, '0.16.9')
 
 
 class BundleParityTests(unittest.TestCase):
