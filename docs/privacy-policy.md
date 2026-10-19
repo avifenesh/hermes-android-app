@@ -1,6 +1,6 @@
 # Hermes Android privacy policy
 
-**Prepared for the GitHub full APK release. Reviewed 2026-10-16.** This policy describes the full Android client, displayed as **Hermes**, package **`dev.avifenesh.hermes`**. It does not describe a submitted Google Play release.
+**Prepared for the 0.16.9 full-client candidate. Reviewed 2026-10-19.** This policy describes the full Android client, displayed as **Hermes**, package **`dev.avifenesh.hermes`**. Published older APKs retain their own bundled policy. The separate [Play policy](play/privacy-policy.md) describes `dev.avifenesh.hermes.play`; neither candidate has been submitted to Google Play.
 
 ## Developer and contact
 
@@ -15,6 +15,12 @@ The client has no publisher analytics, automatic publisher crash-reporting or be
 If you email support, the developer receives your email address, message and any information you choose to include. Your email provider and the recipient's email service also process the message. Do not send pairing links, tokens, private keys or other people's private information.
 
 The support-email flow in the current source opens your mail app with a draft containing your note, app version/package, Android version and device manufacturer/model. General support includes no chat content. When reporting a selected message, you can opt in to include its text, including any reasoning; inclusion defaults off, and attachments or other messages are not included. The source shows the complete bounded draft for review before opening the mail app. Opening that draft shares it with the mail app; the mail app may store or sync drafts. Sending the email is your choice, not automatic reporting. This flow passed focused API 31 checks against the signed 0.16.3 candidate using a local mail sink. No real email was sent, and compatibility with every mail app is not established. See [verification scope](release-0.16.3.md).
+
+## Voluntary in-app content reporting (0.16.9 candidate)
+
+The candidate adds an explicit **Send report** action alongside the existing email option. Opening Report, editing or reviewing a preview does not upload anything. Only Send report sends the exact bounded preview text and a random report ID to Tiyuvta's separate Cloudflare Workers/D1 reporting service, not your selected gateway or model provider. Selected-message text defaults off and is included only if you choose it. No attachments, other messages, pairing credentials or gateway addresses are attached automatically. The preview includes the app/device diagnostics described above; information you choose to enter can contain private information, so review it before sending. Text is limited to 8 KiB of UTF-8. The random ID is for receipt, retry and deletion, not device tracking.
+
+The receiver stores the random ID, submitted text and server receipt time. Cloudflare processes connection/infrastructure metadata and the source IP used transiently for abuse throttling; the application does not put IP addresses in report records or enable report-body logging or behavior analytics. Avi Fenesh uses reports for support, content-safety/moderation review and product corrections. Reports stay in the queue until resolved or deleted. Request deletion at **hello@tiyuvta.ai** with your report ID. No fixed completion deadline or immediate provider-backup erasure is promised. Receipt is not a moderation outcome, and deleting a report does not delete independent gateway/provider conversation copies. No report is sent automatically on an error.
 
 ## Information used by features
 

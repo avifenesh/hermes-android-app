@@ -371,6 +371,7 @@ fun ChatScreen(cid: String) {
                 Box {
                     IconBtn(Ic.plus, p.tx2, 46.dp, p.s2) { plus = true }
                     DropdownMenu(plus, { plus = false }, containerColor = p.s2) {
+                        AttachmentPrivacyNotice(Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 10.dp))
                         DropdownMenuItem({ Text("Photo", style = sans(15f, 500, p.tx)) }, { plus = false; pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, leadingIcon = { Icn(Ic.plus, p.tx2, 18.dp) })
                         DropdownMenuItem({ Text("Camera", style = sans(15f, 500, p.tx)) }, { plus = false; camPerm.launch(Manifest.permission.CAMERA) }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) })
                         DropdownMenuItem({ Text("File", style = sans(15f, 500, p.tx)) }, { plus = false; doc.launch(arrayOf("*/*")) }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) })
