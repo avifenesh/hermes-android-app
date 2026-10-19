@@ -20,11 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,8 +40,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
-/** Pure, bounded email text. This is manual support email, not an in-app reporting backend. */
+/** Pure, bounded text shared by the reviewed publisher report and email alternative. */
 internal object SupportPayload {
     // Binder has a shared 1 MiB buffer, not a per-intent allowance:
     // https://developer.android.com/reference/android/os/TransactionTooLargeException
@@ -47,7 +52,7 @@ internal object SupportPayload {
     // in a UTF-16 Parcel. Leave room under a 64 KiB intent budget for its envelope.
     const val BODY_UTF8_LIMIT = 8 * 1024
     const val INTENT_BYTES_LIMIT = 64 * 1024
-    const val SHORTENED = "\n\n[Report shortened to fit a mail-app draft. Only the text shown here is included.]"
+    const val SHORTENED = "\n\n[Report shortened to fit the 8 KiB limit. Only the text shown here is included.]"
 
     fun prefixUtf8(text: String, budget: Int): String {
         require(budget >= 0)
@@ -68,7 +73,7 @@ internal object SupportPayload {
             append("What happened:\n").append(note.trim().ifBlank { "(not provided)" })
             append("\n\n---\n").append(diagnostics)
             if (!quoted.isNullOrBlank()) append("\n\nSelected message:\n").append(quoted)
-            append("\n\nPrepared by me for sending from my own mail app.")
+            append("\n\nPrepared and reviewed by me for voluntary support reporting.")
         }
         if (full.toByteArray(Charsets.UTF_8).size <= BODY_UTF8_LIMIT) return full
         return prefixUtf8(full, BODY_UTF8_LIMIT - SHORTENED.toByteArray(Charsets.UTF_8).size) + SHORTENED
@@ -99,14 +104,15 @@ internal object Support {
         }
     }
 
-    /** Fence clipboard and email handoffs against machine changes, including switch-away/back. */
-    fun act(request: SupportRequest, action: () -> Unit) {
+    /** Fence support actions and callbacks against machine changes, including switch-away/back. */
+    fun act(request: SupportRequest, action: () -> Unit): Boolean {
         synchronized(Api.epoch) {
             if (Ui.supportRequest.value?.id != request.id || !current(request)) {
                 if (Ui.supportRequest.value?.id == request.id) Ui.supportRequest.value = null
-                return
+                return false
             }
             Api.epoch.commit(request.generation) { action() }
+            return true
         }
     }
 
@@ -149,7 +155,10 @@ internal fun SupportDialogs() {
 }
 
 @Composable
-private fun SupportDialog(request: SupportRequest) {
+internal fun SupportDialog(
+    request: SupportRequest,
+    sendReport: suspend (PublisherReportDraft) -> Unit = { PublisherReports.send(it) },
+) {
     val ctx = LocalContext.current
     val cb = LocalClipboardManager.current
     val p = P
@@ -158,10 +167,25 @@ private fun SupportDialog(request: SupportRequest) {
     var include by rememberSaveable { mutableStateOf(false) }
     var noteTooLong by rememberSaveable { mutableStateOf(false) }
     var mailError by rememberSaveable { mutableStateOf(false) }
-    val dismiss = { if (Ui.supportRequest.value?.id == request.id) Ui.supportRequest.value = null }
+    val scope = rememberCoroutineScope()
+    var sendJob by remember { mutableStateOf<Job?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    var sendError by remember { mutableStateOf(false) }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(request.id, lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) sendJob?.cancel()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer); sendJob?.cancel() }
+    }
+    val dismiss = {
+        sendJob?.cancel()
+        if (Ui.supportRequest.value?.id == request.id) Ui.supportRequest.value = null
+    }
     if (stage == "actions") {
         HDialog("Message actions", onDismiss = dismiss, body = {
-            Text("Copy the message, or review a support email. Neither action sends anything automatically.", style = sans(13.5f, 400, p.tx2, 19f))
+            Text("Copy the message, or review a voluntary report. Nothing is sent until you choose Send report or send from your mail app.", style = sans(13.5f, 400, p.tx2, 19f))
         }, actions = {
             Btn("Cancel", primary = false) { dismiss() }
             Btn("Copy", primary = false) {
@@ -180,20 +204,30 @@ private fun SupportDialog(request: SupportRequest) {
         }
     }
     val body = remember(note, include, diagnostics, request.id) { SupportPayload.body(note, if (include) request.text else null, diagnostics) }
-    HDialog(if (stage == "preview") "Review email" else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
-        Text(stringResource(R.string.report_notice), style = sans(13.5f, 400, p.tx2, 19f))
+    val draftId = rememberSaveable(body) { UUID.randomUUID().toString() }
+    val draft = remember(body, draftId) { PublisherReportDraft(body, draftId) }
+    var received by rememberSaveable(draftId) { mutableStateOf(false) }
+    HDialog(if (stage == "preview") "Review report" else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
+        Text("Voluntary report to Tiyuvta, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received.", style = sans(13.5f, 400, p.tx2, 19f))
         Spacer(Modifier.height(12.dp))
-        Btn("Privacy policy", Modifier.fillMaxWidth(), primary = false) {
+        Btn("Privacy policy", Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
             Support.act(request) { Ui.push(Route.PrivacyR) }
         }
         Text("Opening the policy closes this unsent draft.", style = sans(12.5f, 400, p.tx2, 18f))
         Spacer(Modifier.height(12.dp))
         if (stage == "preview") {
-            Text("To: " + stringResource(R.string.report_email), style = sans(14f, 600, p.tx))
-            Text("Subject: " + stringResource(R.string.report_subject), style = sans(14f, 600, p.tx))
+            Text("Publisher endpoint: " + PublisherReports.ENDPOINT, style = sans(12.5f, 400, p.tx2, 18f))
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text("Report ID: " + draft.id, style = mono(12.5f, 500, p.tx2))
+            }
+            Text("Keep this ID for retry or deletion requests.", style = sans(12.5f, 400, p.tx2, 18f))
+            Text("Email alternative: " + stringResource(R.string.report_email), style = sans(14f, 600, p.tx))
+            Text("Mail subject: " + stringResource(R.string.report_subject), style = sans(14f, 600, p.tx))
             Spacer(Modifier.height(12.dp))
-            // No ellipsis or collapsed section: this is the complete body passed to ACTION_SENDTO.
+            // No ellipsis or collapsed section: both destinations get exactly this text.
             Text(body, style = sans(13.5f, 400, p.tx, 19f))
+            if (received) Text("Received by Tiyuvta. This is a receipt, not a moderation decision or a promise of action or response.", style = sans(13.5f, 600, p.tx2, 19f))
+            if (sendError) Text("No confirmed receipt. Your draft is still here. Tap Send report to retry the same report ID, or use email. A failed or cancelled connection may still have delivered it; nothing retries automatically.", style = sans(13.5f, 600, p.tx2, 19f))
             if (mailError) {
                 Spacer(Modifier.height(12.dp))
                 Text("Could not open a mail app. Your draft is still here. You can email " + stringResource(R.string.report_email) + " yourself.", style = sans(13.5f, 600, p.tx2, 19f))
@@ -204,7 +238,7 @@ private fun SupportDialog(request: SupportRequest) {
                 if (!noteTooLong) note = value
             }, "What went wrong? (optional)", Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, size = 14.5f)
             if (noteTooLong) Text("That edit exceeds the 8 KiB draft limit. Shorten it; the previous note is unchanged.", style = sans(12.5f, 500, p.tx2))
-            Text("App version, package, Android version and device model are included. Review all text before opening your mail app. Long reports are shortened in the preview to fit Android intent limits.", style = sans(12.5f, 400, p.mu, 18f))
+            Text("App version, package, Android version and device model are included in the preview. Review for secrets before sending. No gateway address or tokens are added automatically; no attachments or other chat history are included. Long reports are shortened in the preview to the 8 KiB limit. Email shares the same draft with your mail app; you choose whether to send it there.", style = sans(12.5f, 400, p.mu, 18f))
             if (!request.text.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 val includeLabel = stringResource(R.string.report_include)
@@ -215,20 +249,43 @@ private fun SupportDialog(request: SupportRequest) {
     }, actions = {
         Btn("Cancel", primary = false) { dismiss() }
         if (stage == "preview") {
-            Btn("Edit", primary = false) { stage = "edit"; mailError = false }
-            Btn("Open mail app") {
+            Btn("Edit", primary = false, enabled = !sending) { Support.act(request) { stage = "edit"; mailError = false; sendError = false } }
+            Btn("Open mail app", primary = false, enabled = !sending) {
                 Support.act(request) {
                     if (Support.openMail(ctx, body)) dismiss() else mailError = true
                 }
             }
-        } else Btn("Review email") { Support.act(request) { stage = "preview" } }
+            Btn(if (sending) "Sending…" else if (received) "Received" else "Send report", enabled = !sending && !received) {
+                Support.act(request) {
+                    // Set synchronously before launching: duplicate taps cannot enqueue uploads.
+                    if (!sending && !received) {
+                        sending = true
+                        sendError = false
+                        sendJob = scope.launch {
+                            try {
+                                if (!Support.act(request) {}) return@launch
+                                sendReport(draft)
+                                Support.act(request) { received = true }
+                            } catch (e: CancellationException) {
+                                Support.act(request) { sendError = true }
+                                throw e
+                            } catch (_: Exception) {
+                                Support.act(request) { sendError = true }
+                            } finally {
+                                Support.act(request) { sending = false }
+                            }
+                        }
+                    }
+                }
+            }
+        } else Btn("Review report") { Support.act(request) { stage = "preview" } }
     })
 }
 
 /** General support never looks through the user's loaded chats for a quote. */
 @Composable
 fun ReportProblemRow() {
-    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), stringResource(R.string.report_notice)) { Support.open() } }
+    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), "Review a voluntary report to Tiyuvta, or use email. Nothing sends automatically.") { Support.open() } }
 }
 
 /** Long-press only opens the themed action chooser. Clipboard writes require a separate Copy tap. */

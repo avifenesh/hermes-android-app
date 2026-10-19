@@ -1,0 +1,13 @@
+{
+  "name": "hermes-android-reports",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/unit.test.js test/integration.test.js",
+    "test:unit": "node --test test/unit.test.js",
+    "test:integration": "node --test test/integration.test.js",
+    "dev": "wrangler dev --local",
+    "check": "wrangler deploy --dry-run"
+  },
+  "devDependencies": { "wrangler": "4.151.2" }
+}
