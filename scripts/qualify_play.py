@@ -46,6 +46,15 @@ def payload_parity(apk: Path, bundle: Path) -> None:
             assert a.read(name) == b.read(bundled), 'APK/bundle content differs: ' + name
 
 
+def validate_apk_identity(badging: str, code: int, version: str) -> None:
+    package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.MULTILINE)
+    assert package and package.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'APK/source version mismatch'
+
+
+def validate_test_counts(counts: dict[str, int]) -> None:
+    assert counts['tests'] > counts['skipped'] >= 0 and counts['failures'] == counts['errors'] == 0, 'No executed successful tests'
+
+
 def command(argv: list[str], output: Path) -> str:
     result = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True, timeout=180)
     output.write_text(result.stdout + result.stderr)
@@ -90,6 +99,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apk', required=True, type=Path)
     parser.add_argument('--bundle', required=True, type=Path)
+    parser.add_argument('--provenance', required=True, type=Path, help='Receipt from build_play_candidate.py, bound to source and report/artifact hashes')
     parser.add_argument('--bundle-apk', required=True, type=Path, help='Publisher-signed universal APK generated from this bundle with bundletool')
     parser.add_argument('--expected-cert-sha256', required=True)
     parser.add_argument('--bundletool', required=True, type=Path)
@@ -105,6 +115,12 @@ def main() -> None:
     if prior.is_file():
         prior.rename(args.output / ('verification.previous-' + digest(prior)[:12] + '.json'))
     assert re.fullmatch('[0-9a-fA-F]{64}', args.expected_cert_sha256)
+    from build_play_candidate import APK, BUNDLE, source_snapshot, output_snapshot, validate_provenance
+    assert args.provenance.is_file(), 'Run scripts/build_play_candidate.py first'
+    provenance = json.loads(args.provenance.read_text())
+    bound_sources = source_snapshot(ROOT)
+    validate_provenance(provenance, bound_sources, output_snapshot(ROOT))
+    assert digest(args.apk) == provenance['outputs'][APK] and digest(args.bundle) == provenance['outputs'][BUNDLE], 'Supplied artifacts differ from proven build'
     source = (ROOT / 'android/app/build.gradle.kts').read_text()
     version_match = re.search(r'versionName = "([^"]+)"', source)
     code_match = re.search(r'versionCode = (\d+)', source)
@@ -123,8 +139,7 @@ def main() -> None:
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.apk)], args.output / 'legal.json')
     command([str(args.build_tools / 'zipalign'), '-c', '-P', '16', '4', str(args.apk)], args.output / 'zipalign.log')
     badging = command([str(args.build_tools / 'aapt2'), 'dump', 'badging', str(args.apk)], args.output / 'apk-badging.log')
-    package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.MULTILINE)
-    assert package and package.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'APK/source version mismatch'
+    validate_apk_identity(badging, code, version)
     payload_parity(args.apk, args.bundle)
     command([args.java, '-jar', str(args.bundletool), 'validate', '--bundle', str(args.bundle)], args.output / 'bundle-validation.log')
     manifest = command([args.java, '-jar', str(args.bundletool), 'dump', 'manifest', '--bundle', str(args.bundle)], args.output / 'bundle-manifest.xml')
@@ -152,8 +167,7 @@ def main() -> None:
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.bundle_apk)], args.output / 'bundle-apk-legal.json')
     command([str(args.build_tools / 'zipalign'), '-c', '-P', '16', '4', str(args.bundle_apk)], args.output / 'bundle-apk-zipalign.log')
     bundled_badging = command([str(args.build_tools / 'aapt2'), 'dump', 'badging', str(args.bundle_apk)], args.output / 'bundle-apk-badging.log')
-    bundled_version = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", bundled_badging, re.MULTILINE)
-    assert bundled_version and bundled_version.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'Generated APK/source version mismatch'
+    validate_apk_identity(bundled_badging, code, version)
     generated_native = native_alignment(args.bundle_apk)
     reports = list((ROOT / 'android/app/build/test-results/testPlayDebugUnitTest').glob('TEST-*.xml'))
     assert reports, 'Run :app:testPlayDebugUnitTest first'
@@ -166,7 +180,7 @@ def main() -> None:
         row = ET.parse(path).getroot()
         for key in counts:
             counts[key] += int(row.attrib.get(key, 0))
-    assert counts['tests'] > 0 and counts['failures'] == counts['errors'] == 0
+    validate_test_counts(counts)
     lint_file = ROOT / 'android/app/build/reports/lint-results-playRelease.xml'
     assert lint_file.is_file(), 'Run :app:lintPlayRelease first'
     lint_inputs = [path for path in source_files if path.suffix in ['.kt', '.java', '.xml']] + build_files
@@ -175,13 +189,15 @@ def main() -> None:
     lint_errors = sum(item.attrib.get('severity') in ['Error', 'Fatal'] for item in issues)
     assert lint_errors == 0
     native = native_alignment(args.apk)
+    assert source_snapshot(ROOT) == bound_sources, 'Source changed during qualification'
     receipt = {'qualification': 'targeted artifact checks passed', 'store_approval': False, 'submitted': False,
         'version': version, 'version_code': code, 'package': node.attrib['package'],
         'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'working_tree_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True)),
         'apk': {'path': str(args.apk), 'sha256': digest(args.apk), 'bytes': args.apk.stat().st_size},
         'bundle': {'path': str(args.bundle), 'sha256': digest(args.bundle), 'bytes': args.bundle.stat().st_size},
-        'bundle_generated_apk': {'path': str(args.bundle_apk), 'sha256': digest(args.bundle_apk), 'bytes': args.bundle_apk.stat().st_size, 'native': generated_native},
+        'bundle_generated_apk': {'path': str(args.bundle_apk), 'sha256': digest(args.bundle_apk), 'source_bundle_sha256': digest(args.bundle), 'bytes': args.bundle_apk.stat().st_size, 'native': generated_native},
+        'build_provenance_sha256': digest(args.provenance),
         'expected_upload_certificate_sha256': args.expected_cert_sha256.lower(),
         'unit_tests': counts, 'lint': {'errors': lint_errors, 'warnings': len(issues)}, 'native': native,
         'scope_limits': ['No physical-phone qualification', 'No real FCM or microphone quality qualification',

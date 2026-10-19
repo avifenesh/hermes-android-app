@@ -14,14 +14,13 @@ Candidate: **0.16.9 / versionCode 41**, `dev.avifenesh.hermes.play`.
 
 ## Reproduce the candidate
 
-Use JDK 21 from `android/` and the publisher's existing ignored signing configuration. Missing release signing must fail, never fall back to a debug key.
+Use JDK 21 and the publisher's existing ignored signing configuration. Missing release signing must fail, never fall back to a debug key. From the repository root:
 
 ```sh
-./gradlew --offline --max-workers=2 \
-  :app:testPlayDebugUnitTest :app:lintPlayRelease \
-  :app:assemblePlayRelease :app:bundlePlayRelease
-./gradlew --stop
+JAVA_HOME=/path/to/jdk-21 python3 scripts/build_play_candidate.py
 ```
+
+This runs the real Gradle test/lint/APK/AAB tasks and stops its daemon. `dist/build-provenance-play.json` binds the exact command and successful result to content hashes for the tracked/nonignored source tree, produced artifacts and every unit/lint XML report. Changed sources, replaced reports/artifacts, missing provenance and entirely skipped tests fail qualification. Gradle's normal input/output cache may be reused; this is local build provenance, not a hermetic supply-chain attestation.
 
 Use bundletool `build-apks --mode=universal` with the trusted publisher signer and extract `universal.apk` to `dist/Hermes-Play-0.16.9-from-bundle.apk`. Keep signing passwords out of command lines and logs. From the repository root, qualify the exact built APK/AAB and this bundle-generated APK. Supply paths to the installed SDK Build Tools, Java 21 and bundletool. Supply the expected **upload** certificate from the publisher's trusted record; do not obtain trust from the candidate itself. The existing full-release certificate is used only for this local candidate, not approval of the permanent Play App Signing strategy.
 
@@ -30,6 +29,7 @@ python3 scripts/qualify_play.py \
   --apk android/app/build/outputs/apk/play/release/app-play-release.apk \
   --bundle android/app/build/outputs/bundle/playRelease/app-play-release.aab \
   --bundle-apk dist/Hermes-Play-0.16.9-from-bundle.apk \
+  --provenance dist/build-provenance-play.json \
   --expected-cert-sha256 TRUSTED_UPLOAD_CERTIFICATE_SHA256 \
   --bundletool /path/to/bundletool.jar \
   --build-tools /path/to/Android/Sdk/build-tools/36.0.0 \
