@@ -612,7 +612,7 @@ fun WakeWordPanel() {
     Panel {
         SettingRow("Say \u201c${WakeWord.label(Prefs.wakePhrase)}\u201d", when {
             st.startsWith("error:") -> st.removePrefix("error:")
-            !on -> "Opens Talk hands-free. Runs on the phone; audio never leaves it until you say the phrase."
+            !on -> "Continuously uses the microphone in the background while enabled. Wake detection stays on-device; after a hit, Talk may send audio to the system recognizer and text to your gateway/providers."
             st == "paused" -> "Paused while Talk has the mic"
             st == "listening" -> "Listening" + if (hits > 0) " \u00b7 heard $hits\u00d7 this session" else ""
             else -> "Starting\u2026"

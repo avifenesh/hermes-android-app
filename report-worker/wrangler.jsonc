@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hermes-android-reports",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": false,
+    "logs": { "enabled": false, "invocation_logs": false },
+    "traces": { "enabled": false }
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "hermes-android-reports",
+    // New dedicated empty database provisioned and read back by the parent operator.
+    "database_id": "b5eb4008-0815-47bb-be12-74959c35e9a4"
+  }],
+  "ratelimits": [{
+    "name": "REPORT_RATE_LIMITER",
+    // Public account-scoped namespace, NOT a secret; check account uniqueness before deploying.
+    "namespace_id": "1937462851",
+    "simple": { "limit": 10, "period": 60 }
+  }],
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.css"], "fallthrough": true }]
+}

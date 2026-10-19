@@ -7,7 +7,7 @@ import org.junit.Test
 class SupportPayloadTest {
     @Test fun generalReportContainsOnlyTheExplicitNoteAndDiagnostics() {
         assertEquals(
-            "What happened:\nMy issue\n\n---\nApp: test\n\nPrepared by me for sending from my own mail app.",
+            "What happened:\nMy issue\n\n---\nApp: test\n\nPrepared and reviewed by me for voluntary support reporting.",
             SupportPayload.body("  My issue  ", null, "App: test"),
         )
     }
