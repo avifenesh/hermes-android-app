@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,6 +113,15 @@ fun ModelChip(model: String, reasoning: String, fast: Boolean, changed: Boolean 
     }
 }
 
+@Composable
+private fun FastChip(fast: Boolean, busy: Boolean = false, onFast: (Boolean) -> Unit) {
+    val p = P
+    Text(if (fast) "ϟ Fast on" else "ϟ Fast off", style = mono(12.5f, 600, if (fast) p.acct else p.mu),
+        modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (fast) p.accd else p.s2)
+            .toggleable(value = fast, enabled = !busy, role = Role.Switch, onValueChange = onFast)
+            .padding(horizontal = 10.dp, vertical = 14.dp))
+}
+
 private val EFFORTS = listOf("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
 
 @Composable
@@ -130,7 +141,7 @@ fun ModelSheet(
     val curModel = cur?.str("model").orEmpty()
     val curProv = cur?.str("provider").orEmpty()
     val provs = models?.optJSONArray("providers").objs()
-    val caps = Ctl.caps(curProv, curModel)
+    val caps = cur?.optJSONObject("caps") ?: Ctl.caps(curProv, curModel)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = p.s1,
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
         LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding().navigationBarsPadding()) {
@@ -157,13 +168,17 @@ fun ModelSheet(
                 }
             }
             if (onFast != null && caps?.optBoolean("fast") == true) item {
-                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icn(Ic.zap, p.att, 16.dp); Spacer(Modifier.width(8.dp))
-                    Column(Modifier.weight(1f)) {
+                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icn(Ic.zap, p.att, 16.dp); Spacer(Modifier.width(8.dp))
                         Text("Fast mode", style = sans(15f, 600, p.tx))
-                        Text("Priority processing, billed at a premium", style = sans(12.5f, 400, p.mu))
                     }
-                    Toggle(cur?.optBoolean("fast") == true, { onFast(it) })
+                    Text("Priority processing, billed at a premium", style = sans(12.5f, 400, p.mu))
+                    Text(if (cur?.optBoolean("fast") == true) "Fast mode on" else "Fast mode off",
+                        style = mono(12f, 600, p.acct),
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(p.accd)
+                            .toggleable(value = cur?.optBoolean("fast") == true, role = Role.Switch, onValueChange = onFast)
+                            .padding(horizontal = 12.dp, vertical = 14.dp))
                 }
             }
             item { InputBox(q, { q = it }, "Search models or providers", Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), maxLines = 1) }
@@ -238,8 +253,9 @@ fun ChatModelControl(cid: String) {
     LaunchedEffect(cid) { runCatching { Ctl.loadChat(cid) } }
     val model = st?.str("model")?.ifBlank { null } ?: meta.str("model")
     fun run(body: JSONObject, done: String) {
+        if (busy) return
         busy = true
-        if (scope == "global") body.put("scope", "global")
+        if (scope == "global" && !body.has("scope")) body.put("scope", "global")
         co.launch {
             try {
                 val o = Ctl.apply(cid, body)
@@ -252,7 +268,12 @@ fun ChatModelControl(cid: String) {
             } catch (e: Exception) { Ui.say(e.message) } finally { busy = false }
         }
     }
-    ModelChip(model, st?.str("reasoning").orEmpty(), st?.optBoolean("fast") == true, st?.str("scope") == "chat", busy) { open = true }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ModelChip(model, st?.str("reasoning").orEmpty(), st?.optBoolean("fast") == true, st?.str("scope") == "chat", busy) { open = true }
+        if (st?.optJSONObject("caps")?.optBoolean("fast") == true) FastChip(st.optBoolean("fast"), busy) { f ->
+            run(JSONObject().put("fast", f).put("scope", "chat"), if (f) "Fast mode on for this chat" else "Fast mode off for this chat")
+        }
+    }
     if (open) ModelSheet("Model", st ?: JSONObject().put("model", model), true, true, scope, { scope = it },
         onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), "Switched to ${shortModel(m)}") },
         onReasoning = { e -> run(JSONObject().put("reasoning", e), "Reasoning: $e") },
@@ -282,9 +303,13 @@ fun ComposeModelControl(pick: JSONObject?, onPick: (JSONObject?) -> Unit) {
     val provider = pick?.str("provider")?.ifBlank { null } ?: base?.str("provider").orEmpty()
     val reasoning = pick?.str("reasoning")?.ifBlank { null } ?: base?.str("reasoning").orEmpty()
     val fast = if (pick?.has("fast") == true) pick.optBoolean("fast") else base?.optBoolean("fast") == true
-    val cur = JSONObject().put("model", model).put("provider", provider).put("reasoning", reasoning).put("fast", fast)
+    val caps = if (base != null && model == base.str("model") && provider == base.str("provider")) base.optJSONObject("caps") else Ctl.caps(provider, model)
+    val cur = JSONObject().put("model", model).put("provider", provider).put("reasoning", reasoning).put("fast", fast).put("caps", caps)
     fun upd(f: (JSONObject) -> Unit) { val n = JSONObject((pick ?: JSONObject()).toString()); f(n); onPick(n) }
-    ModelChip(model, reasoning, fast, pick != null) { open = true }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ModelChip(model, reasoning, fast, pick != null) { open = true }
+        if (caps?.optBoolean("fast") == true) FastChip(fast) { f -> upd { it.put("fast", f) } }
+    }
     if (open) ModelSheet("Model", cur, true, true, pick?.str("scope")?.ifBlank { null } ?: "chat", { s -> upd { it.put("scope", s) } },
         onModel = { m, pr -> upd { it.put("model", m).put("provider", pr) }; open = false },
         onReasoning = { e -> upd { it.put("reasoning", e) } },

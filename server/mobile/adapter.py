@@ -327,6 +327,8 @@ class MobileAdapter(BasePlatformAdapter):
         try:
             route = route_delivery(self.store, chat_id, content, self._home, str((metadata or {}).get("job_id") or ""))
             kind, meta = self._classify(route["chat_id"], content, metadata)
+            if kind == "text" and (route["kind"] == "digest" or (metadata or {}).get("job_id")):
+                meta["delivery"] = True
             if reply_to:
                 meta["reply_to"] = reply_to
             if kind == "text" and route["kind"] != "digest" and reply_to:
@@ -712,6 +714,12 @@ class MobileAdapter(BasePlatformAdapter):
         prof = self._profiles.profile_of(cid)
         if prof:  # a one-shot child: anything sent while it runs waits its turn, steer included
             kind = "queued" if self._profiles.busy(cid) else "text"
+        # Snapshot before storing this user turn. Never trust client-supplied quote
+        # text or resolve anchors outside this chat/profile's stored timeline.
+        anchor = body.get("reply_to_message_id", body.get("reply_to"))
+        quoted = self.store.reply_context(cid, anchor) if not text.startswith("/") else None
+        if quoted:
+            meta["reply_to"] = quoted["id"]
         msg = self.store.add_message(cid, "user", text, kind=kind, meta=meta)
         self._emit_msg(msg, push=None)
         wire = {"steer": f"/steer {text}", "queue": f"/queue {text}"}.get(mode, text)
@@ -727,12 +735,28 @@ class MobileAdapter(BasePlatformAdapter):
                                    user_name=ID.user_name() or None, message_id=msg["id"])
         event = MessageEvent(text=wire, message_type=mtype, source=source, message_id=msg["id"],
                              raw_message=body, media_urls=media_urls, media_types=media_types)
+        if quoted:
+            event.reply_to_message_id = quoted["id"]
+            event.reply_to_text = quoted["content"]
+            event.reply_to_is_own_message = quoted["role"] == "agent"
+            if mode == "steer" and not prof:
+                # The busy /steer handler consumes command args, not reply fields;
+                # its turn-boundary queue fallback also drops those fields.
+                from gateway.run_inbound import GatewayInboundMixin
+                event.text = "/steer " + GatewayInboundMixin._prepend_inbound_reply_context(event, source, text)
+                event.reply_to_text = None  # already in the new steer payload
         if prof:
             if kind == "queued" and mode == "steer":
                 note = self.store.add_message(cid, "agent", f"{prof} runs one-shot and can't be steered mid-run; "
                                               "this runs next.", kind="status", meta={"quiet": True})
                 self._emit_msg(note, push=None)
-            await self._profiles.send(cid, prof, text, atts)
+            # Profile chats use the CLI rather than MessageEvent. Apply the same
+            # gateway-supported per-turn envelope before queueing that new prompt.
+            prompt = text
+            if quoted:
+                from gateway.run_inbound import GatewayInboundMixin
+                prompt = GatewayInboundMixin._prepend_inbound_reply_context(event, source, text)
+            await self._profiles.send(cid, prof, prompt, atts)
             return msg
         tip = self._mirror.take_over(cid) if cid.startswith("h-") and getattr(self, "_mirror", None) else None
         if tip:
@@ -1157,7 +1181,8 @@ async def _standalone_send(pconfig, chat_id: str, message: str, *, thread_id: Op
         store = S.Store()
         home = _env("MOBILE_HOME_CHANNEL") or HOME_DEFAULT
         route = route_delivery(store, chat_id, message, home)
-        msg = store.add_message(route["chat_id"], "agent", message, title=route["title"], chat_kind=route["kind"])
+        msg = store.add_message(route["chat_id"], "agent", message, meta={"delivery": True},
+                                title=route["title"], chat_kind=route["kind"])
         for f in media_files or []:
             try:
                 meta = _copy_media(f)

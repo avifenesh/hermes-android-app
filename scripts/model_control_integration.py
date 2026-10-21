@@ -56,7 +56,8 @@ class ModelControlIntegration(unittest.IsolatedAsyncioTestCase):
         )
         self.ctl = C.Control(self.ad)
         self.ctl._models = {}  # Do not warm the external provider catalog in a route test.
-        self.ctl._cfg = lambda: {"model": {"default": self.default["model"], "provider": self.default["provider"]}}
+        self.saved_tier = None
+        self.ctl._cfg = lambda: {"model": {"default": self.default["model"], "provider": self.default["provider"]}, "agent": {"service_tier": self.saved_tier}}
         p = patch.object(SC, "get_pending", lambda sk: self.pending)
         p.start()
         self.addCleanup(p.stop)
@@ -85,6 +86,16 @@ class ModelControlIntegration(unittest.IsolatedAsyncioTestCase):
                 self.override = None
             from agent.i18n import t
             return t("gateway.model.switched", model=(self.override or self.default)["model"])
+        if event.text.startswith("/fast "):
+            from agent.i18n import t
+            enabled = event.text.split()[1] == "on"
+            if self.mode != "fast-noop":
+                self.runner._resolve_session_service_tier = lambda **kw: "priority" if enabled else None
+            label = t("gateway.fast.label_fast" if enabled else "gateway.fast.label_normal")
+            if "--global" in event.text:
+                self.saved_tier = "fast" if enabled else "normal"
+                return t("gateway.fast.saved", label=label)
+            return t("gateway.fast.session_only", label=label)
         return "✓ Applied"
 
     async def apply(self, **body):
@@ -182,6 +193,61 @@ class ModelControlIntegration(unittest.IsolatedAsyncioTestCase):
         data = await self.apply(model="fake-b", provider="fakelab")
         self.assertFalse(data["ok"], data)
         self.assertEqual(data["error"], "❌ Synthetic provider failure")
+
+    async def test_fast_capability_without_catalog(self):
+        self.default = {"model": "gpt-6.1-sol", "provider": "openai-codex"}
+        state = await (await self.client.get("/v1/chats/synthetic/model")).json()
+        self.assertTrue(state["caps"].get("fast"), state)
+
+    async def test_fast_capability_respects_route(self):
+        self.default = {"model": "gpt-6.1-sol", "provider": "openrouter"}
+        state = self.ctl.chat_state("synthetic")
+        self.assertFalse(state["caps"].get("fast"), state)
+
+    async def test_fast_capability_rejects_proxy_override(self):
+        self.override = {"model": "gpt-6.1-sol", "provider": "openai", "base_url": "https://proxy.example/v1"}
+        self.assertFalse(self.ctl.chat_state("synthetic")["caps"]["fast"])
+
+    async def test_catalog_missing_capabilities_is_enriched(self):
+        self.default = {"model": "gpt-6.1-sol", "provider": "openai-codex"}
+        rows = [{"slug": "openai-codex", "name": "Codex", "models": ["gpt-6.1-sol"]},
+                {"slug": "openrouter", "name": "Router", "models": ["gpt-6.1-sol"]}]
+        with patch("hermes_cli.model_switch_providers.list_picker_providers", return_value=rows):
+            models = self.ctl._build_models(False)
+        self.assertTrue(models["providers"][0]["capabilities"]["gpt-6.1-sol"]["fast"])
+        self.assertFalse(models["providers"][1]["capabilities"]["gpt-6.1-sol"]["fast"])
+
+    async def test_fast_same_state_rejection_is_not_success(self):
+        self.mode = "reject"
+        data = await self.apply(fast=False)
+        self.assertFalse(data["ok"], data)
+
+    async def test_fast_uses_supported_effective_runtime_not_default(self):
+        self.runner._resolve_session_agent_runtime = lambda **kw: ("gpt-6.1-sol", {"provider": "openai-codex", "base_url": "https://chatgpt.com/backend-api/codex"})
+        self.assertTrue(self.ctl.chat_state("synthetic")["caps"]["fast"])
+
+    async def test_fast_uses_unsupported_effective_runtime_not_catalog(self):
+        self.default = {"model": "gpt-6.1-sol", "provider": "openai-codex"}
+        self.runner._resolve_session_agent_runtime = lambda **kw: ("gpt-6.1-sol", {"provider": "openrouter"})
+        self.assertFalse(self.ctl.chat_state("synthetic")["caps"]["fast"])
+
+    async def test_fast_default_scope_is_forwarded(self):
+        self.runner._resolve_session_service_tier = lambda **kw: "priority"
+        data = await self.apply(fast=True, scope="global")
+        self.assertTrue(data["ok"], data)
+        self.assertEqual(self.commands, ["/fast on --global"])
+
+    async def test_fast_noop_is_not_success(self):
+        self.mode = "fast-noop"
+        data = await self.apply(fast=True)
+        self.assertFalse(data["ok"], data)
+        self.assertIn("Fast mode", data["error"])
+
+    async def test_fast_success_readback(self):
+        self.runner._resolve_session_service_tier = lambda **kw: "priority"
+        data = await self.apply(fast=True)
+        self.assertTrue(data["ok"], data)
+        self.assertTrue(data["state"]["fast"])
 
     async def test_reasoning_only_still_dispatches(self):
         data = await self.apply(reasoning="high")

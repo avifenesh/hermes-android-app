@@ -455,6 +455,16 @@ class Control:
         provs = list_picker_providers(max_models=80, include_moa=False, **kw)
         keep = ("slug", "name", "models", "total_models", "is_current", "capabilities", "warning", "source", "is_user_defined")
         providers = [{k: p.get(k) for k in keep if k in p} for p in provs if p.get("models")]
+        # Recent Hermes pickers no longer include a capabilities map. Derive fast
+        # eligibility with the same route gate as /fast, not catalog presence.
+        for p in providers:
+            caps = dict(p.get("capabilities") or {})
+            base_url = (cfg.get("providers") or {}).get(p["slug"], {}).get("base_url")
+            if p["slug"] == kw["current_provider"]:
+                base_url = kw["current_base_url"] or base_url
+            for model in p["models"]:
+                caps[model] = {**(caps.get(model) or {}), "fast": self._fast_supported(p["slug"], model, base_url)}
+            p["capabilities"] = caps
         labels = {p["slug"]: p.get("name") or p["slug"] for p in providers}
         recent = [r for r in self._recent() if not r["provider"] or r["provider"] in labels or r["provider"] == "custom"]
         return {"providers": providers, "recent": recent[:8], "efforts": EFFORTS, "fetched": time.time(),
@@ -471,11 +481,19 @@ class Control:
         m["default"] = {"model": mc.get("default") or "", "provider": mc.get("provider") or ""}
         return m
 
-    def _caps(self, provider: str, model: str) -> Dict[str, Any]:
+    @staticmethod
+    def _fast_supported(provider: str, model: str, base_url=None) -> bool:
+        from hermes_cli.models import resolve_fast_mode_overrides
+        return resolve_fast_mode_overrides(model, provider=provider, base_url=base_url) is not None
+
+    def _caps(self, provider: str, model: str, base_url=None) -> Dict[str, Any]:
+        caps = {}
         for p in (self._models or {}).get("providers", []):
             if p.get("slug") == provider:
-                return (p.get("capabilities") or {}).get(model) or {}
-        return {}
+                caps = dict((p.get("capabilities") or {}).get(model) or {})
+                break
+        caps["fast"] = self._fast_supported(provider, model, base_url)
+        return caps
 
     def chat_state(self, cid: str) -> Dict[str, Any]:
         cfg = self._cfg()
@@ -508,9 +526,21 @@ class Control:
             except Exception:
                 rc = None
         reasoning = "none" if (rc or {}).get("enabled") is False else (rc or {}).get("effort") or "medium"
+        route = ov or mc
+        base_url = route.get("base_url") or (cfg.get("providers") or {}).get(eff["provider"], {}).get("base_url")
+        caps = self._caps(eff["provider"], eff["model"], base_url)
+        if r is not None and sk and hasattr(r, "_resolve_session_agent_runtime"):
+            try:
+                # Match /fast's effective route, including channel overrides,
+                # auto provider selection and fallback. Runs off the API loop.
+                model, runtime = r._resolve_session_agent_runtime(source=self.source(cid), session_key=sk, user_config=cfg)
+                caps["fast"] = self._fast_supported(runtime.get("provider"), model, runtime.get("base_url"))
+            except Exception:
+                from gateway.run import _resolve_gateway_model
+                caps["fast"] = self._fast_supported(None, _resolve_gateway_model(cfg))
         return {"chat_id": cid, "model": eff["model"], "provider": eff["provider"], "scope": "chat" if ov else "default",
                 "default": default, "reasoning": reasoning, "reasoning_scope": r_scope,
-                "fast": tier == "priority", "service_tier": tier or "normal", "caps": self._caps(eff["provider"], eff["model"])}
+                "fast": tier == "priority", "service_tier": tier or "normal", "caps": caps}
 
     def set_default_model(self, model: str, provider: str) -> Dict[str, Any]:
         from hermes_cli.model_switch import persist_model_selection, switch_model
@@ -599,7 +629,22 @@ def routes(r, ctl: Control, j) -> None:
                     return j({"error": "bad reasoning level"}, 400)
                 replies.append(await ctl.command(cid, f"/reasoning {eff}" + (" --global" if body.get("scope") == "global" else "")))
             if "fast" in body:
-                replies.append(await ctl.command(cid, "/fast " + ("on" if body.get("fast") else "off")))
+                if not isinstance(body["fast"], bool):
+                    return j({"error": "fast must be a boolean"}, 400)
+                replies.append(await ctl.command(cid, "/fast " + ("on" if body["fast"] else "off")
+                                                 + (" --global" if body.get("scope") == "global" else "")))
+                state = await asyncio.to_thread(ctl.chat_state, cid)
+                from agent.i18n import t
+                label = t("gateway.fast.label_fast" if body["fast"] else "gateway.fast.label_normal")
+                receipt_key = "gateway.fast.saved" if body.get("scope") == "global" else "gateway.fast.session_only"
+                if replies[-1] != t(receipt_key, label=label) or state["fast"] != body["fast"]:
+                    return await result("Fast mode change was not applied. " + (replies[-1] or "The previous selection is still active."))
+                if body.get("scope") == "global":
+                    cfg = await asyncio.to_thread(ctl._cfg)
+                    from agent.fast_mode import service_tier_word
+                    saved = service_tier_word((cfg.get("agent") or {}).get("service_tier"))
+                    if saved != ("fast" if body["fast"] else "normal"):
+                        return await result("Fast mode default was not saved. " + replies[-1])
         except Exception as e:
             logger.exception("[mobile] chat control failed")
             return j({"error": str(e), "replies": replies}, 500)
