@@ -230,6 +230,41 @@ class Store:
         return [dict(r) for r in self._db.execute(q)]
 
     # -- messages --------------------------------------------------------
+    def reply_context(self, chat_id: str, reply_to: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Resolve a quote locally, or the latest delivered report in this chat.
+
+        Deliveries live in mobile.db, not the gateway conversation. Supply them on
+        the *new* inbound event, never backfill a cached agent's history. A single
+        anchor also avoids injecting duplicate mirrored/delivered report bodies.
+        Explicit unknown/cross-chat anchors fail closed (no implicit fallback).
+        """
+        def usable(msg):
+            return (msg and msg["chat_id"] == chat_id and msg["kind"] == "text"
+                    and msg["role"] in ("agent", "user") and msg["content"].strip()
+                    and not msg["meta"].get("undone") and not msg["meta"].get("quiet")
+                    and not is_notice(msg["content"]) and not parse_trace(msg["content"]))
+
+        if reply_to is not None:
+            msg = self.get_message(reply_to) if isinstance(reply_to, str) else None
+            return msg if usable(msg) else None
+        chat = self.get_chat(chat_id) or {}
+        # Ignore presentation-only rows; don't page through/limit long report bodies.
+        rows = self._db.execute(
+            "SELECT * FROM messages WHERE chat_id=? AND role='agent' AND kind='text' ORDER BY ts DESC, rowid DESC",
+            (chat_id,))
+        for row in rows:
+            msg = self._msg(row)
+            if not usable(msg):
+                continue
+            meta = msg["meta"]
+            delivered = meta.get("delivery") or meta.get("mirror") == "cron"
+            legacy_digest = (chat.get("kind") == "digest" and not meta.get("reply_to")
+                             and not meta.get("profile"))
+            # The most recent real answer supersedes an older report. Do not
+            # resurrect that report just because it exists earlier in the chat.
+            return msg if delivered or legacy_digest else None
+        return None
+
     def add_message(self, chat_id: str, role: str, content: str, kind: str = "text",
                     meta: Optional[Dict[str, Any]] = None, msg_id: Optional[str] = None,
                     title: Optional[str] = None, chat_kind: str = "chat") -> Dict[str, Any]:
