@@ -154,23 +154,36 @@ fun SpendBars(pulse: JSONObject?) {
 fun CronScreen() {
     val p = P
     val scope = rememberCoroutineScope()
+    var seg by rememberSaveable { mutableStateOf("jobs") }
     var jobs by remember { mutableStateOf<List<JSONObject>?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var showOff by remember { mutableStateOf(false) }
     suspend fun load() { runCatching { jobs = Api.get("/v1/cron").optJSONArray("jobs").objs(); err = null }.onFailure { err = it.message } }
-    val top = Ui.stack.isEmpty() && !Ui.composeOpen.value
+    val top = Ui.stack.isEmpty() && !Ui.composeOpen.value && seg == "jobs"
     VisibleEffect(top) { while (top) { load(); delay(30000) } }  // reload when returning from a job/editor
     val all = jobs.orEmpty().sortedBy { parseTime(it.opt("next_run_at")) ?: Double.MAX_VALUE }
     val on = all.filter { it.optBoolean("enabled", true) }
     val off = all.filter { !it.optBoolean("enabled", true) }
     var refreshing by remember { mutableStateOf(false) }
     val ptr = rememberPullToRefreshState()
-    PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.fillMaxSize(), state = ptr,
+    val wov by Wake.overview.collectAsState()
+    val wnext = wov?.optJSONObject("next")
+    Column(Modifier.fillMaxSize()) {
+        Header(if (seg == "alarms") "Alarm clock" else "Cron",
+            if (seg == "alarms") wnext?.let { "next " + clock(it.getDouble("ts")) + " · " + until(it.getDouble("ts")) } ?: "no alarm set"
+            else jobs?.let { "${on.size} active · ${off.size} paused" }) {
+            if (seg == "jobs") IconBtn(Ic.plus, p.ink, 44.dp, p.acc) { Ui.push(Route.CronEditR(null)) }
+        }
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Seg(listOf("jobs" to "Cron jobs", "alarms" to "Alarm clock"), seg) { seg = it }
+        }
+        if (seg == "alarms") {
+            WakeSettingsScreen(Modifier.weight(1f), embedded = true)
+            return@Column
+        }
+    PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.weight(1f), state = ptr,
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-        item { Header("Cron", jobs?.let { "${on.size} active · ${off.size} paused" }) {
-            IconBtn(Ic.plus, p.ink, 44.dp, p.acc) { Ui.push(Route.CronEditR(null)) }
-        } }
         if (err != null) item { ErrorPanel("Can't reach Hermes: $err") { scope.launch { load() } } }
         else if (jobs == null) item { Skeleton() }
         else if (all.isEmpty()) item { EmptyState("No cron jobs", "Tap + to schedule one.") }
@@ -194,6 +207,7 @@ fun CronScreen() {
             if (showOff) items(off, key = { it.str("id") }) { j -> JobRow(j) { scope.launch { load() } } }
         }
         item { Spacer(Modifier.height(30.dp)) }
+    }
     }
     }
 }
@@ -389,7 +403,7 @@ fun MeScreen() {
             Panel {
                 NavRow(Ic.sliders, "Agent", "Model, reasoning, approvals, memory, subagents, tools") { Ui.push(Route.SettingsR) }
                 Line()
-                NavRow(Ic.phone, "This phone", "Voice, look, wake, notifications, connection") { Ui.push(Route.PhoneR) }
+                NavRow(Ic.phone, "This phone", "Voice, look, notifications, connection") { Ui.push(Route.PhoneR) }
             }
         }
         item { Section("Workspace", null) }
@@ -482,22 +496,6 @@ fun PhoneSettingsScreen() {
                 "voice" -> {
                 item { Section("Talk voice", null) }
                 item { Panel { TalkVoicePanel() } }
-                item { Section("Wake alarm", null) }
-                item {
-                    val wov by Wake.overview.collectAsState()
-                    val nx = wov?.optJSONObject("next")
-                    Panel {
-                        Row(Modifier.fillMaxWidth().clickable { Ui.push(Route.WakeR) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icn(Ic.bell, p.acct, 22.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text("Wake alarm", style = sans(15f, 600, p.tx))
-                                Text(nx?.let { "next " + clock(it.getDouble("ts")) + " · " + until(it.getDouble("ts")) } ?: "Alarms that stop only when you prove you're up", style = sans(13f, 400, p.mu, 18f))
-                            }
-                            Icn(Ic.chevR, p.mu, 18.dp)
-                        }
-                    }
-                }
                 item { Section("Wake word", null) }
                 item { WakeWordPanel() }
                 }
