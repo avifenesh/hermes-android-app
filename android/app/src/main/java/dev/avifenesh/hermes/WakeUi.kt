@@ -484,7 +484,7 @@ fun OfflineView() {
 private val DAYS = listOf(6 to "Sunday", 0 to "Monday", 1 to "Tuesday", 2 to "Wednesday", 3 to "Thursday", 4 to "Friday", 5 to "Saturday")
 
 @Composable
-fun WakeSettingsScreen() {
+fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Boolean = false) {
     val ticket = remember { Api.epoch.capture() }
     val p = P
     val locale = LocalConfiguration.current.locales[0]
@@ -538,8 +538,8 @@ fun WakeSettingsScreen() {
         scope.launch { runCatching { Wake.save(ctx, c, ticket) }.onFailure { Ui.say(it.message) } }
     }
     val next = ov?.optJSONObject("next")
-    Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar("Wake alarm", next?.let { "next " + SimpleDateFormat("EEE HH:mm", locale).format(Date((it.getDouble("ts") * 1000).toLong())) + " · " + until(it.getDouble("ts")) } ?: "no alarm set")
+    Column(modifier.imePadding()) {
+        if (!embedded) TopBar("Alarm clock", next?.let { "next " + SimpleDateFormat("EEE HH:mm", locale).format(Date((it.getDouble("ts") * 1000).toLong())) + " · " + until(it.getDouble("ts")) } ?: "no alarm set")
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
