@@ -30,8 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -61,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -197,6 +200,37 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
 // ---------------------------------------------------------------- chat
 private val HIDE = setOf("deleted")
 
+/** Where the user was last reading a chat: first-visible message id + px offset.
+ *  In-memory map stays current on every scroll; the disk copy is flushed debounced
+ *  (and on leaving the chat), so reopening lands on the same message, not the top.
+ *  Reaching the bottom clears the anchor — the next open shows the latest message. */
+object ChatScroll {
+    private const val CAP = 60
+    private val mem = LinkedHashMap<String, Pair<String, Int>>()
+    private var disk: JSONObject? = null
+    private fun diskMap(): JSONObject {
+        disk?.let { return it }
+        val o = runCatching { JSONObject(Prefs.chatPos ?: "{}") }.getOrNull() ?: JSONObject()
+        disk = o; return o
+    }
+    @Synchronized fun get(cid: String): Pair<String, Int>? {
+        mem[cid]?.let { return it }
+        val a = diskMap().optJSONArray(cid) ?: return null
+        if (a.length() != 2 || a.isNull(0)) return null
+        return (a.optString(0) to a.optInt(1)).also { mem[cid] = it }
+    }
+    @Synchronized fun put(cid: String, v: Pair<String, Int>) { mem.remove(cid); mem[cid] = v }
+    @Synchronized fun remove(cid: String) { mem.remove(cid) }
+    /** Caller debounces; oldest entries beyond CAP drop. */
+    @Synchronized fun flush() {
+        while (mem.size > CAP) mem.remove(mem.keys.first())
+        val o = JSONObject()
+        for ((k, v) in mem) o.put(k, org.json.JSONArray(listOf(v.first, v.second)))
+        Prefs.chatPos = o.toString()
+        disk = o
+    }
+}
+
 @Composable
 fun ChatScreen(cid: String) {
     val p = P
@@ -219,8 +253,16 @@ fun ChatScreen(cid: String) {
     androidx.compose.runtime.DisposableEffect(rec) { val active = rec; onDispose { active?.cancel() } }
     var camPath by rememberSaveable { mutableStateOf<String?>(null) }
     var plus by remember { mutableStateOf(false) }
-    val list = rememberLazyListState()
-    DisposableEffect(cid) { Hub.openChat = cid; onDispose { if (Hub.openChat == cid) Hub.openChat = null } }
+    // Open position is deterministic: the saved reading spot, else the latest message.
+    // Plain (non-saveable) per-chat state — the route's restored LazyListState must not
+    // race this and drag the view back to a stale position.
+    val list = remember(cid) {
+        val ms = Hub.msgs.value[cid]?.filter { it.kind !in HIDE }.orEmpty()
+        val saved = ChatScroll.get(cid)
+        val at = saved?.let { s -> ms.indexOfFirst { it.id == s.first }.takeIf { it >= 0 }?.let { it to s.second } }
+        if (at != null) LazyListState(at.first, at.second) else LazyListState(ms.size + 1, 0)
+    }
+    DisposableEffect(cid) { Hub.openChat = cid; onDispose { if (Hub.openChat == cid) Hub.openChat = null; ChatScroll.flush() } }
     var loadErr by remember(cid) { mutableStateOf<String?>(null) }
     var loading by remember(cid) { mutableStateOf(true) }
     var retry by remember(cid) { mutableStateOf(0) }
@@ -242,21 +284,60 @@ fun ChatScreen(cid: String) {
         li.totalItemsCount == 0 || last >= li.totalItemsCount - 1 - 3
     } }
     LaunchedEffect(nearEnd) { if (nearEnd) pending = false }
-    LaunchedEffect(msgs.size, chat?.unread) {
+    // Latest msgs for the anchor saver below; the saver's effect is keyed by cid only.
+    val msgsRef = remember(cid) { mutableStateOf(emptyList<Msg>()) }
+    androidx.compose.runtime.SideEffect { msgsRef.value = msgs }
+    LaunchedEffect(cid) {
+        // Persist where the user is reading (first-visible message id + offset), debounced
+        // so a scroll storm is one disk write; reaching the bottom clears the anchor.
+        snapshotFlow {
+            val li = list.layoutInfo
+            val last = li.visibleItemsInfo.lastOrNull()?.index ?: 0
+            Triple(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset,
+                li.totalItemsCount == 0 || last >= li.totalItemsCount - 1 - 3)
+        }.drop(1).collectLatest { (i, off, near) ->
+            if (near) { ChatScroll.remove(cid); ChatScroll.flush(); return@collectLatest }
+            if (first || following || dragging) return@collectLatest
+            val m = msgsRef.value.getOrNull(i) ?: return@collectLatest
+            ChatScroll.put(cid, m.id to off)
+            delay(400)
+            ChatScroll.flush()
+        }
+    }
+    LaunchedEffect(msgs.size, chat?.unread, loading) {
         if (msgs.isNotEmpty()) {
             if (!dragging && (first || following || nearEnd)) {
-                first = false
-                following = true
-                // A fast reply/unread update cancels and restarts this effect. Carry
-                // the follow intent until scrolling finishes; a user drag revokes it.
-                try { list.animateScrollToItem(msgs.size + 1) }
-                catch (e: kotlinx.coroutines.CancellationException) {
-                    // A competing user/accessibility scroll cancels the animation,
-                    // not this effect's Job. A new message cancels the whole Job.
-                    if (kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true) following = false
-                    throw e
+                if (first) {
+                    // Opening: land instantly — saved reading spot unless unread messages
+                    // are waiting, else the latest message. Never animate from the top.
+                    val saved = if ((chat?.unread ?: 0) > 0) null else ChatScroll.get(cid)
+                    val at = saved?.let { s -> msgs.indexOfFirst { it.id == s.first }.takeIf { it >= 0 }?.let { it to s.second } }
+                    if (at == null && saved != null && loading) {
+                        // The saved message is not in the loaded chunk yet (sync pages
+                        // messages in). Decide on the next batch or when loading ends —
+                        // this effect rekeys on msgs.size/loading — never bottom-snap a
+                        // partial list.
+                    } else {
+                        first = false
+                        try {
+                            if (at != null) list.scrollToItem(at.first, at.second)
+                            else list.scrollToItem(msgs.size + 1)
+                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        following = false
+                    }
+                } else {
+                    following = true
+                    // A fast reply/unread update cancels and restarts this effect. Carry
+                    // the follow intent until scrolling finishes; a user drag revokes it.
+                    try { list.animateScrollToItem(msgs.size + 1) }
+                    catch (e: kotlinx.coroutines.CancellationException) {
+                        // A competing user/accessibility scroll cancels the animation,
+                        // not this effect's Job. A new message cancels the whole Job.
+                        if (kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true) following = false
+                        throw e
+                    }
+                    following = false
                 }
-                following = false
             } else pending = true
             if ((chat?.unread ?: 0) > 0) Hub.markRead(cid)
         }

@@ -72,6 +72,8 @@ object Prefs {
     var lastProfile: String? get() = g("lastprof"); set(v) = s("lastprof", v)
     var accent: Int get() = sp.getInt("accent", 0); set(v) { sp.edit().putInt("accent", v).apply() }
     var talkChat: String? get() = g("talkchat"); set(v) = s("talkchat", v)
+    /** Per-chat reading positions (JSON map, written by ChatScroll). */
+    var chatPos: String? get() = g("chatpos"); set(v) = s("chatpos", v)
     var agentName: String get() = g("agent")?.takeIf { it.isNotBlank() } ?: "Hermes"; set(v) = s("agent", v)
     var noLock: Boolean get() = sp.getBoolean("nolock", false); set(v) { sp.edit().putBoolean("nolock", v).apply() }
     var serverVoice: Boolean get() = sp.getBoolean("servervoice", true); set(v) { sp.edit().putBoolean("servervoice", v).apply() }
