@@ -263,12 +263,12 @@ def config_set(key: str, value: Any) -> Tuple[bool, str]:
 def skills_list() -> Dict[str, Any]:
     from hermes_cli.config import load_config
     from hermes_cli.skills_config import get_disabled_skills
-    from tools.skills_tool import _find_all_skills
+    from tools.skills_tool import find_all_skills
     from tools.skill_usage import activity_count, is_bundled, is_hub_installed, load_usage
     disabled = get_disabled_skills(load_config())
     usage = load_usage()
     out = []
-    for s in _find_all_skills(skip_disabled=True):
+    for s in find_all_skills(skip_disabled=True):
         n = s["name"]
         out.append({"name": n, "description": s.get("description") or "", "category": s.get("category") or "",
                     "enabled": n not in disabled, "usage": activity_count(usage.get(n, {})),
