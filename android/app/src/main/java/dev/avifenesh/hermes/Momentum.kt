@@ -310,7 +310,7 @@ private fun MomentumItem(o: JSONObject, section: String, row: String, fresh: Boo
     fun line(text: String) {
         if (text.isBlank()) return
         val isEffect = text == effect
-        Text(text, style = if (isEffect) mono(12f, 500, p.good) else sans(13f, 400, p.tx2, 18f), maxLines = if (full) 8 else 1,
+        Text(text, style = if (isEffect) mono(12f, 500, p.goodt) else sans(13f, 400, p.tx2, 18f), maxLines = if (full) 8 else 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
     }
     val expandable = lead.isNotBlank() || rest.isNotBlank()

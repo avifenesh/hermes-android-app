@@ -54,7 +54,7 @@ def _text(v: Any, limit: int) -> str:
     """One plain line: whitespace collapsed, control and invisible format characters dropped, cut at ``limit``."""
     if isinstance(v, bool) or not isinstance(v, (str, int, float)):
         return ""
-    s = "".join(ch for ch in " ".join(str(v).split()) if not _hidden(ch))
+    s = " ".join("".join(ch for ch in str(v) if not _hidden(ch) or ch in "\n\r\t\x0b\x0c").split())
     return s if len(s) <= limit else s[:limit - 1].rstrip() + "…"
 
 

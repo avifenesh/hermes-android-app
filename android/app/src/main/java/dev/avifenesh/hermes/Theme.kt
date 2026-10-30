@@ -40,6 +40,8 @@ data class Pal(
     val tx: Color, val tx2: Color, val mu: Color, val dim: Color,
     val acc: Color, val acct: Color, val accd: Color, val ink: Color,
     val att: Color, val attd: Color, val bad: Color, val badd: Color, val good: Color, val nav: Color,
+    /** Text-safe attention and good colors for small text, as acct is for acc (Day's att and good miss 4.5:1). */
+    val attt: Color = att, val goodt: Color = good,
 )
 
 val Night = Pal(
@@ -53,6 +55,7 @@ val Day = Pal(
     Color(0x14161513), Color(0x24161513), Color(0xFF161513), Color(0xFF45423C), Color(0xFF514B44), Color(0xFF615C54),
     Color(0xFFCDF24A), Color(0xFF4F6600), Color(0x216E8C00), Color(0xFF0C0C0E),
     Color(0xFFD2532D), Color(0x1FD2532D), Color(0xFFD2334F), Color(0x1AD2334F), Color(0xFF2E8A57), Color(0xF0FFFFFF),
+    attt = Color(0xFFA93F1C), goodt = Color(0xFF23704A),
 )
 
 val LocalPal = staticCompositionLocalOf { Night }

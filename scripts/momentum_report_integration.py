@@ -95,7 +95,7 @@ def synthetic_report():
                         {"label": "run", "url": "javascript:alert(1)"}]),
             item("n2", "Approve the release notes\nas drafted?", detail="Two numbers still cite a single run.", ago=90),
             # Control and invisible format characters go; the joiner inside an emoji sequence stays.
-            item("n3", "Ship\x1b[31m it\u202e now\u200b?\x00 \U0001F468\u200d\U0001F4BB",
+            item("n3", "\u2066 Ship\x1b[31m it\u202e now\u200b?\x00 \u200b \U0001F468\u200d\U0001F4BB \u200b",
                  links=[{"label": "spoof", "url": "https://github.com/a\u202e/b"}]),
         ],
         "decided": [item("d1", "Paused the duplicate scan at night", detail="Override: re-enable it in Cron.")],

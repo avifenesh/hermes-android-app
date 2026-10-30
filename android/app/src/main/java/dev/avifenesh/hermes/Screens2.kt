@@ -393,7 +393,7 @@ fun MeScreen() {
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Dot(if (online) p.good else p.dim, 8.dp); Spacer(Modifier.width(6.dp))
-                        Text(if (online) "live" else "offline", style = mono(12f, 600, if (online) p.good else p.mu))
+                        Text(if (online) "live" else "offline", style = mono(12f, 600, if (online) p.goodt else p.mu))
                     }
                 }
             }

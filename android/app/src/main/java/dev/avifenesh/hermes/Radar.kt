@@ -77,9 +77,12 @@ fun RadarScreen() {
     }
     suspend fun loadMomentum(force: Boolean = false) { runCatching { Momentum.load(force) }; moTried = true }
     LaunchedEffect(view) { load() }
-    // Running work changes by the minute, so the report follows while this page is on screen.
-    val top = Ui.stack.lastOrNull() == Route.RadarR && !Ui.composeOpen.value
-    VisibleEffect(top) { while (top) { loadMomentum(); delay(60_000) } }
+    // In front: the top route, with no compose sheet or curator note over it. Only then does reading count, and only
+    // then does the report follow running work by the minute.
+    val front = Ui.stack.lastOrNull() == Route.RadarR && !Ui.composeOpen.value && noteOpen == null
+    val inFront by rememberUpdatedState(front)
+    LaunchedEffect(front) { if (front) sightings.start() else sightings.stop() }
+    VisibleEffect(front) { while (front) { loadMomentum(); delay(60_000) } }
     val rep = Momentum.report(mo)
     // Open state is settled when a copy first shows; a later copy only opens sections that gained unread items.
     LaunchedEffect(rep) {
@@ -99,7 +102,7 @@ fun RadarScreen() {
         }
         val obs = LifecycleEventObserver { _, e ->
             when (e) {
-                Lifecycle.Event.ON_START -> sightings.start()
+                Lifecycle.Event.ON_START -> if (inFront) sightings.start()
                 Lifecycle.Event.ON_STOP -> { sightings.stop(); commit() }
                 else -> Unit
             }
@@ -119,7 +122,9 @@ fun RadarScreen() {
     val m = mo
     val momentum = m != null && m.optBoolean("available")
     // A machine with momentum but no scout gets a momentum page, without the scout's controls or promises.
-    val scout = data?.optBoolean("scout", true) != false || !momentum
+    val listing = data
+    // The listing knows best; until it answers, the momentum route says whether there is a scout.
+    val scout = !momentum || (if (listing != null && listing.has("scout")) listing.optBoolean("scout") else m.optBoolean("scout", true))
     Column(Modifier.fillMaxSize().imePadding()) {
         TopBar("Radar", err ?: if (!scout) null else batch?.let { "Batch ${rel(it.optDouble("ts"))} · every 3h" } ?: if (data == null) "Loading…" else "No batch yet")
         PullToRefreshBox(refreshing, {
@@ -129,7 +134,7 @@ fun RadarScreen() {
                 if (m != null && momentum) {
                     item(key = "momentum-head") {
                         val (right, stale) = momentumWhen(m, moFailed != null)
-                        Section("Momentum", right, rightColor = if (stale) p.att else p.mu)
+                        Section("Momentum", right, rightColor = if (stale) p.attt else p.mu)
                     }
                     item(key = "momentum") {
                         MomentumPanel(m, moOpen, sightings, viewport) { k, open ->
@@ -259,7 +264,7 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 val ok = fr.str("result") == "fresh"
                 Text((if (ok) "✓ fresh: " else "↓ downgraded: ") + fr.str("checked") + fr.str("resurface_reason").let { if (it.isBlank()) "" else " · resurfaced: $it" },
-                    style = sans(12.5f, 400, if (ok) p.good else p.att, 17f))
+                    style = sans(12.5f, 400, if (ok) p.goodt else p.attt, 17f))
             }
             f.optJSONArray("feedback").objs().forEach { x ->
                 val t = x.str("text")
