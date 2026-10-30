@@ -8,6 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -356,9 +358,22 @@ fun RestartBanner() {
 }
 
 @Composable
-fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
+fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose.ui.graphics.Color? = null,
+           badge: String? = null, badgeHot: Boolean = false, badgeLabel: String? = null, onClick: () -> Unit) {
     val p = P
-    ListRow({ Icn(icon, tint ?: p.acct, 21.dp) }, title, sub, { Icn(Ic.chevR, p.mu, 18.dp) }, onClick, titleColor = tint)
+    ListRow({ Icn(icon, tint ?: p.acct, 21.dp) }, title, sub, {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (badge != null) {
+                // Hot while something in it is unread, quiet once read; never a notification.
+                Text(badge, style = mono(11f, 700, if (badgeHot) p.ink else p.tx2), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.widthIn(min = 22.dp).clip(CircleShape).background(if (badgeHot) p.att else p.s3)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .then(if (badgeLabel != null) Modifier.semantics { contentDescription = badgeLabel } else Modifier))
+                Spacer(Modifier.width(8.dp))
+            }
+            Icn(Ic.chevR, p.mu, 18.dp)
+        }
+    }, onClick, titleColor = tint)
 }
 
 // ---------------------------------------------------------------- settings

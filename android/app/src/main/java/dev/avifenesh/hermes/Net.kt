@@ -74,6 +74,8 @@ object Prefs {
     var talkChat: String? get() = g("talkchat"); set(v) = s("talkchat", v)
     /** Per-chat reading positions (JSON map, written by ChatScroll). */
     var chatPos: String? get() = g("chatpos"); set(v) = s("chatpos", v)
+    /** Momentum item ids already read, per section (JSON map, written by Momentum). */
+    var momentumRead: String? get() = g("moread"); set(v) = s("moread", v)
     var agentName: String get() = g("agent")?.takeIf { it.isNotBlank() } ?: "Hermes"; set(v) = s("agent", v)
     var noLock: Boolean get() = sp.getBoolean("nolock", false); set(v) { sp.edit().putBoolean("nolock", v).apply() }
     var serverVoice: Boolean get() = sp.getBoolean("servervoice", true); set(v) { sp.edit().putBoolean("servervoice", v).apply() }

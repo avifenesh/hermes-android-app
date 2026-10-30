@@ -375,7 +375,10 @@ fun MeScreen() {
     var restart by remember { mutableStateOf(false) }
     val degraded by Hub.degraded.collectAsState()
     var probs by remember { mutableStateOf(false) }
+    val mo by Momentum.state.collectAsState()
+    val moRead by Momentum.read.collectAsState()
     LaunchedEffect(Unit) { runCatching { Hub.refreshMe() }; runCatching { Hub.health() } }
+    LaunchedEffect(feat.radar) { if (feat.radar) runCatching { Momentum.load() } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
         item { Header("Me") }
         item {
@@ -410,7 +413,16 @@ fun MeScreen() {
         item {
             Panel {
                 NavRow(Ic.download, "Hub", "Install skills, plugins and MCP servers") { Ui.push(Route.HubR) }
-                if (feat.radar) NavRow(Ic.zap, "Radar", "Every 3h: the 5 most useful things the scout found") { Ui.push(Route.RadarR) }
+                if (feat.radar) {
+                    Line()
+                    val rep = Momentum.report(mo)
+                    val needs = Momentum.count(rep, "needs_you")
+                    NavRow(Ic.zap, "Radar", if (mo?.optBoolean("available") == true) "Momentum and the scout's findings"
+                        else "Every 3h: the 5 most useful things the scout found",
+                        badge = if (needs > 99) "99+" else if (needs > 0) "$needs" else null,
+                        badgeHot = Momentum.unread(rep, "needs_you", moRead).isNotEmpty(),
+                        badgeLabel = if (needs == 1) "1 decision needs you" else "$needs decisions need you") { Ui.push(Route.RadarR) }
+                }
                 Line()
                 NavRow(Ic.blocks, "Skills & plugins", "Turn skills, plugins and MCP servers on or off") { Ui.push(Route.ExtR) }
                 Line()

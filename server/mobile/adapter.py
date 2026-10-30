@@ -23,6 +23,7 @@ from . import control as C
 from . import control2 as C2
 from . import fleet as FL
 from . import market as MK
+from . import momentum as MO
 from . import ident as ID
 from . import profiles as PR
 from . import phone as PH
@@ -239,6 +240,7 @@ class MobileAdapter(BasePlatformAdapter):
         PH.routes(r, self, self._json)
         self._hub = MK.routes(r, self._json)
         RD.routes(r, self, self._json)
+        MO.routes(r, self._json, S.data_dir(), write=not cli)
         return app
 
     async def connect(self, *, is_reconnect: bool = False) -> bool:
@@ -591,7 +593,9 @@ class MobileAdapter(BasePlatformAdapter):
             except OSError:
                 projects = False
             self._feat_cache = (now, projects)
-        return {"radar": radar_db.exists(), "fleet": fleet, "wake_wa": wake_wa, "projects": projects}
+        # The radar page also carries momentum's report, so either one turns it on.
+        radar = radar_db.exists() or MO.binary() is not None
+        return {"radar": radar, "fleet": fleet, "wake_wa": wake_wa, "projects": projects}
 
     def _meta(self) -> Dict[str, Any]:
         model = ""

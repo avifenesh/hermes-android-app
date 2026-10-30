@@ -28,7 +28,9 @@ over an authenticated API; your phone, gateway and configured providers keep the
 - **Cron, Wake alarms, Talk.** Manage schedules, set alarms with proofs, dictate with on-device or
   server speech, and wake the app hands-free with on-device "Hey Jarvis" detection.
 - **Projects, Radar, Hub.** Browse repos with diffs and PRs, scan releases and papers, install
-  skills and plugins, all through Hermes' own write paths.
+  skills and plugins, all through Hermes' own write paths. With
+  [momentum](https://github.com/agent-sh/momentum) installed, Radar opens with what needs you, what
+  broke, what is running, what shipped and what was decided for you.
 - **Optional phone control (full build).** Let the agent read and operate other apps via an
   explicitly granted Accessibility service, with a persistent Stop notification and device
   authentication. Off by default.

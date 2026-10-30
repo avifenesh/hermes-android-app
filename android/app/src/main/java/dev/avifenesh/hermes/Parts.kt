@@ -806,11 +806,11 @@ fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, right: @C
 }
 
 @Composable
-fun Section(title: String, right: String? = null, color: Color = P.mu) {
+fun Section(title: String, right: String? = null, color: Color = P.mu, rightColor: Color = P.mu) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title.uppercase(), style = mono(11.5f, 600, color).copy(letterSpacing = 1.2.em * 0.1f), modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
-        if (right != null) Text(right, style = mono(11.5f, 500, P.mu))
+        if (right != null) Text(right, style = mono(11.5f, 500, rightColor))
     }
 }
 

@@ -409,6 +409,7 @@ object Hub {
             Prefs.seq = 0; Prefs.nseq = 0; Prefs.fleetSeen = 0.0
             Prefs.talkChat = null; Prefs.lastProfile = null
             Fleet.reset()
+            Momentum.reset()
             if (::app.isInitialized) runCatching { androidx.core.app.NotificationManagerCompat.from(app).cancelAll() }
         }
     }

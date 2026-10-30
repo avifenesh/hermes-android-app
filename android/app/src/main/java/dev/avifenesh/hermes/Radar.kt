@@ -2,6 +2,7 @@ package dev.avifenesh.hermes
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -24,11 +25,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,11 +43,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-/** Radar: the scout's latest batch of findings, saved ones and history, with feedback and spawn actions. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Radar: momentum's report on top, then the scout's latest batch of findings, saved ones and history. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RadarScreen() {
     val p = P
@@ -52,10 +62,35 @@ fun RadarScreen() {
     var err by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var noteOpen by remember { mutableStateOf<JSONObject?>(null) }
+    val mo by Momentum.state.collectAsState()
+    var moTried by remember { mutableStateOf(mo != null) }
+    val moOpen = remember { mutableStateMapOf<String, Boolean>() }
+    val moSeen = remember { mutableSetOf<String>() }
     suspend fun load() {
         runCatching { data = Api.get("/v1/radar?view=$view"); err = null }.onFailure { err = it.message }
     }
+    suspend fun loadMomentum(force: Boolean = false) { runCatching { Momentum.load(force) }; moTried = true }
     LaunchedEffect(view) { load() }
+    // Running work changes by the minute, so the report follows while this page is on screen.
+    val top = Ui.stack.lastOrNull() == Route.RadarR && !Ui.composeOpen.value
+    VisibleEffect(top) { while (top) { loadMomentum(); delay(60_000) } }
+    val rep = Momentum.report(mo)
+    // Open state is settled when a copy first shows; a later copy only opens sections that gained unread items.
+    LaunchedEffect(rep) {
+        if (rep != null) for ((k, _) in Momentum.SECTIONS) {
+            val unread = Momentum.unread(rep, k).isNotEmpty()
+            if (k !in moOpen) moOpen[k] = unread else if (unread) moOpen[k] = true
+        }
+    }
+    // Leaving the page (or the app) marks what was on screen as read: next time those sections show their count.
+    val latest by rememberUpdatedState(rep)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        fun commit() { Momentum.markRead(latest, moSeen.filter { moOpen[it] == true }); moSeen.clear() }
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) commit() }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs); commit() }
+    }
     val batch = data?.optJSONObject("batch")
     val findings = data?.optJSONArray("findings").objs()
     val notes = data?.optJSONArray("notes").objs().filter { it.optInt("acked") == 0 }
@@ -65,13 +100,28 @@ fun RadarScreen() {
         for (i in 0 until arr.length()) if (arr.optJSONObject(i)?.str("id") == f.str("id")) arr.put(i, f)
         data = JSONObject(d.toString())
     }
+    val m = mo
     Column(Modifier.fillMaxSize().imePadding()) {
         TopBar("Radar", err ?: batch?.let { "Batch ${rel(it.optDouble("ts"))} · every 3h" } ?: if (data == null) "Loading…" else "No batch yet")
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Seg(listOf("current" to "Latest", "saved" to "Saved", "history" to "History"), view) { view = it }
-        }
-        PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.fillMaxSize()) {
+        PullToRefreshBox(refreshing, {
+            scope.launch { refreshing = true; coroutineScope { launch { load() }; launch { loadMomentum(force = true) } }; refreshing = false }
+        }, Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
+                if (m != null && m.optBoolean("available")) {
+                    item(key = "momentum-head") { Section("Momentum", momentumWhen(m), rightColor = if (m.optBoolean("stale")) p.att else p.mu) }
+                    item(key = "momentum") {
+                        MomentumPanel(m, moOpen, moSeen) { k, open ->
+                            moOpen[k] = open
+                            if (!open) Momentum.markRead(rep, listOf(k))
+                        }
+                    }
+                    item(key = "scout-head") { Section("Scout findings") }
+                } else if (m == null && !moTried) item(key = "momentum-wait") { Skeleton(1) }
+                stickyHeader(key = "views") {
+                    Row(Modifier.fillMaxWidth().background(p.bg).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Seg(listOf("current" to "Latest", "saved" to "Saved", "history" to "History"), view) { view = it }
+                    }
+                }
                 items(notes, key = { "n" + it.str("id") }) { n ->
                     Panel(Modifier.padding(bottom = 10.dp), border = p.acc) {
                         Column(Modifier.clickable { noteOpen = n }.padding(14.dp)) {
