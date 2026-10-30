@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,9 +64,11 @@ fun RadarScreen() {
     var refreshing by remember { mutableStateOf(false) }
     var noteOpen by remember { mutableStateOf<JSONObject?>(null) }
     val mo by Momentum.state.collectAsState()
+    val moFailed by Momentum.failed.collectAsState()
     var moTried by remember { mutableStateOf(mo != null) }
-    val moOpen = remember { mutableStateMapOf<String, Boolean>() }
-    val moSeen = remember { mutableSetOf<String>() }
+    // Both survive a rotation: recreating the activity is not leaving the page.
+    val moOpen = rememberSaveable(saver = MomentumOpenSaver) { mutableStateMapOf<String, Boolean>() }
+    val sightings = rememberSaveable(saver = MomentumSightings.Saver) { MomentumSightings() }
     suspend fun load() {
         runCatching { data = Api.get("/v1/radar?view=$view"); err = null }.onFailure { err = it.message }
     }
@@ -84,9 +87,13 @@ fun RadarScreen() {
     }
     // Leaving the page (or the app) marks what was on screen as read: next time those sections show their count.
     val latest by rememberUpdatedState(rep)
+    val act = LocalAct.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
-        fun commit() { Momentum.markRead(latest, moSeen.filter { moOpen[it] == true }); moSeen.clear() }
+        fun commit() {
+            if (act.isChangingConfigurations) return
+            Momentum.markRead(sightings.drain().filterKeys { moOpen[it] == true }, latest)
+        }
         val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) commit() }
         lifecycle.addObserver(obs)
         onDispose { lifecycle.removeObserver(obs); commit() }
@@ -108,11 +115,15 @@ fun RadarScreen() {
         }, Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
                 if (m != null && m.optBoolean("available")) {
-                    item(key = "momentum-head") { Section("Momentum", momentumWhen(m), rightColor = if (m.optBoolean("stale")) p.att else p.mu) }
+                    item(key = "momentum-head") {
+                        val (right, stale) = momentumWhen(m, moFailed != null)
+                        Section("Momentum", right, rightColor = if (stale) p.att else p.mu)
+                    }
                     item(key = "momentum") {
-                        MomentumPanel(m, moOpen, moSeen) { k, open ->
+                        MomentumPanel(m, moOpen, sightings) { k, open ->
                             moOpen[k] = open
-                            if (!open) Momentum.markRead(rep, listOf(k))
+                            // Collapsing by hand is reading it: the section was on screen to be tapped.
+                            if (!open) Momentum.markRead(mapOf(k to Momentum.shown(rep, k)), rep)
                         }
                     }
                     item(key = "scout-head") { Section("Scout findings") }

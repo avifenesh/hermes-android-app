@@ -132,6 +132,9 @@ def _feedback_for(c, ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
 
 # ------------------------------------------------------------------ store ops
 def listing(view: str = "current", limit: int = 60) -> Dict[str, Any]:
+    if not (home() / "radar.db").exists():
+        # Reading must not create the store: its file is how the gateway tells whether the scout is set up.
+        return {"view": view, "batch": None, "findings": [], "notes": [], "counts": {}, "types": TYPES, "next_run": None}
     with db() as c:
         last = c.execute("SELECT * FROM batches ORDER BY ts DESC LIMIT 1").fetchone()
         if view == "saved":

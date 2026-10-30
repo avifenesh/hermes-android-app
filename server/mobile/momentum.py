@@ -13,11 +13,13 @@ Standard library only: the route test loads it without a gateway.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
 import os
 import shutil
+import signal
 import subprocess
 import time
 import unicodedata
@@ -122,18 +124,29 @@ def _last_line(b: bytes) -> str:
 
 
 def run(exe: str, timeout: float = TIMEOUT_S) -> Dict[str, Any]:
-    """One ``momentum report --json`` call, normalized. Raises with a one-line reason."""
+    """One ``momentum report --json`` call, normalized. Raises with a one-line reason.
+
+    The command runs in its own process group, so a timeout also stops anything it started (a wrapper script's
+    child, say), not just the process we launched."""
     try:
-        p = subprocess.run([exe, "report", "--json"], stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"momentum report timed out after {timeout:g} s") from None
+        p = subprocess.Popen([exe, "report", "--json"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, start_new_session=True)
     except OSError as e:
         raise RuntimeError(f"momentum did not start: {e.strerror or e}") from None
+    with p:
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(p.pid, signal.SIGKILL)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                p.communicate(timeout=2)  # reap; a child that left the group may still hold the pipes
+            raise RuntimeError(f"momentum report timed out after {timeout:g} s") from None
     if p.returncode != 0:
-        why = _last_line(p.stderr) or _last_line(p.stdout)
+        why = _last_line(err) or _last_line(out)
         raise RuntimeError(f"momentum report exited {p.returncode}" + (f": {why}" if why else ""))
     try:
-        raw = json.loads(p.stdout)
+        raw = json.loads(out)
     except ValueError as e:
         raise ValueError(f"momentum report printed invalid JSON ({e})") from None
     return normalize(raw)
@@ -147,41 +160,44 @@ class Reader:
         self.cache = cache
         self.write = write
         self._lock = asyncio.Lock()
-        self._good: Optional[Dict[str, Any]] = None  # {"report", "fetched_at"}
-        self._tried: Optional[Dict[str, Any]] = None  # {"at", "ok", "error", "missing"}
+        self._good: Optional[Dict[str, Any]] = None  # {"report", "fetched_at" (wall clock, for the phone)}
+        # {"mono", "at", "ok", "error", "missing"}: "mono" orders runs and the reuse window, so a clock step can't
+        # freeze the copy; "at" is the wall time the phone shows.
+        self._tried: Optional[Dict[str, Any]] = None
         self._loaded = False
         self._logged: Optional[str] = None
 
     async def get(self, refresh: bool = False) -> Dict[str, Any]:
-        asked = time.time()
+        asked = time.monotonic()
         async with self._lock:
             if not self._loaded:
                 self._loaded = True
                 self._good = await asyncio.to_thread(self._read_cache)
             t = self._tried
             # A run that ended while this request waited answers it, even a forced refresh.
-            if t is None or (t["at"] < asked and (refresh or asked - t["at"] >= REUSE_S)):
+            if t is None or (t["mono"] < asked and (refresh or asked - t["mono"] >= REUSE_S)):
                 await self._refresh()
             return self.view()
+
+    def _attempt(self, ok: bool, **extra: Any) -> Dict[str, Any]:
+        return {"mono": time.monotonic(), "at": time.time(), "ok": ok, **extra}
 
     async def _refresh(self) -> None:
         exe = binary()
         if exe is None:
-            self._tried = {"at": time.time(), "ok": False, "missing": True,
-                           "error": "momentum is not installed on this machine"}
+            self._tried = self._attempt(False, missing=True, error="momentum is not installed on this machine")
             return
         try:
             report = await asyncio.to_thread(run, exe, TIMEOUT_S)
         except Exception as e:  # any failure keeps the last good copy; the reason travels with it
             err = _text(str(e), 300) or type(e).__name__
-            self._tried = {"at": time.time(), "ok": False, "error": err}
+            self._tried = self._attempt(False, error=err)
             if err != self._logged:
                 logger.warning("[mobile] momentum report: %s", err)
                 self._logged = err
             return
-        now = time.time()
-        self._good = {"report": report, "fetched_at": now}
-        self._tried = {"at": now, "ok": True}
+        self._tried = self._attempt(True)
+        self._good = {"report": report, "fetched_at": self._tried["at"]}
         self._logged = None
         if self.write:
             await asyncio.to_thread(self._write_cache)

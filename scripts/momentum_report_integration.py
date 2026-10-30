@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
 import hermes_bootstrap  # noqa: E402,F401
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
+import asyncio  # noqa: E402
 import base64  # noqa: E402
 import json  # noqa: E402
 import stat  # noqa: E402
@@ -54,6 +55,14 @@ with open(os.path.join(here, "calls.log"), "a") as f:
     f.write(json.dumps(sys.argv[1:]) + "\\n")
 mode = open(os.path.join(here, "mode")).read().strip()
 if mode == "slow":
+    time.sleep(10)
+if mode == "busy":
+    time.sleep(1)
+if mode == "wrapper":
+    # A wrapper whose own child outlives it unless the whole process group is stopped.
+    import subprocess
+    child = subprocess.Popen(["sleep", "30"])
+    open(os.path.join(here, "child.pid"), "w").write(str(child.pid))
     time.sleep(10)
 if mode == "fail":
     print("momentum: the store is locked by another writer", file=sys.stderr)
@@ -206,12 +215,34 @@ class MomentumRoute(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stat.S_IMODE(saved.stat().st_mode), 0o600)
 
     async def test_one_run_answers_a_burst_and_refresh_forces_one(self):
-        await self.get()
-        await self.get()
+        self.mode("busy")  # each run takes a second, so the burst lands while the first one is running
+        bodies = await asyncio.gather(self.get(), self.get(), self.get(), self.get("/v1/radar/momentum?refresh=1"))
         self.assertEqual(len(self.calls()), 1)
+        self.assertTrue(all(status == 200 and b["report"] for status, b in bodies))
+        await self.get()
+        self.assertEqual(len(self.calls()), 1)  # inside the reuse window
         await self.get("/v1/radar/momentum?refresh=1")
         self.assertEqual(len(self.calls()), 2)
         self.assertTrue(all(c == ["report", "--json"] for c in self.calls()))
+
+    async def test_a_clock_step_back_does_not_freeze_the_copy(self):
+        await self.get()
+        real = time.time
+        with patch.object(MO.time, "time", lambda: real() - 3600):
+            _, body = await self.get("/v1/radar/momentum?refresh=1")
+        self.assertEqual(len(self.calls()), 2)
+        self.assertFalse(body["stale"])
+
+    async def test_a_timeout_stops_what_the_command_started(self):
+        self.mode("wrapper")
+        with patch.object(MO, "TIMEOUT_S", 1.0):
+            _, body = await self.get()
+        self.assertIn("timed out", body["error"])
+        pid = int((self.bin / "child.pid").read_text())
+        deadline = time.monotonic() + 5
+        while Path(f"/proc/{pid}").exists() and time.monotonic() < deadline:
+            await asyncio.sleep(0.1)
+        self.assertFalse(Path(f"/proc/{pid}").exists(), "the wrapper's child outlived the timeout")
 
     async def test_another_report_version_is_refused(self):
         self.mode("v2")
@@ -226,6 +257,10 @@ class MomentumRoute(unittest.IsolatedAsyncioTestCase):
             _, body = await self.get()
             self.assertFalse(body["available"])
             self.assertIsNone(body["report"])
+            # Reading the scout's page must not create its store, or the gateway would think the scout is set up.
+            status, listing = await self.get("/v1/radar")
+            self.assertEqual(status, 200, listing)
+            self.assertEqual(listing["findings"], [])
             self.assertFalse(self.ad._features()["radar"])
         self.assertTrue(self.ad._features()["radar"])
 

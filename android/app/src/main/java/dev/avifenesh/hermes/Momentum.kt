@@ -1,6 +1,7 @@
 package dev.avifenesh.hermes
 
 import android.content.Intent
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,24 +19,38 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * Momentum: the agent system's own report (momentum report v1), shown above the scout on the radar page.
@@ -50,39 +65,51 @@ object Momentum {
 
     /** The last /v1/radar/momentum answer, null until one arrives. */
     val state = MutableStateFlow<JSONObject?>(null)
-    /** Item ids already read, per section. A section holding an id outside its set opens; a read one shows its count. */
+    /** Why this phone's last refresh failed (the machine was unreachable, say), or null when it worked. */
+    val failed = MutableStateFlow<String?>(null)
+    /** Item ids already read, per section: a section showing an id outside its set opens; a read one shows its count. */
     val read = MutableStateFlow(parseRead(Prefs.momentumRead))
 
     suspend fun load(force: Boolean = false) {
         val ticket = Api.epoch.capture()
         val o = try { Api.get("/v1/radar/momentum" + if (force) "?refresh=1" else "") }
-            catch (e: ApiError) { if (e.code == 404) JSONObject().put("available", false) else throw e }  // older plugin
-        Api.epoch.commit(ticket) { state.value = o }
+            catch (e: ApiError) { if (e.code == 404) JSONObject().put("available", false) else { failed.value = e.message; throw e } }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { failed.value = e.message ?: "unreachable"; throw e }
+        Api.epoch.commit(ticket) { state.value = o; failed.value = null }
     }
 
-    fun reset() { state.value = null; read.value = emptyMap(); Prefs.momentumRead = null }
+    fun reset() { state.value = null; failed.value = null; read.value = emptyMap(); Prefs.momentumRead = null }
+
+    /** After a machine switch restored that machine's saved read state into Prefs. */
+    fun reloadRead() { read.value = parseRead(Prefs.momentumRead) }
 
     /** The report, when this machine has momentum and has produced one good copy. */
     fun report(o: JSONObject?): JSONObject? = o?.takeIf { it.optBoolean("available") }?.optJSONObject("report")
     fun items(rep: JSONObject?, key: String): List<JSONObject> = rep?.optJSONArray(key).objs()
     /** Everything in the section; the list stops at 20, the count does not. */
     fun count(rep: JSONObject?, key: String): Int = maxOf(rep?.optJSONObject("counts")?.optInt(key, 0) ?: 0, items(rep, key).size)
-    fun unread(rep: JSONObject?, key: String, seen: Map<String, Set<String>> = read.value): Set<String> {
-        val known = seen[key].orEmpty()
-        return items(rep, key).map { it.str("id") }.filter { it.isNotBlank() && it !in known }.toSet()
-    }
+    private fun ids(list: List<JSONObject>): Set<String> = list.map { it.str("id") }.filter { it.isNotBlank() }.toSet()
+    /** The ids the section draws: the first [SHOWN]. Only these can be read, so only these can be unread. */
+    fun shown(rep: JSONObject?, key: String): Set<String> = ids(items(rep, key).take(SHOWN))
+    fun unread(rep: JSONObject?, key: String, seen: Map<String, Set<String>> = read.value): Set<String> =
+        shown(rep, key) - seen[key].orEmpty()
 
-    /** Remember the listed ids of these sections, so each shows only its count until something new lands. */
-    fun markRead(rep: JSONObject?, keys: Collection<String>) {
-        if (rep == null || keys.isEmpty()) return
-        val next = read.value.toMutableMap()
-        for (k in keys) next[k] = items(rep, k).map { it.str("id") }.filter { it.isNotBlank() }.toSet()
-        if (next == read.value) return
+    /**
+     * Record what was read: per section, the ids it drew while on screen. Earlier reads that are still listed in
+     * [rep] (the newest copy) stay read; ids that left the report are dropped, so the set stays small.
+     */
+    fun markRead(drawn: Map<String, Set<String>>, rep: JSONObject?) {
+        if (drawn.isEmpty()) return
+        val now = read.value
+        val next = now.toMutableMap()
+        for ((k, d) in drawn) next[k] = (now[k].orEmpty() intersect ids(items(rep, k))) + d
+        if (next == now) return
         read.value = next
         Prefs.momentumRead = JSONObject(next.mapValues { JSONArray(it.value.toList()) }).toString()
     }
 
-    private fun parseRead(s: String?): Map<String, Set<String>> {
+    fun parseRead(s: String?): Map<String, Set<String>> {
         if (s.isNullOrBlank()) return emptyMap()
         return runCatching {
             val o = JSONObject(s)
@@ -91,22 +118,86 @@ object Momentum {
     }
 }
 
-/** Right side of the Momentum heading: when the copy was made, and whether it is stale. */
-fun momentumWhen(o: JSONObject): String? {
+/**
+ * What the radar page has shown during one visit. A section counts as read once it stayed open and mostly on
+ * screen for a second (the common "viewed" bar: half of it visible for one continuous second), so flinging past
+ * it does not count. The ids kept are the ones it drew then, not a newer copy's.
+ */
+class MomentumSightings(restored: Map<String, Set<String>> = emptyMap()) {
+    private val seen = restored.toMutableMap()
+    private val since = mutableMapOf<String, Long>()
+    private val drawn = mutableMapOf<String, Set<String>>()
+
+    fun update(key: String, onScreen: Boolean, ids: Set<String>, now: Long = SystemClock.uptimeMillis()) {
+        if (onScreen) {
+            since.getOrPut(key) { now }
+            drawn[key] = ids
+        } else settle(key, now)
+    }
+
+    private fun settle(key: String, now: Long) {
+        val start = since.remove(key) ?: return
+        val ids = drawn.remove(key) ?: return
+        if (now - start >= DWELL_MS) seen[key] = seen[key].orEmpty() + ids
+    }
+
+    /** Sightings so far, for a configuration change: what is on screen right now is not settled yet. */
+    fun snapshot(): Map<String, Set<String>> = seen.toMap()
+
+    /** Everything left the screen at once (the panel scrolled out of the list and was disposed). */
+    fun hidden(now: Long = SystemClock.uptimeMillis()) { for (k in since.keys.toList()) settle(k, now) }
+
+    /** End of the visit: settle what is still on screen and hand everything read over, once. */
+    fun drain(now: Long = SystemClock.uptimeMillis()): Map<String, Set<String>> {
+        hidden(now)
+        return seen.toMap().also { seen.clear() }
+    }
+
+    companion object {
+        const val DWELL_MS = 1000L
+        val Saver: Saver<MomentumSightings, String> = Saver(
+            save = { s -> JSONObject(s.snapshot().mapValues { JSONArray(it.value.toList()) }).toString() },
+            restore = { MomentumSightings(Momentum.parseRead(it)) })
+    }
+}
+
+/** This visit's open state per section, kept across a rotation. */
+val MomentumOpenSaver: Saver<SnapshotStateMap<String, Boolean>, Any> = listSaver(
+    save = { m -> m.map { (k, v) -> "$k=${if (v) 1 else 0}" } },
+    restore = { l -> mutableStateMapOf<String, Boolean>().apply { l.forEach { put(it.substringBeforeLast('='), it.endsWith("=1")) } } })
+
+/** When the copy was made: the time today, the day and time this week, the date and time before that. */
+fun momentumStamp(ts: Double): String {
+    val then = Calendar.getInstance().apply { timeInMillis = (ts * 1000).toLong() }
+    val now = Calendar.getInstance()
+    val sameDay = then.get(Calendar.YEAR) == now.get(Calendar.YEAR) && then.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+    val pattern = when {
+        sameDay -> "HH:mm"
+        nowS() - ts < 6 * 86400 -> "EEE HH:mm"
+        else -> "d MMM HH:mm"
+    }
+    return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(then.timeInMillis))
+}
+
+/** Right side of the Momentum heading, and whether it reads as stale (the machine's refresh or this phone's failed). */
+fun momentumWhen(o: JSONObject, phoneFailed: Boolean): Pair<String?, Boolean> {
     val at = o.optDouble("fetched_at", 0.0)
-    if (at <= 0) return null
-    return if (o.optBoolean("stale")) "stale · " + clock(at) else clock(at)
+    val stale = o.optBoolean("stale") || phoneFailed
+    if (at <= 0) return (if (phoneFailed) "stale" else null) to stale
+    return (if (stale) "stale · " + momentumStamp(at) else momentumStamp(at)) to stale
 }
 
 /**
  * The five sections in one panel. [open] holds this visit's open state; a section without an entry opens when
- * it has unread items. Sections seen open on screen are added to [seen], so leaving the page marks them read.
+ * it shows unread items. Sections on screen while open report what they drew to [sightings].
  */
 @Composable
-fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, seen: MutableSet<String>, onToggle: (String, Boolean) -> Unit) {
+fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, sightings: MomentumSightings, onToggle: (String, Boolean) -> Unit) {
     val p = P
     val rep = Momentum.report(o)
     val readIds by Momentum.read.collectAsState()
+    val phoneFailed by Momentum.failed.collectAsState()
+    DisposableEffect(sightings) { onDispose { sightings.hidden() } }
     Panel(Modifier.padding(bottom = 4.dp)) {
         if (rep == null) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -121,11 +212,12 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, seen: MutableSet<St
             val fresh = Momentum.unread(rep, key, readIds)
             // A dot marks what is new since the last read; on a first look everything is, so nothing is marked.
             val marked = if (readIds[key].isNullOrEmpty()) emptySet() else fresh
-            MomentumSection(rep, key, label, open[key] ?: fresh.isNotEmpty(), marked, seen) { onToggle(key, it) }
+            MomentumSection(rep, key, label, open[key] ?: fresh.isNotEmpty(), marked, sightings) { onToggle(key, it) }
         }
-        if (o.optBoolean("stale")) {
+        val why = phoneFailed ?: o.str("error").takeIf { o.optBoolean("stale") }
+        if (why != null) {
             Line()
-            Text("Couldn't refresh: " + o.str("error").ifBlank { "no reason given" }, style = mono(11.5f, 500, p.mu),
+            Text("Couldn't refresh: " + why.ifBlank { "no reason given" }, style = mono(11.5f, 500, p.mu),
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
         }
     }
@@ -133,19 +225,21 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, seen: MutableSet<St
 
 @Composable
 private fun MomentumSection(rep: JSONObject, key: String, label: String, isOpen: Boolean, marked: Set<String>,
-                            seen: MutableSet<String>, onToggle: (Boolean) -> Unit) {
+                            sightings: MomentumSightings, onToggle: (Boolean) -> Unit) {
     val p = P
+    val tall = with(LocalDensity.current) { 240.dp.toPx() }
     val all = Momentum.items(rep, key)
     val n = Momentum.count(rep, key)
     val tone = when (key) { "needs_you" -> p.att; "problems" -> p.bad; "running" -> p.acct; "shipped" -> p.good; else -> p.tx2 }
     val canOpen = all.isNotEmpty()
     val showing = isOpen && canOpen
     Column(Modifier.fillMaxWidth().onGloballyPositioned { c ->
-        // Read means it was on screen while open: most of it, or a screenful of a tall one.
+        // On screen: open, and half of it visible (or a good part of a tall one).
         val visible = c.boundsInWindow().height
-        if (showing && (visible >= c.size.height * 0.5f || visible >= 600f)) seen += key
+        sightings.update(key, showing && (visible >= c.size.height * 0.5f || visible >= tall), Momentum.shown(rep, key))
     }) {
         Row(Modifier.fillMaxWidth().clickable(enabled = canOpen, role = Role.Button, onClickLabel = if (showing) "Show only the count" else "Show items") { onToggle(!showing) }
+            .semantics { if (canOpen) stateDescription = if (showing) "Expanded" else "Collapsed" }
             .heightIn(min = 52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             if (key == "running" && n > 0) LiveDot(8.dp, tone) else Dot(if (n > 0) tone else p.dim, 8.dp)
             Spacer(Modifier.width(12.dp))
@@ -155,7 +249,7 @@ private fun MomentumSection(rep: JSONObject, key: String, label: String, isOpen:
             if (canOpen) Icn(if (showing) Ic.chevU else Ic.chevD, p.mu, 16.dp) else Spacer(Modifier.width(16.dp))
         }
         if (showing) {
-            all.take(Momentum.SHOWN).forEach { MomentumItem(it, key, it.str("id") in marked) }
+            all.take(Momentum.SHOWN).forEach { key(it.str("id")) { MomentumItem(it, key, it.str("id") in marked) } }
             val more = n - minOf(all.size, Momentum.SHOWN)
             if (more > 0) Text("and $more more", style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(start = 36.dp, end = 16.dp, bottom = 14.dp))
         }
@@ -182,7 +276,8 @@ private fun MomentumItem(o: JSONObject, key: String, fresh: Boolean) {
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
     }
     Row(Modifier.fillMaxWidth().clickable(enabled = lead.isNotBlank() || rest.isNotBlank(), onClickLabel = if (full) "Show less" else "Show all") { full = !full }
-        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (links.isEmpty()) 10.dp else 2.dp)) {
+        .semantics { if (fresh) stateDescription = "New" }
+        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (links.isEmpty()) 10.dp else 0.dp)) {
         Box(Modifier.width(20.dp)) {
             // Not read yet: a small dot under the section's own.
             if (fresh) Box(Modifier.padding(start = 1.dp, top = 7.dp).size(6.dp).clip(CircleShape).background(p.acct))
@@ -205,16 +300,15 @@ private fun MomentumItem(o: JSONObject, key: String, fresh: Boolean) {
     }
 }
 
-/** A link from the report: opens in the browser. The touch area is taller than the pill it shows. */
+/** A link from the report: opens in the browser. A 48dp touch target around the app's own pill. */
 @Composable
 private fun LinkChip(label: String, url: String) {
     val p = P
     val ctx = LocalContext.current
-    Box(Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClickLabel = "Open in browser") {
+    Box(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClickLabel = "Open in browser") {
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             .onFailure { Ui.say("No app can open this link") }
     }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
-        Text(label.ifBlank { url.toUri().host ?: url }, style = mono(11.5f, 600, p.acct), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(p.accd).padding(horizontal = 8.dp, vertical = 4.dp))
+        Pill(label.ifBlank { url.toUri().host ?: url }, p.acct, p.accd)
     }
 }

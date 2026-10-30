@@ -378,7 +378,8 @@ fun MeScreen() {
     val mo by Momentum.state.collectAsState()
     val moRead by Momentum.read.collectAsState()
     LaunchedEffect(Unit) { runCatching { Hub.refreshMe() }; runCatching { Hub.health() } }
-    LaunchedEffect(feat.radar) { if (feat.radar) runCatching { Momentum.load() } }
+    // Once each time Me shows (the app coming back counts too), so the Radar badge is current; no polling.
+    VisibleEffect(feat.radar) { if (feat.radar) runCatching { Momentum.load() } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
         item { Header("Me") }
         item {
@@ -417,11 +418,13 @@ fun MeScreen() {
                     Line()
                     val rep = Momentum.report(mo)
                     val needs = Momentum.count(rep, "needs_you")
+                    val fresh = Momentum.unread(rep, "needs_you", moRead).size
                     NavRow(Ic.zap, "Radar", if (mo?.optBoolean("available") == true) "Momentum and the scout's findings"
                         else "Every 3h: the 5 most useful things the scout found",
                         badge = if (needs > 99) "99+" else if (needs > 0) "$needs" else null,
-                        badgeHot = Momentum.unread(rep, "needs_you", moRead).isNotEmpty(),
-                        badgeLabel = if (needs == 1) "1 decision needs you" else "$needs decisions need you") { Ui.push(Route.RadarR) }
+                        badgeHot = fresh > 0,
+                        badgeLabel = (if (needs == 1) "1 decision needs you" else "$needs decisions need you") +
+                            (if (fresh > 0) ", $fresh new" else "")) { Ui.push(Route.RadarR) }
                 }
                 Line()
                 NavRow(Ic.blocks, "Skills & plugins", "Turn skills, plugins and MCP servers on or off") { Ui.push(Route.ExtR) }

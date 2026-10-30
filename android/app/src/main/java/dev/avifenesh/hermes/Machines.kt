@@ -19,6 +19,7 @@ object Machines {
         JSONObject().put("base", b).put("token", Prefs.token).put("device", Prefs.deviceId).put("cfi", Prefs.cfId)
             .put("cfs", Prefs.cfSecret).put("server", Prefs.server).put("profile", Prefs.profile)
             .put("fcmcfg", Prefs.fcmCfg).put("fcmtok", Prefs.fcmToken).put("fleetseen", Prefs.fleetSeen).put("agent", Prefs.agentName)
+            .put("moread", Prefs.momentumRead)
     }
 
     fun all(): List<JSONObject> {
@@ -61,6 +62,7 @@ object Machines {
         Prefs.server = m.str("server").ifBlank { null }; Prefs.profile = m.str("profile").ifBlank { null }
         Prefs.fcmCfg = m.str("fcmcfg").ifBlank { null }; Prefs.fcmToken = m.str("fcmtok").ifBlank { null }
         Prefs.fleetSeen = m.optDouble("fleetseen", 0.0)
+        Prefs.momentumRead = m.str("moread").ifBlank { null }; Momentum.reloadRead()
         Prefs.agentName = m.str("agent").ifBlank { "Hermes" }; Hub.agent.value = Prefs.agentName
     }
 }
