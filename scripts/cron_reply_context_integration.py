@@ -17,7 +17,8 @@ from unittest.mock import AsyncMock, patch
 
 if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
     raise RuntimeError("Run directly in a fresh managed-Python process")
-SCRATCH = Path.home() / ".cache/hermes-app-chat-fixes"
+# Under the Hermes home, where the managed runtime finds its dependency environment.
+SCRATCH = Path.home() / ".hermes/cache/scratch"
 SCRATCH.mkdir(parents=True, exist_ok=True)
 _HOME = tempfile.TemporaryDirectory(prefix="cron-replies-", dir=SCRATCH)
 atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
@@ -200,7 +201,10 @@ class CronReplyIntegration(unittest.IsolatedAsyncioTestCase):
             _steer_running_agent=lambda agent, text: steered.append(text) or True,
             _fold_into_running_turn=lambda *a: None,
             _agent_has_active_subagents=lambda agent: False,
+            # No session authority here, so a queued command turn takes the in-process slot (_enqueue_fifo).
+            _command_turn_admitted=lambda event, key: False,
         )
+        runner._queue_command_turn = lambda *a, **kw: GatewayBusySessionMixin._queue_command_turn(runner, *a, **kw)
         event = await self.reply("d", mode="queue")
         await GatewayBusySessionMixin._busy_queue_command(runner, event, "d", event.source)
         self.assertIn("Queued report context", self.payload(queued[-1]))
