@@ -201,9 +201,10 @@ class CronReplyIntegration(unittest.IsolatedAsyncioTestCase):
             _steer_running_agent=lambda agent, text: steered.append(text) or True,
             _fold_into_running_turn=lambda *a: None,
             _agent_has_active_subagents=lambda agent: False,
-            # No session authority here, so a queued command turn takes the in-process slot (_enqueue_fifo).
-            _command_turn_admitted=lambda event, key: False,
         )
+        # The real queue path. This runner has no session authority, so a queued command turn takes the
+        # in-process slot and ends in _enqueue_fifo.
+        runner._command_turn_admitted = lambda *a: GatewayBusySessionMixin._command_turn_admitted(runner, *a)
         runner._queue_command_turn = lambda *a, **kw: GatewayBusySessionMixin._queue_command_turn(runner, *a, **kw)
         event = await self.reply("d", mode="queue")
         await GatewayBusySessionMixin._busy_queue_command(runner, event, "d", event.source)
@@ -214,8 +215,12 @@ class CronReplyIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(steered[-1].count("Queued report context"), 1)
         self.assertTrue(steered[-1].endswith("Explain item seven"))
         runner._peek_session_state = lambda key: None
+        before = len(queued)
         await GatewayBusySessionMixin._busy_steer_command(runner, event, "d", event.source)
-        self.assertIn("Queued report context", self.payload(queued[-1]))
+        # The fallback queues a turn of its own: no reply fields, the report context in its text, once.
+        self.assertEqual(len(queued), before + 1)
+        self.assertIsNone(queued[-1].reply_to_text)
+        self.assertEqual(queued[-1].text.count("Queued report context"), 1)
         self.assertEqual(self.payload(queued[-1]).count("Queued report context"), 1)
 
 
