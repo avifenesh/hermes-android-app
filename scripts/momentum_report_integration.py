@@ -94,12 +94,15 @@ def synthetic_report():
                  links=[{"label": "PR #18", "url": "https://github.com/example/evals/pull/18"},
                         {"label": "run", "url": "javascript:alert(1)"}]),
             item("n2", "Approve the release notes\nas drafted?", detail="Two numbers still cite a single run.", ago=90),
+            # Control and invisible format characters go; the joiner inside an emoji sequence stays.
+            item("n3", "Ship\x1b[31m it\u202e now\u200b?\x00 \U0001F468\u200d\U0001F4BB",
+                 links=[{"label": "spoof", "url": "https://github.com/a\u202e/b"}]),
         ],
         "decided": [item("d1", "Paused the duplicate scan at night", detail="Override: re-enable it in Cron.")],
         "shipped": shipped,
         "running": [item("r1", "Refactor the ingestion pipeline", detail="agent session, working", source="sessions")],
         "problems": [item("p1", "Nightly backup skipped twice", detail="Disk is 94% full; supervise gave up.")],
-        "counts": {"needs_you": 2, "decided": 1, "shipped": 23, "running": 1, "problems": 1},
+        "counts": {"needs_you": 3, "decided": 1, "shipped": 23, "running": 1, "problems": 1},
     }
 
 
@@ -170,9 +173,12 @@ class MomentumRoute(unittest.IsolatedAsyncioTestCase):
             self.assertIsInstance(rep[k], list)
         self.assertEqual(rep["counts"]["shipped"], 23)
         self.assertEqual(len(rep["shipped"]), 20)
-        n1, n2 = rep["needs_you"]
+        n1, n2, n3 = rep["needs_you"]
         self.assertEqual(n1["links"], [{"label": "PR #18", "url": "https://github.com/example/evals/pull/18"}])
         self.assertEqual(n2["title"], "Approve the release notes as drafted?")
+        self.assertEqual(n3["title"], "Ship[31m it now? \U0001F468\u200d\U0001F4BB")
+        self.assertEqual(n3["links"], [])
+        self.assertFalse(body["scout"])  # this home has no scout store
         self.assertEqual(rep["shipped"][0]["effect"], "metric 49% -> 39% (7 d)")
         self.assertEqual(self.calls(), [["report", "--json"]])
 

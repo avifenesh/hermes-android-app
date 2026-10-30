@@ -419,8 +419,12 @@ fun MeScreen() {
                     val rep = Momentum.report(mo)
                     val needs = Momentum.count(rep, "needs_you")
                     val fresh = Momentum.unread(rep, "needs_you", moRead).size
-                    NavRow(Ic.zap, "Radar", if (mo?.optBoolean("available") == true) "Momentum and the scout's findings"
-                        else "Every 3h: the 5 most useful things the scout found",
+                    val sub = when {
+                        mo?.optBoolean("available") != true -> "Every 3h: the 5 most useful things the scout found"
+                        mo?.optBoolean("scout", true) == false -> "Momentum: what needs you, runs and shipped"
+                        else -> "Momentum and the scout's findings"
+                    }
+                    NavRow(Ic.zap, "Radar", sub,
                         badge = if (needs > 99) "99+" else if (needs > 0) "$needs" else null,
                         badgeHot = fresh > 0,
                         badgeLabel = (if (needs == 1) "1 decision needs you" else "$needs decisions need you") +

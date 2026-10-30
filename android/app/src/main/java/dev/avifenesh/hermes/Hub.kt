@@ -323,6 +323,9 @@ object Hub {
         Api.epoch.commit(ticket) { }
         try { refreshMe() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
         Api.epoch.commit(ticket) { }
+        // The new machine's needs-you count for the Radar row in Me, which stays on screen through a switch.
+        if (features.value.radar) try { Momentum.load() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+        Api.epoch.commit(ticket) { }
         val push = try { Push.refresh(c) } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
         Api.epoch.commit(ticket) { Prefs.live = !push; connect() }
         LiveService.sync(c)

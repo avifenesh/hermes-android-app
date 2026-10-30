@@ -41,11 +41,20 @@ CACHE_FILE = "momentum.json"
 
 
 # ------------------------------------------------------------------ the report, as plain text
+JOINERS = {"\u200c", "\u200d"}  # zero-width non-joiner and joiner: part of how some scripts and emoji are written
+
+
+def _hidden(ch: str) -> bool:
+    """Control and invisible format characters (bidi overrides, zero-width spaces, BOM, soft hyphens)."""
+    cat = unicodedata.category(ch)
+    return cat == "Cc" or (cat == "Cf" and ch not in JOINERS)
+
+
 def _text(v: Any, limit: int) -> str:
-    """One plain line: whitespace collapsed, control characters dropped, cut at ``limit`` characters."""
+    """One plain line: whitespace collapsed, control and invisible format characters dropped, cut at ``limit``."""
     if isinstance(v, bool) or not isinstance(v, (str, int, float)):
         return ""
-    s = "".join(ch for ch in " ".join(str(v).split()) if unicodedata.category(ch) != "Cc")
+    s = "".join(ch for ch in " ".join(str(v).split()) if not _hidden(ch))
     return s if len(s) <= limit else s[:limit - 1].rstrip() + "…"
 
 
@@ -54,7 +63,7 @@ def _link(o: Any) -> Optional[Dict[str, str]]:
         return None
     url = str(o.get("url") or "").strip()
     if (len(url) > 2000 or not url.lower().startswith(("https://", "http://"))
-            or any(c.isspace() or unicodedata.category(c) == "Cc" for c in url)):
+            or any(c.isspace() or unicodedata.category(c) in ("Cc", "Cf") for c in url)):
         return None
     try:
         host = urlsplit(url).hostname
@@ -239,13 +248,13 @@ class Reader:
             logger.warning("[mobile] momentum: could not save the last good copy: %s", e)
 
 
-def routes(r, j, data_dir: Path, write: bool = True) -> Reader:
+def routes(r, j, data_dir: Path, write: bool = True, scout=lambda: False) -> Reader:
     """``GET /v1/radar/momentum`` (``?refresh=1`` skips the reuse window). Under /v1/radar so the app's radar gate
-    covers it."""
+    covers it. ``scout`` says whether the radar page also has a scout, so the app can describe the page."""
     reader = Reader(Path(data_dir) / CACHE_FILE, write=write)
 
     async def h_momentum(request):
-        return j(await reader.get(refresh=request.query.get("refresh") == "1"))
+        return j({**await reader.get(refresh=request.query.get("refresh") == "1"), "scout": bool(scout())})
 
     r.add_get("/v1/radar/momentum", h_momentum)
     return reader

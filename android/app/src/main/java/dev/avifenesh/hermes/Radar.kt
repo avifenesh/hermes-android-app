@@ -43,6 +43,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.LayoutBoundsHolder
+import androidx.compose.ui.layout.layoutBounds
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -69,6 +71,7 @@ fun RadarScreen() {
     // Both survive a rotation: recreating the activity is not leaving the page.
     val moOpen = rememberSaveable(saver = MomentumOpenSaver) { mutableStateMapOf<String, Boolean>() }
     val sightings = rememberSaveable(saver = MomentumSightings.Saver) { MomentumSightings() }
+    val viewport = remember { LayoutBoundsHolder() }
     suspend fun load() {
         runCatching { data = Api.get("/v1/radar?view=$view"); err = null }.onFailure { err = it.message }
     }
@@ -85,16 +88,22 @@ fun RadarScreen() {
             if (k !in moOpen) moOpen[k] = unread else if (unread) moOpen[k] = true
         }
     }
-    // Leaving the page (or the app) marks what was on screen as read: next time those sections show their count.
+    // Leaving the page (or the app) records the rows read on screen: next time a section read through shows its
+    // count. A rotation recreates the activity without leaving: what was read so far is kept, nothing is committed.
     val latest by rememberUpdatedState(rep)
     val act = LocalAct.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         fun commit() {
-            if (act.isChangingConfigurations) return
-            Momentum.markRead(sightings.drain().filterKeys { moOpen[it] == true }, latest)
+            if (!act.isChangingConfigurations) Momentum.markRead(sightings.drain().filterKeys { moOpen[it] == true }, latest)
         }
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) commit() }
+        val obs = LifecycleEventObserver { _, e ->
+            when (e) {
+                Lifecycle.Event.ON_START -> sightings.start()
+                Lifecycle.Event.ON_STOP -> { sightings.stop(); commit() }
+                else -> Unit
+            }
+        }
         lifecycle.addObserver(obs)
         onDispose { lifecycle.removeObserver(obs); commit() }
     }
@@ -108,27 +117,30 @@ fun RadarScreen() {
         data = JSONObject(d.toString())
     }
     val m = mo
+    val momentum = m != null && m.optBoolean("available")
+    // A machine with momentum but no scout gets a momentum page, without the scout's controls or promises.
+    val scout = data?.optBoolean("scout", true) != false || !momentum
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar("Radar", err ?: batch?.let { "Batch ${rel(it.optDouble("ts"))} · every 3h" } ?: if (data == null) "Loading…" else "No batch yet")
+        TopBar("Radar", err ?: if (!scout) null else batch?.let { "Batch ${rel(it.optDouble("ts"))} · every 3h" } ?: if (data == null) "Loading…" else "No batch yet")
         PullToRefreshBox(refreshing, {
             scope.launch { refreshing = true; coroutineScope { launch { load() }; launch { loadMomentum(force = true) } }; refreshing = false }
         }, Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize()) {
-                if (m != null && m.optBoolean("available")) {
+            LazyColumn(Modifier.fillMaxSize().layoutBounds(viewport)) {
+                if (m != null && momentum) {
                     item(key = "momentum-head") {
                         val (right, stale) = momentumWhen(m, moFailed != null)
                         Section("Momentum", right, rightColor = if (stale) p.att else p.mu)
                     }
                     item(key = "momentum") {
-                        MomentumPanel(m, moOpen, sightings) { k, open ->
+                        MomentumPanel(m, moOpen, sightings, viewport) { k, open ->
                             moOpen[k] = open
                             // Collapsing by hand is reading it: the section was on screen to be tapped.
                             if (!open) Momentum.markRead(mapOf(k to Momentum.shown(rep, k)), rep)
                         }
                     }
-                    item(key = "scout-head") { Section("Scout findings") }
+                    if (scout) item(key = "scout-head") { Section("Scout findings") }
                 } else if (m == null && !moTried) item(key = "momentum-wait") { Skeleton(1) }
-                stickyHeader(key = "views") {
+                if (scout) stickyHeader(key = "views") {
                     Row(Modifier.fillMaxWidth().background(p.bg).padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Seg(listOf("current" to "Latest", "saved" to "Saved", "history" to "History"), view) { view = it }
                     }
@@ -142,7 +154,7 @@ fun RadarScreen() {
                         }
                     }
                 }
-                if (data != null && findings.isEmpty()) item {
+                if (scout && data != null && findings.isEmpty()) item {
                     Empty(if (view == "saved") "Nothing saved" else "Nothing yet", when (view) {
                         "current" -> "The scout runs every 3 hours. Pull to refresh."
                         "saved" -> "Findings you save show up here."

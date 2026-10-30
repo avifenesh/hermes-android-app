@@ -240,7 +240,7 @@ class MobileAdapter(BasePlatformAdapter):
         PH.routes(r, self, self._json)
         self._hub = MK.routes(r, self._json)
         RD.routes(r, self, self._json)
-        MO.routes(r, self._json, S.data_dir(), write=not cli)
+        MO.routes(r, self._json, S.data_dir(), write=not cli, scout=RD.has_store)
         return app
 
     async def connect(self, *, is_reconnect: bool = False) -> bool:
@@ -573,7 +573,6 @@ class MobileAdapter(BasePlatformAdapter):
 
     def _features(self) -> Dict[str, bool]:
         """Cheap local presence checks for optional surfaces (no network, no mkdir). Projects scan is cached 60s."""
-        radar_db = Path(os.environ.get("RADAR_HOME") or Path.home() / ".hermes" / "radar") / "radar.db"
         try:
             fleet = FL.ctrl_bin() is not None or FL.STATUS.exists()
         except Exception:
@@ -594,7 +593,7 @@ class MobileAdapter(BasePlatformAdapter):
                 projects = False
             self._feat_cache = (now, projects)
         # The radar page also carries momentum's report, so either one turns it on.
-        radar = radar_db.exists() or MO.binary() is not None
+        radar = RD.has_store() or MO.binary() is not None
         return {"radar": radar, "fleet": fleet, "wake_wa": wake_wa, "projects": projects}
 
     def _meta(self) -> Dict[str, Any]:
