@@ -9,8 +9,10 @@
 - Never commit signing keys/properties, local SDK configuration, pairing material,
   private design captures, personal data or gateway databases. Local publisher
   keys belong under ignored `android/keys/`; build artifacts belong under `dist/`.
-- Commits use the owner's identity, Avi Fenesh <aviarchi1994@gmail.com>, for author
-  and committer, from the global git config. Do not set a repo-local identity.
+- The owner's commits, and his agents', use `Avi Fenesh <aviarchi1994@gmail.com>` for
+  author and committer, from the global git config. Do not set a repo-local identity.
+  Land pull requests by fast-forward push (`git push origin HEAD:main`), never by
+  merging on GitHub, which records GitHub's noreply address as committer.
 
 ## Build and qualification
 
