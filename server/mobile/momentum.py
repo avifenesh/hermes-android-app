@@ -42,6 +42,7 @@ CACHE_FILE = "momentum.json"
 
 # ------------------------------------------------------------------ the report, as plain text
 JOINERS = {"\u200c", "\u200d"}  # zero-width non-joiner and joiner: part of how some scripts and emoji are written
+SEPARATORS = "\n\r\t\x0b\x0c\x85"  # control characters that are line or word breaks: folded to a space, not dropped
 
 
 def _hidden(ch: str) -> bool:
@@ -54,7 +55,7 @@ def _text(v: Any, limit: int) -> str:
     """One plain line: whitespace collapsed, control and invisible format characters dropped, cut at ``limit``."""
     if isinstance(v, bool) or not isinstance(v, (str, int, float)):
         return ""
-    s = " ".join("".join(ch for ch in str(v) if not _hidden(ch) or ch in "\n\r\t\x0b\x0c").split())
+    s = " ".join("".join(ch for ch in str(v) if not _hidden(ch) or ch in SEPARATORS).split())
     return s if len(s) <= limit else s[:limit - 1].rstrip() + "…"
 
 

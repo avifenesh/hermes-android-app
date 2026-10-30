@@ -93,7 +93,7 @@ def synthetic_report():
             item("n1", "Keep the nightly eval on the small model?", detail="The large one costs 3x and scored 0.4 higher.",
                  links=[{"label": "PR #18", "url": "https://github.com/example/evals/pull/18"},
                         {"label": "run", "url": "javascript:alert(1)"}]),
-            item("n2", "Approve the release notes\nas drafted?", detail="Two numbers still cite a single run.", ago=90),
+            item("n2", "Approve the release\x85notes\nas drafted?", detail="Two numbers still cite a single run.", ago=90),
             # Control and invisible format characters go; the joiner inside an emoji sequence stays.
             item("n3", "\u2066 Ship\x1b[31m it\u202e now\u200b?\x00 \u200b \U0001F468\u200d\U0001F4BB \u200b",
                  links=[{"label": "spoof", "url": "https://github.com/a\u202e/b"}]),
