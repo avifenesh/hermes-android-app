@@ -9,7 +9,8 @@
 - Never commit signing keys/properties, local SDK configuration, pairing material,
   private design captures, personal data or gateway databases. Local publisher
   keys belong under ignored `android/keys/`; build artifacts belong under `dist/`.
-- Publisher commits use the approved noreply identity for author and committer.
+- Commits use the owner's identity, Avi Fenesh <aviarchi1994@gmail.com>, for author
+  and committer, from the global git config. Do not set a repo-local identity.
 
 ## Build and qualification
 
