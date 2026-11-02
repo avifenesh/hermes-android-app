@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,6 +83,7 @@ object Hub {
         else -> otherCapabilityEpochs[key]
     }
     val cmds = MutableStateFlow<List<JSONObject>>(emptyList())
+    val sessionEvents = MutableSharedFlow<JSONObject>(extraBufferCapacity = 256)
     /** chat -> {"turn": latest turn usage, "session": session totals} */
     val usage = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     /** The agent's display name from /v1/me (agent_name), persisted so cold starts, notifications and widgets use the last known one. */
@@ -274,6 +276,7 @@ object Hub {
     private fun handle(e: JSONObject) {
         when (e.optString("type")) {
             "phone" -> PhoneService.pull()
+            "session_event" -> sessionEvents.tryEmit(e)
             "hello", "seq" -> {
                 if (Prefs.phoneArmed) PhoneService.pull()
                 e.optJSONArray("working")?.let { setWorking(it) }

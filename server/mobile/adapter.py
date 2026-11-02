@@ -25,6 +25,7 @@ from . import fleet as FL
 from . import market as MK
 from . import momentum as MO
 from . import ident as ID
+from . import live_sessions as LS
 from . import profiles as PR
 from . import phone as PH
 from . import projects as PJ
@@ -179,6 +180,7 @@ class MobileAdapter(BasePlatformAdapter):
         self._recall_text: Dict[str, Any] = {}     # chat_id -> (text, ts) captured before its notice landed
         self._control = C.Control(self)
         self._selfcheck = SC.SelfCheck(self)
+        self._live_sessions = LS.LiveSessions(self)
 
     # ------------------------------------------------------------ lifecycle
     def _build_app(self, cli: bool = False):
@@ -221,6 +223,9 @@ class MobileAdapter(BasePlatformAdapter):
         r.add_get("/v1/pulse", self.h_pulse)
         r.add_get("/v1/sessions", self.h_sessions)
         r.add_get("/v1/sessions/{sid}/messages", self.h_session_messages)
+        r.add_put("/v1/sessions/{sid}/messages", self.h_session_send)
+        r.add_put("/v1/sessions/{sid}/prompts/{pid}", self.h_session_prompt)
+        r.add_delete("/v1/sessions/{sid}/viewer", self.h_session_close)
         r.add_get("/v1/commands", self.h_commands)
         r.add_post("/v1/fcm", self.h_fcm)
         r.add_get("/v1/push-config", self.h_push_config)
@@ -281,6 +286,7 @@ class MobileAdapter(BasePlatformAdapter):
             self._wake.stop()
         if getattr(self, "_fleet", None):
             self._fleet.stop()
+        await self._live_sessions.close_all()
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
@@ -1009,13 +1015,54 @@ class MobileAdapter(BasePlatformAdapter):
 
     async def h_session_messages(self, request):
         try:
-            with self._state_db() as c:
-                rows = c.execute("SELECT role, content, tool_name, timestamp FROM messages WHERE session_id=?"
-                                 " AND role IN ('user','assistant') AND COALESCE(content,'')!='' ORDER BY id DESC LIMIT 200",
-                                 (request.match_info["sid"],)).fetchall()
-            return self._json({"messages": [dict(r) for r in rows][::-1]})
-        except Exception as e:
-            return self._json({"error": str(e)}, 500)
+            before = request.query.get("before")
+            data = await self._live_sessions.messages(
+                request.match_info["sid"], before=int(before) if before else None,
+                limit=int(request.query.get("limit", "40")),
+                refresh=request.query.get("refresh") == "1")
+            return self._json(data)
+        except LS.LiveSessionError as e:
+            return self._json({"error": e.reason}, e.status)
+        except (TypeError, ValueError):
+            return self._json({"error": "invalid pagination cursor"}, 400)
+
+    async def h_session_send(self, request):
+        try:
+            body = await _body(request)
+            result = await self._live_sessions.send(
+                request.match_info["sid"], str(body.get("text") or ""),
+                submission_id=str(body.get("submission_id") or "")[:100])
+            return self._json(result)
+        except LS.LiveSessionError as e:
+            return self._json({"error": e.reason}, e.status)
+
+    async def h_session_prompt(self, request):
+        try:
+            body = await _body(request)
+            sid, pid = request.match_info["sid"], request.match_info["pid"]
+            kind = str(body.get("kind") or "")
+            choice = str(body.get("choice") or "")
+            # Approving a command keeps the same protected-key requirement as Inbox approvals.
+            # Clarify answers and denial are ordinary session responses, not new authority.
+            if kind == "approval" and choice != "deny":
+                if choice in ("session", "always") and (request["device"].get("nolock") or "") == "1":
+                    return self._json({"error": "This phone has no screen lock, so it can only approve once"}, 403)
+                amsg = f"approve\n{sid}:{pid}\n{choice}\n{request.headers.get('X-HM-Ts', '')}".encode()
+                if not SG.approval_ok(request, amsg):
+                    return self._json({"error": "biometric signature required"}, 403)
+            result = await self._live_sessions.respond(
+                sid, kind, pid, int(body.get("generation") or body.get("execution_generation") or 0),
+                choice=choice, answer=str(body.get("answer") or ""),
+                question_id=str(body.get("question_id") or ""))
+            return self._json(result)
+        except LS.LiveSessionError as e:
+            return self._json({"error": e.reason}, e.status)
+        except (TypeError, ValueError):
+            return self._json({"error": "invalid prompt response"}, 400)
+
+    async def h_session_close(self, request):
+        await self._live_sessions.close(request.match_info["sid"])
+        return self._json({"ok": True})
 
     def _session_usage(self, cid: str) -> Optional[Dict[str, Any]]:
         s = self._session_for_chat(cid)

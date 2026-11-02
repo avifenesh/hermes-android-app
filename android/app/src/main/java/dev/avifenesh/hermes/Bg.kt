@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
@@ -211,6 +212,57 @@ object Approvals {
             .setSubtitle(cmd.take(140))
             .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
             .build()
+        prompt.authenticate(info, BiometricPrompt.CryptoObject(sig))
+    }
+
+    /** A native session approval; same biometric proof, with session and generation binding. */
+    fun runSession(act: FragmentActivity, sid: String, prompt: JSONObject, choice: String,
+                   done: (String?) -> Unit) {
+        val pid = prompt.optString("prompt_id")
+        val generation = prompt.optLong("generation")
+        val body = JSONObject().put("kind", "approval").put("choice", choice).put("generation", generation)
+        fun submit(ts: String?, sig: String?) {
+            Hub.scope.launch {
+                val r = runCatching {
+                    val headers = mutableMapOf<String, String>()
+                    if (ts != null && sig != null) { headers["X-HM-Ts"] = ts; headers["X-HM-ASig"] = sig }
+                    Api.put("/v1/sessions/${Uri.encode(sid)}/prompts/${Uri.encode(pid)}", body, headers)
+                }
+                withContext(Dispatchers.Main) {
+                    if (r.isFailure) done(r.exceptionOrNull()?.message ?: "Failed")
+                    else done(null)
+                }
+            }
+        }
+        if (choice == "deny") { submit(null, null); return }
+        prove(act, if (choice == "once") "Approve command" else "Approve for $choice",
+            prompt.optString("command").ifBlank { prompt.optString("detail") },
+            "approve\n$sid:$pid\n$choice", { done(it) }, ::submit)
+    }
+
+    private fun prove(act: FragmentActivity, title: String, subtitle: String, prefix: String,
+                      onError: (String) -> Unit, done: (String?, String?) -> Unit) {
+        val ts = (System.currentTimeMillis() / 1000).toString()
+        val payload = "$prefix\n$ts".toByteArray()
+        val sig = try { Keys.approvalSignature() } catch (e: Exception) { onError("Approval key unavailable: ${e.message}"); return }
+        if (Prefs.noLock) {
+            val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()
+            if (s == null) onError("Signing failed") else done(ts, s)
+            return
+        }
+        val prompt = BiometricPrompt(act, ContextCompat.getMainExecutor(act), object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                val s = result.cryptoObject?.signature ?: return onError("No signature")
+                val out = try { s.update(payload); Base64.encodeToString(s.sign(), Base64.NO_WRAP) } catch (e: Exception) { return onError(e.message ?: "Signing failed") }
+                done(ts, out)
+            }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                val cancelled = errorCode == BiometricPrompt.ERROR_USER_CANCELED || errorCode == BiometricPrompt.ERROR_CANCELED || errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                onError(if (cancelled) "" else errString.toString())
+            }
+        })
+        val info = BiometricPrompt.PromptInfo.Builder().setTitle(title).setSubtitle(subtitle.take(140))
+            .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL).build()
         prompt.authenticate(info, BiometricPrompt.CryptoObject(sig))
     }
 }

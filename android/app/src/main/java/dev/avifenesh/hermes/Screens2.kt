@@ -15,6 +15,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,10 +31,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +61,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -339,24 +346,264 @@ fun ElsewhereScreen() {
     }
 }
 
+internal fun liveMessage(j: JSONObject, sid: String): Msg {
+    val role = j.str("role").ifBlank { "assistant" }
+    val kind = when {
+        role == "tool" || j.str("display_kind") in setOf("tool", "trace") -> "trace"
+        role == "system" || j.str("display_kind") == "status" -> "status"
+        else -> "text"
+    }
+    return Msg(
+        id = j.str("id").ifBlank { "$sid:${j.optLong("position")}" }, chatId = sid,
+        role = role, kind = kind,
+        content = j.str("text").ifBlank { j.str("content") }, meta = j,
+        ts = j.optDouble("timestamp", j.optDouble("ts", 0.0)), seq = j.optLong("position"))
+}
+
+internal fun mergeLiveMessages(old: List<Msg>, page: List<Msg>): List<Msg> =
+    (old + page).associateBy { it.id }.values.sortedWith(compareBy<Msg> { it.seq }.thenBy { it.ts })
+
 @Composable
 fun SessionScreen(r: Route.SessR) {
     val p = P
-    var msgs by remember { mutableStateOf<List<JSONObject>?>(null) }
-    var err by remember { mutableStateOf<String?>(null) }
-    var reloadKey by remember { mutableStateOf(0) }
-    LaunchedEffect(r.id, reloadKey) { runCatching { msgs = Api.get("/v1/sessions/${Uri.encode(r.id)}/messages").optJSONArray("messages").objs() }.onFailure { err = it.message } }
-    Column(Modifier.fillMaxSize()) {
-        TopBar(r.title, r.source + " · read only")
-        val l = msgs
-        if (l == null) { if (err != null) ErrorPanel(err!!) { err = null; reloadKey++ } else Skeleton(6) }
-        else LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
-            items(l.size) { i ->
-                val m = l[i]
-                val mine = m.str("role") == "user"
-                Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
-                    if (mine) Box(Modifier.clip(RoundedCornerShape(20.dp)).background(p.s3).padding(horizontal = 14.dp, vertical = 9.dp)) { Text(m.str("content").take(4000), style = sans(15f, 400, p.tx, 22f)) }
-                    else Box(Modifier.padding(horizontal = 6.dp)) { Md(m.str("content").take(12000)) }
+    val scope = rememberCoroutineScope()
+    val act = LocalAct.current
+    var msgs by remember(r.id) { mutableStateOf<List<Msg>?>(null) }
+    var prompts by remember(r.id) { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var answered by remember(r.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var nextBefore by remember(r.id) { mutableStateOf<Long?>(null) }
+    var running by remember(r.id) { mutableStateOf(false) }
+    var generation by remember(r.id) { mutableStateOf(0L) }
+    var readOnly by remember(r.id) { mutableStateOf(false) }
+    var err by remember(r.id) { mutableStateOf<String?>(null) }
+    var refreshing by remember(r.id) { mutableStateOf(false) }
+    var loadingOlder by remember(r.id) { mutableStateOf(false) }
+    var sending by remember(r.id) { mutableStateOf(false) }
+    var positioned by remember(r.id) { mutableStateOf(false) }
+    var promptBusy by remember(r.id) { mutableStateOf<String?>(null) }
+    var text by rememberSaveable(r.id) { mutableStateOf("") }
+    val list = rememberLazyListState()
+    val base = "/v1/sessions/${Uri.encode(r.id)}"
+
+    suspend fun load(older: Boolean = false) {
+        if (older) {
+            val before = nextBefore ?: return
+            if (loadingOlder) return
+            loadingOlder = true
+        } else {
+            if (refreshing) return
+            refreshing = true
+        }
+        val anchorId = if (older) msgs?.getOrNull(list.firstVisibleItemIndex)?.id else null
+        val anchorOffset = if (older) list.firstVisibleItemScrollOffset else 0
+        val hadMessages = !msgs.isNullOrEmpty()
+        try {
+            val suffix = if (older) "?before=$nextBefore&limit=40" else "?limit=40&refresh=1"
+            val o = Api.get("$base/messages$suffix")
+            val page = o.optJSONArray("messages").objs().map { liveMessage(it, r.id) }
+            msgs = mergeLiveMessages(if (older) page + msgs.orEmpty() else msgs.orEmpty(), if (older) emptyList() else page)
+            if (older || !hadMessages) {
+                nextBefore = if (o.isNull("nextBefore")) null else o.optLong("nextBefore")
+            }
+            if (older && anchorId != null) {
+                val anchor = msgs!!.indexOfFirst { it.id == anchorId }
+                if (anchor >= 0) list.scrollToItem(anchor, anchorOffset)
+            }
+            running = o.optBoolean("running")
+            generation = o.optLong("generation")
+            readOnly = o.optBoolean("readOnly")
+            prompts = o.optJSONArray("prompts").objs().filter { it.str("state") !in setOf("answered", "denied", "cancelled", "interrupted") }
+            err = null
+        } catch (e: Exception) {
+            err = e.message ?: "Couldn't load this session"
+        } finally {
+            if (older) loadingOlder = false else refreshing = false
+        }
+    }
+
+    fun send() {
+        val value = text.trim()
+        if (value.isEmpty() || sending || readOnly) return
+        sending = true
+        scope.launch {
+            try {
+                Api.put("$base/messages", JSONObject().put("text", value)
+                    .put("submission_id", java.util.UUID.randomUUID().toString()))
+                text = ""
+                load()
+                if (msgs.orEmpty().isNotEmpty()) list.animateScrollToItem(msgs!!.lastIndex)
+            } catch (e: Exception) { Ui.say(e.message) } finally { sending = false }
+        }
+    }
+
+    fun answerClarify(prompt: JSONObject, answer: String, questionId: String = "") {
+        if (answer.isBlank() || promptBusy != null) return
+        val pid = prompt.str("prompt_id")
+        val key = "$pid:$questionId"
+        promptBusy = key
+        scope.launch {
+            try {
+                Api.put("$base/prompts/${Uri.encode(pid)}", JSONObject().put("kind", "clarify")
+                    .put("generation", prompt.optLong("generation")).put("answer", answer)
+                    .put("question_id", questionId))
+                answered = answered + key
+                load()
+            } catch (e: Exception) { Ui.say(e.message) } finally { promptBusy = null }
+        }
+    }
+
+    LaunchedEffect(r.id) { load() }
+    VisibleEffect(true) {
+        while (true) { delay(5000); if (!sending) load() }
+    }
+    LaunchedEffect(r.id) {
+        Hub.sessionEvents.conflate().collect { event ->
+            if (event.str("session_id") == r.id) { delay(120); load() }
+        }
+    }
+    LaunchedEffect(msgs?.size) {
+        val count = msgs?.size ?: return@LaunchedEffect
+        if (!positioned) {
+            list.scrollToItem(count - 1)
+            positioned = true
+        } else if (!loadingOlder && !list.canScrollForward) {
+            list.animateScrollToItem(count - 1)
+        }
+    }
+    LaunchedEffect(list, msgs?.size) {
+        snapshotFlow { list.firstVisibleItemIndex }.distinctUntilChanged().collectLatest { index ->
+            if (positioned && index == 0 && nextBefore != null) load(older = true)
+        }
+    }
+    DisposableEffect(r.id) { onDispose { Hub.scope.launch { runCatching { Api.delete("$base/viewer") } } } }
+
+    Column(Modifier.fillMaxSize().background(p.bg)) {
+        TopBar(r.title, when {
+            readOnly -> "${r.source} · superseded · read only"
+            running -> "${r.source} · live · working"
+            else -> "${r.source} · live"
+        }, right = {
+            Icn(Ic.refresh, p.tx2, 20.dp, Modifier.clip(RoundedCornerShape(8.dp))
+                .clickable { scope.launch { load() } }.padding(7.dp))
+        })
+        val current = msgs
+        when {
+            current == null && err != null -> ErrorPanel(err!!) { scope.launch { load() } }
+            current == null -> Skeleton(6)
+            else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list,
+                contentPadding = PaddingValues(vertical = 10.dp)) {
+                if (loadingOlder) item(key = "older") {
+                    Text("Loading earlier messages…", style = mono(12f, 500, p.mu),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp))
+                }
+                if (current.isEmpty()) item(key = "empty") {
+                    Empty("No messages yet", "Send a message to continue this session.")
+                }
+                items(current, key = { it.id }) { m -> MsgView(m, emptyMap(), compact = false) }
+                items(prompts, key = { it.str("prompt_id") }) { prompt ->
+                    SessionPromptCard(prompt, answered, promptBusy,
+                        onApproval = { choice ->
+                            val pid = prompt.str("prompt_id")
+                            promptBusy = pid
+                            Approvals.runSession(act, r.id, prompt, choice) { error ->
+                                promptBusy = null
+                                if (error == null) { answered = answered + pid; scope.launch { load() } }
+                                else if (error.isNotEmpty()) Ui.say(error)
+                            }
+                        }, onClarify = ::answerClarify)
+                }
+                item(key = "bottom") { Spacer(Modifier.height(8.dp)) }
+            }
+        }
+        if (err != null && current != null) Text(err!!, style = sans(12.5f, 400, p.bad),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp))
+        if (running) Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            LiveDot(7.dp); Spacer(Modifier.width(8.dp))
+            Text("Working — your message will steer or queue in the session", style = sans(12.5f, 400, p.acct), modifier = Modifier.weight(1f))
+            if (text.isBlank()) Icn(Ic.stop, p.bad, 18.dp, Modifier.clip(RoundedCornerShape(7.dp)).clickable {
+                scope.launch { runCatching { Api.post("$base/stop", JSONObject().put("generation", generation)); load() }
+                    .onFailure { Ui.say(it.message) } }
+            }.padding(7.dp))
+        }
+        if (readOnly) Text("This session was superseded. Open its continuation to send messages.",
+            style = sans(13f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+        else Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.Bottom) {
+            InputBox(text, { text = it }, if (running) "Steer or queue a follow-up…" else "Message this session…", Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            IconBtn(Ic.send, p.ink, 46.dp, p.acc, enabled = text.isNotBlank() && !sending) { send() }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceChip(label: String, selected: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val p = P
+    Text(label, style = sans(13.5f, 550, if (selected) p.acct else p.tx2), maxLines = 2,
+        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+            .background(if (selected) p.accd else p.s2)
+            .border(1.dp, if (selected) p.acct else p.line, RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp))
+}
+
+@Composable
+private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: String?,
+                              onApproval: (String) -> Unit,
+                              onClarify: (JSONObject, String, String) -> Unit) {
+    val p = P
+    val pid = prompt.str("prompt_id")
+    val approval = pid.isNotBlank() && (prompt.has("command") || prompt.has("options") && !prompt.has("question") && !prompt.has("questions"))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)
+        .clip(RoundedCornerShape(18.dp)).background(p.s1).border(1.dp, p.att.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+        .padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icn(if (approval) Ic.shield else Ic.blocks, p.att, 18.dp)
+            Spacer(Modifier.width(9.dp))
+            Text(if (approval) "Approval needed" else "Hermes is asking", style = sans(15f, 650, p.tx))
+        }
+        if (approval) {
+            if (prompt.str("command").isNotBlank()) Text(prompt.str("command"), style = mono(12.5f, 500, p.tx2))
+            if (prompt.str("detail").isNotBlank()) Text(prompt.str("detail"), style = sans(13.5f, 400, p.mu, 19f))
+            if (answered.contains(pid)) Text("Response sent", style = sans(13f, 500, p.goodt))
+            else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Btn("Allow once", enabled = busy == null) { onApproval("once") }
+                    if (!Prefs.noLock) Btn("This session", primary = false, enabled = busy == null) { onApproval("session") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!Prefs.noLock) Btn("Always", primary = false, enabled = busy == null) { onApproval("always") }
+                    Btn("Deny", primary = false, enabled = busy == null) { onApproval("deny") }
+                }
+            }
+        } else {
+            val questions = prompt.optJSONArray("questions").objs().ifEmpty { listOf(prompt) }
+            for (q in questions) {
+                val qid = q.str("qid")
+                val key = "$pid:$qid"
+                val options = (q.optJSONArray("options") ?: q.optJSONArray("choices"))?.let { a ->
+                    (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }
+                }.orEmpty()
+                val multi = q.optBoolean("multi_select")
+                var draft by remember(key) { mutableStateOf("") }
+                var selected by remember(key) { mutableStateOf<Set<Int>>(emptySet()) }
+                Text(q.str("question").ifBlank { "Your answer" }, style = sans(14.5f, 550, p.tx, 20f))
+                if (answered.contains(key)) Text("Answer sent", style = sans(13f, 500, p.goodt))
+                else {
+                    if (options.isNotEmpty()) {
+                        for ((index, option) in options.withIndex()) {
+                            ChoiceChip(if (multi && index in selected) "✓ $option" else option,
+                                selected = multi && index in selected, enabled = busy == null) {
+                                if (multi) selected = if (index in selected) selected - index else selected + index
+                                else onClarify(prompt, option, qid)
+                            }
+                        }
+                        if (multi) Btn("Send selection", primary = false, enabled = busy == null && selected.isNotEmpty()) {
+                            onClarify(prompt, selected.sorted().joinToString(",") { (it + 1).toString() }, qid)
+                        }
+                    }
+                    InputBox(draft, { draft = it }, if (options.isEmpty()) "Type your answer…" else "Other / more detail…", Modifier.fillMaxWidth())
+                    if (draft.isNotBlank()) Btn("Send answer", enabled = busy == null) {
+                        onClarify(prompt, draft.trim(), qid); draft = ""
+                    }
                 }
             }
         }
