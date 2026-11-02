@@ -123,12 +123,12 @@ class LiveSessions:
             identity = {
                 "user_id": "mobile", "provider": "local",
                 "profile_id": authority.profile_id, "instance_id": authority.instance_id,
-                "capabilities": ["session:read", "session:submit",
+                "capabilities": ["session:read", "session:submit", "session:control",
                                  "session:approve", "session:respond"],
                 "native_bootstrap": True,
             }
             # Trusted in-process transport gate: required to attach another surface's
-            # session. The explicit capability list above still excludes session control.
+            # session. Capabilities are fixed server-side, never claimed by the phone.
             connection = AuthorityConnection(authority, transport, identity, operator=True)
         self._connections[key] = connection
         return connection
@@ -164,6 +164,10 @@ class LiveSessions:
         return view
 
     async def _resume(self, view: LiveView) -> None:
+        # Resume creates a new attachment. Retire the previous one before replacing
+        # its handle, otherwise every live refresh leaks another subscription.
+        if view.subscription_id:
+            await self._detach(view)
         result = await self._dispatch(view, "session.resume", {
             "session_id": view.session_id, "display_projection": True})
         view.session_id = str(result.get("session_id") or view.session_id)
@@ -262,6 +266,14 @@ class LiveSessions:
             return await self._dispatch(view, method, {
                 "session_id": view.session_id, "prompt_id": prompt_id,
                 "execution_generation": generation, **params})
+
+    async def stop(self, sid: str, generation: int) -> dict:
+        if generation < 1:
+            raise LiveSessionError("invalid execution generation")
+        async with self._lock:
+            view = await self._view(sid)
+            return await self._dispatch(view, "session.interrupt", {
+                "session_id": view.session_id, "execution_generation": generation})
 
     async def close(self, sid: str) -> None:
         async with self._lock:

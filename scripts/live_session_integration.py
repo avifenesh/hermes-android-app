@@ -26,6 +26,8 @@ class FakeConnection:
         self.authority = authority
         self.history = history
         self.calls = []
+        self.resumes = 0
+        self.detached = []
         self.transport = None
 
     async def dispatch(self, request):
@@ -35,6 +37,7 @@ class FakeConnection:
         if method == "session.resume":
             sid = params["session_id"]
             messages = list(self.history)
+            self.resumes += 1
             return {"result": {
                 "session_id": sid,
                 "display_messages": messages,
@@ -42,7 +45,7 @@ class FakeConnection:
                 "execution_generation": 7,
                 "prompts": [],
                 "pending": [],
-                "subscription_id": "sub-1",
+                "subscription_id": f"sub-{self.resumes}",
             }}
         if method == "prompt.submit":
             return {"result": {"admission_id": "admission-1", "status": "queued", **params}}
@@ -51,6 +54,7 @@ class FakeConnection:
         if method == "session.interrupt":
             return {"result": {"execution_state": "idle", "execution_generation": params["execution_generation"]}}
         if method == "session.detach":
+            self.detached.append(params["subscription_id"])
             return {"result": {"detached": True}}
         raise AssertionError(method)
 
@@ -100,12 +104,22 @@ class LiveSessionContract(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(params, {"session_id": "cli-1", "text": "continue", "queued": True,
                                   "submission_id": "phone-1"})
 
-    async def test_choices_use_the_same_native_controls(self):
+    async def test_choices_and_stop_use_the_same_native_controls(self):
         await self.live.messages("cli-1", limit=2)
         await self.live.respond("cli-1", "approval", "prompt-1", 7, choice="once")
         await self.live.respond("cli-1", "clarify", "prompt-2", 7, answer="second")
-        methods = [call[0] for call in self.connection.calls[-2:]]
-        self.assertEqual(methods, ["approval.respond", "clarify.respond"])
+        await self.live.stop("cli-1", 7)
+        methods = [call[0] for call in self.connection.calls[-3:]]
+        self.assertEqual(methods, ["approval.respond", "clarify.respond", "session.interrupt"])
+
+    async def test_refresh_detaches_the_previous_subscription(self):
+        await self.live.messages("cli-1", limit=2)
+        await self.live.messages("cli-1", limit=2, refresh=True)
+        self.assertEqual(self.connection.detached, ["sub-1"])
+        view = await self.live._view("cli-1")
+        self.assertEqual(view.subscription_id, "sub-2")
+        await self.live.close("cli-1")
+        self.assertEqual(self.connection.detached, ["sub-1", "sub-2"])
 
     async def test_native_event_is_forwarded_to_the_phone_stream(self):
         view = await self.live._view("cli-1")

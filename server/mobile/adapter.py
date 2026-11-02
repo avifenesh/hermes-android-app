@@ -225,6 +225,7 @@ class MobileAdapter(BasePlatformAdapter):
         r.add_get("/v1/sessions/{sid}/messages", self.h_session_messages)
         r.add_put("/v1/sessions/{sid}/messages", self.h_session_send)
         r.add_put("/v1/sessions/{sid}/prompts/{pid}", self.h_session_prompt)
+        r.add_post("/v1/sessions/{sid}/stop", self.h_session_stop)
         r.add_delete("/v1/sessions/{sid}/viewer", self.h_session_close)
         r.add_get("/v1/commands", self.h_commands)
         r.add_post("/v1/fcm", self.h_fcm)
@@ -1059,6 +1060,17 @@ class MobileAdapter(BasePlatformAdapter):
             return self._json({"error": e.reason}, e.status)
         except (TypeError, ValueError):
             return self._json({"error": "invalid prompt response"}, 400)
+
+    async def h_session_stop(self, request):
+        try:
+            body = await _body(request)
+            result = await self._live_sessions.stop(
+                request.match_info["sid"], int(body.get("generation") or 0))
+            return self._json(result)
+        except LS.LiveSessionError as e:
+            return self._json({"error": e.reason}, e.status)
+        except (TypeError, ValueError):
+            return self._json({"error": "invalid execution generation"}, 400)
 
     async def h_session_close(self, request):
         await self._live_sessions.close(request.match_info["sid"])

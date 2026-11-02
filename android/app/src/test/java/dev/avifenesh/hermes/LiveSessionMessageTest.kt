@@ -34,4 +34,15 @@ class LiveSessionMessageTest {
         assertEquals(listOf("1", "2", "3"), merged.map { it.id })
         assertEquals(merged, mergeLiveMessages(merged, page))
     }
+
+    @Test
+    fun refreshBurstAcrossTwoPagesKeepsEveryRow() {
+        fun message(i: Int) = liveMessage(JSONObject().put("id", i.toString())
+            .put("position", i - 1).put("role", "user").put("text", "message $i"), "s")
+        val old = (1..5).map(::message)
+        val gapPage = (6..45).map(::message)
+        val latestPage = (46..85).map(::message)
+        val merged = mergeLiveMessages(old, gapPage + latestPage)
+        assertEquals((1..85).map(Int::toString), merged.map { it.id })
+    }
 }

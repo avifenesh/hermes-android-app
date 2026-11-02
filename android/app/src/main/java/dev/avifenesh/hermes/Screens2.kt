@@ -400,8 +400,23 @@ fun SessionScreen(r: Route.SessR) {
         try {
             val suffix = if (older) "?before=$nextBefore&limit=40" else "?limit=40&refresh=1"
             val o = Api.get("$base/messages$suffix")
-            val page = o.optJSONArray("messages").objs().map { liveMessage(it, r.id) }
-            msgs = mergeLiveMessages(if (older) page + msgs.orEmpty() else msgs.orEmpty(), if (older) emptyList() else page)
+            var page = o.optJSONArray("messages").objs().map { liveMessage(it, r.id) }
+            if (!older && hadMessages) {
+                val known = msgs.orEmpty().mapTo(HashSet()) { it.id }
+                val additions = page.toMutableList()
+                var gap = o
+                // A refresh returns the newest page. If a burst pushed every known
+                // row out of it, walk backward until the pages join our history.
+                while (page.none { it.id in known } && !gap.isNull("nextBefore")) {
+                    val before = gap.getLong("nextBefore")
+                    gap = Api.get("$base/messages?before=$before&limit=100")
+                    page = gap.optJSONArray("messages").objs().map { liveMessage(it, r.id) }
+                    additions.addAll(0, page)
+                }
+                msgs = mergeLiveMessages(msgs.orEmpty(), additions)
+            } else {
+                msgs = mergeLiveMessages(if (older) page + msgs.orEmpty() else msgs.orEmpty(), if (older) emptyList() else page)
+            }
             if (older || !hadMessages) {
                 nextBefore = if (o.isNull("nextBefore")) null else o.optLong("nextBefore")
             }
