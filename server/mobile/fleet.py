@@ -59,7 +59,9 @@ async def _run(*args: str, timeout: float = 30) -> tuple[int, str, str]:
 
 
 def agent_id(a: Dict[str, Any]) -> str:
-    return a.get("session") or a.get("thread") or (("job:" + a["job"]) if a.get("job") else "") or a.get("pane") or a.get("name") or "?"
+    native = a.get("session") or a.get("thread") or ((("job:" + a["job"]) if a.get("job") else "") or a.get("pane") or a.get("name") or "?")
+    host = str(a.get("host") or "").strip()
+    return f"remote:{host}:{native}" if host else native
 
 
 def _environ(pid: int) -> Dict[str, str]:
@@ -76,6 +78,8 @@ def kitty_target(a: Dict[str, Any]) -> Optional[tuple[str, str]]:
     The session process inherits KITTY_LISTEN_ON / KITTY_WINDOW_ID from its shell, so no tree walk is needed.
     Kitty's ``send-text`` writes through kitty itself, which sidesteps the kernel's TIOCSTI ban.
     """
+    if a.get("host"):
+        return None
     pid = int(a.get("pid") or 0)
     if not pid or a.get("pane"):
         return None
@@ -85,6 +89,8 @@ def kitty_target(a: Dict[str, Any]) -> Optional[tuple[str, str]]:
 
 
 def desktop_session(a: Dict[str, Any]) -> bool:
+    if a.get("host"):
+        return False
     pid = int(a.get("pid") or 0)
     return bool(pid) and "CLAUDE_CODE_DESKTOP_APP_VERSION" in _environ(pid)
 
@@ -112,6 +118,10 @@ def _codex_config_unguarded() -> bool:
 def unguarded(a: Dict[str, Any]) -> bool:
     """A session that acts without asking: whatever we type, it executes. Flags on the command line win; otherwise
     the harness's own defaults decide (Claude settings defaultMode / skip prompt, Codex approval_policy=never)."""
+    # Remote process flags and settings are not locally inspectable. Fail closed:
+    # every remote send requires the same biometric proof as an unguarded session.
+    if a.get("host"):
+        return True
     pid = int(a.get("pid") or 0)
     argv: List[str] = []
     if pid:
@@ -160,6 +170,10 @@ def _pid_runs_agent(pid: int) -> bool:
 
 
 def can_reply(a: Dict[str, Any]) -> bool:
+    if a.get("stale"):
+        return False
+    if a.get("host"):
+        return bool(a.get("session") or a.get("thread") or a.get("job") or a.get("pane"))
     if a.get("live") and kitty_target(a):
         return True
     if not a.get("live"):
@@ -178,13 +192,14 @@ def view(a: Dict[str, Any]) -> Dict[str, Any]:
         "state": "waiting" if need else state, "group": "waiting" if need else ("working" if group == "working" else
                                                                                   ("done" if group == "done" else "recent")),
         "detail": a.get("detail") or "", "where": a.get("where") or "", "cwd": a.get("cwd") or "",
+        "host": a.get("host") or "", "stale": bool(a.get("stale")), "host_error": a.get("host_error") or "",
         "project": Path(a.get("cwd") or "").name, "model": a.get("model") or a.get("provider") or "",
         "started": a.get("t") or 0, "last": a.get("last") or 0, "live": bool(a.get("live")),
         "prs": a.get("prs") or [], "hold": a.get("hold") or "", "can_reply": can_reply(a),
-        "can_stop": bool(a.get("live") and (a.get("pane") or kitty_target(a))),
+        "can_stop": bool(not a.get("host") and a.get("live") and (a.get("pane") or kitty_target(a))),
         "unguarded": bool(a.get("live") and unguarded(a)),
-        "via": "tmux" if a.get("pane") else ("kitty" if a.get("live") and kitty_target(a) else
-                                             ("desktop" if a.get("live") and desktop_session(a) else "")),
+        "via": "ssh" if a.get("host") else ("tmux" if a.get("pane") else ("kitty" if a.get("live") and kitty_target(a) else
+                                             ("desktop" if a.get("live") and desktop_session(a) else ""))),
     }
 
 
@@ -303,6 +318,18 @@ class Fleet:
             return {"lines": terminal["lines"],
                     "agent": {**view(a), "can_keys": True, "can_click": terminal["mouse"], "can_scroll": True},
                     "terminal": terminal}
+        if a.get("host"):
+            if a.get("stale"):
+                return {"error": a.get("host_error") or "remote host is unreachable"}
+            request = {"op": "live", "key": self._q(a), "lines": max(5, min(n, 200))}
+            rc, out, err = await _run("hosts", "rpc", a["host"], json.dumps(request), timeout=30)
+            if rc != 0:
+                return {"error": (err or out).strip()[:300]}
+            try:
+                lines = [ANSI.sub("", str(line)) for line in (json.loads(out).get("lines") or [])]
+            except (TypeError, ValueError):
+                return {"error": "remote host returned an invalid live preview"}
+            return {"lines": lines[-n:], "agent": view(a), "terminal": {"available": False}}
         rc, out, err = await _run("tail", self._q(a), str(max(5, min(n, 200))), timeout=20)
         if rc != 0:
             return {"error": (err or out).strip()[:300]}
@@ -313,6 +340,8 @@ class Fleet:
         a = await self.find(aid)
         if not a:
             return {"ok": False, "error": "no such session"}
+        if a.get("host"):
+            return {"ok": False, "error": "raw terminal input is local only; use reply for remote sessions"}
         return await self.terminal.input(a, kitty_target(a), body)
 
     @staticmethod
@@ -332,16 +361,31 @@ class Fleet:
         if not a:
             return {"ok": False, "error": "no such session"}
         if not can_reply(a):
-            why = ("lives in the Claude desktop app; reply there (or enable /remote-control in it)" if desktop_session(a)
+            why = ("is unreachable; reconnect its host before replying" if a.get("stale")
+                   else "lives in the Claude desktop app; reply there (or enable /remote-control in it)" if desktop_session(a)
                    else "runs in a terminal without remote control; reply there")
             return {"ok": False, "error": f"{a.get('name') or 'it'} {why}"}
-        # Re-check right before typing: a live session's agent may have exited back to its shell since the scan.
-        if a.get("live"):
+        # Re-check right before typing: a live local session's agent may have exited back to its shell since the scan.
+        # claude-ctrl performs the equivalent identity check on the remote host.
+        if a.get("live") and not a.get("host"):
             pane, pid = a.get("pane") or "", int(a.get("pid") or 0)
             alive = await asyncio.to_thread(_pane_runs_agent, pane) if pane else (bool(pid) and _pid_runs_agent(pid))
             if not alive:
                 self._cache = (0.0, [], [])
                 return {"ok": False, "error": f"{a.get('name') or 'it'} isn't running an agent any more; not typing into a shell"}
+        if a.get("host"):
+            request = {"op": "enqueue", "key": self._q(a), "identity": a.get("remote_identity") or {}, "body": text}
+            rc, out, err = await _run("hosts", "rpc", a["host"], json.dumps(request), timeout=120)
+            line = (out or err).strip()[:300]
+            if rc != 0:
+                return {"ok": False, "error": line or f"exit {rc}"}
+            try:
+                result = json.loads(out)
+                state = str(result.get("state") or "queued")
+            except (TypeError, ValueError):
+                return {"ok": False, "error": "remote host returned an invalid reply receipt"}
+            self._cache = (0.0, [], [])
+            return {"ok": True, "line": f"{state} on {a['host']}"}
         rc, out, err = await _run("send", self._q(a), text, timeout=120)
         line = (out or err).strip().splitlines()[-1:] or [""]
         ok = rc == 0 and not line[0].startswith(("claude-ctrl:", "could not")) and " lives in the " not in line[0] \
@@ -354,6 +398,8 @@ class Fleet:
             await self.ad.stop_chat(aid[3:])
             return {"ok": True}
         a = await self.find(aid)
+        if a and a.get("host"):
+            return {"ok": False, "error": "interrupt is local only for remote sessions"}
         kt = kitty_target(a) if a and a.get("live") else None
         if kt:
             rc, out = await kitty(kt[0], "send-key", "--match", f"id:{kt[1]}", "escape")

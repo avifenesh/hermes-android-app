@@ -130,9 +130,107 @@ class Routes(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.post(json.dumps(body).encode()))[0], 409)
         self.assertEqual(self.fleet.terminal.input.call_args.args[-1], body)
 
+    async def test_remote_input_never_touches_local_terminal(self):
+        self.agent['host'] = 'mini'
+        b = b'{"action":"key","key":"enter"}'
+        status, body = await self.post(b)
+        self.assertEqual(status, 409)
+        self.assertIn('local only', body['error'])
+        self.fleet.terminal.input.assert_not_awaited()
+
+    async def test_remote_send_route_requires_approval_for_reserved_host_names(self):
+        agent = {**self.agent, 'host': 'hs', 'session': 'abc'}
+        self.fleet.find.return_value = agent
+        self.fleet.send = AsyncMock(return_value={'ok': True})
+        body = b'{"text":"hello"}'
+        path = '/v1/fleet/' + F.agent_id(agent) + '/send'
+        ts = str(int(time.time()))
+        headers = {'Authorization': 'Bearer ' + self.device['token'], 'X-HM-Ts': ts,
+                   'X-HM-Sig': sign(self.key, SG.canonical('POST', path, ts, body)),
+                   'Content-Type': 'application/json'}
+        r = await self.client.post(path, data=body, headers=headers)
+        self.assertEqual(r.status, 403)
+        self.fleet.send.assert_not_awaited()
+
     async def test_unicode_ansi(self):
         value = '  A e\u0301 中 🙂  '
         self.assertEqual(ANSI.sub('', '\x1b[38:2:2:3:4m' + value + '\x1b[0m\x1b]8;;url\x1b\\end'), value + 'end')
+
+
+class RemoteFleet(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.fleet = F.Fleet(object())
+        self.agent = {
+            'host': 'mini', 'session': 'abc', 'name': 'mini-agent', 'tool': 'claude',
+            'live': True, 'pane': '%0', 'pid': 42, 'shown': 'working', 'group': 'working',
+            'remote_identity': {'pid': 42, 'session': 'abc'},
+        }
+
+    async def test_host_qualified_identity_and_capabilities(self):
+        self.assertEqual(F.agent_id(self.agent), 'remote:mini:abc')
+        self.assertEqual(F.agent_id({**self.agent, 'host': 'hs'}), 'remote:hs:abc')
+        self.assertEqual(F.agent_id({**self.agent, 'host': ''}), 'abc')
+        v = F.view(self.agent)
+        self.assertEqual(v['host'], 'mini')
+        self.assertEqual(v['via'], 'ssh')
+        self.assertTrue(v['can_reply'])
+        self.assertTrue(v['unguarded'])
+        self.assertFalse(v['can_stop'])
+        stale = F.view({**self.agent, 'stale': True, 'host_error': 'offline'})
+        self.assertFalse(stale['can_reply'])
+        self.assertEqual(stale['host_error'], 'offline')
+
+    async def test_find_distinguishes_same_native_id_on_two_hosts(self):
+        local = {**self.agent, 'host': ''}
+        self.fleet.raw = AsyncMock(return_value=[local, self.agent])
+        self.assertIs(await self.fleet.find('abc'), local)
+        self.assertIs(await self.fleet.find('remote:mini:abc'), self.agent)
+
+    async def test_remote_send_preserves_host_through_dispatch(self):
+        other = {**self.agent, 'host': 'other'}
+        self.fleet.find = AsyncMock(side_effect=[self.agent, other])
+        with patch('mobile.fleet._run', new=AsyncMock(return_value=(0, '{"state":"sent"}', ''))) as run, \
+             patch('mobile.fleet._pane_runs_agent') as pane:
+            first = await self.fleet.send('remote:mini:abc', 'hello')
+            second = await self.fleet.send('remote:other:abc', 'hello')
+        self.assertTrue(first['ok'], first)
+        self.assertTrue(second['ok'], second)
+        self.assertEqual(run.await_count, 2)
+        for call, host in zip(run.await_args_list, ('mini', 'other')):
+            self.assertEqual(call.args[:3], ('hosts', 'rpc', host))
+            request = json.loads(call.args[3])
+            self.assertEqual(request, {'op': 'enqueue', 'key': 'abc',
+                                       'identity': {'pid': 42, 'session': 'abc'}, 'body': 'hello'})
+            self.assertEqual(call.kwargs, {'timeout': 120})
+        pane.assert_not_called()
+
+    async def test_stale_remote_send_fails_without_ssh(self):
+        self.fleet.find = AsyncMock(return_value={**self.agent, 'stale': True})
+        with patch('mobile.fleet._run', new=AsyncMock()) as run:
+            result = await self.fleet.send('remote:mini:abc', 'hello')
+        self.assertFalse(result['ok'])
+        self.assertIn('unreachable', result['error'])
+        run.assert_not_awaited()
+
+    async def test_remote_input_and_interrupt_fail_closed(self):
+        self.fleet.find = AsyncMock(return_value=self.agent)
+        self.fleet.terminal.input = AsyncMock()
+        result = await self.fleet.input('remote:mini:abc', {'action': 'key', 'key': 'enter'})
+        self.assertFalse(result['ok'])
+        self.assertIn('local only', result['error'])
+        self.fleet.terminal.input.assert_not_awaited()
+        result = await self.fleet.interrupt('remote:mini:abc')
+        self.assertFalse(result['ok'])
+        self.assertIn('local only', result['error'])
+
+    async def test_remote_tail_uses_host_rpc(self):
+        self.fleet.find = AsyncMock(return_value=self.agent)
+        self.fleet.terminal.snapshot = AsyncMock()
+        with patch('mobile.fleet._run', new=AsyncMock(return_value=(0, '{"lines":["\\u001b[31mremote output\\u001b[0m"]}', ''))) as run:
+            result = await self.fleet.tail('remote:mini:abc', 20)
+        self.assertEqual(result['lines'], ['remote output'])
+        run.assert_awaited_once_with('hosts', 'rpc', 'mini', '{"op": "live", "key": "abc", "lines": 20}', timeout=30)
+        self.fleet.terminal.snapshot.assert_not_awaited()
 
 
 FIXTURE = r'''

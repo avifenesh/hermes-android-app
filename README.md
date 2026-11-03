@@ -25,6 +25,8 @@ over an authenticated API; your phone, gateway and configured providers keep the
   now, fleet agents and recently finished work.
 - **Kitty terminal controls.** Visible Send, named keys and one-shot modifiers, numbered choices,
   native mouse-aware clicks and remote scrolling, with a separate approval for each input.
+- **Remote Fleet sessions.** Hosts configured in `claude-ctrl` appear with a host label. Replies use
+  its checked SSH transport and always require approval; raw terminal input and interrupt stay local-only.
 - **Cron, Wake alarms, Talk.** Manage schedules, set alarms with proofs, dictate with on-device or
   server speech, and wake the app hands-free with on-device "Hey Jarvis" detection.
 - **Projects, Radar, Hub.** Browse repos with diffs and PRs, scan releases and papers, install

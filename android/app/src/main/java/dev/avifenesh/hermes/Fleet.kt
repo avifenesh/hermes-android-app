@@ -264,9 +264,9 @@ fun AgentRow(a: JSONObject) {
                 Spacer(Modifier.width(6.dp))
                 Pill(a.str("kind") + (a.str("via").takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""), p.tx2, p.s2)
             }
-            val d = a.str("detail")
+            val d = a.str("host_error").ifBlank { a.str("detail") }
             if (d.isNotBlank()) Text(d, style = sans(13f, 400, if (g == "waiting") p.att else p.mu), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(listOf(a.str("project"), a.str("where"), a.str("model")).filter { it.isNotBlank() && it != "tty" }.joinToString(" · "),
+            Text(listOf(a.str("host"), a.str("project"), a.str("where"), a.str("model")).filter { it.isNotBlank() && it != "tty" }.joinToString(" · "),
                 style = mono(11f, 500, p.dim), maxLines = 1)
         }
         Spacer(Modifier.width(8.dp))
@@ -278,6 +278,7 @@ fun openAgent(a: JSONObject) {
     val id = a.str("id")
     when {
         id.startsWith("hm:") -> Ui.open(id.removePrefix("hm:"))
+        id.startsWith("remote:") -> Ui.push(Route.AgentR(id, a.str("name")))
         id.startsWith("hs:") -> Ui.push(Route.SessR(id.removePrefix("hs:"), a.str("name"), a.str("source")))
         else -> Ui.push(Route.AgentR(id, a.str("name")))
     }
@@ -383,7 +384,7 @@ fun AgentScreen(id: String, name: String) {
     }
     val g = a?.str("group") ?: ""
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(title, if (imeVisible) null else listOf(g, a?.str("kind") ?: "", a?.str("project") ?: "").filter { it.isNotBlank() }.joinToString(" · "), stateColor(g)) {
+        TopBar(title, if (imeVisible) null else listOf(g, a?.str("kind") ?: "", a?.str("host") ?: "", a?.str("project") ?: "").filter { it.isNotBlank() }.joinToString(" · "), stateColor(g)) {
             LegacyAgentInterrupt(a?.optBoolean("can_stop") == true, terminal != null, busy) { perform(interrupt = true) }
         }
         if (err != null) Text(err!!, style = sans(12f, 500, p.bad), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
