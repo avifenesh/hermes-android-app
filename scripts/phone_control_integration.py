@@ -14,23 +14,10 @@ import shutil
 import sys
 import tempfile
 
-# Run bare, not through a caller that has already cached a production Hermes home.
-if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
-    raise RuntimeError("Run this harness directly in a fresh managed-Python process")
-SCRATCH = Path.home() / ".hermes/cache/scratch"
-SCRATCH.mkdir(parents=True, exist_ok=True)
-_HOME = tempfile.TemporaryDirectory(prefix="mobile-phone-", dir=SCRATCH)
-# Register before Hermes imports so this runs AFTER their shutdown hooks, which
-# can recreate data-root directories after the explicit finally cleanup.
-atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
-os.environ["HERMES_HOME"] = _HOME.name
-os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
-# Use the installed dependency graph; never auto-update the checkout or re-exec
-# bootstrap into another interpreter (which would abandon this temporary home).
-os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
-assert Path(os.environ["HERMES_HOME"]).resolve() != (Path.home() / ".hermes").resolve()
-sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
-import hermes_bootstrap  # noqa: E402,F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Its own Hermes root outside ~/.hermes; may relaunch once into Hermes' dependency environment.
+from isolated_home import enter  # noqa: E402
+_HOME = enter("mobile-phone-")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 import asyncio

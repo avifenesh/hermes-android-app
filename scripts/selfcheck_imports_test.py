@@ -12,19 +12,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-SCRATCH = Path.home() / '.hermes/cache/scratch'
-SCRATCH.mkdir(parents=True, exist_ok=True)
-# hermes_bootstrap may re-exec this script under the managed runtime (os.execv), which skips exit handlers. The
-# re-run adopts the isolated home its first run made instead of orphaning it; either run removes it at exit.
-_prior = Path(os.environ.get("HERMES_HOME") or SCRATCH)
-_home = (str(_prior) if _prior.parent == SCRATCH and _prior.name.startswith('selfcheck-imports-') and _prior.is_dir()
-         else tempfile.mkdtemp(prefix='selfcheck-imports-', dir=SCRATCH))
-atexit.register(shutil.rmtree, _home, ignore_errors=True)
-HOME = SimpleNamespace(name=_home, cleanup=lambda: shutil.rmtree(_home, ignore_errors=True))
-os.environ['HERMES_HOME'] = HOME.name
-assert Path(HOME.name).resolve() != (Path.home() / '.hermes').resolve()
-sys.path.insert(0, str(Path.home() / '.hermes/hermes-agent'))
-import hermes_bootstrap  # noqa: E402,F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Its own Hermes root outside ~/.hermes; may relaunch once into Hermes' dependency environment.
+from isolated_home import enter  # noqa: E402
+HOME = enter('selfcheck-imports-')
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'server'))
 from mobile import selfcheck as SC
 

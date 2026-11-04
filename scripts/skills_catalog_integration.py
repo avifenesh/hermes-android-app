@@ -11,17 +11,10 @@ import sys
 import tempfile
 import unittest
 
-# Under the Hermes home, where the managed runtime finds its dependency environment.
-SCRATCH = Path.home() / ".hermes/cache/scratch"
-SCRATCH.mkdir(parents=True, exist_ok=True)
-_HOME = tempfile.TemporaryDirectory(prefix="skills-", dir=SCRATCH)
-atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
-os.environ["HERMES_HOME"] = _HOME.name
-os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
-os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
-assert Path(_HOME.name).resolve() != (Path.home() / ".hermes").resolve()
-sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
-import hermes_bootstrap  # noqa: E402,F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Its own Hermes root outside ~/.hermes; may relaunch once into Hermes' dependency environment.
+from isolated_home import enter  # noqa: E402
+_HOME = enter("skills-")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 from aiohttp import web
