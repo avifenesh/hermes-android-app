@@ -1563,6 +1563,8 @@
     <string name="wake_prove_awake">Prove que você está acordado</string>
     <string name="wake_notif_checkin">Verificação: um enigma rápido</string>
     <string name="wake_notif_title">Wake</string>
+    <string name="wake_cant_ring_title">O Wake não pode tocar</string>
+    <string name="wake_cant_ring_text">Permita alarmes exatos no %1$s para que os alarmes Wake possam tocar.</string>
 
     <!-- ===== Wake alarm screen ===== -->
     <string name="wake_photo_unreadable">Não foi possível ler a foto</string>
@@ -1655,6 +1657,7 @@
 
     <!-- ===== Alarm clock settings ===== -->
     <string name="alarm_proof_permissions_denied">Você pode usar a prova de leitura sem essas permissões. Ative a câmera ou a atividade nas configurações do app no Android para usar essas provas.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Você pode usar a prova de leitura ou de foto sem essa permissão. Ative a atividade física nas configurações do app no Android para usar a prova de passos.</string>
     <string name="alarm_open_app_settings">Abra Configurações do Android > Apps > %1$s para mudar esta permissão.</string>
     <string name="alarm_title">Despertador</string>
     <string name="alarm_next">próximo %1$s · %2$s</string>
@@ -1696,6 +1699,8 @@
     <string name="alarm_section_proof_permissions">Permissões opcionais para provas</string>
     <string name="alarm_proof_permissions">Provas de foto e de passos</string>
     <string name="alarm_proof_permissions_sub">Só o hardware compatível precisa de permissão. A prova de leitura funciona sem acesso à câmera ou à atividade.</string>
+    <string name="alarm_step_proof">Prova de passos</string>
+    <string name="alarm_step_proof_sub">A prova de passos precisa de acesso à atividade física. A prova de foto usa seu app de câmera e não precisa de permissão. A prova de leitura não precisa de nenhum dos dois.</string>
     <string name="alarm_previously_denied">Negou antes?</string>
     <string name="alarm_previously_denied_sub">O Android pode parar de mostrar os pedidos de permissão. Você pode mudá-los nas configurações do app.</string>
     <string name="alarm_section_testing">Testes</string>
@@ -1705,6 +1710,7 @@
     <string name="alarm_whatsapp_test">Enviar teste de WhatsApp para mim</string>
     <string name="alarm_whatsapp_sent">Enviado</string>
     <string name="alarm_test_now">Testar o alarme agora</string>
+    <string name="alarm_test_needs_exact">Permita alarmes exatos primeiro. O Wake não pode tocar sem eles.</string>
     <string name="alarm_test_cancel">Cancelar o teste em andamento</string>
 
     <!-- ===== Voice messages in chat ===== -->

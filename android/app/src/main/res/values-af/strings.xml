@@ -1353,6 +1353,8 @@
     <string name="wake_prove_awake">Bewys jy is wakker</string>
     <string name="wake_notif_checkin">Kontrole: een vinnige raaisel</string>
     <string name="wake_notif_title">Wake</string>
+    <string name="wake_cant_ring_title">Wake kan nie lui nie</string>
+    <string name="wake_cant_ring_text">Laat presiese alarms in %1$s toe sodat Wake-alarms kan lui.</string>
     <string name="wake_photo_unreadable">Kon nie die foto lees nie</string>
     <string name="wake_network_error">Netwerkfout</string>
     <string name="wake_photo_read_failed">Kon nie die foto lees nie: %1$s</string>
@@ -1429,6 +1431,7 @@
     <string name="wake_offline_check">Kontroleer</string>
     <string name="wake_offline_wrong">Verkeerd, nuwe een</string>
     <string name="alarm_proof_permissions_denied">Jy kan leesbewys sonder hierdie toestemmings gebruik. Aktiveer kamera of aktiwiteit in Android se programinstellings om daardie bewyse te gebruik.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Jy kan lees- of fotobewys sonder hierdie toestemming gebruik. Aktiveer fisieke aktiwiteit in Android se programinstellings om treebewys te gebruik.</string>
     <string name="alarm_open_app_settings">Maak Android-instellings &gt; Programme &gt; %1$s oop om hierdie toestemming te verander.</string>
     <string name="alarm_title">Wekker</string>
     <string name="alarm_next">volgende %1$s · %2$s</string>
@@ -1470,6 +1473,8 @@
     <string name="alarm_section_proof_permissions">Opsionele bewystoestemmings</string>
     <string name="alarm_proof_permissions">Foto- en treebewyse</string>
     <string name="alarm_proof_permissions_sub">Slegs ondersteunde hardeware benodig toestemming. Leesbewys werk sonder kamera- of aktiwiteittoegang.</string>
+    <string name="alarm_step_proof">Treebewys</string>
+    <string name="alarm_step_proof_sub">Treebewys benodig toegang tot fisieke aktiwiteit. Fotobewys gebruik jou kameraprogram en benodig geen toestemming nie. Leesbewys benodig nie een van die twee nie.</string>
     <string name="alarm_previously_denied">Voorheen geweier?</string>
     <string name="alarm_previously_denied_sub">Android hou dalk op om toestemmingsvrae te wys. Jy kan dit in programinstellings verander.</string>
     <string name="alarm_section_testing">Toetsing</string>
@@ -1479,6 +1484,7 @@
     <string name="alarm_whatsapp_test">Stuur WhatsApp-toets aan my</string>
     <string name="alarm_whatsapp_sent">Gestuur</string>
     <string name="alarm_test_now">Toets die alarm nou</string>
+    <string name="alarm_test_needs_exact">Laat eers presiese alarms toe. Wake kan nie daarsonder lui nie.</string>
     <string name="alarm_test_cancel">Kanselleer \'n lopende toets</string>
     <string name="voice_audio_busy">Oudio is besig. Probeer oor \'n oomblik weer.</string>
     <string name="voice_cant_play">Kan nie hierdie stemboodskap speel nie</string>

@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">この Play エディションは他のアプリを読み取ったり操作したりできません。リモートコマンドでこの機能を有効にすることはできません。</string>
     <string name="channel_background_title">バックグラウンド配信</string>
     <string name="channel_background_body">Android の電池の最適化は有効なままです。プッシュ (設定時) と定期同期は引き続き利用できますが、バックグラウンド配信が遅れることがあります。</string>
+    <string name="phone_settings_push_on_gateway">オン。Google がスマートフォンを起動し、内容は Gateway から直接届きます。</string>
+    <string name="phone_settings_push_off_gateway">Gateway で設定されていません。</string>
+    <string name="phone_settings_run_progress">実行の進行状況</string>
+    <string name="phone_settings_run_progress_sub">このスマートフォンからメッセージを送信するかステップを承認すると、その実行中は %1$s が接続を維持し、進行状況を通知に表示します。実行が終わると停止します。</string>
+    <string name="phone_settings_without_push">プッシュなしの場合</string>
+    <string name="phone_settings_without_push_sub">通知は、こうした実行が進んでいる間と、%1$s を開いたときに届きます。Android の定期的なバックグラウンド チェックでも届くことがありますが、15 分以上遅れることがよくあります。通知をすぐに受け取るには、Gateway でプッシュを設定してください。</string>
+    <string name="notify_channel_run_progress">実行の進行状況</string>
+    <string name="notify_channel_run_progress_info">このスマートフォンからメッセージを送信するかステップを承認した後、実行中に表示されます</string>
+    <string name="notify_stop_updates">更新を停止</string>
+    <string name="alarm_exact_off_cant_ring">正確なアラームを許可するまで、起床アラームは鳴りません。ローカル アラームがスケジュールされていません。また、Gateway からのアラームでアラーム音を鳴らすこともできません。</string>
+    <string name="ai_notice_title">AI の返信について</string>
+    <string name="ai_notice_source">返信は、ご自身の %1$s Gateway で設定された AI モデルとプロバイダーから届きます。%2$s がそれらを運用したり選んだりすることはありません。</string>
+    <string name="ai_notice_risk">返信は誤っている、古い、または不適切な場合があります。重要な内容は、それを頼りにする前や、それに基づいてエージェントに行動させる前に確認してください。</string>
+    <string name="ai_notice_privacy">%1$s がチャットを見ることはありません。チャットは、このスマートフォン、Gateway、Gateway が使用するプロバイダーの間でやり取りされます。</string>
+    <string name="ai_notice_report">返信を報告するには、その返信を長押しして「報告」をタップしてください。それ以外の場合は、「マイページ」を開いて「問題を報告」を選んでください。報告の内容を確認して「報告を送信」をタップするまで、何も送信されません。</string>
+    <string name="ai_notice_row_sub">返信の提供元、チャットを見られるのは誰か、返信の報告方法</string>
+    <string name="ai_notice_got_it">OK</string>
     <string name="channel_apk_unavailable">この Play エディションでは APK 添付ファイルをインストールできません。ファイルをダウンロードに保存することはできます。</string>
+    <string name="phone_settings_channels_sub">承認、返信、Cron とダイジェスト、実行の進行状況。それぞれ個別にミュートできます。</string>
 </resources>

@@ -1521,6 +1521,8 @@
     <string name="wake_prove_awake">Cruthaigh go bhfuil tú i do dhúiseacht</string>
     <string name="wake_notif_checkin">Seiceáil isteach: puzal gasta amháin</string>
     <string name="wake_notif_title">Múscailt</string>
+    <string name="wake_cant_ring_title">Ní féidir leis an ngné Múscailt bualadh</string>
+    <string name="wake_cant_ring_text">Ceadaigh aláraim chruinne i %1$s ionas gur féidir leis an ngné Múscailt bualadh.</string>
     <string name="wake_photo_unreadable">Níorbh fhéidir an grianghraf a léamh</string>
     <string name="wake_network_error">Earráid líonra</string>
     <string name="wake_photo_read_failed">Níorbh fhéidir an grianghraf a léamh: %1$s</string>
@@ -1609,6 +1611,7 @@
     <string name="wake_offline_check">Seiceáil</string>
     <string name="wake_offline_wrong">Mícheart, ceann nua</string>
     <string name="alarm_proof_permissions_denied">Is féidir leat cruthúnas léitheoireachta a úsáid gan na ceadanna seo. Cumasaigh ceamara nó gníomhaíocht i socruithe na haipe in Android chun na cruthúnais sin a úsáid.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Is féidir leat cruthúnas léitheoireachta nó grianghraif a úsáid gan an cead seo. Cumasaigh gníomhaíocht fhisiciúil i socruithe na haipe in Android chun cruthúnas céimeanna a úsáid.</string>
     <string name="alarm_open_app_settings">Oscail Socruithe Android &gt; Aipeanna &gt; %1$s chun an cead seo a athrú.</string>
     <string name="alarm_title">Clog aláraim</string>
     <string name="alarm_next">an chéad cheann eile %1$s · %2$s</string>
@@ -1650,6 +1653,8 @@
     <string name="alarm_section_proof_permissions">Ceadanna roghnacha cruthúnais</string>
     <string name="alarm_proof_permissions">Cruthúnas grianghraif agus céimeanna</string>
     <string name="alarm_proof_permissions_sub">Ní theastaíonn cead ach do chrua-earraí a dtacaítear leo. Oibríonn cruthúnas léitheoireachta gan rochtain ar an gceamara ná ar ghníomhaíocht.</string>
+    <string name="alarm_step_proof">Cruthúnas céimeanna</string>
+    <string name="alarm_step_proof_sub">Teastaíonn rochtain ar ghníomhaíocht fhisiciúil ó chruthúnas céimeanna. Úsáideann cruthúnas grianghraif d\'aip cheamara agus ní theastaíonn cead uaidh. Ní theastaíonn ceachtar acu ó chruthúnas léitheoireachta.</string>
     <string name="alarm_previously_denied">Diúltaithe roimhe seo?</string>
     <string name="alarm_previously_denied_sub">D\'fhéadfadh Android stopadh ag taispeáint iarratas ar chead. Is féidir leat iad a athrú i socruithe na haipe.</string>
     <string name="alarm_section_testing">Tástáil</string>
@@ -1659,6 +1664,7 @@
     <string name="alarm_whatsapp_test">Seol tástáil WhatsApp chugam</string>
     <string name="alarm_whatsapp_sent">Seolta</string>
     <string name="alarm_test_now">Tástáil an t-aláram anois</string>
+    <string name="alarm_test_needs_exact">Ceadaigh aláraim chruinne ar dtús. Ní féidir leis an ngné Múscailt bualadh gan iad.</string>
     <string name="alarm_test_cancel">Cealaigh tástáil atá ar siúl</string>
     <string name="voice_audio_busy">Tá an fhuaim gnóthach. Bain triail eile as i gceann nóiméid.</string>
     <string name="voice_cant_play">Ní féidir an teachtaireacht ghutha seo a sheinm</string>

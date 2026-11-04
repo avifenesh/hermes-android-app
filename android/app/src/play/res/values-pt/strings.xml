@@ -8,7 +8,31 @@
     <string name="channel_control_unavailable_body">Esta edição Play não pode ler nem operar outros apps. Comandos remotos não podem ativar esse recurso.</string>
     <string name="channel_background_title">Entrega em segundo plano</string>
     <string name="channel_background_body">A otimização de bateria do Android continua ativada. O push (quando configurado) e a sincronização periódica continuam disponíveis; a entrega em segundo plano pode atrasar.</string>
+    <string name="phone_settings_push_on_gateway">Ativado. O Google ativa o telefone, e o conteúdo vem direto do seu gateway.</string>
+    <string name="phone_settings_push_off_gateway">Não configurado no seu gateway.</string>
+    <string name="phone_settings_run_progress">Progresso das execuções</string>
+    <string name="phone_settings_run_progress_sub">Depois que você envia uma mensagem ou aprova uma etapa por este telefone, o %1$s fica conectado enquanto essa execução está em andamento e mostra o progresso dela em uma notificação. Isso para quando a execução termina.</string>
+    <string name="phone_settings_without_push">Sem push</string>
+    <string name="phone_settings_without_push_sub">As notificações chegam enquanto uma execução assim está em andamento e quando você abre o %1$s. A verificação periódica em segundo plano do Android também pode entregá-las, muitas vezes com 15 minutos ou mais de atraso. Configure o push no seu gateway para receber notificações na hora.</string>
+
+    <!-- ===== Run progress notification (Play edition) ===== -->
+    <string name="notify_channel_run_progress">Progresso das execuções</string>
+    <string name="notify_channel_run_progress_info">Aparece enquanto uma execução está em andamento depois que você envia uma mensagem ou aprova uma etapa por este telefone</string>
+    <string name="notify_stop_updates">Parar atualizações</string>
+
+    <!-- ===== Wake alarm settings (Play edition) ===== -->
+    <string name="alarm_exact_off_cant_ring">O Wake não pode tocar até você permitir alarmes exatos. Os alarmes locais não estão agendados, e os alarmes do seu gateway não podem iniciar o som do alarme.</string>
+
+    <!-- ===== AI-content notice (Play edition) ===== -->
+    <string name="ai_notice_title">Sobre as respostas de IA</string>
+    <string name="ai_notice_source">As respostas vêm dos modelos de IA e dos fornecedores configurados no seu próprio gateway do %1$s. %2$s não os executa nem os escolhe.</string>
+    <string name="ai_notice_risk">As respostas podem ser erradas, desatualizadas ou inadequadas. Verifique qualquer coisa importante antes de confiar nela ou de deixar o agente agir com base nela.</string>
+    <string name="ai_notice_privacy">%1$s não vê seus chats. Eles circulam entre este telefone, seu gateway e os fornecedores que ele usa.</string>
+    <string name="ai_notice_report">Para relatar uma resposta, mantenha-a pressionada e toque em “Relatar”. Para qualquer outra coisa, abra “Eu” e depois “Relatar um problema”. Nada é enviado até você revisar o relatório e tocar em “Enviar relatório”.</string>
+    <string name="ai_notice_row_sub">De onde vêm as respostas, quem vê seus chats, como relatar uma</string>
+    <string name="ai_notice_got_it">Entendi</string>
 
     <!-- ===== Opening attachments (Play edition) ===== -->
     <string name="channel_apk_unavailable">A instalação de anexos APK não está disponível nesta edição Play. Você ainda pode salvar o arquivo em Downloads.</string>
+    <string name="phone_settings_channels_sub">Aprovações, respostas, cron e resumos, progresso das execuções. Silencie cada um separadamente.</string>
 </resources>

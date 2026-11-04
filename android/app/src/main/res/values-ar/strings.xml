@@ -1582,6 +1582,8 @@
     <string name="wake_prove_awake">أثبت أنك مستيقظ</string>
     <string name="wake_notif_checkin">تحقّق: لغز سريع واحد</string>
     <string name="wake_notif_title">الاستيقاظ</string>
+    <string name="wake_cant_ring_title">لا يمكن لـ «الاستيقاظ» أن يرن</string>
+    <string name="wake_cant_ring_text">اسمح بالمنبّهات الدقيقة في %1$s لكي ترن منبّهات «الاستيقاظ».</string>
     <string name="wake_photo_unreadable">تعذّرت قراءة الصورة</string>
     <string name="wake_network_error">خطأ في الشبكة</string>
     <string name="wake_photo_read_failed">تعذّرت قراءة الصورة: %1$s</string>
@@ -1674,6 +1676,7 @@
     <string name="wake_offline_check">تحقّق</string>
     <string name="wake_offline_wrong">خطأ، إليك لغزًا جديدًا</string>
     <string name="alarm_proof_permissions_denied">يمكنك استخدام إثبات القراءة دون هذه الأذونات. فعّل الكاميرا أو النشاط في إعدادات التطبيق في Android لاستخدام تلك الإثباتات.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">يمكنك استخدام إثبات القراءة أو إثبات الصورة دون هذا الإذن. فعّل النشاط البدني في إعدادات التطبيق في Android لاستخدام إثبات الخطوات.</string>
     <string name="alarm_open_app_settings">افتح إعدادات Android &gt; التطبيقات &gt; %1$s لتغيير هذا الإذن.</string>
     <string name="alarm_title">المنبّه</string>
     <string name="alarm_next">التالي %1$s · %2$s</string>
@@ -1715,6 +1718,8 @@
     <string name="alarm_section_proof_permissions">أذونات الإثبات الاختيارية</string>
     <string name="alarm_proof_permissions">إثباتا الصورة والخطوات</string>
     <string name="alarm_proof_permissions_sub">لا يحتاج إلى إذن إلا العتاد المدعوم. يعمل إثبات القراءة دون الوصول إلى الكاميرا أو النشاط.</string>
+    <string name="alarm_step_proof">إثبات الخطوات</string>
+    <string name="alarm_step_proof_sub">يحتاج إثبات الخطوات إلى الوصول إلى النشاط البدني. يستخدم إثبات الصورة تطبيق الكاميرا ولا يحتاج إلى إذن. ولا يحتاج إثبات القراءة إلى أيٍّ منهما.</string>
     <string name="alarm_previously_denied">هل رفضت سابقًا؟</string>
     <string name="alarm_previously_denied_sub">قد يتوقف Android عن عرض طلبات الأذونات. يمكنك تغييرها في إعدادات التطبيق.</string>
     <string name="alarm_section_testing">الاختبار</string>
@@ -1724,6 +1729,7 @@
     <string name="alarm_whatsapp_test">إرسال اختبار WhatsApp إليّ</string>
     <string name="alarm_whatsapp_sent">تم الإرسال</string>
     <string name="alarm_test_now">اختبار المنبّه الآن</string>
+    <string name="alarm_test_needs_exact">اسمح بالمنبّهات الدقيقة أولًا. لا يمكن لـ «الاستيقاظ» أن يرن بدونها.</string>
     <string name="alarm_test_cancel">إلغاء اختبار جارٍ</string>
     <string name="voice_audio_busy">الصوت مشغول. حاول مرة أخرى بعد لحظة.</string>
     <string name="voice_cant_play">تعذّر تشغيل هذه الرسالة الصوتية</string>

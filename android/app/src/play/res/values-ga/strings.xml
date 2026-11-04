@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">Ní féidir leis an eagrán Play seo aipeanna eile a léamh ná a oibriú. Ní féidir le horduithe cianda an cumas seo a chumasú.</string>
     <string name="channel_background_title">Seachadadh cúlra</string>
     <string name="channel_background_body">Fanann optamú ceallra Android cumasaithe. Fanann brú (nuair atá sé cumraithe) agus sioncronú tréimhsiúil ar fáil; d\'fhéadfadh moill a bheith ar an seachadadh cúlra.</string>
+    <string name="phone_settings_push_on_gateway">Ar siúl. Músclaíonn Google an fón; tagann an t-ábhar díreach ó do gateway.</string>
+    <string name="phone_settings_push_off_gateway">Níl sé socraithe ar do gateway.</string>
+    <string name="phone_settings_run_progress">Dul chun cinn na rití</string>
+    <string name="phone_settings_run_progress_sub">Tar éis duit teachtaireacht a sheoladh nó céim a fhaomhadh ón bhfón seo, fanann %1$s ceangailte fad atá an rith sin ar siúl agus taispeánann sé a dhul chun cinn i bhfógra. Stopann sé nuair a chríochnaíonn an rith.</string>
+    <string name="phone_settings_without_push">Gan brú</string>
+    <string name="phone_settings_without_push_sub">Tagann fógraí fad atá rith den sórt sin ar siúl agus nuair a osclaíonn tú %1$s. Is féidir le seiceáil thréimhsiúil Android sa chúlra iad a sheachadadh freisin, go minic le moill 15 nóiméad nó níos mó. Socraigh brú ar do gateway chun fógraí a fháil gan mhoill.</string>
+    <string name="notify_channel_run_progress">Dul chun cinn na rití</string>
+    <string name="notify_channel_run_progress_info">Taispeántar é fad atá rith ar siúl tar éis duit teachtaireacht a sheoladh nó céim a fhaomhadh ón bhfón seo</string>
+    <string name="notify_stop_updates">Stop na nuashonruithe</string>
+    <string name="alarm_exact_off_cant_ring">Ní féidir leis an ngné Múscailt bualadh go dtí go gceadaíonn tú aláraim chruinne. Níl aláraim logánta sceidealta, agus ní féidir le haláraim ó do gateway fuaim an aláraim a thosú.</string>
+    <string name="ai_notice_title">Maidir le freagraí IS</string>
+    <string name="ai_notice_source">Tagann freagraí ó na samhlacha IS agus ó na soláthraithe atá cumraithe ar do gateway %1$s féin. Ní oibríonn %2$s iad agus ní roghnaíonn sé iad.</string>
+    <string name="ai_notice_risk">D\'fhéadfadh freagraí a bheith mícheart, as dáta nó míchuí. Seiceáil aon rud tábhachtach sula mbraitheann tú air nó sula ligeann tú don agent gníomhú air.</string>
+    <string name="ai_notice_privacy">Ní fheiceann %1$s do chomhráite. Téann siad idir an fón seo, do gateway agus na soláthraithe a úsáideann sé.</string>
+    <string name="ai_notice_report">Chun freagra a thuairisciú, brúigh go fada air agus tapáil “Tuairiscigh”. Le haghaidh aon rud eile, oscail “Mise”, ansin “Tuairiscigh fadhb”. Ní sheoltar aon rud go dtí go ndéanann tú athbhreithniú ar an tuairisc agus go dtapálann tú “Seol tuairisc”.</string>
+    <string name="ai_notice_row_sub">Cá as a dtagann freagraí, cé a fheiceann do chomhráite, conas ceann a thuairisciú</string>
+    <string name="ai_notice_got_it">Tuigim</string>
     <string name="channel_apk_unavailable">Níl suiteáil ceangaltán APK ar fáil san eagrán Play seo. Is féidir leat an comhad a shábháil in Íoslódálacha fós.</string>
+    <string name="phone_settings_channels_sub">Faomhuithe, freagraí, cron agus achoimrí, dul chun cinn na rití. Balbhaigh gach ceann ar leith.</string>
 </resources>

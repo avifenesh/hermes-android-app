@@ -1483,6 +1483,8 @@
     <string name="wake_prove_awake">צריך להוכיח שהתעוררת</string>
     <string name="wake_notif_checkin">בדיקת ערנות: חידה קצרה אחת</string>
     <string name="wake_notif_title">השכמה</string>
+    <string name="wake_cant_ring_title">ההשכמה לא יכולה לצלצל</string>
+    <string name="wake_cant_ring_text">כדי שהשעונים המעוררים של ההשכמה יוכלו לצלצל, צריך לאפשר שעונים מעוררים מדויקים ב-%1$s.</string>
 
     <string name="wake_photo_unreadable">לא ניתן לקרוא את התמונה</string>
     <string name="wake_network_error">שגיאת רשת</string>
@@ -1569,6 +1571,7 @@
     <string name="wake_offline_wrong">לא נכון, הנה חידה חדשה</string>
 
     <string name="alarm_proof_permissions_denied">אפשר להשתמש בהוכחת קריאה בלי ההרשאות האלה. כדי להשתמש בהוכחות האחרות, צריך להפעיל מצלמה או פעילות גופנית בהגדרות האפליקציה ב-Android.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">אפשר להשתמש בהוכחת קריאה או בהוכחת תמונה בלי ההרשאה הזו. כדי להשתמש בהוכחת צעדים, צריך להפעיל פעילות גופנית בהגדרות האפליקציה ב-Android.</string>
     <string name="alarm_open_app_settings">כדי לשנות את ההרשאה הזו, צריך לפתוח את הגדרות Android &gt; אפליקציות &gt; %1$s.</string>
     <string name="alarm_title">שעון מעורר</string>
     <string name="alarm_next">הבא: %1$s · %2$s</string>
@@ -1610,6 +1613,8 @@
     <string name="alarm_section_proof_permissions">הרשאות אופציונליות להוכחות</string>
     <string name="alarm_proof_permissions">הוכחות תמונה וצעדים</string>
     <string name="alarm_proof_permissions_sub">נדרשת הרשאה רק לחומרה נתמכת. הוכחת קריאה עובדת בלי גישה למצלמה או לפעילות.</string>
+    <string name="alarm_step_proof">הוכחת צעדים</string>
+    <string name="alarm_step_proof_sub">הוכחת צעדים צריכה גישה לפעילות גופנית. הוכחת תמונה משתמשת באפליקציית המצלמה ולא צריכה הרשאה. הוכחת קריאה לא צריכה אף אחת מהן.</string>
     <string name="alarm_previously_denied">ההרשאה נדחתה בעבר?</string>
     <string name="alarm_previously_denied_sub">ייתכן ש-Android יפסיק להציג בקשות הרשאה. אפשר לשנות אותן בהגדרות האפליקציה.</string>
     <string name="alarm_section_testing">בדיקה</string>
@@ -1619,6 +1624,7 @@
     <string name="alarm_whatsapp_test">שליחת הודעת בדיקה ב-WhatsApp אליי</string>
     <string name="alarm_whatsapp_sent">נשלח</string>
     <string name="alarm_test_now">בדיקת השעון המעורר עכשיו</string>
+    <string name="alarm_test_needs_exact">צריך קודם לאפשר שעונים מעוררים מדויקים. בלעדיהם ההשכמה לא יכולה לצלצל.</string>
     <string name="alarm_test_cancel">ביטול בדיקה שרצה</string>
 
     <string name="voice_audio_busy">האודיו תפוס. אפשר לנסות שוב בעוד רגע.</string>

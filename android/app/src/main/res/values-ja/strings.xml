@@ -1297,6 +1297,8 @@
     <string name="wake_prove_awake">起きていることを証明してください</string>
     <string name="wake_notif_checkin">チェックイン: 簡単なパズルを 1 問</string>
     <string name="wake_notif_title">起床アラーム</string>
+    <string name="wake_cant_ring_title">起床アラームを鳴らせません</string>
+    <string name="wake_cant_ring_text">起床アラームが鳴るように、%1$s で正確なアラームを許可してください。</string>
     <string name="wake_photo_unreadable">写真を読み取れませんでした</string>
     <string name="wake_network_error">ネットワーク エラー</string>
     <string name="wake_photo_read_failed">写真を読み取れませんでした: %1$s</string>
@@ -1369,6 +1371,7 @@
     <string name="wake_offline_check">確認</string>
     <string name="wake_offline_wrong">不正解です。次の問題</string>
     <string name="alarm_proof_permissions_denied">これらの権限がなくても読む証明は使えます。他の証明を使うには、Android のアプリ設定でカメラまたは身体活動を有効にしてください。</string>
+    <string name="alarm_proof_permissions_denied_no_camera">この権限がなくても、読む証明と写真による証明は使えます。歩数による証明を使うには、Android のアプリ設定で身体活動を有効にしてください。</string>
     <string name="alarm_open_app_settings">この権限を変更するには、Android の [設定] &gt; [アプリ] &gt; [%1$s] を開いてください。</string>
     <string name="alarm_title">目覚まし時計</string>
     <string name="alarm_next">次回 %1$s · %2$s</string>
@@ -1410,6 +1413,8 @@
     <string name="alarm_section_proof_permissions">証明用の任意の権限</string>
     <string name="alarm_proof_permissions">写真と歩数による証明</string>
     <string name="alarm_proof_permissions_sub">権限が必要なのは対応するハードウェアだけです。読む証明はカメラや身体活動へのアクセスなしで使えます。</string>
+    <string name="alarm_step_proof">歩数による証明</string>
+    <string name="alarm_step_proof_sub">歩数による証明には身体活動へのアクセスが必要です。写真による証明はカメラアプリを使うため、権限は不要です。読む証明にはどちらも必要ありません。</string>
     <string name="alarm_previously_denied">以前に拒否しましたか？</string>
     <string name="alarm_previously_denied_sub">Android が権限の確認を表示しなくなることがあります。アプリ設定で変更できます。</string>
     <string name="alarm_section_testing">テスト</string>
@@ -1419,6 +1424,7 @@
     <string name="alarm_whatsapp_test">自分に WhatsApp でテスト送信</string>
     <string name="alarm_whatsapp_sent">送信しました</string>
     <string name="alarm_test_now">今すぐアラームをテスト</string>
+    <string name="alarm_test_needs_exact">先に正確なアラームを許可してください。許可しないと起床アラームは鳴りません。</string>
     <string name="alarm_test_cancel">実行中のテストをキャンセル</string>
     <string name="voice_audio_busy">オーディオを使用中です。しばらくしてからもう一度お試しください。</string>
     <string name="voice_cant_play">この音声メッセージを再生できません</string>

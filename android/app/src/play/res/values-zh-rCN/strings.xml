@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">此 Play 版本无法读取或操作其他应用。远程命令也无法启用此功能。</string>
     <string name="channel_background_title">后台送达</string>
     <string name="channel_background_body">Android 电池优化保持开启。推送（如已配置）和定期同步仍然可用；后台送达可能会延迟。</string>
+    <string name="phone_settings_push_on_gateway">已开启。Google 负责唤醒手机，内容直接来自你的 Gateway。</string>
+    <string name="phone_settings_push_off_gateway">未在你的 Gateway 上设置。</string>
+    <string name="phone_settings_run_progress">运行进度</string>
+    <string name="phone_settings_run_progress_sub">从此手机发送消息或批准某个步骤后，%1$s 会在这次运行期间保持连接，并在通知中显示进度。运行结束时停止。</string>
+    <string name="phone_settings_without_push">没有推送时</string>
+    <string name="phone_settings_without_push_sub">此类运行进行期间，以及你打开 %1$s 时，通知会送达。Android 的定期后台检查也可能送达通知，但常常会晚 15 分钟或更久。要及时收到通知，请在你的 Gateway 上设置推送。</string>
+    <string name="notify_channel_run_progress">运行进度</string>
+    <string name="notify_channel_run_progress_info">从此手机发送消息或批准某个步骤后，在运行期间显示</string>
+    <string name="notify_stop_updates">停止更新</string>
+    <string name="alarm_exact_off_cant_ring">在你允许精确闹钟之前，起床闹钟无法响铃。本地闹钟未安排，来自你的 Gateway 的闹钟也无法启动闹钟铃声。</string>
+    <string name="ai_notice_title">关于 AI 回复</string>
+    <string name="ai_notice_source">回复来自你自己的 %1$s Gateway 上配置的 AI 模型和提供方。%2$s 既不运行也不选择它们。</string>
+    <string name="ai_notice_risk">回复可能错误、过时或不恰当。任何重要内容，在你依赖它或让智能体据此行动之前，请先核实。</string>
+    <string name="ai_notice_privacy">%1$s 看不到你的对话。对话在此手机、你的 Gateway 和它使用的提供方之间传输。</string>
+    <string name="ai_notice_report">要报告某条回复，请长按该回复，然后点按“报告”。如有其他问题，请打开“我”，然后选择“报告问题”。在你查看报告并点按“发送报告”之前，不会发送任何内容。</string>
+    <string name="ai_notice_row_sub">回复从何而来、谁能看到你的对话、如何报告某条回复</string>
+    <string name="ai_notice_got_it">知道了</string>
     <string name="channel_apk_unavailable">此 Play 版本无法安装 APK 附件。你仍可将文件保存到“下载”。</string>
+    <string name="phone_settings_channels_sub">审批、回复、Cron 和摘要、运行进度。可分别设为静音。</string>
 </resources>

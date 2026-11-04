@@ -1297,6 +1297,8 @@
     <string name="wake_prove_awake">证明你已经醒了</string>
     <string name="wake_notif_checkin">签到：一道小谜题</string>
     <string name="wake_notif_title">起床闹钟</string>
+    <string name="wake_cant_ring_title">起床闹钟无法响铃</string>
+    <string name="wake_cant_ring_text">请在 %1$s 中允许精确闹钟，以便起床闹钟能够响铃。</string>
     <string name="wake_photo_unreadable">无法读取照片</string>
     <string name="wake_network_error">网络错误</string>
     <string name="wake_photo_read_failed">无法读取照片：%1$s</string>
@@ -1369,6 +1371,7 @@
     <string name="wake_offline_check">检查</string>
     <string name="wake_offline_wrong">错了，换一道</string>
     <string name="alarm_proof_permissions_denied">没有这些权限也可以使用阅读证明。要使用相机或活动证明，请在 Android 应用设置中开启相应权限。</string>
+    <string name="alarm_proof_permissions_denied_no_camera">没有此权限也可以使用阅读证明或照片证明。要使用步数证明，请在 Android 应用设置中开启身体活动权限。</string>
     <string name="alarm_open_app_settings">打开 Android“设置”&gt;“应用”&gt;%1$s 以更改此权限。</string>
     <string name="alarm_title">闹钟</string>
     <string name="alarm_next">下次 %1$s · %2$s</string>
@@ -1410,6 +1413,8 @@
     <string name="alarm_section_proof_permissions">可选的证明权限</string>
     <string name="alarm_proof_permissions">照片和步数证明</string>
     <string name="alarm_proof_permissions_sub">只有受支持的硬件才需要权限。阅读证明无需相机或活动权限。</string>
+    <string name="alarm_step_proof">步数证明</string>
+    <string name="alarm_step_proof_sub">步数证明需要身体活动权限。照片证明使用你的相机应用，无需权限。阅读证明两者都不需要。</string>
     <string name="alarm_previously_denied">之前拒绝过？</string>
     <string name="alarm_previously_denied_sub">Android 可能不再显示权限请求。你可以在应用设置中更改。</string>
     <string name="alarm_section_testing">测试</string>
@@ -1419,6 +1424,7 @@
     <string name="alarm_whatsapp_test">给我发送 WhatsApp 测试消息</string>
     <string name="alarm_whatsapp_sent">已发送</string>
     <string name="alarm_test_now">立即测试闹钟</string>
+    <string name="alarm_test_needs_exact">请先允许精确闹钟。否则起床闹钟无法响铃。</string>
     <string name="alarm_test_cancel">取消正在进行的测试</string>
     <string name="voice_audio_busy">音频正被占用。请稍后再试。</string>
     <string name="voice_cant_play">无法播放此语音消息</string>

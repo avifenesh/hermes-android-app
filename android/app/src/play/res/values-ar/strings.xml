@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">لا يمكن لإصدار Play هذا قراءة التطبيقات الأخرى أو تشغيلها. لا يمكن للأوامر عن بُعد تفعيل هذه الإمكانية.</string>
     <string name="channel_background_title">التسليم في الخلفية</string>
     <string name="channel_background_body">يبقى تحسين البطارية في Android مفعّلًا. تظل الإشعارات الفورية (عند إعدادها) والمزامنة الدورية متاحة، وقد يتأخر التسليم في الخلفية.</string>
+    <string name="phone_settings_push_on_gateway">مفعّل. توقظ Google الهاتف، ويصل المحتوى مباشرةً من gateway.</string>
+    <string name="phone_settings_push_off_gateway">غير مُعَدّ على gateway.</string>
+    <string name="phone_settings_run_progress">تقدّم التشغيل</string>
+    <string name="phone_settings_run_progress_sub">بعد أن ترسل رسالة أو توافق على خطوة من هذا الهاتف، يبقى %1$s متصلًا أثناء عمل ذلك التشغيل ويعرض تقدّمه في إشعار. ويتوقف ذلك عند انتهاء التشغيل.</string>
+    <string name="phone_settings_without_push">بدون إشعارات فورية</string>
+    <string name="phone_settings_without_push_sub">تصل الإشعارات أثناء عمل مثل هذا التشغيل وعندما تفتح %1$s. ويمكن أن يوصلها أيضًا الفحص الدوري الذي يجريه Android في الخلفية، وغالبًا بتأخير 15 دقيقة أو أكثر. أعِدّ الإشعارات الفورية على gateway لتصلك الإشعارات دون تأخير.</string>
+    <string name="notify_channel_run_progress">تقدّم التشغيل</string>
+    <string name="notify_channel_run_progress_info">يظهر أثناء عمل التشغيل بعد أن ترسل رسالة أو توافق على خطوة من هذا الهاتف</string>
+    <string name="notify_stop_updates">إيقاف التحديثات</string>
+    <string name="alarm_exact_off_cant_ring">لا يمكن لـ «الاستيقاظ» أن يرن حتى تسمح بالمنبّهات الدقيقة. لم تتم جدولة المنبّهات المحلية، ولا يمكن للمنبّهات القادمة من gateway تشغيل صوت المنبّه.</string>
+    <string name="ai_notice_title">حول ردود الذكاء الاصطناعي</string>
+    <string name="ai_notice_source">تأتي الردود من نماذج الذكاء الاصطناعي والمزوّدين المُعَدّين على gateway %1$s الخاص بك. لا يشغّلها %2$s ولا يختارها.</string>
+    <string name="ai_notice_risk">قد تكون الردود خاطئة أو قديمة أو غير لائقة. تحقّق من أي أمر مهم قبل أن تعتمد عليه أو تسمح للوكيل بالتصرف بناءً عليه.</string>
+    <string name="ai_notice_privacy">لا يرى %1$s محادثاتك. فهي تنتقل بين هذا الهاتف وgateway الخاص بك والمزوّدين الذين يستخدمهم.</string>
+    <string name="ai_notice_report">للإبلاغ عن رد، اضغط عليه مطوّلًا ثم انقر على «إبلاغ». ولأي أمر آخر، افتح «أنا» ثم «الإبلاغ عن مشكلة». لن يُرسل أي شيء حتى تراجع البلاغ وتنقر على «إرسال البلاغ».</string>
+    <string name="ai_notice_row_sub">مصدر الردود، ومن يرى محادثاتك، وكيفية الإبلاغ عن رد</string>
+    <string name="ai_notice_got_it">فهمت</string>
     <string name="channel_apk_unavailable">تثبيت مرفقات APK غير متاح في إصدار Play هذا. لا يزال بإمكانك حفظ الملف في التنزيلات.</string>
+    <string name="phone_settings_channels_sub">الموافقات، والردود، وCron والملخصات، وتقدّم التشغيل. اكتم كل واحدة على حدة.</string>
 </resources>

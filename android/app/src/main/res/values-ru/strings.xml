@@ -1465,6 +1465,8 @@
     <string name="wake_prove_awake">Докажите, что вы проснулись</string>
     <string name="wake_notif_checkin">Проверка: одна быстрая головоломка</string>
     <string name="wake_notif_title">Подъём</string>
+    <string name="wake_cant_ring_title">«Подъём» не может звонить</string>
+    <string name="wake_cant_ring_text">Разрешите точные будильники в %1$s, чтобы будильники «Подъём» могли звонить.</string>
     <string name="wake_photo_unreadable">Не удалось прочитать фото</string>
     <string name="wake_network_error">Ошибка сети</string>
     <string name="wake_photo_read_failed">Не удалось прочитать фото: %1$s</string>
@@ -1549,6 +1551,7 @@
     <string name="wake_offline_check">Проверить</string>
     <string name="wake_offline_wrong">Неверно, вот новая</string>
     <string name="alarm_proof_permissions_denied">Доказательство чтением работает без этих разрешений. Чтобы использовать другие доказательства, включите доступ к камере или физической активности в настройках приложения Android.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Доказательства чтением и фото работают без этого разрешения. Чтобы использовать доказательство шагами, включите доступ к физической активности в настройках приложения Android.</string>
     <string name="alarm_open_app_settings">Откройте в Android Настройки &gt; Приложения &gt; %1$s, чтобы изменить это разрешение.</string>
     <string name="alarm_title">Будильник</string>
     <string name="alarm_next">следующий %1$s · %2$s</string>
@@ -1590,6 +1593,8 @@
     <string name="alarm_section_proof_permissions">Необязательные разрешения для доказательств</string>
     <string name="alarm_proof_permissions">Доказательства фото и шагами</string>
     <string name="alarm_proof_permissions_sub">Разрешения нужны только для поддерживаемого оборудования. Доказательство чтением работает без доступа к камере и физической активности.</string>
+    <string name="alarm_step_proof">Доказательство шагами</string>
+    <string name="alarm_step_proof_sub">Для доказательства шагами нужен доступ к физической активности. Доказательство фото использует приложение камеры и не требует разрешений. Доказательству чтением не нужно ни то, ни другое.</string>
     <string name="alarm_previously_denied">Уже отклоняли?</string>
     <string name="alarm_previously_denied_sub">Android может перестать показывать запросы разрешений. Их можно изменить в настройках приложения.</string>
     <string name="alarm_section_testing">Тестирование</string>
@@ -1599,6 +1604,7 @@
     <string name="alarm_whatsapp_test">Отправить мне тест в WhatsApp</string>
     <string name="alarm_whatsapp_sent">Отправлено</string>
     <string name="alarm_test_now">Проверить будильник сейчас</string>
+    <string name="alarm_test_needs_exact">Сначала разрешите точные будильники. Без них «Подъём» не может звонить.</string>
     <string name="alarm_test_cancel">Отменить текущий тест</string>
     <string name="voice_audio_busy">Аудио занято. Повторите попытку чуть позже.</string>
     <string name="voice_cant_play">Не удаётся воспроизвести это голосовое сообщение</string>

@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">Hierdie Play-uitgawe kan nie ander programme lees of bedien nie. Afstandopdragte kan nie hierdie vermoë aktiveer nie.</string>
     <string name="channel_background_title">Agtergrondaflewering</string>
     <string name="channel_background_body">Android-batteryoptimering bly aan. Push (wanneer opgestel) en periodieke sinkronisering bly beskikbaar; agtergrondaflewering kan vertraag word.</string>
+    <string name="phone_settings_push_on_gateway">Aan. Google wek die foon; inhoud kom direk van jou gateway af.</string>
+    <string name="phone_settings_push_off_gateway">Nie op jou gateway opgestel nie.</string>
+    <string name="phone_settings_run_progress">Uitvoeringsvordering</string>
+    <string name="phone_settings_run_progress_sub">Nadat jy \'n boodskap van hierdie foon af gestuur of \'n stap goedgekeur het, bly %1$s gekoppel terwyl daardie uitvoering loop, en wys die vordering in \'n kennisgewing. Dit stop wanneer die uitvoering eindig.</string>
+    <string name="phone_settings_without_push">Sonder push</string>
+    <string name="phone_settings_without_push_sub">Kennisgewings kom aan terwyl so \'n uitvoering loop en wanneer jy %1$s oopmaak. Android se periodieke agtergrondkontrole kan hulle ook aflewer, dikwels 15 minute of meer laat. Stel push op jou gateway op vir vinnige kennisgewings.</string>
+    <string name="notify_channel_run_progress">Uitvoeringsvordering</string>
+    <string name="notify_channel_run_progress_info">Word gewys terwyl \'n uitvoering loop nadat jy \'n boodskap van hierdie foon af gestuur of \'n stap goedgekeur het</string>
+    <string name="notify_stop_updates">Stop opdaterings</string>
+    <string name="alarm_exact_off_cant_ring">Wake kan nie lui voordat jy presiese alarms toelaat nie. Plaaslike alarms is nie geskeduleer nie, en alarms van jou gateway kan nie die alarmklank aanskakel nie.</string>
+    <string name="ai_notice_title">Oor KI-antwoorde</string>
+    <string name="ai_notice_source">Antwoorde kom van die KI-modelle en -verskaffers wat op jou eie %1$s-gateway opgestel is. %2$s bedryf of kies hulle nie.</string>
+    <string name="ai_notice_risk">Antwoorde kan verkeerd, verouderd of onvanpas wees. Gaan enigiets belangriks na voordat jy daarop staatmaak of die agent daarop laat optree.</string>
+    <string name="ai_notice_privacy">%1$s sien nie jou kletse nie. Hulle gaan tussen hierdie foon, jou gateway en die verskaffers wat dit gebruik.</string>
+    <string name="ai_notice_report">Om \'n antwoord te rapporteer, raak en hou dit en tik op Rapporteer. Vir enigiets anders, maak Ek oop en tik dan op Rapporteer \'n probleem. Niks word gestuur voordat jy die verslag hersien en op Stuur verslag tik nie.</string>
+    <string name="ai_notice_row_sub">Waar antwoorde vandaan kom, wie jou kletse sien, hoe om een te rapporteer</string>
+    <string name="ai_notice_got_it">Verstaan</string>
     <string name="channel_apk_unavailable">Die installering van APK-aanhegsels is nie in hierdie Play-uitgawe beskikbaar nie. Jy kan steeds die lêer in Aflaaie stoor.</string>
+    <string name="phone_settings_channels_sub">Goedkeurings, antwoorde, cron &amp; opsommings, uitvoeringsvordering. Demp elkeen afsonderlik.</string>
 </resources>

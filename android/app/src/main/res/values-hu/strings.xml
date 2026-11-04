@@ -1353,6 +1353,8 @@
     <string name="wake_prove_awake">Bizonyítsa, hogy ébren van</string>
     <string name="wake_notif_checkin">Ellenőrzés: egy gyors feladvány</string>
     <string name="wake_notif_title">Ébresztés</string>
+    <string name="wake_cant_ring_title">Az Ébresztés nem tud csörögni</string>
+    <string name="wake_cant_ring_text">Ahhoz, hogy az Ébresztés csöröghessen, engedélyezze a pontos ébresztéseket ehhez: %1$s.</string>
     <string name="wake_photo_unreadable">Nem sikerült beolvasni a fotót</string>
     <string name="wake_network_error">Hálózati hiba</string>
     <string name="wake_photo_read_failed">Nem sikerült beolvasni a fotót: %1$s</string>
@@ -1429,6 +1431,7 @@
     <string name="wake_offline_check">Ellenőrzés</string>
     <string name="wake_offline_wrong">Hibás, itt egy új</string>
     <string name="alarm_proof_permissions_denied">Az olvasási bizonyítékot ezek nélkül az engedélyek nélkül is használhatja. A többi bizonyítékhoz engedélyezze a kamerát vagy a tevékenységet az Android alkalmazásbeállításaiban.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Az olvasási vagy fotós bizonyítékot enélkül az engedély nélkül is használhatja. A lépésszámos bizonyítékhoz kapcsolja be a Fizikai tevékenység engedélyt az Android alkalmazásbeállításaiban.</string>
     <string name="alarm_open_app_settings">Az engedély módosításához nyissa meg az Android Beállítások &gt; Alkalmazások &gt; %1$s menüpontot.</string>
     <string name="alarm_title">Ébresztőóra</string>
     <string name="alarm_next">következő: %1$s · %2$s</string>
@@ -1470,6 +1473,8 @@
     <string name="alarm_section_proof_permissions">Nem kötelező bizonyítékengedélyek</string>
     <string name="alarm_proof_permissions">Fotós és lépésszámos bizonyítékok</string>
     <string name="alarm_proof_permissions_sub">Csak a támogatott hardverhez kell engedély. Az olvasási bizonyíték kamera- vagy tevékenységhozzáférés nélkül is működik.</string>
+    <string name="alarm_step_proof">Lépésszámos bizonyíték</string>
+    <string name="alarm_step_proof_sub">A lépésszámos bizonyítékhoz hozzáférés kell a fizikai tevékenységhez. A fotós bizonyíték a kameraalkalmazást használja, és nem kell hozzá engedély. Az olvasási bizonyítékhoz egyik sem kell.</string>
     <string name="alarm_previously_denied">Korábban elutasította?</string>
     <string name="alarm_previously_denied_sub">Előfordulhat, hogy az Android már nem jeleníti meg az engedélykéréseket. Az alkalmazásbeállításokban módosíthatja őket.</string>
     <string name="alarm_section_testing">Tesztelés</string>
@@ -1479,6 +1484,7 @@
     <string name="alarm_whatsapp_test">WhatsApp-teszt küldése nekem</string>
     <string name="alarm_whatsapp_sent">Elküldve</string>
     <string name="alarm_test_now">Ébresztő tesztelése most</string>
+    <string name="alarm_test_needs_exact">Először engedélyezze a pontos ébresztéseket. Nélkülük az Ébresztés nem tud csörögni.</string>
     <string name="alarm_test_cancel">Futó teszt megszakítása</string>
     <string name="voice_audio_busy">A hangeszköz foglalt. Próbálja újra egy pillanat múlva.</string>
     <string name="voice_cant_play">Ez a hangüzenet nem játszható le</string>

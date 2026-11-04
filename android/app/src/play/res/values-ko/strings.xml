@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">이 Play 에디션은 다른 앱을 읽거나 조작할 수 없습니다. 원격 명령으로도 이 기능을 사용 설정할 수 없습니다.</string>
     <string name="channel_background_title">백그라운드 전달</string>
     <string name="channel_background_body">Android 배터리 최적화가 계속 사용 설정됩니다. 푸시(구성된 경우)와 주기적 동기화는 계속 사용할 수 있지만, 백그라운드 전달이 지연될 수 있습니다.</string>
+    <string name="phone_settings_push_on_gateway">켜짐. Google에서 휴대전화를 깨우고, 내용은 Gateway에서 바로 가져옵니다.</string>
+    <string name="phone_settings_push_off_gateway">Gateway에 설정되지 않았습니다.</string>
+    <string name="phone_settings_run_progress">실행 진행 상황</string>
+    <string name="phone_settings_run_progress_sub">이 휴대전화에서 메시지를 보내거나 단계를 승인하면, 해당 실행이 진행되는 동안 %1$s 앱이 연결을 유지하고 진행 상황을 알림으로 표시합니다. 실행이 끝나면 중지됩니다.</string>
+    <string name="phone_settings_without_push">푸시가 없는 경우</string>
+    <string name="phone_settings_without_push_sub">이러한 실행이 진행되는 동안과 %1$s 앱을 열 때 알림이 도착합니다. Android의 주기적인 백그라운드 확인으로도 알림이 전달될 수 있지만, 15분 이상 늦는 경우가 많습니다. 알림을 바로 받으려면 Gateway에서 푸시를 설정하세요.</string>
+    <string name="notify_channel_run_progress">실행 진행 상황</string>
+    <string name="notify_channel_run_progress_info">이 휴대전화에서 메시지를 보내거나 단계를 승인한 후 실행이 진행되는 동안 표시됩니다</string>
+    <string name="notify_stop_updates">업데이트 중지</string>
+    <string name="alarm_exact_off_cant_ring">정확한 알람을 허용하기 전에는 기상 알람이 울릴 수 없습니다. 로컬 알람이 예약되지 않습니다. Gateway에서 보낸 알람도 알람 소리를 울릴 수 없습니다.</string>
+    <string name="ai_notice_title">AI 답변 안내</string>
+    <string name="ai_notice_source">답변은 사용자 본인의 %1$s Gateway에 구성된 AI 모델과 제공자에서 생성됩니다. %2$s에서는 이 모델과 제공자를 운영하거나 선택하지 않습니다.</string>
+    <string name="ai_notice_risk">답변은 틀리거나, 오래되었거나, 부적절할 수 있습니다. 중요한 내용은 그대로 믿거나 에이전트가 그 내용에 따라 작업하게 하기 전에 확인하세요.</string>
+    <string name="ai_notice_privacy">%1$s에서는 채팅 내용을 보지 않습니다. 채팅은 이 휴대전화, Gateway, Gateway가 사용하는 제공자 사이에서 오갑니다.</string>
+    <string name="ai_notice_report">답변을 신고하려면 답변을 길게 누르고 ‘신고’를 탭하세요. 그 밖의 경우에는 ‘내 정보’를 열고 ‘문제 신고’를 탭하세요. 신고 내용을 검토하고 ‘신고 보내기’를 탭하기 전에는 아무것도 전송되지 않습니다.</string>
+    <string name="ai_notice_row_sub">답변의 출처, 채팅을 볼 수 있는 대상, 답변을 신고하는 방법</string>
+    <string name="ai_notice_got_it">확인</string>
     <string name="channel_apk_unavailable">이 Play 에디션에서는 APK 첨부파일을 설치할 수 없습니다. 파일은 다운로드에 저장할 수 있습니다.</string>
+    <string name="phone_settings_channels_sub">승인, 답장, Cron 및 다이제스트, 실행 진행 상황. 각각 따로 무음으로 설정할 수 있습니다.</string>
 </resources>

@@ -1470,6 +1470,8 @@
     <string name="wake_prove_awake">Доведіть, що ви не спите</string>
     <string name="wake_notif_checkin">Перевірка: одна швидка головоломка</string>
     <string name="wake_notif_title">Пробудження</string>
+    <string name="wake_cant_ring_title">Пробудження не може дзвонити</string>
+    <string name="wake_cant_ring_text">Дозвольте точні будильники в %1$s, щоб будильники Пробудження могли дзвонити.</string>
     <string name="wake_photo_unreadable">Не вдалося прочитати фото</string>
     <string name="wake_network_error">Помилка мережі</string>
     <string name="wake_photo_read_failed">Не вдалося прочитати фото: %1$s</string>
@@ -1554,6 +1556,7 @@
     <string name="wake_offline_check">Перевірити</string>
     <string name="wake_offline_wrong">Неправильно, ось нове</string>
     <string name="alarm_proof_permissions_denied">Доказ читанням працює без цих дозволів. Щоб використовувати інші докази, увімкніть камеру або активність у налаштуваннях застосунку Android.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Докази читанням і фото працюють без цього дозволу. Щоб використовувати доказ кроками, увімкніть фізичну активність у налаштуваннях застосунку Android.</string>
     <string name="alarm_open_app_settings">Відкрийте Налаштування Android &gt; Додатки &gt; %1$s, щоб змінити цей дозвіл.</string>
     <string name="alarm_title">Будильник</string>
     <string name="alarm_next">наступний: %1$s · %2$s</string>
@@ -1595,6 +1598,8 @@
     <string name="alarm_section_proof_permissions">Необов\'язкові дозволи для доказів</string>
     <string name="alarm_proof_permissions">Докази фото й кроками</string>
     <string name="alarm_proof_permissions_sub">Дозвіл потрібен лише для підтримуваного обладнання. Доказ читанням працює без доступу до камери чи активності.</string>
+    <string name="alarm_step_proof">Доказ кроками</string>
+    <string name="alarm_step_proof_sub">Для доказу кроками потрібен доступ до фізичної активності. Доказ фото використовує застосунок камери й не потребує дозволу. Доказ читанням не потребує ні того, ні іншого.</string>
     <string name="alarm_previously_denied">Раніше відмовили?</string>
     <string name="alarm_previously_denied_sub">Android може перестати показувати запити дозволів. Їх можна змінити в налаштуваннях застосунку.</string>
     <string name="alarm_section_testing">Тестування</string>
@@ -1604,6 +1609,7 @@
     <string name="alarm_whatsapp_test">Надіслати мені тест у WhatsApp</string>
     <string name="alarm_whatsapp_sent">Надіслано</string>
     <string name="alarm_test_now">Перевірити будильник зараз</string>
+    <string name="alarm_test_needs_exact">Спершу дозвольте точні будильники. Без них Пробудження не може дзвонити.</string>
     <string name="alarm_test_cancel">Скасувати поточний тест</string>
     <string name="voice_audio_busy">Аудіо зайняте. Спробуйте за мить.</string>
     <string name="voice_cant_play">Не вдалося відтворити це голосове повідомлення</string>

@@ -1297,6 +1297,8 @@
     <string name="wake_prove_awake">깨어 있음을 증명하세요</string>
     <string name="wake_notif_checkin">체크인: 간단한 퍼즐 하나</string>
     <string name="wake_notif_title">기상 알람</string>
+    <string name="wake_cant_ring_title">기상 알람을 울릴 수 없습니다</string>
+    <string name="wake_cant_ring_text">기상 알람이 울리도록 %1$s 앱에서 정확한 알람을 허용하세요.</string>
     <string name="wake_photo_unreadable">사진을 읽을 수 없습니다</string>
     <string name="wake_network_error">네트워크 오류</string>
     <string name="wake_photo_read_failed">사진을 읽을 수 없습니다: %1$s</string>
@@ -1369,6 +1371,7 @@
     <string name="wake_offline_check">확인</string>
     <string name="wake_offline_wrong">오답입니다. 새 문제</string>
     <string name="alarm_proof_permissions_denied">이 권한 없이도 읽기 증명을 사용할 수 있습니다. 사진이나 걸음 증명을 사용하려면 Android 앱 설정에서 카메라 또는 신체 활동을 허용하세요.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">이 권한 없이도 읽기 증명이나 사진 증명을 사용할 수 있습니다. 걸음 증명을 사용하려면 Android 앱 설정에서 신체 활동을 허용하세요.</string>
     <string name="alarm_open_app_settings">Android 설정 &gt; 앱 &gt; %1$s에서 이 권한을 변경하세요.</string>
     <string name="alarm_title">알람</string>
     <string name="alarm_next">다음 %1$s · %2$s</string>
@@ -1410,6 +1413,8 @@
     <string name="alarm_section_proof_permissions">선택적 증명 권한</string>
     <string name="alarm_proof_permissions">사진 및 걸음 증명</string>
     <string name="alarm_proof_permissions_sub">지원되는 하드웨어만 권한이 필요합니다. 읽기 증명은 카메라나 활동 권한 없이 작동합니다.</string>
+    <string name="alarm_step_proof">걸음 증명</string>
+    <string name="alarm_step_proof_sub">걸음 증명에는 신체 활동 권한이 필요합니다. 사진 증명은 카메라 앱을 사용하므로 권한이 필요 없습니다. 읽기 증명에는 둘 다 필요 없습니다.</string>
     <string name="alarm_previously_denied">이전에 거부했나요?</string>
     <string name="alarm_previously_denied_sub">Android에서 권한 요청을 더 이상 표시하지 않을 수 있습니다. 앱 설정에서 변경할 수 있습니다.</string>
     <string name="alarm_section_testing">테스트</string>
@@ -1419,6 +1424,7 @@
     <string name="alarm_whatsapp_test">나에게 WhatsApp 테스트 보내기</string>
     <string name="alarm_whatsapp_sent">보냄</string>
     <string name="alarm_test_now">지금 알람 테스트</string>
+    <string name="alarm_test_needs_exact">먼저 정확한 알람을 허용하세요. 정확한 알람이 없으면 기상 알람이 울릴 수 없습니다.</string>
     <string name="alarm_test_cancel">진행 중인 테스트 취소</string>
     <string name="voice_audio_busy">오디오를 사용 중입니다. 잠시 후 다시 시도하세요.</string>
     <string name="voice_cant_play">이 음성 메시지를 재생할 수 없습니다</string>

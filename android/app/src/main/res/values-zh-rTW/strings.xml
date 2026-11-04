@@ -1297,6 +1297,8 @@
     <string name="wake_prove_awake">證明你已經醒了</string>
     <string name="wake_notif_checkin">簽到：一道快速謎題</string>
     <string name="wake_notif_title">起床鬧鐘</string>
+    <string name="wake_cant_ring_title">起床鬧鐘無法響鈴</string>
+    <string name="wake_cant_ring_text">請在 %1$s 中允許精確鬧鐘，起床鬧鐘才能響鈴。</string>
     <string name="wake_photo_unreadable">無法讀取相片</string>
     <string name="wake_network_error">網路錯誤</string>
     <string name="wake_photo_read_failed">無法讀取相片：%1$s</string>
@@ -1369,6 +1371,7 @@
     <string name="wake_offline_check">檢查</string>
     <string name="wake_offline_wrong">錯了，換一題</string>
     <string name="alarm_proof_permissions_denied">沒有這些權限也能使用閱讀證明。若要使用相機或活動證明，請在 Android 應用程式設定中啟用相關權限。</string>
+    <string name="alarm_proof_permissions_denied_no_camera">沒有這項權限也能使用閱讀證明或相片證明。若要使用步數證明，請在 Android 應用程式設定中啟用體能活動權限。</string>
     <string name="alarm_open_app_settings">請開啟 Android「設定」&gt;「應用程式」&gt;「%1$s」變更這項權限。</string>
     <string name="alarm_title">鬧鐘</string>
     <string name="alarm_next">下次 %1$s · %2$s</string>
@@ -1410,6 +1413,8 @@
     <string name="alarm_section_proof_permissions">選用的證明權限</string>
     <string name="alarm_proof_permissions">相片和步數證明</string>
     <string name="alarm_proof_permissions_sub">只有支援的硬體需要權限。閱讀證明不需要相機或活動存取權。</string>
+    <string name="alarm_step_proof">步數證明</string>
+    <string name="alarm_step_proof_sub">步數證明需要體能活動存取權。相片證明使用你的相機應用程式，不需要權限。閱讀證明兩者都不需要。</string>
     <string name="alarm_previously_denied">之前拒絕過嗎？</string>
     <string name="alarm_previously_denied_sub">Android 可能不會再顯示權限提示。你可以在應用程式設定中變更。</string>
     <string name="alarm_section_testing">測試</string>
@@ -1419,6 +1424,7 @@
     <string name="alarm_whatsapp_test">傳送 WhatsApp 測試訊息給我</string>
     <string name="alarm_whatsapp_sent">已傳送</string>
     <string name="alarm_test_now">立即測試鬧鐘</string>
+    <string name="alarm_test_needs_exact">請先允許精確鬧鐘。否則起床鬧鐘無法響鈴。</string>
     <string name="alarm_test_cancel">取消執行中的測試</string>
     <string name="voice_audio_busy">音訊正在使用中。請稍後再試。</string>
     <string name="voice_cant_play">無法播放這則語音訊息</string>

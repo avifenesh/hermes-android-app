@@ -5,6 +5,24 @@
     <string name="channel_control_unavailable_body">מהדורת Play הזו לא יכולה לקרוא אפליקציות אחרות או להפעיל אותן. פקודות מרחוק לא יכולות להפעיל את היכולת הזו.</string>
     <string name="channel_background_title">קבלת עדכונים ברקע</string>
     <string name="channel_background_body">אופטימיזציית הסוללה של Android נשארת פעילה. Push (אם הוגדר) וסנכרון תקופתי ממשיכים לפעול; קבלת עדכונים ברקע עלולה להתעכב.</string>
+    <string name="phone_settings_push_on_gateway">פועל. הטלפון מתעורר דרך Google, והתוכן מגיע ישירות מה-gateway שלך.</string>
+    <string name="phone_settings_push_off_gateway">לא הוגדר ב-gateway שלך.</string>
+    <string name="phone_settings_run_progress">התקדמות הריצות</string>
+    <string name="phone_settings_run_progress_sub">אחרי ששולחים הודעה או מאשרים שלב מהטלפון הזה, האפליקציה %1$s נשארת מחוברת כל עוד הריצה פועלת ומציגה את ההתקדמות שלה בהתראה. החיבור נפסק כשהריצה מסתיימת.</string>
+    <string name="phone_settings_without_push">בלי Push</string>
+    <string name="phone_settings_without_push_sub">התראות מגיעות בזמן שריצה כזו פועלת וכשפותחים את %1$s. גם הבדיקה התקופתית של Android ברקע יכולה להביא אותן, לרוב באיחור של 15 דקות או יותר. כדי לקבל התראות מיד, צריך להגדיר Push ב-gateway שלך.</string>
+    <string name="notify_channel_run_progress">התקדמות הריצות</string>
+    <string name="notify_channel_run_progress_info">מוצג בזמן שריצה פועלת, אחרי ששולחים הודעה או מאשרים שלב מהטלפון הזה</string>
+    <string name="notify_stop_updates">עצירת העדכונים</string>
+    <string name="alarm_exact_off_cant_ring">ההשכמה לא יכולה לצלצל עד שמאפשרים שעונים מעוררים מדויקים. שעונים מעוררים מקומיים לא מתוזמנים, ושעונים מעוררים מה-gateway שלך לא יכולים להפעיל את צליל השעון המעורר.</string>
+    <string name="ai_notice_title">על תשובות AI</string>
+    <string name="ai_notice_source">התשובות מגיעות ממודלי ה-AI ומהספקים שהוגדרו ב-gateway של %1$s שמתארח אצלך. %2$s לא מפעיל אותם ולא בוחר בהם.</string>
+    <string name="ai_notice_risk">תשובות עלולות להיות שגויות, לא עדכניות או לא הולמות. צריך לבדוק כל דבר חשוב לפני שסומכים עליו או נותנים לסוכן לפעול לפיו.</string>
+    <string name="ai_notice_privacy">%1$s לא רואה את הצ\'אטים שלך. הם עוברים בין הטלפון הזה, ה-gateway שלך והספקים שהוא משתמש בהם.</string>
+    <string name="ai_notice_report">כדי לדווח על תשובה, צריך ללחוץ עליה לחיצה ארוכה ולהקיש על \"דיווח\". לכל דבר אחר, צריך לפתוח את \"אני\" ואז את \"דיווח על בעיה\". שום דבר לא נשלח עד שעוברים על הדיווח ומקישים על \"שליחת הדיווח\".</string>
+    <string name="ai_notice_row_sub">מאיפה מגיעות התשובות, מי רואה את הצ\'אטים שלך ואיך מדווחים על תשובה</string>
+    <string name="ai_notice_got_it">הבנתי</string>
 
     <string name="channel_apk_unavailable">התקנת קובצי APK מצורפים לא זמינה במהדורת Play הזו. עדיין אפשר לשמור את הקובץ בהורדות.</string>
+    <string name="phone_settings_channels_sub">אישורים, תשובות, Cron וסיכומים, התקדמות הריצות. אפשר להשתיק כל אחד בנפרד.</string>
 </resources>

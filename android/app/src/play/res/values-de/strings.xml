@@ -8,7 +8,31 @@
     <string name="channel_control_unavailable_body">Diese Play-Edition kann andere Apps weder lesen noch bedienen. Fernbefehle können diese Funktion nicht aktivieren.</string>
     <string name="channel_background_title">Zustellung im Hintergrund</string>
     <string name="channel_background_body">Die Android-Akkuoptimierung bleibt aktiv. Push (falls eingerichtet) und regelmäßige Synchronisierung bleiben verfügbar; die Zustellung im Hintergrund kann sich verzögern.</string>
+    <string name="phone_settings_push_on_gateway">Ein. Google weckt das Smartphone, der Inhalt kommt direkt von deinem Gateway.</string>
+    <string name="phone_settings_push_off_gateway">Auf deinem Gateway nicht eingerichtet.</string>
+    <string name="phone_settings_run_progress">Fortschritt von Läufen</string>
+    <string name="phone_settings_run_progress_sub">Wenn du von diesem Smartphone aus eine Nachricht sendest oder einen Schritt genehmigst, bleibt %1$s verbunden, solange dieser Lauf aktiv ist, und zeigt seinen Fortschritt in einer Benachrichtigung. Das hört auf, wenn der Lauf endet.</string>
+    <string name="phone_settings_without_push">Ohne Push</string>
+    <string name="phone_settings_without_push_sub">Benachrichtigungen kommen an, während ein solcher Lauf aktiv ist und wenn du %1$s öffnest. Auch die regelmäßige Hintergrundprüfung von Android kann sie zustellen, oft 15 Minuten oder mehr zu spät. Richte Push auf deinem Gateway ein, um Benachrichtigungen sofort zu erhalten.</string>
+
+    <!-- ===== Run progress notification (Play edition) ===== -->
+    <string name="notify_channel_run_progress">Fortschritt von Läufen</string>
+    <string name="notify_channel_run_progress_info">Wird angezeigt, während ein Lauf aktiv ist, nachdem du von diesem Smartphone aus eine Nachricht gesendet oder einen Schritt genehmigt hast</string>
+    <string name="notify_stop_updates">Updates beenden</string>
+
+    <!-- ===== Wake alarm settings (Play edition) ===== -->
+    <string name="alarm_exact_off_cant_ring">Wake kann erst klingeln, wenn du exakte Wecker erlaubst. Lokale Wecker werden nicht geplant, und Wecker von deinem Gateway können den Weckton nicht starten.</string>
+
+    <!-- ===== AI-content notice (Play edition) ===== -->
+    <string name="ai_notice_title">Über KI-Antworten</string>
+    <string name="ai_notice_source">Antworten kommen von den KI-Modellen und Anbietern, die auf deinem eigenen %1$s-Gateway eingerichtet sind. %2$s betreibt sie nicht und wählt sie nicht aus.</string>
+    <string name="ai_notice_risk">Antworten können falsch, veraltet oder unangemessen sein. Prüfe alles Wichtige, bevor du dich darauf verlässt oder den Agent danach handeln lässt.</string>
+    <string name="ai_notice_privacy">%1$s sieht deine Chats nicht. Sie laufen zwischen diesem Smartphone, deinem Gateway und den Anbietern, die es nutzt.</string>
+    <string name="ai_notice_report">Um eine Antwort zu melden, halte sie gedrückt und tippe auf „Melden“. Für alles andere öffne „Ich“ und dann „Problem melden“. Es wird nichts gesendet, bis du den Bericht prüfst und auf „Bericht senden“ tippst.</string>
+    <string name="ai_notice_row_sub">Woher Antworten kommen, wer deine Chats sieht, wie du eine meldest</string>
+    <string name="ai_notice_got_it">Verstanden</string>
 
     <!-- ===== Opening attachments (Play edition) ===== -->
     <string name="channel_apk_unavailable">Das Installieren von APK-Anhängen ist in dieser Play-Edition nicht verfügbar. Du kannst die Datei trotzdem in Downloads speichern.</string>
+    <string name="phone_settings_channels_sub">Genehmigungen, Antworten, Cron &amp; Digests, Fortschritt von Läufen. Jeden einzeln stummschalten.</string>
 </resources>

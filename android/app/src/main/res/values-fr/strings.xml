@@ -1563,6 +1563,8 @@
     <string name="wake_prove_awake">Prouvez que vous êtes réveillé</string>
     <string name="wake_notif_checkin">Contrôle : une petite énigme</string>
     <string name="wake_notif_title">Wake</string>
+    <string name="wake_cant_ring_title">Wake ne peut pas sonner</string>
+    <string name="wake_cant_ring_text">Autorisez les alarmes exactes dans %1$s pour que les alarmes Wake puissent sonner.</string>
 
     <!-- ===== Wake alarm screen ===== -->
     <string name="wake_photo_unreadable">Impossible de lire la photo</string>
@@ -1655,6 +1657,7 @@
 
     <!-- ===== Alarm clock settings ===== -->
     <string name="alarm_proof_permissions_denied">Vous pouvez utiliser la preuve par lecture sans ces autorisations. Activez l\'appareil photo ou l\'activité dans les paramètres de l\'application Android pour utiliser ces preuves.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Vous pouvez utiliser la preuve par lecture ou par photo sans cette autorisation. Activez l\'activité physique dans les paramètres de l\'application Android pour utiliser la preuve par pas.</string>
     <string name="alarm_open_app_settings">Ouvrez Paramètres Android > Applications > %1$s pour modifier cette autorisation.</string>
     <string name="alarm_title">Réveil</string>
     <string name="alarm_next">prochain %1$s · %2$s</string>
@@ -1696,6 +1699,8 @@
     <string name="alarm_section_proof_permissions">Autorisations facultatives pour les preuves</string>
     <string name="alarm_proof_permissions">Preuves par photo et par pas</string>
     <string name="alarm_proof_permissions_sub">Seul le matériel compatible nécessite une autorisation. La preuve par lecture fonctionne sans accès à l\'appareil photo ni à l\'activité.</string>
+    <string name="alarm_step_proof">Preuve par pas</string>
+    <string name="alarm_step_proof_sub">La preuve par pas nécessite l\'accès à l\'activité physique. La preuve par photo utilise votre application d\'appareil photo et ne nécessite aucune autorisation. La preuve par lecture ne nécessite ni l\'un ni l\'autre.</string>
     <string name="alarm_previously_denied">Refusé auparavant ?</string>
     <string name="alarm_previously_denied_sub">Android peut cesser d\'afficher les demandes d\'autorisation. Vous pouvez les modifier dans les paramètres de l\'application.</string>
     <string name="alarm_section_testing">Tests</string>
@@ -1705,6 +1710,7 @@
     <string name="alarm_whatsapp_test">M\'envoyer un test WhatsApp</string>
     <string name="alarm_whatsapp_sent">Envoyé</string>
     <string name="alarm_test_now">Tester l\'alarme maintenant</string>
+    <string name="alarm_test_needs_exact">Autorisez d\'abord les alarmes exactes. Wake ne peut pas sonner sans elles.</string>
     <string name="alarm_test_cancel">Annuler le test en cours</string>
 
     <!-- ===== Voice messages in chat ===== -->

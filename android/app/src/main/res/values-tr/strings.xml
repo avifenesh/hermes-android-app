@@ -1358,6 +1358,8 @@
     <string name="wake_prove_awake">Uyanık olduğunuzu kanıtlayın</string>
     <string name="wake_notif_checkin">Kontrol: kısa bir bulmaca</string>
     <string name="wake_notif_title">Uyandırma</string>
+    <string name="wake_cant_ring_title">Uyandırma çalamıyor</string>
+    <string name="wake_cant_ring_text">Uyandırma alarmlarının çalabilmesi için %1$s uygulamasında kesin zamanlı alarmlara izin verin.</string>
     <string name="wake_photo_unreadable">Fotoğraf okunamadı</string>
     <string name="wake_network_error">Ağ hatası</string>
     <string name="wake_photo_read_failed">Fotoğraf okunamadı: %1$s</string>
@@ -1434,6 +1436,7 @@
     <string name="wake_offline_check">Kontrol et</string>
     <string name="wake_offline_wrong">Yanlış, yenisi geldi</string>
     <string name="alarm_proof_permissions_denied">Okuma kanıtını bu izinler olmadan kullanabilirsiniz. Diğer kanıtlar için Android uygulama ayarlarında kamerayı veya fiziksel aktiviteyi etkinleştirin.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Okuma veya fotoğraf kanıtını bu izin olmadan kullanabilirsiniz. Adım kanıtını kullanmak için Android uygulama ayarlarında fiziksel aktiviteyi etkinleştirin.</string>
     <string name="alarm_open_app_settings">Bu izni değiştirmek için Android Ayarlar &gt; Uygulamalar &gt; %1$s yolunu açın.</string>
     <string name="alarm_title">Çalar saat</string>
     <string name="alarm_next">sonraki %1$s · %2$s</string>
@@ -1475,6 +1478,8 @@
     <string name="alarm_section_proof_permissions">İsteğe bağlı kanıt izinleri</string>
     <string name="alarm_proof_permissions">Fotoğraf ve adım kanıtları</string>
     <string name="alarm_proof_permissions_sub">Yalnızca desteklenen donanım izin gerektirir. Okuma kanıtı kamera veya aktivite erişimi olmadan çalışır.</string>
+    <string name="alarm_step_proof">Adım kanıtı</string>
+    <string name="alarm_step_proof_sub">Adım kanıtı fiziksel aktivite erişimi gerektirir. Fotoğraf kanıtı kamera uygulamanızı kullanır ve izin gerektirmez. Okuma kanıtı ikisini de gerektirmez.</string>
     <string name="alarm_previously_denied">Daha önce reddettiniz mi?</string>
     <string name="alarm_previously_denied_sub">Android izin istemlerini göstermeyi bırakabilir. Bunları uygulama ayarlarından değiştirebilirsiniz.</string>
     <string name="alarm_section_testing">Test</string>
@@ -1484,6 +1489,7 @@
     <string name="alarm_whatsapp_test">Bana WhatsApp testi gönder</string>
     <string name="alarm_whatsapp_sent">Gönderildi</string>
     <string name="alarm_test_now">Alarmı şimdi test et</string>
+    <string name="alarm_test_needs_exact">Önce kesin zamanlı alarmlara izin verin. Uyandırma bunlar olmadan çalamaz.</string>
     <string name="alarm_test_cancel">Çalışan testi iptal et</string>
     <string name="voice_audio_busy">Ses meşgul. Birazdan yeniden deneyin.</string>
     <string name="voice_cant_play">Bu sesli mesaj oynatılamıyor</string>

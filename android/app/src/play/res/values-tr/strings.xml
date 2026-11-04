@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">Bu Play sürümü diğer uygulamaları okuyamaz veya kullanamaz. Uzak komutlar bu özelliği etkinleştiremez.</string>
     <string name="channel_background_title">Arka planda teslim</string>
     <string name="channel_background_body">Android pil optimizasyonu etkin kalır. Push (yapılandırıldıysa) ve düzenli eşitleme kullanılabilir kalır; arka planda teslim gecikebilir.</string>
+    <string name="phone_settings_push_on_gateway">Açık. Google telefonu uyandırır; içerik doğrudan gateway\'iniz üzerinden gelir.</string>
+    <string name="phone_settings_push_off_gateway">Gateway\'inizde ayarlanmamış.</string>
+    <string name="phone_settings_run_progress">Çalıştırma ilerlemesi</string>
+    <string name="phone_settings_run_progress_sub">Bu telefondan mesaj gönderdikten veya bir adımı onayladıktan sonra %1$s, o çalıştırma sürerken bağlı kalır ve ilerlemesini bir bildirimde gösterir. Çalıştırma bittiğinde durur.</string>
+    <string name="phone_settings_without_push">Push olmadan</string>
+    <string name="phone_settings_without_push_sub">Bildirimler böyle bir çalıştırma sürerken ve %1$s uygulamasını açtığınızda gelir. Android\'in düzenli arka plan denetimi de bunları iletebilir, çoğu zaman 15 dakika veya daha fazla gecikmeyle. Bildirimlerin hemen gelmesi için gateway\'inizde push\'u ayarlayın.</string>
+    <string name="notify_channel_run_progress">Çalıştırma ilerlemesi</string>
+    <string name="notify_channel_run_progress_info">Bu telefondan mesaj gönderdikten veya bir adımı onayladıktan sonra çalıştırma sürerken gösterilir</string>
+    <string name="notify_stop_updates">Güncellemeleri durdur</string>
+    <string name="alarm_exact_off_cant_ring">Kesin zamanlı alarmlara izin verene kadar Uyandırma çalamaz. Yerel alarmlar zamanlanmadı ve gateway\'inizden gelen alarmlar alarm sesini başlatamaz.</string>
+    <string name="ai_notice_title">Yapay zeka yanıtları hakkında</string>
+    <string name="ai_notice_source">Yanıtlar, kendi %1$s gateway\'inizde yapılandırılmış yapay zeka modellerinden ve sağlayıcılardan gelir. %2$s bunları ne çalıştırır ne de seçer.</string>
+    <string name="ai_notice_risk">Yanıtlar yanlış, güncel olmayan veya uygunsuz olabilir. Önemli olan her şeyi, ona güvenmeden veya ajanın ona göre hareket etmesine izin vermeden önce kontrol edin.</string>
+    <string name="ai_notice_privacy">%1$s sohbetlerinizi görmez. Sohbetleriniz bu telefon, gateway\'iniz ve onun kullandığı sağlayıcılar arasında iletilir.</string>
+    <string name="ai_notice_report">Bir yanıtı bildirmek için ona uzun basın ve Bildir seçeneğine dokunun. Diğer her şey için Ben sekmesini, ardından Sorun bildir seçeneğini açın. Raporu inceleyip Raporu gönder düğmesine dokunana kadar hiçbir şey gönderilmez.</string>
+    <string name="ai_notice_row_sub">Yanıtların nereden geldiği, sohbetlerinizi kimin gördüğü, bir yanıtı nasıl bildireceğiniz</string>
+    <string name="ai_notice_got_it">Anladım</string>
     <string name="channel_apk_unavailable">Bu Play sürümünde APK eklerini yüklemek kullanılamıyor. Dosyayı yine de İndirilenler klasörüne kaydedebilirsiniz.</string>
+    <string name="phone_settings_channels_sub">Onaylar, yanıtlar, cron ve özetler, çalıştırma ilerlemesi. Her birini ayrı ayrı sessize alın.</string>
 </resources>

@@ -1563,6 +1563,8 @@
     <string name="wake_prove_awake">Demuestra que estás despierto</string>
     <string name="wake_notif_checkin">Comprobación: un acertijo rápido</string>
     <string name="wake_notif_title">Wake</string>
+    <string name="wake_cant_ring_title">Wake no puede sonar</string>
+    <string name="wake_cant_ring_text">Permite las alarmas exactas en %1$s para que las alarmas Wake puedan sonar.</string>
 
     <!-- ===== Wake alarm screen ===== -->
     <string name="wake_photo_unreadable">No se pudo leer la foto</string>
@@ -1655,6 +1657,7 @@
 
     <!-- ===== Alarm clock settings ===== -->
     <string name="alarm_proof_permissions_denied">Puedes usar la prueba de lectura sin estos permisos. Activa la cámara o la actividad en los ajustes de la app de Android para usar esas pruebas.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Puedes usar la prueba de lectura o de foto sin este permiso. Activa la actividad física en los ajustes de la app de Android para usar la prueba de pasos.</string>
     <string name="alarm_open_app_settings">Abre Ajustes de Android > Aplicaciones > %1$s para cambiar este permiso.</string>
     <string name="alarm_title">Despertador</string>
     <string name="alarm_next">próxima %1$s · %2$s</string>
@@ -1696,6 +1699,8 @@
     <string name="alarm_section_proof_permissions">Permisos opcionales para las pruebas</string>
     <string name="alarm_proof_permissions">Pruebas de foto y de pasos</string>
     <string name="alarm_proof_permissions_sub">Solo el hardware compatible necesita permiso. La prueba de lectura funciona sin acceso a la cámara ni a la actividad.</string>
+    <string name="alarm_step_proof">Prueba de pasos</string>
+    <string name="alarm_step_proof_sub">La prueba de pasos necesita acceso a la actividad física. La prueba de foto usa tu app de cámara y no necesita permiso. La prueba de lectura no necesita ninguno de los dos.</string>
     <string name="alarm_previously_denied">¿Lo denegaste antes?</string>
     <string name="alarm_previously_denied_sub">Puede que Android deje de mostrar solicitudes de permiso. Puedes cambiarlas en los ajustes de la app.</string>
     <string name="alarm_section_testing">Pruebas</string>
@@ -1705,6 +1710,7 @@
     <string name="alarm_whatsapp_test">Enviarme una prueba por WhatsApp</string>
     <string name="alarm_whatsapp_sent">Enviado</string>
     <string name="alarm_test_now">Probar la alarma ahora</string>
+    <string name="alarm_test_needs_exact">Primero permite las alarmas exactas. Wake no puede sonar sin ellas.</string>
     <string name="alarm_test_cancel">Cancelar la prueba en curso</string>
 
     <!-- ===== Voice messages in chat ===== -->

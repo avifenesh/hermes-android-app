@@ -1507,6 +1507,8 @@
     <string name="wake_prove_awake">Beweise, dass du wach bist</string>
     <string name="wake_notif_checkin">Check-in: ein kurzes Rätsel</string>
     <string name="wake_notif_title">Wake</string>
+    <string name="wake_cant_ring_title">Wake kann nicht klingeln</string>
+    <string name="wake_cant_ring_text">Erlaube exakte Wecker in %1$s, damit Wake-Wecker klingeln können.</string>
 
     <!-- ===== Wake alarm screen ===== -->
     <string name="wake_photo_unreadable">Foto konnte nicht gelesen werden</string>
@@ -1595,6 +1597,7 @@
 
     <!-- ===== Alarm clock settings ===== -->
     <string name="alarm_proof_permissions_denied">Den Lesenachweis kannst du ohne diese Berechtigungen nutzen. Aktiviere Kamera oder Aktivität in den Android-App-Einstellungen, um diese Nachweise zu nutzen.</string>
+    <string name="alarm_proof_permissions_denied_no_camera">Den Lese- oder Fotonachweis kannst du ohne diese Berechtigung nutzen. Aktiviere körperliche Aktivität in den Android-App-Einstellungen, um den Schrittnachweis zu nutzen.</string>
     <string name="alarm_open_app_settings">Öffne Android-Einstellungen > Apps > %1$s, um diese Berechtigung zu ändern.</string>
     <string name="alarm_title">Wecker</string>
     <string name="alarm_next">nächster %1$s · %2$s</string>
@@ -1636,6 +1639,8 @@
     <string name="alarm_section_proof_permissions">Optionale Berechtigungen für Nachweise</string>
     <string name="alarm_proof_permissions">Foto- und Schrittnachweise</string>
     <string name="alarm_proof_permissions_sub">Nur unterstützte Hardware braucht eine Berechtigung. Der Lesenachweis funktioniert ohne Kamera- oder Aktivitätszugriff.</string>
+    <string name="alarm_step_proof">Schrittnachweis</string>
+    <string name="alarm_step_proof_sub">Der Schrittnachweis braucht Zugriff auf körperliche Aktivität. Der Fotonachweis nutzt deine Kamera-App und braucht keine Berechtigung. Der Lesenachweis braucht keins von beiden.</string>
     <string name="alarm_previously_denied">Früher abgelehnt?</string>
     <string name="alarm_previously_denied_sub">Android zeigt Berechtigungsanfragen eventuell nicht mehr an. Du kannst sie in den App-Einstellungen ändern.</string>
     <string name="alarm_section_testing">Testen</string>
@@ -1645,6 +1650,7 @@
     <string name="alarm_whatsapp_test">WhatsApp-Test an mich senden</string>
     <string name="alarm_whatsapp_sent">Gesendet</string>
     <string name="alarm_test_now">Wecker jetzt testen</string>
+    <string name="alarm_test_needs_exact">Erlaube zuerst exakte Wecker. Ohne sie kann Wake nicht klingeln.</string>
     <string name="alarm_test_cancel">Laufenden Test abbrechen</string>
 
     <!-- ===== Voice messages in chat ===== -->

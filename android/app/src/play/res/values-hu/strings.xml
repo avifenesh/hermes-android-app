@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">Ez a Play-kiadás nem tud más alkalmazásokat olvasni vagy kezelni. Távoli parancsokkal sem lehet engedélyezni ezt a képességet.</string>
     <string name="channel_background_title">Háttérkézbesítés</string>
     <string name="channel_background_body">Az Android akkumulátor-optimalizálása bekapcsolva marad. A push (ha be van állítva) és az időszakos szinkronizálás továbbra is elérhető; a háttérkézbesítés késhet.</string>
+    <string name="phone_settings_push_on_gateway">Be. A Google ébreszti fel a telefont; a tartalom közvetlenül a gateway felől érkezik.</string>
+    <string name="phone_settings_push_off_gateway">Nincs beállítva a gateway-en.</string>
+    <string name="phone_settings_run_progress">Futtatások előrehaladása</string>
+    <string name="phone_settings_run_progress_sub">Miután erről a telefonról üzenetet küldött vagy jóváhagyott egy lépést, %1$s fenntartja a kapcsolatot, amíg a futtatás tart, és értesítésben mutatja az előrehaladását. A futtatás végén leáll.</string>
+    <string name="phone_settings_without_push">Push nélkül</string>
+    <string name="phone_settings_without_push_sub">Az értesítések egy ilyen futtatás közben érkeznek, valamint akkor, amikor megnyitja ezt: %1$s. Az Android időszakos háttérellenőrzése is kézbesítheti ezeket, gyakran 15 vagy több perc késéssel. A gyors értesítésekhez állítsa be a push-t a gateway-en.</string>
+    <string name="notify_channel_run_progress">Futtatások előrehaladása</string>
+    <string name="notify_channel_run_progress_info">Futtatás közben jelenik meg, miután erről a telefonról üzenetet küldött vagy jóváhagyott egy lépést</string>
+    <string name="notify_stop_updates">Frissítések leállítása</string>
+    <string name="alarm_exact_off_cant_ring">Az Ébresztés addig nem tud csörögni, amíg nem engedélyezi a pontos ébresztéseket. A helyi ébresztések nincsenek ütemezve, és a gateway-ről érkező ébresztések nem tudják elindítani az ébresztőhangot.</string>
+    <string name="ai_notice_title">Az MI-válaszokról</string>
+    <string name="ai_notice_source">A válaszok az Ön saját %1$s gateway-én beállított MI-modellektől és szolgáltatóktól származnak. %2$s nem futtatja és nem választja ki őket.</string>
+    <string name="ai_notice_risk">A válaszok lehetnek hibásak, elavultak vagy nem helyénvalók. Ellenőrizzen minden fontos dolgot, mielőtt hagyatkozna rá, vagy hagyná, hogy az ügynök ez alapján cselekedjen.</string>
+    <string name="ai_notice_privacy">%1$s nem látja a csevegéseit. A csevegések e telefon, a gateway és az általa használt szolgáltatók között közlekednek.</string>
+    <string name="ai_notice_report">Egy válasz jelentéséhez nyomja meg hosszan, majd koppintson a Jelentés lehetőségre. Minden más esetben nyissa meg az Én lapot, majd a Probléma jelentése elemet. Semmi sem megy el, amíg át nem nézi a jelentést, és nem koppint a Jelentés küldése gombra.</string>
+    <string name="ai_notice_row_sub">Honnan származnak a válaszok, ki látja a csevegéseit, hogyan jelenthet egyet</string>
+    <string name="ai_notice_got_it">Értem</string>
     <string name="channel_apk_unavailable">APK-mellékletek telepítése nem érhető el ebben a Play-kiadásban. A fájlt továbbra is mentheti a Letöltések mappába.</string>
+    <string name="phone_settings_channels_sub">Jóváhagyások, válaszok, cron és összefoglalók, futtatások előrehaladása. Mindegyik külön némítható.</string>
 </resources>

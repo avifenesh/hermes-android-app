@@ -5,5 +5,23 @@
     <string name="channel_control_unavailable_body">Ця версія для Play не може читати інші застосунки чи керувати ними. Віддалені команди не можуть увімкнути цю можливість.</string>
     <string name="channel_background_title">Фонова доставка</string>
     <string name="channel_background_body">Оптимізація батареї Android залишається ввімкненою. Push (якщо налаштовано) і періодична синхронізація доступні; фонова доставка може затримуватися.</string>
+    <string name="phone_settings_push_on_gateway">Увімкнено. Google пробуджує телефон, а вміст надходить безпосередньо від вашого gateway.</string>
+    <string name="phone_settings_push_off_gateway">Не налаштовано на вашому gateway.</string>
+    <string name="phone_settings_run_progress">Хід запусків</string>
+    <string name="phone_settings_run_progress_sub">Коли ви надсилаєте повідомлення або схвалюєте крок із цього телефона, %1$s тримає з\'єднання, поки триває цей запуск, і показує його хід у сповіщенні. Коли запуск завершується, з\'єднання припиняється.</string>
+    <string name="phone_settings_without_push">Без push</string>
+    <string name="phone_settings_without_push_sub">Сповіщення надходять, поки триває такий запуск, і коли ви відкриваєте %1$s. Їх також може доставити періодична фонова перевірка Android, часто із запізненням на 15 хвилин або більше. Щоб сповіщення надходили одразу, налаштуйте push на вашому gateway.</string>
+    <string name="notify_channel_run_progress">Хід запусків</string>
+    <string name="notify_channel_run_progress_info">Показується, поки триває запуск, після того як ви надіслали повідомлення або схвалили крок із цього телефона</string>
+    <string name="notify_stop_updates">Зупинити оновлення</string>
+    <string name="alarm_exact_off_cant_ring">Пробудження не може дзвонити, доки ви не дозволите точні будильники. Локальні будильники не заплановано, а будильники від вашого gateway не можуть увімкнути звук будильника.</string>
+    <string name="ai_notice_title">Про відповіді ШІ</string>
+    <string name="ai_notice_source">Відповіді надходять від моделей ШІ та провайдерів, налаштованих на вашому власному gateway %1$s. %2$s не запускає й не вибирає їх.</string>
+    <string name="ai_notice_risk">Відповіді можуть бути хибними, застарілими чи недоречними. Перевіряйте все важливе, перш ніж покладатися на це або дозволяти агенту діяти на цій основі.</string>
+    <string name="ai_notice_privacy">%1$s не бачить ваших чатів. Вони передаються між цим телефоном, вашим gateway і провайдерами, якими він користується.</string>
+    <string name="ai_notice_report">Щоб повідомити про відповідь, натисніть і утримуйте її, потім натисніть «Повідомити». В інших випадках відкрийте «Я», потім «Повідомити про проблему». Нічого не надсилається, доки ви не переглянете звіт і не натиснете «Надіслати звіт».</string>
+    <string name="ai_notice_row_sub">Звідки беруться відповіді, хто бачить ваші чати і як повідомити про відповідь</string>
+    <string name="ai_notice_got_it">Зрозуміло</string>
     <string name="channel_apk_unavailable">Установлення APK-вкладень недоступне у версії для Play. Ви все одно можете зберегти файл у «Завантаження».</string>
+    <string name="phone_settings_channels_sub">Схвалення, відповіді, cron і дайджести, хід запусків. Кожен канал можна вимкнути окремо.</string>
 </resources>
