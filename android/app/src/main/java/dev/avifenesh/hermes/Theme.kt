@@ -139,6 +139,7 @@ object Ic {
     val send by lazy { v("M12 19V5M5 12l7-7l7 7", 2.2f) }
     val stop by lazy { v("M6 6h12v12H6z", fill = true) }
     val play by lazy { v("M7 4.5l12 7.5l-12 7.5z", fill = true) }
+    val pause by lazy { v("M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z", fill = true) }
     val mic by lazy { v("M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3") }
     val plus by lazy { v("M12 5v14M5 12h14", 2f) }
     val camera by lazy { v("M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 9a4 4 0 1 0 0 8a4 4 0 1 0 0-8z") }

@@ -491,6 +491,7 @@ fun SessionScreen(r: Route.SessR) {
         }
     }
     DisposableEffect(r.id) { onDispose { Hub.scope.launch { runCatching { Api.delete("$base/viewer") } } } }
+    VoicePlaybackScope()
 
     Column(Modifier.fillMaxSize().background(p.bg)) {
         TopBar(r.title, when {

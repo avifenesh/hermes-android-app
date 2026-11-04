@@ -198,7 +198,8 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
 }
 
 // ---------------------------------------------------------------- chat
-private val HIDE = setOf("deleted")
+/** Rows inside a speaker run that do not break it: tool traces, activity cards, notices. */
+internal fun quietInRun(m: Msg) = m.kind == "activity" || m.kind == "trace" || Hub.isNotice(m)
 
 /** Where the user was last reading a chat: first-visible message id + px offset.
  *  In-memory map stays current on every scroll; the disk copy is flushed debounced
@@ -242,7 +243,8 @@ fun ChatScreen(cid: String) {
     val work by Hub.working.collectAsState()
     val appr by Hub.approvals.collectAsState()
     val chat = chats[cid]
-    val msgs = all[cid].orEmpty().filter { it.kind !in HIDE }
+    val raw = all[cid].orEmpty()
+    val msgs = remember(raw) { chatVisible(raw) }
     val since = work[cid]
     val running = since != null
     var text by rememberSaveable(cid) { mutableStateOf("") }
@@ -257,12 +259,13 @@ fun ChatScreen(cid: String) {
     // Plain (non-saveable) per-chat state — the route's restored LazyListState must not
     // race this and drag the view back to a stale position.
     val list = remember(cid) {
-        val ms = Hub.msgs.value[cid]?.filter { it.kind !in HIDE }.orEmpty()
+        val ms = chatVisible(Hub.msgs.value[cid].orEmpty())
         val saved = ChatScroll.get(cid)
         val at = saved?.let { s -> ms.indexOfFirst { it.id == s.first }.takeIf { it >= 0 }?.let { it to s.second } }
         if (at != null) LazyListState(at.first, at.second) else LazyListState(ms.size + 1, 0)
     }
     DisposableEffect(cid) { Hub.openChat = cid; onDispose { if (Hub.openChat == cid) Hub.openChat = null; ChatScroll.flush() } }
+    VoicePlaybackScope()
     var loadErr by remember(cid) { mutableStateOf<String?>(null) }
     var loading by remember(cid) { mutableStateOf(true) }
     var retry by remember(cid) { mutableStateOf(0) }
@@ -412,12 +415,9 @@ fun ChatScreen(cid: String) {
                     return@items
                 }
                 // Footer (time, cost) only on the last message of a same-role run: one stamp per exchange, not per bubble.
-                // Activity cards and notices between two replies do not break the run.
-                var k = i + 1
-                while (k < msgs.size && msgs[k].role == m.role && (msgs[k].kind in setOf("activity", "trace") || Hub.isNotice(msgs[k]))) k++
-                val nxt = msgs.getOrNull(k)
-                val last = nxt == null || nxt.role != m.role
-                MsgView(m, appr, i > 0 && msgs[i - 1].role == m.role && m.kind == "trace" && msgs[i - 1].kind == "trace", last)
+                val last = endsRun(msgs, i, ::quietInRun)
+                val lead = leadsRun(msgs, i, ::quietInRun) { a, b -> dayLabel(a.ts) == dayLabel(b.ts) }
+                MsgView(m, appr, i > 0 && msgs[i - 1].role == m.role && m.kind == "trace" && msgs[i - 1].kind == "trace", last, lead)
             }
             if (running) item { WorkingRow(since!!) { Ui.push(Route.RunR(cid)) } }
             item { Spacer(Modifier.height(8.dp)) }
@@ -480,25 +480,34 @@ fun ChatScreen(cid: String) {
     }
 }
 
+/** The live state of the agent at the end of the chat: its orb, awake, in the avatar column. */
 @Composable
 fun WorkingRow(since: Double, onClick: () -> Unit) {
     val p = P
-    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).clip(RoundedCornerShape(16.dp)).background(p.accd).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        LiveDot(8.dp)
-        Spacer(Modifier.width(10.dp))
-        Text("${agentName()} is working", style = sans(14f, 600, p.acct))
-        Spacer(Modifier.width(10.dp))
-        Elapsed(since, mono(12.5f, 500, p.acct))
-        Spacer(Modifier.width(6.dp))
-        Icn(Ic.chevR, p.acct, 16.dp)
+    Row(Modifier.fillMaxWidth().padding(start = AVATAR_START, end = 14.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        AgentOrb(AVATAR, live = true)
+        Spacer(Modifier.width(AVATAR_GAP))
+        Row(Modifier.weight(1f, fill = false).clip(RoundedCornerShape(16.dp)).background(p.accd).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("${agentName()} is working", style = sans(14f, 600, p.acct), modifier = Modifier.weight(1f, fill = false))
+            Spacer(Modifier.width(10.dp))
+            Elapsed(since, mono(12.5f, 500, p.acct))
+            Spacer(Modifier.width(6.dp))
+            Icn(Ic.chevR, p.acct, 16.dp)
+        }
     }
 }
 
+/** Agent messages in a chat sit right of a narrow avatar column; the first of each run shows the orb there. */
+val AVATAR = 24.dp
+val AVATAR_START = 10.dp
+val AVATAR_GAP = 6.dp
+
+/** [lead] null keeps the ungrouped layout (session views); true or false places the message in a speaker run. */
 @Composable
-fun MsgView(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean = true) {
-    if (m.meta.optBoolean("undone")) { Box(Modifier.alpha(0.38f)) { MsgBody(m, appr, compact, footer) }; return }
-    MsgBody(m, appr, compact, footer)
+fun MsgView(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean = true, lead: Boolean? = null) {
+    if (m.meta.optBoolean("undone")) { Box(Modifier.alpha(0.38f)) { MsgBody(m, appr, compact, footer, lead) }; return }
+    MsgBody(m, appr, compact, footer, lead)
 }
 
 /** One or more gateway notices (progress, restart, recall) as a single thin line. Tap to see them all;
@@ -541,7 +550,7 @@ fun ThinkingRow(text: String) {
 }
 
 @Composable
-fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean = true) {
+fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean = true, lead: Boolean? = null) {
     val p = P
     val mine = m.role == "user"
     when (m.kind) {
@@ -552,31 +561,43 @@ fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean =
         else -> {
             val atts = m.meta.optJSONArray("attachments").objs() +
                 (if (m.kind in setOf("image", "file", "voice") && m.meta.has("media")) listOf(JSONObject(m.meta.toString()).put("kind", m.kind)) else emptyList())
-            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
-                if (m.kind == "steer" || m.kind == "queued") Text(if (m.kind == "steer") "STEER" else "QUEUED", style = mono(10.5f, 700, p.acct), modifier = Modifier.padding(end = 6.dp, bottom = 3.dp))
-                val body = @Composable {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (a in atts) AttachmentView(a, mine)
-                        if (m.kind == "image" && m.meta.has("url")) TapToLoadImage(m.meta.str("url"))
-                        if (m.content.isNotBlank()) {
-                            if (mine) Text(m.content, style = sans(15.5f, 400, p.tx, 23f))
-                            else {
-                                val think = remember(m.content) { Talker.reasoningOf(m.content) }
-                                if (think != null) ThinkingRow(think)
-                                Md(remember(m.content) { Talker.stripReasoning(m.content) })
+            // In a chat, consecutive messages of one speaker sit close together and a new run opens a little space;
+            // agent messages take the avatar column, and the run's first one shows the orb.
+            val gutter = lead != null && !mine
+            Row(Modifier.fillMaxWidth().padding(start = if (gutter) AVATAR_START else 14.dp, end = 14.dp,
+                top = when (lead) { null -> 4.dp; true -> 8.dp; false -> 1.dp }, bottom = if (lead == null) 4.dp else 1.dp)) {
+                if (gutter) {
+                    Box(Modifier.padding(top = 4.dp).width(AVATAR)) { if (lead == true) AgentOrb(AVATAR) }
+                    Spacer(Modifier.width(AVATAR_GAP))
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+                    if (m.kind == "steer" || m.kind == "queued") Text(if (m.kind == "steer") "STEER" else "QUEUED", style = mono(10.5f, 700, p.acct), modifier = Modifier.padding(end = 6.dp, bottom = 3.dp))
+                    val body = @Composable {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (a in atts) AttachmentView(a, mine)
+                            if (m.kind == "image" && m.meta.has("url")) TapToLoadImage(m.meta.str("url"))
+                            if (m.content.isNotBlank()) {
+                                if (mine) Text(m.content, style = sans(15.5f, 400, p.tx, 23f))
+                                else {
+                                    val think = remember(m.content) { Talker.reasoningOf(m.content) }
+                                    if (think != null) ThinkingRow(think)
+                                    Md(remember(m.content) { Talker.stripReasoning(m.content) })
+                                }
                             }
                         }
                     }
+                    if (mine) {
+                        // A follow-up bubble tucks its top corner under the one above.
+                        val shape = if (lead == false) RoundedCornerShape(22.dp, 6.dp, 6.dp, 22.dp) else RoundedCornerShape(22.dp, 22.dp, 6.dp, 22.dp)
+                        Box(Modifier.widthIn(max = 310.dp).clip(shape).background(if (m.kind == "steer") p.accd else p.s3)
+                            .reportable(m).padding(horizontal = 15.dp, vertical = 10.dp)) { body() }
+                    } else {
+                        Box(Modifier.fillMaxWidth().reportable(m).padding(horizontal = 6.dp, vertical = 4.dp)) { body() }
+                    }
+                    val u = if (mine) null else m.meta.optJSONObject("usage")
+                    if (u != null) UsageFooter(u, m.ts)
+                    else if (footer) Text(clock(m.ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                 }
-                if (mine) {
-                    Box(Modifier.widthIn(max = 310.dp).clip(RoundedCornerShape(22.dp, 22.dp, 6.dp, 22.dp)).background(if (m.kind == "steer") p.accd else p.s3)
-                        .reportable(m).padding(horizontal = 15.dp, vertical = 10.dp)) { body() }
-                } else {
-                    Box(Modifier.fillMaxWidth().reportable(m).padding(horizontal = 6.dp, vertical = 4.dp)) { body() }
-                }
-                val u = if (mine) null else m.meta.optJSONObject("usage")
-                if (u != null) UsageFooter(u, m.ts)
-                else if (footer) Text(clock(m.ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
             }
         }
     }

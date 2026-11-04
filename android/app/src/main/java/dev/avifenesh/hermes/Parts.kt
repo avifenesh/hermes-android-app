@@ -5,7 +5,6 @@ package dev.avifenesh.hermes
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -270,14 +269,22 @@ suspend fun uploadFile(f: File, mime: String, kind: String): JSONObject {
         checkpoint()
         // Snapshot files too: a recorder/caller may change the original between signing and retries.
         val snapshot = spoolUpload(f.inputStream(), Hub.app.cacheDir, checkpoint)
-        try { Api.upload(f.name, mime, snapshot, generation).put("kind", kind) }
+        try {
+            Api.upload(f.name, mime, snapshot, generation).put("kind", kind).also { a ->
+                // The sent voice bubble reads these bytes from the media cache instead of downloading them back.
+                if (kind == "voice" && a.str("id").isNotBlank()) runCatching { snapshot.copyTo(mediaCacheFile(Hub.app, a.str("id"), a.str("file_name")), overwrite = true) }
+            }
+        }
         finally { snapshot.delete() }
     }
 }
 
+/** Local copy of server media [name]. The key is the media id: two "app-release.apk" attachments must not collide. */
+fun mediaCacheFile(c: Context, name: String, fileName: String?): File =
+    File(mediaDir(c), name.replace('/', '_') + "_" + (fileName?.takeIf { it.isNotBlank() } ?: name).replace('/', '_'))
+
 suspend fun fetchMedia(c: Context, name: String, fileName: String?, size: Long? = null, progress: (Float) -> Unit = {}): File = withContext(Dispatchers.IO) {
-    // Cache key is the server media id: two "app-release.apk" attachments must not collide.
-    val f = File(mediaDir(c), name.replace('/', '_') + "_" + (fileName?.takeIf { it.isNotBlank() } ?: name).replace('/', '_'))
+    val f = mediaCacheFile(c, name, fileName)
     val expectedSize = size?.takeIf { it >= 0 }
     if (!f.exists() || f.length() == 0L || (expectedSize != null && f.length() != expectedSize))
         Api.download("/v1/media/" + Uri.encode(name), f, expectedSize, progress)
@@ -323,18 +330,6 @@ class Recorder(c: Context) {
         return try { r.stop(); file } catch (e: Exception) { file.delete(); null } finally { r.release() }
     }
     fun cancel() { if (recording) { stop(); file.delete() } }
-}
-
-object Player {
-    private var mp: MediaPlayer? = null
-    var playing = mutableStateOf<String?>(null)
-    fun toggle(key: String, f: File) {
-        val cur = playing.value
-        mp?.release(); mp = null; playing.value = null
-        if (cur == key) return
-        mp = MediaPlayer().apply { setDataSource(f.absolutePath); setOnCompletionListener { playing.value = null; it.release(); if (mp === it) mp = null }; prepare(); start() }
-        playing.value = key
-    }
 }
 
 object Img {
@@ -760,6 +755,7 @@ fun iconLabel(v: ImageVector): String = when (v) {
     Ic.send -> "Send"
     Ic.stop -> "Stop"
     Ic.play -> "Run"
+    Ic.pause -> "Pause"
     Ic.mic -> "Microphone"
     Ic.camera -> "Camera"
     Ic.search -> "Search"
@@ -932,23 +928,12 @@ fun Empty(title: String, sub: String) {
 
 @Composable
 fun AttachmentView(a: JSONObject, mine: Boolean) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val id = a.str("id").ifBlank { a.str("media") }
     val kind = a.str("kind")
     val mime = a.str("mime")
     when {
         kind == "image" || mime.startsWith("image/") -> RemoteImage(id)
-        kind == "voice" || mime.startsWith("audio/") -> {
-            val playing = Player.playing.value == id
-            Row(Modifier.clip(RoundedCornerShape(18.dp)).background(if (mine) P.s4 else P.s2).clickable {
-                scope.launch { runCatching { Player.toggle(id, fetchMedia(ctx, id, a.str("file_name"))) }.onFailure { Ui.say(it.message) } }
-            }.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icn(if (playing) Ic.stop else Ic.play, P.acct, 16.dp)
-                Spacer(Modifier.width(10.dp))
-                Text(if (playing) "Playing…" else "Voice message", style = sans(14f, 500, P.tx))
-            }
-        }
+        kind == "voice" || mime.startsWith("audio/") -> VoiceBubble(a, mine)
         else -> FileChip(a, id, mime, mine)
     }
 }
