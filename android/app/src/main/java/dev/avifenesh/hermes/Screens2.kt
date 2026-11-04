@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -104,7 +105,7 @@ fun PulseScreen() {
             }
         }
         item { Box(Modifier.clickable { Ui.push(Route.UsageR) }) { SpendBars(pulse) } }
-        item { Section(stringResource(R.string.pulse_needs_you), if (pending.isEmpty()) stringResource(R.string.pulse_needs_you_nothing) else pending.size.toString(), if (pending.isEmpty()) p.mu else p.att) }
+        item { Section(stringResource(R.string.pulse_needs_you), if (pending.isEmpty()) stringResource(R.string.pulse_needs_you_nothing) else Fmt.int(pending.size), if (pending.isEmpty()) p.mu else p.att) }
         if (pending.isEmpty()) item { Text(stringResource(R.string.pulse_no_approvals), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
         items(pending, key = { "a" + it.id }) { a ->
             val m = Msg("x" + a.id, a.chatId, "agent", "approval", "", JSONObject().put("approval_id", a.id), a.ts, 0)
@@ -114,7 +115,7 @@ fun PulseScreen() {
             }
         }
         item { FleetSection() }
-        item { Section(stringResource(R.string.pulse_hermes_runs, HERMES), if (work.isEmpty() && live.isEmpty()) stringResource(R.string.pulse_runs_idle) else (work.size + live.size).toString(), if (work.isEmpty()) p.mu else p.acct) }
+        item { Section(stringResource(R.string.pulse_hermes_runs, HERMES), if (work.isEmpty() && live.isEmpty()) stringResource(R.string.pulse_runs_idle) else Fmt.int(work.size + live.size), if (work.isEmpty()) p.mu else p.acct) }
         items(work.entries.toList(), key = { "w" + it.key }) { (cid, since) ->
             ListRow({ LiveDot(9.dp) }, chats[cid]?.title ?: stringResource(R.string.pulse_run_fallback), stringResource(R.string.pulse_run_from_phone), { Elapsed(since, mono(13f, 600, p.acct)) }, { Ui.push(Route.RunR(cid)) })
         }
@@ -208,7 +209,7 @@ fun CronScreen() {
                 }
             }
         }
-        item { Section(stringResource(R.string.cron_section_active), on.size.toString()) }
+        item { Section(stringResource(R.string.cron_section_active), Fmt.int(on.size)) }
         items(on, key = { it.str("id") }) { j -> JobRow(j) { scope.launch { load() } } }
         if (off.isNotEmpty()) {
             item { Row(Modifier.clickable { showOff = !showOff }) { Section(stringResource(R.string.cron_section_paused), if (showOff) stringResource(R.string.cron_paused_hide) else stringResource(R.string.cron_paused_show, off.size)) } }
@@ -309,8 +310,9 @@ fun JobScreen(id: String) {
 @Composable
 fun KV(k: String, v: String) {
     Row {
-        Text(k, style = mono(12.5f, 500, P.mu), modifier = Modifier.width(76.dp))
-        Text(v, style = mono(12.5f, 500, P.tx))
+        // The label column grows for a long translated label and always keeps a gap before the value.
+        Text(k, style = mono(12.5f, 500, P.mu), modifier = Modifier.widthIn(min = 76.dp).padding(end = 10.dp))
+        Text(v, style = mono(12.5f, 500, P.tx), modifier = Modifier.weight(1f))
     }
 }
 
@@ -804,7 +806,7 @@ fun PhoneSettingsScreen() {
                 else -> {
                 // Revoked devices are history (test pairings, old phones); only the live ones matter here.
                 val shown = devices.filter { it.optInt("revoked") == 0 }
-                item { Section(stringResource(R.string.phone_settings_devices), shown.size.toString()) }
+                item { Section(stringResource(R.string.phone_settings_devices), Fmt.int(shown.size)) }
                 item {
                     Panel {
                         shown.forEachIndexed { i, d ->

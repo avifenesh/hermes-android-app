@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -240,7 +241,7 @@ fun HubSkillsTab(prof: String) {
             }
             Text(if (scope == "discover") stringResource(R.string.hub_discover_hint, Mk.shownProfile()) else stringResource(R.string.hub_installed_hint, Mk.shownProfile()),
                 style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
-            Section(if (remote) stringResource(R.string.hub_search_results) else if (scope == "installed") stringResource(R.string.hub_installed_skills) else stringResource(R.string.hub_browse_skills), if (searching) stringResource(R.string.hub_searching) else list.size.toString())
+            Section(if (remote) stringResource(R.string.hub_search_results) else if (scope == "installed") stringResource(R.string.hub_installed_skills) else stringResource(R.string.hub_browse_skills), if (searching) stringResource(R.string.hub_searching) else Fmt.int(list.size))
             if (scope == "installed" && managed.isNotEmpty()) {
                 Btn(if (checking) stringResource(R.string.common_checking) else stringResource(R.string.hub_check_updates), Modifier.padding(horizontal = 16.dp), primary = false, enabled = !checking) {
                     co.launch {
@@ -359,7 +360,7 @@ fun ConfirmDialog(title: String, body: @Composable () -> Unit, yes: String, dang
 private fun KVLine(k: String, v: String?) {
     if (v.isNullOrBlank()) return
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-        Text(k, style = mono(12f, 500, P.mu), modifier = Modifier.width(96.dp))
+        Text(k, style = mono(12f, 500, P.mu), modifier = Modifier.widthIn(min = 96.dp).padding(end = 10.dp))
         Text(v, style = mono(12f, 500, P.tx2), modifier = Modifier.weight(1f))
     }
 }
@@ -479,7 +480,7 @@ fun HubSkillScreen(ident: String) {
                 }
                 val files = o.optJSONArray("files").strs()
                 if (files.isNotEmpty()) item {
-                    Section(stringResource(R.string.hub_files), files.size.toString())
+                    Section(stringResource(R.string.hub_files), Fmt.int(files.size))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (f in files.take(60)) Chip(f) }
                 }
                 val md = o.str("skill_md").let { if (it.startsWith("---")) it.substringAfter("\n---", it).removePrefix("\n") else it }
@@ -535,7 +536,7 @@ fun HubPluginsTab() {
                 Chip(stringResource(R.string.hub_all_categories), cat == "all") { cat = "all" }
                 for (c in cats) Chip(HubLogic.pretty(c), cat == c) { cat = c }
             }
-            Section(if (scope == "discover") stringResource(R.string.hub_available_plugins) else if (scope == "installed") stringResource(R.string.hub_installed_plugins) else stringResource(R.string.hub_all_plugins), list.size.toString())
+            Section(if (scope == "discover") stringResource(R.string.hub_available_plugins) else if (scope == "installed") stringResource(R.string.hub_installed_plugins) else stringResource(R.string.hub_all_plugins), Fmt.int(list.size))
         }
         if (data == null) item { Loading(err) { retry++ } }
         else if (list.isEmpty()) item { Empty(stringResource(R.string.hub_nothing_here), stringResource(R.string.hub_try_another_shelf)) }
@@ -555,7 +556,7 @@ fun HubPluginsTab() {
             }
         }
         data?.optJSONArray("removed").objList().takeIf { scope != "discover" && it.isNotEmpty() }?.let { rm ->
-            item { Section(stringResource(R.string.hub_pulled_from_catalog), rm.size.toString()) }
+            item { Section(stringResource(R.string.hub_pulled_from_catalog), Fmt.int(rm.size)) }
             items(rm) { r -> Text("${r.str("name")}: ${r.str("reason")}", style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 3.dp)) }
         }
         item { Spacer(Modifier.height(30.dp)) }
@@ -702,7 +703,7 @@ fun HubMcpTab() {
             InputBox(q, { q = it }, pluralStringResource(R.plurals.hub_search_mcp_servers, all.size, all.size), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
             Text(stringResource(R.string.hub_mcp_intro), style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
-            Section(if (scope == "discover") stringResource(R.string.hub_available_servers) else if (scope == "installed") stringResource(R.string.hub_installed_servers) else stringResource(R.string.hub_all_servers), list.size.toString())
+            Section(if (scope == "discover") stringResource(R.string.hub_available_servers) else if (scope == "installed") stringResource(R.string.hub_installed_servers) else stringResource(R.string.hub_all_servers), Fmt.int(list.size))
         }
         if (data == null) item { Loading(err) { retry++ } }
         else if (list.isEmpty()) item {
