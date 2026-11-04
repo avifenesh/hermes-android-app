@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Edition-specific settings and files ================= -->
+    <string name="widget_label">Flota de Herms</string>
+
+    <!-- ===== This phone settings (Play edition) ===== -->
+    <string name="channel_control_unavailable_title">No disponible en esta edición</string>
+    <string name="channel_control_unavailable_body">Esta edición de Play no puede leer ni manejar otras apps. Los comandos remotos no pueden activar esta función.</string>
+    <string name="channel_background_title">Entrega en segundo plano</string>
+    <string name="channel_background_body">La optimización de batería de Android sigue activada. Las notificaciones push (si están configuradas) y la sincronización periódica siguen disponibles; la entrega en segundo plano puede retrasarse.</string>
+
+    <!-- ===== Opening attachments (Play edition) ===== -->
+    <string name="channel_apk_unavailable">La instalación de adjuntos APK no está disponible en esta edición de Play. Aún puedes guardar el archivo en Descargas.</string>
+</resources>
