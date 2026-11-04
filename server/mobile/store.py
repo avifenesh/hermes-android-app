@@ -129,7 +129,8 @@ class Store:
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.executescript(_SCHEMA)
-        for tbl, col in (("devices", "pub"), ("devices", "apub"), ("chats", "profile"), ("approvals", "request_id"), ("devices", "nolock")):
+        for tbl, col in (("devices", "pub"), ("devices", "apub"), ("chats", "profile"), ("approvals", "request_id"), ("devices", "nolock"),
+                         ("pair_codes", "device_id")):
             try:
                 self._db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} TEXT DEFAULT ''")
             except sqlite3.OperationalError:
@@ -430,22 +431,44 @@ class Store:
         return code
 
     def claim_pair_code(self, code: str, device_name: str, pub: str = "", apub: str = "",
-                        nolock: bool = False) -> Optional[Dict[str, str]]:
+                        nolock: bool = False, proven: bool = False) -> Optional[Dict[str, str]]:
+        """Redeem a one-time code for a new device.
+
+        ``proven`` means the caller verified a fresh signature by ``pub``'s private key. Only then may a code that
+        is already used, and not expired, be redeemed again, and only by the device it created with the same keys:
+        that device gets a new token (the old one stops working) instead of a second device row. This is the phone
+        retrying after it lost the first response. Any other key, a revoked device or an expired code still fails.
+        """
         with self._lock:
-            row = self._db.execute("SELECT * FROM pair_codes WHERE code_hash=?", (sha(code or ""),)).fetchone()
-            if not row or row["used"] or row["expires"] < time.time():
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                res = self._claim_pair_code(code, device_name, pub, apub, nolock, proven)
+                self._db.execute("COMMIT")
+                return res
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
+    def _claim_pair_code(self, code, device_name, pub, apub, nolock, proven) -> Optional[Dict[str, str]]:
+        # One write transaction: the pairing CLI and the gateway are separate processes on one DB, so check-then-set
+        # races. BEGIN IMMEDIATE holds the write lock from the read on.
+        now = time.time()
+        row = self._db.execute("SELECT * FROM pair_codes WHERE code_hash=?", (sha(code or ""),)).fetchone()
+        if not row or row["expires"] < now:
+            return None
+        token = "hmd_" + secrets.token_urlsafe(32)
+        if row["used"]:
+            did = row["device_id"] or ""
+            if not (proven and did and pub and apub):
                 return None
-            # Atomic claim: the pairing CLI and the gateway are separate processes on one DB, so check-then-set races.
-            cur = self._db.execute("UPDATE pair_codes SET used=1 WHERE code_hash=? AND used=0 AND expires>=?",
-                                   (row["code_hash"], time.time()))
-            if cur.rowcount != 1:
-                return None
-            token = "hmd_" + secrets.token_urlsafe(32)
-            did = new_id("d")
-            self._db.execute("INSERT INTO devices(id,name,token_hash,created,last_seen,pub,apub,nolock) VALUES(?,?,?,?,?,?,?,?)",
-                             (did, (device_name or "phone")[:60], sha(token), time.time(), time.time(), pub, apub,
-                              "1" if nolock else ""))
-            return {"device_id": did, "token": token}
+            cur = self._db.execute("UPDATE devices SET token_hash=?, last_seen=? WHERE id=? AND revoked=0 AND pub=? AND apub=?",
+                                   (sha(token), now, did, pub, apub))
+            return {"device_id": did, "token": token} if cur.rowcount == 1 else None
+        did = new_id("d")
+        self._db.execute("UPDATE pair_codes SET used=1, device_id=? WHERE code_hash=?", (did, row["code_hash"]))
+        self._db.execute("INSERT INTO devices(id,name,token_hash,created,last_seen,pub,apub,nolock) VALUES(?,?,?,?,?,?,?,?)",
+                         (did, (device_name or "phone")[:60], sha(token), now, now, pub, apub, "1" if nolock else ""))
+        return {"device_id": did, "token": token}
 
     def device_for_token(self, token: str) -> Optional[Dict[str, Any]]:
         if not token:

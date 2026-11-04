@@ -67,6 +67,28 @@ is consumed before the Kitty action; a failed/stale action still needs a new
 confirmation to retry. This domain is separate from the existing `fleet` text-reply
 proof, so those proofs cannot authorize terminal input.
 
+## Pairing retry
+
+A one-time pairing code is redeemed once. If the phone loses the response (the
+screen is recreated, the network drops), it retries the same code with the same
+device keys and a request signature over the pairing request:
+
+```text
+POST\n/v1/pair\ntimestamp_seconds\nsha256(exact_raw_JSON_body_bytes)
+```
+
+The server verifies it with the `pub` in the body and consumes it in a separate
+`pair` replay domain. Only then may a used, unexpired code be redeemed again, and
+only for the device it created, with the same `pub` and `apub`, while that device
+is not revoked. That device gets a new token and the previous token stops working;
+no second device row is created. A different key, a missing or replayed proof, a
+revoked device or an expired code still gets 403. A first redemption needs no
+proof, so older apps pair as before.
+
+```sh
+"$HERMES_PYTHON" scripts/pair_retry_integration.py
+```
+
 ## Compatibility and limits
 
 No nonce header, canonical-message change, Android edit or key rotation is

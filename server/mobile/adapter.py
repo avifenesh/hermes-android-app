@@ -554,12 +554,23 @@ class MobileAdapter(BasePlatformAdapter):
         allhits = [t for v in self._pair_hits.values() for t in v if time.time() - t < 300]
         if len(allhits) > 40:  # spread across IPs (CF-Connecting-IP is client-controlled off the tunnel): global cap
             return self._json({"error": "too many attempts"}, 429)
-        body = await request.json()
+        raw = await request.read()
+        try:
+            body = json.loads(raw or b"{}")
+        except ValueError:
+            return self._json({"error": "bad request"}, 400)
+        if not isinstance(body, dict):
+            return self._json({"error": "bad request"}, 400)
         pub, apub = str(body.get("pub") or ""), str(body.get("apub") or "")
         if not (SG.load_pub(pub) and SG.load_pub(apub)):
             return self._json({"error": "device keys required (P-256 SPKI, base64)"}, 400)
+        # A retry of an already redeemed code must prove the request key, with the same canonical signature and
+        # durable single-use claim as every authenticated request (separate "pair" domain). First claims need none.
+        ts, sig = request.headers.get("X-HM-Ts", ""), request.headers.get("X-HM-Sig", "")
+        proven = bool(sig) and self._replay.fresh(sig, pub=pub, msg=SG.canonical(request.method, request.raw_path, ts, raw),
+                                                  ts=ts, scope="pair", store=self.store)
         res = self.store.claim_pair_code(str(body.get("code", "")), str(body.get("device_name", "phone")), pub, apub,
-                                         nolock=body.get("lock") is False)
+                                         nolock=body.get("lock") is False, proven=proven)
         if not res:
             return self._json({"error": "invalid or expired code"}, 403)
         logger.info("[mobile] paired device %s", res["device_id"])
