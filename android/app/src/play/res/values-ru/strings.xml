@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Агенты Herms</string>
+    <string name="channel_control_unavailable_title">Недоступно в этой версии</string>
+    <string name="channel_control_unavailable_body">Версия для Play не может читать другие приложения или управлять ими. Удалённые команды не могут включить эту возможность.</string>
+    <string name="channel_background_title">Фоновая доставка</string>
+    <string name="channel_background_body">Оптимизация батареи Android остаётся включённой. Push-уведомления (если настроены) и периодическая синхронизация работают; фоновая доставка может задерживаться.</string>
+    <string name="channel_apk_unavailable">Установка APK из вложений недоступна в версии для Play. Файл можно сохранить в «Загрузки».</string>
+</resources>
