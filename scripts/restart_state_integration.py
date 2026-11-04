@@ -27,31 +27,18 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-SCRATCH = Path.home() / ".hermes/cache/scratch"
-SCRATCH.mkdir(parents=True, exist_ok=True)
-# hermes_bootstrap may re-exec this script under the managed runtime (os.execv), which skips exit handlers. The
-# re-run adopts the isolated home its first run made instead of orphaning it; either run removes it at exit.
-# A --child is a separate gateway process: the parent starts it without HERMES_HOME, so it never adopts this one.
-_prior = Path(os.environ.get("HERMES_HOME") or SCRATCH)
-_home = (str(_prior) if _prior.parent == SCRATCH and _prior.name.startswith("restart-state-") and _prior.is_dir()
-         else tempfile.mkdtemp(prefix="restart-state-", dir=SCRATCH))
-atexit.register(shutil.rmtree, _home, ignore_errors=True)
-_HOME = SimpleNamespace(name=_home, cleanup=lambda: shutil.rmtree(_home, ignore_errors=True))
-if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
-    raise RuntimeError("Run directly in a fresh managed-Python process")
-os.environ["HERMES_HOME"] = _HOME.name
-os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
-os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
-assert Path(_HOME.name).resolve() != (Path.home() / ".hermes").resolve()
-sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
-import hermes_bootstrap  # noqa: E402,F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Its own Hermes root outside ~/.hermes; may relaunch once into Hermes' dependency environment.
+from isolated_home import enter  # noqa: E402
+_HOME = enter("restart-state-")
+# A --child is a separate gateway process: the parent starts it without HERMES_HOME, so it makes its own home.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 from aiohttp import web  # noqa: E402
 from aiohttp.test_utils import TestClient, TestServer  # noqa: E402
 from cryptography.hazmat.primitives import hashes, serialization  # noqa: E402
 from cryptography.hazmat.primitives.asymmetric import ec  # noqa: E402
-from mobile import adapter as AD, control as C, market as MK, sig as SG, store as S  # noqa: E402
+from mobile import adapter as AD, control as C, market as MK, rooms as RM, sig as SG, store as S  # noqa: E402
 
 assert S.data_dir().resolve().is_relative_to(Path(_HOME.name).resolve())
 
@@ -63,6 +50,7 @@ def adapter(db: Path):
     ad.gateway_runner = None
     ad._public_url = ""
     ad._selfcheck = SimpleNamespace(last=None)
+    ad._rooms = RM.Rooms(ad)  # /v1/me reports features.rooms (no runner here: unsupported)
     return ad
 
 
