@@ -7,7 +7,7 @@
   "support_email": "hello@tiyuvta.ai",
   "website": "https://github.com/avifenesh/hermes-android-app",
   "proposed_package": "dev.avifenesh.hermes.play",
-  "privacy_policy_url": null,
+  "privacy_policy_url": "https://hermes-android-reports.aviarchi1994.workers.dev/privacy",
   "owner_approval_required": [
     "final title/package",
     "Play App Signing choice",
@@ -17,6 +17,9 @@
   "assets": {
     "icon": "assets/icon-512.png",
     "feature_graphic": "assets/feature-1024x500.png",
-    "phone_screenshots": []
+    "phone_screenshots": [
+      "assets/phone-01-inbox.png",
+      "assets/phone-02-chat.png"
+    ]
   }
 }
