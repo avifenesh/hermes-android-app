@@ -154,5 +154,27 @@ class BundleSignatureTests(unittest.TestCase):
         with self.assertRaises((AssertionError, RuntimeError)):
             qualify.verify_bundle_signature(str(JAVA_BIN / 'jarsigner'), self.jar('partial.aab', extra_unsigned=True), self.dir / 'partial.log')
 
+
+class BundleRegenerationTests(unittest.TestCase):
+    def apk(self, entries):
+        d = Path(tempfile.mkdtemp(prefix='qualify-regen-test-'))
+        self.addCleanup(shutil.rmtree, d)
+        path = d / 'x.apk'
+        with zipfile.ZipFile(path, 'w') as z:
+            for name, data in entries.items():
+                z.writestr(name, data)
+        return path
+
+    def test_signature_files_ignored_payload_must_match(self):
+        a = qualify.unsigned_payload(self.apk({'classes.dex': b'd', 'res/x': b'r', 'META-INF/A.SF': b'1'}))
+        b = qualify.unsigned_payload(self.apk({'classes.dex': b'd', 'res/x': b'r', 'META-INF/B.RSA': b'2'}))
+        qualify.same_payload(a, b)
+
+    def test_changed_or_extra_entries_rejected(self):
+        base = qualify.unsigned_payload(self.apk({'classes.dex': b'd', 'resources.arsc': b'r'}))
+        for other in ({'classes.dex': b'd', 'resources.arsc': b'R'}, {'classes.dex': b'd', 'resources.arsc': b'r', 'lib/x.so': b's'}, {'classes.dex': b'd'}):
+            with self.assertRaises(AssertionError):
+                qualify.same_payload(base, qualify.unsigned_payload(self.apk(other)))
+
 if __name__ == '__main__':
     unittest.main()
