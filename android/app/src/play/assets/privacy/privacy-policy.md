@@ -1,4 +1,4 @@
-# Hermes for Android: Google Play privacy policy
+# Herms for Hermes Agent: Google Play privacy policy
 
 Prepared 2026-11-04 for the **0.16.16 candidate**, package **dev.avifenesh.hermes.play**. This candidate has not been submitted to Google Play. Developer: **Avi Fenesh / Tiyuvta**. Privacy and support: **hello@tiyuvta.ai**.
 

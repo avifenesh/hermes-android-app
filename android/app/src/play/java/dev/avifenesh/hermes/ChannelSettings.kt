@@ -7,7 +7,7 @@ internal fun phoneSettingsTabs() = listOf("look" to "Look", "voice" to "Voice", 
 
 // A restored/stale route is an explicit unsupported state, never an arming surface.
 internal fun LazyListScope.channelControlSettings() {
-    item { Panel { SettingRow("Unavailable in this edition", "This Play preview cannot read or operate other apps. Remote commands cannot enable this capability.") {} } }
+    item { Panel { SettingRow("Unavailable in this edition", "This Play edition cannot read or operate other apps. Remote commands cannot enable this capability.") {} } }
 }
 
 @Composable

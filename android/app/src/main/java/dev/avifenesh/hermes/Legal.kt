@@ -70,7 +70,7 @@ fun PrivacyScreen() {
     var retry by remember { mutableStateOf(0) }
     val appContext = remember(context) {
         val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-        "Hermes for Android $version\nPackage: ${context.packageName}"
+        "$EDITION_NAME $version\nPackage: ${context.packageName}"
     }
     LaunchedEffect(context, retry) {
         failed = false

@@ -713,7 +713,7 @@ fun MeScreen() {
         item { Panel { NavRow(Ic.book, "Licenses", "Offline notices, model restrictions and full license texts") { Ui.push(Route.LegalR()) } } }
         item { ReportProblemRow() }
         item {
-            Text("Hermes for Android " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(),
+            Text("$EDITION_NAME " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(),
                 style = mono(11.5f, 500, p.dim), modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp))
         }
     }
@@ -835,7 +835,7 @@ fun PhoneSettingsScreen() {
                         Column(Modifier.padding(20.dp)) {
                             Btn("Unpair this phone", Modifier.fillMaxWidth(), danger = true) { unpair = true }
                             Spacer(Modifier.height(18.dp))
-                            Text("Hermes for Android " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(), style = mono(11.5f, 500, p.dim))
+                            Text("$EDITION_NAME " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(), style = mono(11.5f, 500, p.dim))
                         }
                     }
                 }

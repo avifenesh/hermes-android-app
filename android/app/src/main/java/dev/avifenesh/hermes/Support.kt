@@ -197,7 +197,7 @@ internal fun SupportDialog(
     }
     val diagnostics = remember(request.id) {
         buildString {
-            append("App: Hermes for Android ").append(runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty())
+            append("App: $EDITION_NAME ").append(runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty())
             append("\nPackage: ").append(ctx.packageName)
             append("\nAndroid: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(')')
             append("\nDevice: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)

@@ -19,7 +19,7 @@ def main() -> None:
     text = source.read_text()
     assert text == (ROOT / 'android/app/src/play/assets/privacy/privacy-policy.md').read_text()
     body = markdown.markdown(text, extensions=['tables'])
-    page = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hermes for Android: privacy</title><link rel="stylesheet" href="/style.css"></head><body><header>HERMES / ANDROID</header><main>' + body + '<p class="footer"><a href="/delete">Report-data deletion</a></p></main></body></html>\n'
+    page = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Herms for Hermes Agent: privacy</title><link rel="stylesheet" href="/style.css"></head><body><header>HERMES / ANDROID</header><main>' + body + '<p class="footer"><a href="/delete">Report-data deletion</a></p></main></body></html>\n'
     (ROOT / 'report-worker/privacy.html').write_text(page)
     print(json.dumps({'policy_markdown_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
                       'privacy_html_sha256': hashlib.sha256(page.encode()).hexdigest(),
