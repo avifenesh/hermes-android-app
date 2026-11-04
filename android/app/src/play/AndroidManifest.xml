@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <!-- User-granted special access on every supported API, never the core-alarm exemption. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- The alarm sound runs as systemExempted: documented for apps holding exact-alarm access that use the
+         service to continue alarms. WakeService starts only while that access is granted. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <!-- Defense against permissions accidentally introduced by a dependency manifest. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
@@ -9,7 +12,9 @@
     <!-- Photos come from the camera app (ACTION_IMAGE_CAPTURE), which needs no grant while CAMERA is undeclared.
          Lint reads this removal as a declaration; the merged manifest has no CAMERA permission. -->
     <uses-permission android:name="android.permission.CAMERA" tools:node="remove" tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove" />
     <application android:label="Herms" tools:replace="android:label">
         <receiver android:name=".FleetWidget" android:label="Herms fleet" tools:replace="android:label" />
+        <service android:name=".WakeService" android:foregroundServiceType="systemExempted" tools:replace="android:foregroundServiceType" />
     </application>
 </manifest>

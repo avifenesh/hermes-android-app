@@ -543,7 +543,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow("Exact alarms are off", "Local alarms are not scheduled. Allow exact alarms before relying on Wake.") {
+                    SettingRow("Exact alarms are off", WAKE_EXACT_OFF) {
                         Btn("Allow", primary = false) { settings(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))) }
                     }
                 }
@@ -721,6 +721,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                             }
                         }
                         Btn("Test the alarm now", Modifier.fillMaxWidth()) {
+                            if (!Wake.canRing(ctx)) { Ui.say("Allow exact alarms first. Wake can't ring without them."); return@Btn }
                             scope.launch {
                                 runCatching { Wake.request(ticket, "/v1/wake/test", "POST") }.onSuccess { Wake.session.value = it.optJSONObject("session"); WakeService.start(ctx, "check") }.onFailure { Ui.say(it.message) }
                             }

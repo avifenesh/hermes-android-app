@@ -10,7 +10,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -197,6 +196,19 @@ object Wake {
 
     fun canExact(c: Context) = am(c).canScheduleExactAlarms()
 
+    /** Whether this edition may start the alarm service now (Play: only with exact-alarm access). */
+    fun canRing(c: Context) = wakeServiceAllowed(canExact(c))
+
+    /** A pushed ring the alarm service may not start for: tell the user instead of failing silently. */
+    private fun notifyCantRing(c: Context) {
+        val open = PendingIntent.getActivity(c, 103, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PI)
+        val n = NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
+            .setContentTitle("Wake can't ring").setContentText("Allow exact alarms in $APP_NAME so Wake alarms can ring.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setContentIntent(open).setAutoCancel(true).build()
+        Notify.post(c, 103, n)
+    }
+
     fun notificationsReady(c: Context): Boolean {
         val nm = c.getSystemService(NotificationManager::class.java)
         return nm.areNotificationsEnabled() && (nm.getNotificationChannel(CH)?.importance ?: 0) >= NotificationManager.IMPORTANCE_HIGH
@@ -234,7 +246,7 @@ object Wake {
     fun onPush(c: Context, action: String) {
         val ticket = Api.epoch.capture()
         when (action) {
-            "ring", "checkin" -> WakeService.start(c, "check", ticket)
+            "ring", "checkin" -> if (!WakeService.start(c, "check", ticket) && Prefs.paired && !canRing(c)) notifyCantRing(c)
             "done", "content" -> if (WakeService.running) WakeService.start(c, "check", ticket)
             else -> Hub.scope.launch { try { refresh(c, ticket) } catch (e: CancellationException) { throw e } catch (_: Exception) { } }
         }
@@ -268,7 +280,7 @@ class WakeService : Service() {
         val ticket = Api.epoch.capture()
         active = this
         try {
-            ServiceCompat.startForeground(this, 9, note("Prove you're awake"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            ServiceCompat.startForeground(this, 9, note("Prove you're awake"), WAKE_FGS_TYPE)
         } catch (e: RuntimeException) {
             Log.w("hermes", "wake foreground start rejected", e)
             finish(); return@synchronized START_NOT_STICKY
@@ -403,12 +415,13 @@ class WakeService : Service() {
             c.stopService(Intent(c, WakeService::class.java))
         }
 
-        fun start(c: Context, action: String, ticket: Long = Api.epoch.capture()) {
-            Api.epoch.commit(ticket) {
-                if (!Prefs.paired) return@commit
-                runCatching { ContextCompat.startForegroundService(c, Wake.intent(c, action)) }
-                    .onFailure { Log.w("hermes", "wake service start failed: ${it.message}") }
-            }
+        /** False when nothing was started: unpaired, a stale ticket, the edition's prerequisite, or Android refused. */
+        fun start(c: Context, action: String, ticket: Long = Api.epoch.capture()): Boolean = Api.epoch.commit(ticket) {
+            if (!Prefs.paired) return@commit false
+            // Gate before startForegroundService: a service that then cannot call startForeground crashes the app.
+            if (!Wake.canRing(c)) { Log.w("hermes", "wake service not started: exact alarms are off"); return@commit false }
+            runCatching { ContextCompat.startForegroundService(c, Wake.intent(c, action)) }
+                .onFailure { Log.w("hermes", "wake service start failed: ${it.message}") }.isSuccess
         }
     }
 }
