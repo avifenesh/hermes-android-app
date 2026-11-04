@@ -10,3 +10,15 @@ internal fun approvalResumesRun(resolved: Int?, state: String): Boolean = when {
     resolved != null -> resolved > 0
     else -> state == "approved" || state == "denied"
 }
+
+/**
+ * The app's own label for an approval scope the gateway offers, so the buttons follow the phone's language rather
+ * than the gateway's. Null for a scope the app does not know: that one keeps the label the gateway sent.
+ */
+internal fun approvalChoiceLabel(choice: String): Int? = when (choice) {
+    "once" -> R.string.session_allow_once
+    "session" -> R.string.session_allow_session
+    "always" -> R.string.session_allow_always
+    "deny" -> R.string.common_deny
+    else -> null
+}

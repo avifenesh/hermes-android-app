@@ -1,6 +1,8 @@
 package dev.avifenesh.hermes
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,5 +24,14 @@ class ApprovalResumeTest {
     @Test fun anOlderGatewayWithoutACountFollowsDecidedStates() {
         assertTrue(approvalResumesRun(resolved = null, state = "approved"))
         assertTrue(approvalResumesRun(resolved = null, state = "denied"))
+    }
+
+    @Test fun theGatewayScopesShowInThePhonesLanguage() {
+        // The gateway labels its buttons in its own language ("Approve once"); the card shows the app's strings.
+        assertEquals(R.string.session_allow_once, approvalChoiceLabel("once"))
+        assertEquals(R.string.session_allow_session, approvalChoiceLabel("session"))
+        assertEquals(R.string.session_allow_always, approvalChoiceLabel("always"))
+        assertEquals(R.string.common_deny, approvalChoiceLabel("deny"))
+        assertNull("a scope the app does not know keeps the gateway's label", approvalChoiceLabel("forever-ish"))
     }
 }

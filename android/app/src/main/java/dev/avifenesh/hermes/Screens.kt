@@ -211,7 +211,7 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
                     Text(sub, style = sans(14f, 400, when { needs -> p.att; live -> p.acct; else -> p.mu }), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (c.unread > 0) {
                         Spacer(Modifier.width(8.dp))
-                        Text(c.unread.coerceAtMost(99).toString(), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
+                        Text(Fmt.int(c.unread.coerceAtMost(99)), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
                     }
                 }
             }
@@ -687,6 +687,10 @@ fun ApprovalContext(meta: JSONObject, pending: Boolean) {
     }
 }
 
+/** An approval button in the phone's language; a scope the app does not know shows the gateway's label. */
+@Composable
+private fun actLabel(a: Act): String = approvalChoiceLabel(a.choice)?.let { stringResource(it) } ?: a.label
+
 @Composable
 fun ApprovalCard(a: Appr?, m: Msg) {
     val p = P
@@ -708,7 +712,7 @@ fun ApprovalCard(a: Appr?, m: Msg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icn(Ic.shield, if (pending) p.att else p.mu, 18.dp)
             Spacer(Modifier.width(8.dp))
-            Text(when (state) { "pending" -> stringResource(R.string.approval_needs_you); "approved" -> stringResource(R.string.approval_approved) + (a?.choice?.takeIf { it != "once" }?.let { " · $it" } ?: ""); "denied" -> stringResource(R.string.approval_denied); else -> stringResource(R.string.approval_expired) },
+            Text(when (state) { "pending" -> stringResource(R.string.approval_needs_you); "approved" -> stringResource(R.string.approval_approved) + (a?.choice?.takeIf { it != "once" }?.let { " · " + (approvalChoiceLabel(it)?.let { r -> stringResource(r) } ?: it) } ?: ""); "denied" -> stringResource(R.string.approval_denied); else -> stringResource(R.string.approval_expired) },
                 style = sans(14.5f, 650, if (pending) p.att else p.mu))
             Spacer(Modifier.weight(1f))
             Text(clock(m.ts), style = mono(11f, 500, p.mu))
@@ -727,12 +731,12 @@ fun ApprovalCard(a: Appr?, m: Msg) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val main = acts.filter { it.choice != "deny" }
                 val first = main.firstOrNull()
-                if (first != null) Btn(if (busy) "…" else first.label, Modifier.weight(1f), enabled = !busy) { go(first.choice) }
+                if (first != null) Btn(if (busy) "…" else actLabel(first), Modifier.weight(1f), enabled = !busy) { go(first.choice) }
                 Btn(stringResource(R.string.common_deny), Modifier.weight(1f), danger = true, enabled = !busy) { go("deny") }
             }
             val rest = acts.filter { it.choice != "deny" }.drop(1).filter { !Prefs.noLock || it.choice == "once" }
             if (rest.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (x in rest) Btn(x.label, Modifier.weight(1f), primary = false, enabled = !busy) { go(x.choice) }
+                for (x in rest) Btn(actLabel(x), Modifier.weight(1f), primary = false, enabled = !busy) { go(x.choice) }
             }
         }
     }
@@ -780,7 +784,7 @@ fun RunScreen(cid: String) {
                     RunUsage(liveTurn ?: info?.optJSONObject("usage"), info?.optJSONObject("session"), Hub.meta.collectAsState().value.str("name"))
                 }
             }
-            item { Section(stringResource(R.string.run_steps), if (steps.isEmpty()) null else "${steps.size}") }
+            item { Section(stringResource(R.string.run_steps), if (steps.isEmpty()) null else Fmt.int(steps.size)) }
             if (steps.isEmpty()) item { Text(if (since != null) stringResource(R.string.run_waiting_first_call) else stringResource(R.string.run_no_calls), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
             items(steps.size) { i ->
                 val s = steps[i]
