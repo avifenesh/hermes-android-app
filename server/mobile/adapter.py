@@ -396,8 +396,9 @@ class MobileAdapter(BasePlatformAdapter):
             now = time.time()
             for cid, w in list(self._working.items()):
                 if now - w["last"] > 14:
+                    # The phone stops showing "working"; the processing itself may only be paused
+                    # (an approval wait stops typing), so its start in _run_start stays until stop_typing.
                     self._working.pop(cid, None)
-                    self._stt.run_ended(cid, w["since"])
                     self._emit({"type": "working", "chat_id": cid, "working": False})
 
     # ------------------------------------------------------------ outbound (gateway -> phone)
@@ -413,14 +414,17 @@ class MobileAdapter(BasePlatformAdapter):
                    metadata: Optional[Dict[str, Any]] = None) -> SendResult:
         try:
             route = route_delivery(self.store, chat_id, content, self._home, str((metadata or {}).get("job_id") or ""))
-            transcript = TR.echo_text(content) if route["kind"] == "chat" else None
+            interim = bool((metadata or {}).get("_interim_send"))
+            # The core's STT echo is a bare send: no reply anchor, not an interim message. A real answer
+            # that merely looks like one keeps its bubble.
+            transcript = TR.echo_text(content) if route["kind"] == "chat" and reply_to is None and not interim else None
             if transcript is not None:
                 paired = self._attach_transcript(route["chat_id"], content, transcript)
                 if paired:
                     return SendResult(success=True, message_id=paired["id"])
-            elif reply_to:
-                self._stt.replied(route["chat_id"], reply_to)
             kind, meta = self._classify(route["chat_id"], content, metadata)
+            if kind == "text" and reply_to and not interim:
+                self._stt.answered(route["chat_id"], reply_to, self._run_start.get(route["chat_id"]))
             if kind == "text" and (route["kind"] == "digest" or (metadata or {}).get("job_id")):
                 meta["delivery"] = True
             if reply_to:
@@ -447,8 +451,22 @@ class MobileAdapter(BasePlatformAdapter):
     def _stt(self) -> TR.Pairing:
         p = self.__dict__.get("_stt_pairing")
         if p is None:
-            p = self.__dict__["_stt_pairing"] = TR.Pairing()
+            # One session holds its running turn, the base adapter's pending slot and the core's FIFO of
+            # queued follow-ups (GatewayRunner._BUSY_QUEUE_MAX_PENDING); more waiting notes than that
+            # cannot all still be in flight.
+            try:
+                from gateway.run import GatewayRunner
+                cap = int(GatewayRunner._BUSY_QUEUE_MAX_PENDING) + 2
+            except (ImportError, AttributeError, TypeError, ValueError):
+                cap = 34
+            p = self.__dict__["_stt_pairing"] = TR.Pairing(cap)
         return p
+
+    @property
+    def _run_start(self) -> Dict[str, float]:
+        """chat_id -> when the gateway began processing the current turn (first typing), kept through
+        typing pauses such as approval waits and cleared by stop_typing."""
+        return self.__dict__.setdefault("_run_started", {})
 
     def _attach_transcript(self, chat_id: str, echo: str, transcript: str) -> Optional[Dict[str, Any]]:
         """Stamp Hermes' STT echo into the voice attachment it transcribes (``meta.attachments[i].transcript``)
@@ -513,6 +531,7 @@ class MobileAdapter(BasePlatformAdapter):
 
     async def send_typing(self, chat_id: str, metadata=None) -> None:
         now = time.time()
+        self._run_start.setdefault(chat_id, now)
         w = self._working.get(chat_id)
         if w:
             w["last"] = now
@@ -521,9 +540,8 @@ class MobileAdapter(BasePlatformAdapter):
         self._emit({"type": "working", "chat_id": chat_id, "working": True, "since": now})
 
     async def stop_typing(self, chat_id: str) -> None:
-        w = self._working.pop(chat_id, None)
-        if w:
-            self._stt.run_ended(chat_id, w["since"])
+        self._run_start.pop(chat_id, None)
+        if self._working.pop(chat_id, None):
             self._emit({"type": "working", "chat_id": chat_id, "working": False})
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:

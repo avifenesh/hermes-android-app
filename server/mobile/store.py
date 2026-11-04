@@ -72,6 +72,20 @@ _NOTICE_RE = re.compile(
 _NOTICE_LINE_RE = re.compile(r"^\s*(?:\U0001f4bb|\U0001f40d|\U0001f4da|\U0001f4d6|\U0001f441\ufe0f?|\u270d\ufe0f?|\U0001f500|\U0001f310)\s")
 
 
+def voice_preview(kind: Optional[str], meta: Any) -> Optional[str]:
+    """Preview for a voice note with no text: its transcript when Hermes gave one, else "Voice message"."""
+    try:
+        m = json.loads(meta) if isinstance(meta, str) else (meta or {})
+    except ValueError:
+        return None
+    clips = [a for a in (m.get("attachments") or []) if isinstance(a, dict)
+             and (a.get("kind") == "voice" or str(a.get("mime") or "").startswith("audio/"))]
+    if kind != "voice" and not clips:
+        return None
+    said = next((str(a.get("transcript")).strip() for a in clips if str(a.get("transcript") or "").strip()), "")
+    return said.splitlines()[0] if said else "Voice message"
+
+
 def is_notice(content: str) -> bool:
     """True for gateway progress/housekeeping text. A multi-line message counts only if every line is one."""
     lines = [ln for ln in (content or "").splitlines() if ln.strip()]
@@ -241,11 +255,22 @@ class Store:
         return dict(row) if row else None
 
     def list_chats(self, include_archived: bool = False) -> List[Dict[str, Any]]:
-        q = """SELECT c.*, (SELECT content FROM messages m WHERE m.chat_id=c.id AND m.kind!='trace'
-                 ORDER BY ts DESC LIMIT 1) AS preview,
-                 (SELECT role FROM messages m WHERE m.chat_id=c.id ORDER BY ts DESC LIMIT 1) AS last_role
+        # A transcript echo (meta.transcript_of) repeats the user's own voice note: it is neither the
+        # chat's preview nor its last speaker. meta is always written by json.dumps, hence the key form.
+        last = ("FROM messages m WHERE m.chat_id=c.id AND m.kind!='trace' AND m.meta NOT LIKE '%\"transcript_of\": %'"
+                " ORDER BY ts DESC LIMIT 1")
+        echo_free = "FROM messages m WHERE m.chat_id=c.id AND m.meta NOT LIKE '%\"transcript_of\": %' ORDER BY ts DESC LIMIT 1"
+        q = f"""SELECT c.*, (SELECT content {last}) AS preview, (SELECT kind {last}) AS preview_kind,
+                 (SELECT meta {last}) AS preview_meta, (SELECT role {echo_free}) AS last_role
                FROM chats c""" + ("" if include_archived else " WHERE c.archived=0") + " ORDER BY c.pinned DESC, c.updated DESC"
-        return [dict(r) for r in self._db.execute(q)]
+        out = []
+        for r in self._db.execute(q):
+            d = dict(r)
+            kind, meta = d.pop("preview_kind", None), d.pop("preview_meta", None)
+            if d.get("preview") is not None and not str(d["preview"]).strip():
+                d["preview"] = voice_preview(kind, meta) or d["preview"]
+            out.append(d)
+        return out
 
     # -- messages --------------------------------------------------------
     def reply_context(self, chat_id: str, reply_to: Optional[str] = None) -> Optional[Dict[str, Any]]:
