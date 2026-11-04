@@ -336,29 +336,23 @@ fun PairScreen(link: Uri?) {
     // The redemption belongs to the process (Pairing), not to this composition: rotating or switching theme mid-pair
     // recreates the screen, and the new one must neither cancel nor repeat it.
     val busy by Pairing.busy
-    val failure by Pairing.error
+    val failure by Pairing.offers.failure
     var err by remember { mutableStateOf<String?>(null) }
     var paste by rememberSaveable { mutableStateOf("") }
     val scannerAvailable = remember(ctx) { Push.available(ctx) }
-    fun go(u: Uri, confirmed: Boolean = false, auto: Boolean = false) {
+    fun go(u: Uri, confirmed: Boolean = false) {
         if (busy) return
         // Never drop a live pairing on a link alone: only the explicit "Pair with this machine" tap passes confirmed.
         if (Ui.paired.value && !confirmed) { err = "Tap Pair with this machine to switch"; return }
         if (u.scheme != "hermes" || u.host != "pair") { err = "That isn't a Hermes pairing link"; return }
         err = null
-        Pairing.redeem(ctx, u, auto)
+        Pairing.redeem(ctx, u, auto = false)
     }
-    // A link that arrives from outside (deep link / QR) while already paired never pairs by itself: switching the
-    // phone to another server is a deliberate tap, so a malicious link can't silently redirect it. A link this phone
-    // already redeemed is not offered again: it can only fail.
-    var pendingLink by remember(link) {
-        mutableStateOf(if (Ui.paired.value && link?.getQueryParameter("c") != null && !Pairing.redeemed(link)) link else null)
-    }
-    // Keyed on deliveries too: the same link opened again from outside is a new attempt, not a recomposition.
-    LaunchedEffect(link, Pairing.deliveries.intValue) {
-        if (link == null || link.getQueryParameter("c") == null) return@LaunchedEffect
-        if (Pairing.redeemed(link)) Pairing.alreadyPaired(link) else if (!Ui.paired.value) go(link, auto = true)
-    }
+    // Links from outside (deep link / QR intent) are handled where they arrive, Pairing.delivered: unpaired, it
+    // redeems; paired, it offers this prompt, because switching the phone to another server is a deliberate tap
+    // (a malicious link can't silently redirect it). A redeemed link is not offered again. The same link delivered
+    // again while this screen shows (onNewIntent) re-arms the prompt and drops the old failure.
+    val pendingLink by Pairing.offers.pending
     DisposableEffect(act) { onDispose { if (!act.isChangingConfigurations) Pairing.clear() } }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 26.dp)) {
         Spacer(Modifier.height(54.dp))
@@ -402,7 +396,7 @@ fun PairScreen(link: Uri?) {
             Spacer(Modifier.height(16.dp))
             Text("Pair with " + (Uri.parse(pl.getQueryParameter("u") ?: "").host ?: "?") + "? Your current machines stay paired.", style = sans(14.5f, 500, p.tx))
             Spacer(Modifier.height(8.dp))
-            Btn("Pair with this machine", Modifier.fillMaxWidth(), enabled = !busy) { pendingLink = null; go(pl, confirmed = true) }
+            Btn("Pair with this machine", Modifier.fillMaxWidth(), enabled = !busy) { Pairing.offers.take()?.let { go(it, confirmed = true) } }
         }
         if (link != null && Ui.paired.value) {
             Spacer(Modifier.height(10.dp))

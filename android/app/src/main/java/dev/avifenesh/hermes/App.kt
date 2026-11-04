@@ -217,7 +217,8 @@ class MainActivity : FragmentActivity() {
                 }.onFailure { android.util.Log.e("HermesWakeWord", "wwtest failed", it) }
             }.start()
         }
-        i.data?.takeIf { it.scheme == "hermes" }?.let { Pairing.delivered(it); Ui.pairLink.value = it }
+        // Show the pairing screen first: delivering may dismiss it again ("Already paired with ...").
+        i.data?.takeIf { it.scheme == "hermes" }?.let { Ui.pairLink.value = it; Pairing.delivered(this, it) }
         i.getStringExtra("chat")?.let { Ui.open(it) }
         i.getStringExtra("agent")?.let { Ui.composeOpen.value = false; Ui.push(Route.AgentR(it, i.getStringExtra("agent_name").orEmpty())) }
         when (i.getStringExtra("go") ?: i.action?.substringAfter("dev.avifenesh.hermes.", "")) {

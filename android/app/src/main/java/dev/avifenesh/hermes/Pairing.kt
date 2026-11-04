@@ -3,7 +3,6 @@ package dev.avifenesh.hermes
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,6 +70,38 @@ internal class PairAttempt(val key: String) {
     val isCancelled: Boolean @Synchronized get() = cancelled
 }
 
+/**
+ * What the pairing screen does with a delivered link, kept outside composition. The same link delivered again
+ * (onNewIntent while the screen shows it: an equal Uri, so nothing recomposes) is a fresh offer: the prompt comes
+ * back and the earlier failure goes. Generic so JVM tests can use plain strings for android.net.Uri.
+ */
+internal class PairOffers<L : Any> {
+    enum class Next { Nothing, AlreadyPaired, Confirm, Redeem }
+
+    /** "Pair with HOST?" while paired: only a deliberate tap may switch this phone to another machine. */
+    val pending = mutableStateOf<L?>(null)
+    /** The last redemption's failure, kept across screen recreation until the next delivery or [clear]. */
+    val failure = mutableStateOf<String?>(null)
+
+    fun delivered(link: L, hasCode: Boolean, paired: Boolean, redeemed: Boolean): Next {
+        failure.value = null
+        pending.value = null
+        return when {
+            !hasCode -> Next.Nothing
+            redeemed -> Next.AlreadyPaired
+            paired -> { pending.value = link; Next.Confirm }
+            else -> Next.Redeem
+        }
+    }
+
+    /** The tap on "Pair with this machine". */
+    fun take(): L? = pending.value.also { pending.value = null }
+
+    fun failed(message: String) { failure.value = message }
+
+    fun clear() { pending.value = null; failure.value = null }
+}
+
 /** Signs one network attempt of the pairing request with the canonical request message. */
 internal class PairSigner(private val body: ByteArray, private val sign: (ByteArray) -> String,
                           private val now: () -> Long) : Interceptor {
@@ -100,10 +131,8 @@ internal fun pairingClient(base: OkHttpClient, body: ByteArray, sign: (ByteArray
 /** The pairing in progress. It runs on [Hub.scope], so it outlives the pairing screen's composition. */
 object Pairing {
     val busy = mutableStateOf(false)
-    /** The last redemption's failure, kept across screen recreation; the screen clears it when it really leaves. */
-    val error = mutableStateOf<String?>(null)
-    /** Links delivered from outside (intents). A delivery re-runs the pairing screen's effect even for the same link. */
-    val deliveries = mutableIntStateOf(0)
+    /** The prompt and failure the pairing screen shows; set by deliveries, so a re-delivery re-arms them. */
+    internal val offers = PairOffers<Uri>()
     private val gate by lazy { PairGate(Prefs.pairRedeemed) }
     // Main thread only: redeem, cancel and the attempt coroutine (Dispatchers.Main) never interleave.
     private var attempt: PairAttempt? = null
@@ -116,30 +145,43 @@ object Pairing {
         return PairGate.key(u, c)
     }
 
-    fun redeemed(link: Uri): Boolean = key(link)?.let { gate.isRedeemed(it) } == true
-
     /** A link this phone already redeemed: say so instead of offering a pairing that can only fail. */
     fun alreadyPaired(link: Uri) {
         val base = link.getQueryParameter("u")?.trim()?.trimEnd('/')
-        val known = Ui.paired.value && runCatching { Machines.all().any { it.str("base").trimEnd('/') == base } }.getOrDefault(false)
+        val known = Prefs.paired && runCatching { Machines.all().any { it.str("base").trimEnd('/') == base } }.getOrDefault(false)
         if (known) {
-            error.value = null
+            offers.clear()
             Ui.pairLink.value = null
             Ui.say("Already paired with " + (base?.let { Uri.parse(it).host } ?: "this machine"))
         } else {
-            error.value = "That pairing link was already used. Run hermes mobile pair again."
+            offers.failed("That pairing link was already used. Run hermes mobile pair again.")
         }
     }
 
-    /** A link from an intent: a genuine re-open, so a failed earlier attempt of it may run again. */
-    fun delivered(link: Uri) {
-        key(link)?.let { gate.forget(it) }
-        deliveries.intValue++
+    /**
+     * A link from an intent (onCreate or onNewIntent, also the same link again): a genuine re-open. The earlier failed
+     * attempt of it no longer blocks one, its error goes, and it is offered again: a prompt while paired (a link
+     * alone never switches machines), a redemption otherwise. Prefs, not Ui.paired: on a cold start this runs before
+     * the activity has set Ui.paired.
+     */
+    fun delivered(ctx: Context, link: Uri) {
+        val k = key(link)
+        k?.let { gate.forget(it) }
+        failedKey = null
+        val next = offers.delivered(link, hasCode = link.getQueryParameter("c") != null, paired = Prefs.paired,
+            redeemed = k != null && gate.isRedeemed(k))
+        when (next) {
+            PairOffers.Next.AlreadyPaired -> alreadyPaired(link)
+            PairOffers.Next.Redeem ->
+                if (link.scheme == "hermes" && link.host == "pair") redeem(ctx, link, auto = true)
+                else offers.failed("That isn't a Hermes pairing link")
+            PairOffers.Next.Confirm, PairOffers.Next.Nothing -> {}
+        }
     }
 
     /** The pairing screen really left (not a configuration change): drop the failure, let a re-open retry. */
     fun clear() {
-        error.value = null
+        offers.clear()
         failedKey?.let { gate.forget(it) }
         failedKey = null
     }
@@ -161,7 +203,7 @@ object Pairing {
     fun redeem(ctx: Context, link: Uri, auto: Boolean) {
         val k = key(link)
         if (k == null) {
-            error.value = if (link.getQueryParameter("u") == null) "That link has no server address" else "That link has no pairing code"
+            offers.failed(if (link.getQueryParameter("u") == null) "That link has no server address" else "That link has no pairing code")
             return
         }
         when (gate.begin(k, auto)) {
@@ -172,7 +214,7 @@ object Pairing {
         val a = PairAttempt(k)
         attempt = a
         busy.value = true
-        error.value = null
+        offers.failure.value = null
         failedKey = null
         val app = ctx.applicationContext
         job = Hub.scope.launch(Dispatchers.Main) {
@@ -195,12 +237,12 @@ object Pairing {
             } catch (e: Exception) {
                 if (!a.isCancelled) {
                     failedKey = k
-                    error.value = when {
+                    offers.failed(when {
                         e is ApiError && e.code == 403 -> "That code is used or expired. Run hermes mobile pair again."
                         // The server saw this exact request before (a transport re-send): a new attempt can still pair.
                         e is ApiError && e.code == 409 -> "This phone already sent that pairing request. Open the link again to retry."
                         else -> e.message ?: e.toString()
-                    }
+                    })
                 }
             } finally {
                 if (attempt === a) {  // a cancelled attempt was already settled by cancel()
