@@ -22,10 +22,10 @@ internal fun ChannelConnectionSettings(push: Boolean) {
     SettingRow("Push wake-ups", if (push) "On. Google wakes the phone; content comes straight from your gateway."
         else "Not set up on your gateway.") {}
     Line()
-    SettingRow("Run progress", "While a run you started from this phone is working, $APP_NAME stays connected and shows its progress in a notification. It stops when the run ends.") {}
+    SettingRow("Run progress", "After you send a message or approve a step from this phone, $APP_NAME stays connected while that run works and shows its progress in a notification. It stops when the run ends.") {}
     if (!push) {
         Line()
-        SettingRow("Without push", "Notifications arrive while a run you started from this phone is working and when you open $APP_NAME. " +
+        SettingRow("Without push", "Notifications arrive while such a run is working and when you open $APP_NAME. " +
             "Android's periodic background check can also deliver them, often 15 minutes or more late. Set up push on your gateway for prompt notifications.") {}
     }
 }

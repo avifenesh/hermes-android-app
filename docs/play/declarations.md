@@ -261,13 +261,13 @@ Talk drops the conversation in progress. Wake-word listening stops, and Android 
 
 ### dataSync (LiveService)
 
-This entry is written for the behavior after C1. **Do not submit it for the current artifact.** Today the service also runs as an always-on push substitute, which this text does not describe and Play does not allow.
+This entry describes the Play build after C1: no always-on connection, and nothing starts the service except a send or an approval decision from this phone.
 
 - **Use case:** Network transfer: Upload or download (data fetch, server-side processing).
 - **Description:**
 
 ```text
-When the user sends a message or starts a run from this phone, the agent works on the user's own server, often for several minutes. While that run is in progress, the service keeps the connection that streams the reply, tool activity and approval requests, and shows "<agent> is working" with the chat title and elapsed time. It stops by itself when the run finishes or the user stops it. It never runs without a run the user started.
+When the user sends a message or approves a step from this phone, the agent works on the user's own server, often for several minutes. While that run is in progress, the service keeps the connection that streams the reply, tool activity and approval requests, and shows "<agent> is working" with the chat title and elapsed time. It stops by itself when the run finishes, when the server stops answering, or when the user taps Stop updates or stops the run. It never runs without a run the user started or approved a step of from this phone.
 ```
 
 - **Impact if deferred:**
