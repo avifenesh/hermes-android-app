@@ -192,9 +192,9 @@ fun WakeScreen(act: WakeActivity) {
             runCatching { camera.launch(uri) }.onFailure { err = "Camera didn't open: ${it.message}" }
         }
     }
-    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) openCamera() else err = "Camera permission is off. Use another proof, or allow Camera in Android app settings."
-    }
+    // Full asks for its declared CAMERA grant first; Play declares none and opens the camera app directly.
+    val cameraStart = rememberCameraStart(open = ::openCamera,
+        denied = { err = "Camera permission is off. Use another proof, or allow Camera in Android app settings." })
     val stepPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) { err = null; mode = "steps" } else err = "Physical activity permission is off. Use another proof, or allow it in Android app settings."
     }
@@ -297,8 +297,7 @@ fun WakeScreen(act: WakeActivity) {
                         }
                         ProofCard("Bathroom photo", if (hasCamera) "Take a fresh photo of the sink or mirror. The photo uploads to your gateway and its vision provider for checking." else "This device has no camera. Use another proof.", hasCamera) {
                             Wake.touch(150_000); err = null
-                            if (ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) openCamera()
-                            else act.unlockThen { camPerm.launch(Manifest.permission.CAMERA) }
+                            act.unlockThen { cameraStart() }
                         }
                         ProofCard("Walk ${s?.optInt("steps_needed", 120) ?: 120} steps", if (hasStepSensor) "The phone counts your steps and sends their timestamps to your gateway to check the proof." else "This phone has no step sensor.", hasStepSensor) {
                             err = null
@@ -509,14 +508,15 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
         ctx.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName)) }
     val proofPermissions = remember {
         buildList {
-            if (ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) add(Manifest.permission.CAMERA)
+            if (ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) addAll(CAMERA_PERMISSIONS)
             if (ctx.getSystemService(SensorManager::class.java)?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR) != null) add(Manifest.permission.ACTIVITY_RECOGNITION)
         }
     }
     val proofsGranted = remember(permissionRevision) { proofPermissions.all { ctx.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } }
     val askProofs = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         permissionRevision++
-        if (r.values.any { !it }) Ui.say("You can use reading proof without these permissions. Enable camera or activity in Android app settings to use those proofs.")
+        if (r.values.any { !it }) Ui.say(if (CAMERA_PERMISSIONS.isEmpty()) "You can use reading or photo proof without this permission. Enable physical activity in Android app settings to use step proof."
+            else "You can use reading proof without these permissions. Enable camera or activity in Android app settings to use those proofs.")
     }
     fun settings(i: Intent) {
         runCatching { ctx.startActivity(i) }.onFailure {
@@ -697,7 +697,9 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             if (!proofsGranted) item {
                 Section("Optional proof permissions", null)
                 Panel {
-                    SettingRow("Photo and step proofs", "Only supported hardware needs permission. Reading proof works without camera or activity access.") {
+                    SettingRow(if (CAMERA_PERMISSIONS.isEmpty()) "Step proof" else "Photo and step proofs",
+                        if (CAMERA_PERMISSIONS.isEmpty()) "Step proof needs physical activity access. Photo proof uses your camera app and needs no permission. Reading proof needs neither."
+                        else "Only supported hardware needs permission. Reading proof works without camera or activity access.") {
                         Btn("Allow", primary = false) { askProofs.launch(proofPermissions.filter { ctx.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }.toTypedArray()) }
                     }
                     Line()

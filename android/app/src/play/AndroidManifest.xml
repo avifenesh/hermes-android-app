@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
+    <!-- Photos come from the camera app (ACTION_IMAGE_CAPTURE), which needs no grant while CAMERA is undeclared.
+         Lint reads this removal as a declaration; the merged manifest has no CAMERA permission. -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
     <application android:label="Herms" tools:replace="android:label">
         <receiver android:name=".FleetWidget" android:label="Herms fleet" tools:replace="android:label" />
     </application>

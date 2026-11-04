@@ -471,10 +471,11 @@ fun ComposeSheet() {
         val f = camPath?.let(::File); if (ok && f != null) scope.launch { busy = true; runCatching { atts += uploadFile(f, "image/jpeg", "image") }.onFailure { Ui.say(it.message) }; busy = false }
     }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say("Could not start recording: ${it.message}") }.getOrNull() else Ui.say("Microphone permission denied. You can still type a message.") }
-    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) { val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path; runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") } }
-        else Ui.say("Camera permission denied. You can still attach a photo.")
-    }
+    // The camera app takes the photo (TakePicture). Full asks for its declared CAMERA grant first; Play declares none.
+    val camera = rememberCameraStart(open = {
+        val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path
+        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") }
+    }, denied = { Ui.say("Camera permission denied. You can still attach a photo.") })
     val shared = Ui.share.value
     LaunchedEffect(shared) {
         shared?.let { s ->
@@ -554,7 +555,7 @@ fun ComposeSheet() {
             } else Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 SrcBtn(Ic.mic, "Voice") { if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) rec = runCatching { Recorder(ctx) }.getOrNull() else mic.launch(Manifest.permission.RECORD_AUDIO) }
-                SrcBtn(Ic.camera, "Camera") { camPerm.launch(Manifest.permission.CAMERA) }
+                SrcBtn(Ic.camera, "Camera") { camera() }
                 SrcBtn(Ic.plus, "Photo") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                 SrcBtn(Ic.file, "File") { doc.launch(arrayOf("*/*")) }
                 }

@@ -373,10 +373,11 @@ fun ChatScreen(cid: String) {
     val cam = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val f = camPath?.let(::File); if (ok && f != null) scope.launch { busy = true; runCatching { atts += uploadFile(f, "image/jpeg", "image") }.onFailure { Ui.say(it.message) }; busy = false }
     }
-    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) { val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path; runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") } }
-        else Ui.say("Camera permission denied. You can still attach a photo.")
-    }
+    // The camera app takes the photo (TakePicture). Full asks for its declared CAMERA grant first; Play declares none.
+    val camera = rememberCameraStart(open = {
+        val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path
+        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") }
+    }, denied = { Ui.say("Camera permission denied. You can still attach a photo.") })
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say("Could not start recording: ${it.message}") }.getOrNull() else Ui.say("Microphone permission denied. You can still type a message.") }
     fun send(extra: List<JSONObject> = emptyList()) {
         val t = text.trim()
@@ -485,7 +486,7 @@ fun ChatScreen(cid: String) {
                     DropdownMenu(plus, { plus = false }, containerColor = p.s2) {
                         AttachmentPrivacyNotice(Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 10.dp))
                         DropdownMenuItem({ Text("Photo", style = sans(15f, 500, p.tx)) }, { plus = false; pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, leadingIcon = { Icn(Ic.plus, p.tx2, 18.dp) })
-                        DropdownMenuItem({ Text("Camera", style = sans(15f, 500, p.tx)) }, { plus = false; camPerm.launch(Manifest.permission.CAMERA) }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) })
+                        DropdownMenuItem({ Text("Camera", style = sans(15f, 500, p.tx)) }, { plus = false; camera() }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) })
                         DropdownMenuItem({ Text("File", style = sans(15f, 500, p.tx)) }, { plus = false; doc.launch(arrayOf("*/*")) }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) })
                     }
                 }
