@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Herms フリート</string>
+    <string name="channel_control_unavailable_title">このエディションでは利用できません</string>
+    <string name="channel_control_unavailable_body">この Play エディションは他のアプリを読み取ったり操作したりできません。リモートコマンドでこの機能を有効にすることはできません。</string>
+    <string name="channel_background_title">バックグラウンド配信</string>
+    <string name="channel_background_body">Android の電池の最適化は有効なままです。プッシュ (設定時) と定期同期は引き続き利用できますが、バックグラウンド配信が遅れることがあります。</string>
+    <string name="channel_apk_unavailable">この Play エディションでは APK 添付ファイルをインストールできません。ファイルをダウンロードに保存することはできます。</string>
+</resources>

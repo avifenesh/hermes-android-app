@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes スマートフォン操作</string>
+    <string name="phone_service_desc">Hermes エージェントが画面を読み取り、このスマートフォンでタップ、入力、スワイプできるようにします。アプリで操作がオンになっている間だけ動作します (マイページ、このスマートフォン、操作)。</string>
+    <string name="phone_control_notice_title">スマートフォン操作がオンです</string>
+    <string name="phone_control_notice_text">エージェントはロック解除されたこのスマートフォンを読み取り、操作できます。</string>
+    <string name="phone_control_stop">操作を停止</string>
+    <string name="phone_control_accessibility_service">ユーザー補助サービス</string>
+    <string name="phone_control_service_enabled">Android の設定で有効になっています。</string>
+    <string name="phone_control_service_disabled">Android のユーザー補助の設定で、%1$s のスマートフォン操作を有効にしてください。</string>
+    <string name="phone_control_allow">エージェントによる操作を許可</string>
+    <string name="phone_control_allow_on">オン。エージェントは読み取り、タップ、入力、スワイプ、アプリの起動ができます。</string>
+    <string name="phone_control_allow_off">オフ。画面の内容やコマンドは送信されません。</string>
+    <string name="phone_control_enable_service_first">先にユーザー補助サービスを有効にしてください</string>
+    <string name="phone_control_server_unavailable">サーバーではまだスマートフォン操作を利用できません</string>
+    <string name="phone_control_enable_channel">「操作を停止」を常に使えるように、「実行状況と接続」通知カテゴリを有効にしてください</string>
+    <string name="phone_control_confirm_title">スマートフォン操作を許可</string>
+    <string name="phone_control_activation_cancelled">操作、ペアリング、またはユーザー補助が変更されたため、有効化をキャンセルしました</string>
+    <string name="phone_control_not_armed">サーバーがこのスマートフォンを準備しなかったか、有効化が別の要求に置き換えられました</string>
+    <string name="phone_control_sideload_help">サイドロードした APK の初回設定: Android がユーザー補助をブロックすることがあります。Android の [設定] → [アプリ] → [%1$s] → ⋮ → [制限付き設定を許可] を開いてから、ここでサービスを有効にしてください。この操作は 1 回だけ必要です。</string>
+    <string name="phone_control_limits">操作は画面がオンでロック解除されている間のみ機能します。保護された画面のスクリーンショットは Android によってブロックされます。パスワード欄の内容は読み取られません。操作はここか通知からいつでもオフにできます。</string>
+    <string name="phone_control_confirming">指紋または PIN で確認…</string>
+    <string name="channel_tab_control">操作</string>
+    <string name="channel_control_section">エージェントによるスマートフォン操作</string>
+    <string name="channel_battery_title">電池の最適化</string>
+    <string name="channel_battery_body">一部のスマートフォンはバックグラウンド接続を終了させます。%1$s に制限なしでの実行を許可してください。</string>
+    <string name="channel_allow_unknown_apps">%1$s に「不明なアプリのインストール」を許可してから、もう一度ファイルをタップしてください</string>
+</resources>
