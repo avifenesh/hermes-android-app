@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Accessibility service ================= -->
+    <string name="phone_service_label">Hermes-Smartphone-Steuerung</string>
+    <string name="phone_service_desc">Lässt deinen Hermes-Agent den Bildschirm lesen und auf diesem Smartphone tippen, schreiben und wischen. Er handelt nur, solange „Steuerung“ in der App eingeschaltet ist (Ich, Dieses Smartphone, Steuerung).</string>
+
+    <!-- ================= Phone control ================= -->
+
+    <!-- ===== Phone control notification (PhoneControl.kt, full edition only) ===== -->
+    <string name="phone_control_notice_title">Smartphone-Steuerung ist an</string>
+    <string name="phone_control_notice_text">Dein Agent kann dieses entsperrte Smartphone lesen und bedienen.</string>
+    <string name="phone_control_stop">Steuerung beenden</string>
+
+    <!-- ===== Phone control panel (Me > This phone > Control) ===== -->
+    <string name="phone_control_accessibility_service">Bedienungshilfe</string>
+    <string name="phone_control_service_enabled">In den Android-Einstellungen aktiviert.</string>
+    <string name="phone_control_service_disabled">Aktiviere die %1$s-Smartphone-Steuerung in den Android-Einstellungen unter „Bedienungshilfen“.</string>
+    <string name="phone_control_allow">Steuerung durch den Agent erlauben</string>
+    <string name="phone_control_allow_on">An. Der Agent kann lesen, tippen, schreiben, wischen und Apps öffnen.</string>
+    <string name="phone_control_allow_off">Aus. Es werden keine Bildschirminhalte oder Befehle gesendet.</string>
+    <string name="phone_control_enable_service_first">Aktiviere zuerst die Bedienungshilfe</string>
+    <string name="phone_control_server_unavailable">Die Smartphone-Steuerung ist auf dem Server noch nicht verfügbar</string>
+    <string name="phone_control_enable_channel">Aktiviere den Benachrichtigungskanal „Live-Läufe &amp; Verbindung“, damit „Steuerung beenden“ erreichbar bleibt</string>
+    <string name="phone_control_confirm_title">Smartphone-Steuerung erlauben</string>
+    <string name="phone_control_activation_cancelled">Aktivierung abgebrochen, weil sich Steuerung, Kopplung oder Bedienungshilfen geändert haben</string>
+    <string name="phone_control_not_armed">Der Server hat dieses Smartphone nicht freigeschaltet oder die Aktivierung wurde ersetzt</string>
+    <string name="phone_control_sideload_help">Erste Einrichtung bei einer per Sideload installierten APK: Android blockiert eventuell die Bedienungshilfen. Öffne Android-Einstellungen → Apps → %1$s → ⋮ → Eingeschränkte Einstellungen zulassen und aktiviere dann den Dienst hier. Das ist nur einmal nötig.</string>
+    <string name="phone_control_limits">Die Steuerung funktioniert nur, solange der Bildschirm an und entsperrt ist. Android blockiert Screenshots geschützter Bildschirme. Passwortfelder bleiben privat. Schalte die Steuerung jederzeit hier oder über die Benachrichtigung aus.</string>
+    <string name="phone_control_confirming">Mit Fingerabdruck oder PIN bestätigen…</string>
+
+    <!-- ================= Edition-specific settings and files ================= -->
+
+    <!-- ===== This phone settings (full edition) ===== -->
+    <string name="channel_tab_control">Steuerung</string>
+    <string name="channel_control_section">Smartphone-Steuerung durch den Agent</string>
+    <string name="channel_battery_title">Akkuoptimierung</string>
+    <string name="channel_battery_body">Manche Smartphones beenden die Hintergrundverbindung. Erlaube %1$s die uneingeschränkte Ausführung.</string>
+
+    <!-- ===== Opening attachments (full edition) ===== -->
+    <string name="channel_allow_unknown_apps">Erlaube „Unbekannte Apps installieren“ für %1$s und tippe dann erneut auf die Datei</string>
+</resources>

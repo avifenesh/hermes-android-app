@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Edition-specific settings and files ================= -->
+    <string name="widget_label">Herms-Flotte</string>
+
+    <!-- ===== This phone settings (Play edition) ===== -->
+    <string name="channel_control_unavailable_title">In dieser Edition nicht verfügbar</string>
+    <string name="channel_control_unavailable_body">Diese Play-Edition kann andere Apps weder lesen noch bedienen. Fernbefehle können diese Funktion nicht aktivieren.</string>
+    <string name="channel_background_title">Zustellung im Hintergrund</string>
+    <string name="channel_background_body">Die Android-Akkuoptimierung bleibt aktiv. Push (falls eingerichtet) und regelmäßige Synchronisierung bleiben verfügbar; die Zustellung im Hintergrund kann sich verzögern.</string>
+
+    <!-- ===== Opening attachments (Play edition) ===== -->
+    <string name="channel_apk_unavailable">Das Installieren von APK-Anhängen ist in dieser Play-Edition nicht verfügbar. Du kannst die Datei trotzdem in Downloads speichern.</string>
+</resources>
