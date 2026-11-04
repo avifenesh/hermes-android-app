@@ -190,6 +190,13 @@ class ScriptedConnection:
                                    "latest_seq": self.rooms[rid]["latest_seq"]},
             "groups.approve": lambda: {"approved": True, "result": {}},
             "groups.stop": lambda: {"cancelled": 1},
+            "groups.attachment.upload": lambda: {
+                "attachment_id": "att_" + hashlib.sha256(params["upload_id"].encode()).hexdigest()[:32],
+                "kind": params["kind"], "name": params["name"], "mime": params["mime"],
+                "size": len(base64.b64decode(params["data_base64"])), "upload_id": params["upload_id"]},
+            "groups.send": lambda: {"accepted": True, "event": event(
+                self.rooms[rid]["latest_seq"] + 1, "message.user", {"kind": "user", "id": "desktop"}, at=time.time(),
+                text=params["payload"]["text"], thread_id=params["payload"]["thread_id"])},
         }[method]()
         return {"jsonrpc": "2.0", "id": request["id"], "result": result}
 
@@ -341,6 +348,47 @@ class RoomsContract(unittest.IsolatedAsyncioTestCase):
         await self.ad._rooms.tick()
         emitted = {e["room"]["id"] for e in [sink.get_nowait() for _ in range(sink.qsize())] if e.get("type") == "room"}
         self.assertIn("room-a", emitted)
+
+    async def test_rooms_nobody_watched_are_inspected_for_pending_actions(self):
+        # An approval that waits in a room quiet for hours: the first list and the first poll still find it.
+        status, body = await self.call("GET", "/v1/rooms")
+        self.assertEqual(status, 200, body)
+        self.assertEqual([p["request_id"] for p in body["rooms"][0]["pending"]], ["r-9"])
+        sink: asyncio.Queue = asyncio.Queue()
+        self.ad._subs.add(sink)
+        self.addCleanup(self.ad._subs.discard, sink)
+        self.conn.pending = []  # answered elsewhere while no phone listened
+        start = time.time()
+        with patch.object(RM.time, "time", lambda: start + RM.COLD_SECONDS + 1):
+            await self.ad._rooms.tick()  # a cold room is read again after a while
+        emitted = [e for e in [sink.get_nowait() for _ in range(sink.qsize())] if e.get("type") == "room"]
+        self.assertEqual(emitted[-1]["room"]["pending"], [], emitted)
+
+    async def test_detail_carries_the_whole_command_and_the_summary_says_it_is_cut(self):
+        long = "printf %s " + "x" * 5000
+        self.conn.pending = [{**PENDING[0], "approval": {"command": long, "description": "long"}}]
+        _, body = await self.call("GET", "/v1/rooms/room-a")
+        self.assertEqual(body["driver"]["pending"][0]["command"], long)  # what is approved is what is shown
+        _, body = await self.call("GET", "/v1/rooms")
+        cut, = body["rooms"][0]["pending"]
+        self.assertEqual((len(cut["command"]), cut["command_truncated"]), (300, True))
+
+    async def test_upload_ids_follow_the_file_not_its_position(self):
+        media = S.data_dir() / "media"
+        for name in ("u-first.txt", "u-second.txt"):
+            (media / name).write_text(name * 10)
+            self.addCleanup((media / name).unlink, missing_ok=True)
+        att = lambda name: {"id": name, "kind": "file", "file_name": name, "mime": "text/plain"}  # noqa: E731
+        status, out = await self.call("POST", "/v1/rooms/room-a/messages", {
+            "text": "two files", "client_id": "files-1", "attachments": [att("u-first.txt"), att("u-second.txt")]})
+        self.assertEqual(status, 200, out)
+        first = {p["name"]: p["upload_id"] for p in self.dispatched("groups.attachment.upload")}
+        # A retry that dropped the first file keeps the second file's own upload id, never the first's.
+        await self.call("POST", "/v1/rooms/room-a/messages", {
+            "text": "two files", "client_id": "files-1", "attachments": [att("u-second.txt")]})
+        again = self.dispatched("groups.attachment.upload")[-1]
+        self.assertEqual(again["upload_id"], first["u-second.txt"])
+        self.assertNotEqual(first["u-first.txt"], first["u-second.txt"])
 
     async def test_oversized_attachment_is_refused_before_it_is_read(self):
         from gateway.hosted_room_attachments import MAX_ATTACHMENT_BYTES

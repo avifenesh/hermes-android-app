@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import importlib.util
 import itertools
 import logging
@@ -39,6 +40,8 @@ NOTICE_KINDS = frozenset({
 UNREAD_SCAN = 2000      # room-log events scanned for unread replies; past that the count is a floor
 POLL_SECONDS = 2.0
 ACTIVE_SECONDS = 600    # rooms that changed this recently also get their driver state polled
+COLD_SECONDS = 60       # every other room's driver state is read again this often (actions arise unwatched)
+SUMMARY_COMMAND = 300   # command characters a summary carries; approving always uses the full detail
 MAX_PAGE = 200
 MAX_ATTACHMENTS = 8
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -130,7 +133,9 @@ def _summary_action(a: Dict[str, Any]) -> Dict[str, Any]:
     """A pending action as the room summary carries it: enough to badge the room and notify."""
     out = {k: a[k] for k in ("kind", "member", "task_id", "generation") if k in a}
     if a.get("kind") == "approval":
-        out.update(request_id=str(a.get("request_id") or ""), command=str(a.get("command") or "")[:300])
+        command = str(a.get("command") or "")
+        out.update(request_id=str(a.get("request_id") or ""), command=command[:SUMMARY_COMMAND],
+                   command_truncated=len(command) > SUMMARY_COMMAND)
     return out
 
 
@@ -208,7 +213,7 @@ def driver_view(status: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         approval = a.get("approval") if isinstance(a.get("approval"), dict) else {}
         if a["kind"] == "approval":
             item.update(request_id=str(a.get("request_id") or approval.get("request_id") or ""),
-                        command=str(approval.get("command") or "")[:4000],
+                        command=str(approval.get("command") or ""),  # whole: it is what gets approved
                         description=str(approval.get("description") or "")[:1000])
         pending.append(item)
     members = [{"id": str(m.get("member_id") or ""), "status": str(m.get("status") or "")}
@@ -240,6 +245,7 @@ class Rooms:
         self._tails: Dict[str, Dict[str, Any]] = {}
         self._working: Dict[str, List[Dict[str, Any]]] = {}
         self._pending: Dict[str, List[Dict[str, Any]]] = {}
+        self._inspected: Dict[str, float] = {}  # when each room's driver state was last read
         self._emitted: Dict[str, Any] = {}
         self._tail_lock = asyncio.Lock()
         self._task: Optional[asyncio.Task] = None
@@ -420,7 +426,11 @@ class Rooms:
         if not self.supported():  # an empty answer, so the self-check and older clients see no failure
             return {"supported": False, "rooms": [], "driver": False, "bots": [], **limits}
         caps = await self.call("groups.capabilities", {})
-        rooms = [await self._safe_summary(r) for r in await self._rooms()]
+        found = await self._rooms()
+        for room in found:  # a room this process never read may already be waiting on the owner
+            if str(room["room_id"]) not in self._inspected:
+                await self._inspect(room)
+        rooms = [await self._safe_summary(r) for r in found]
         rooms.sort(key=lambda r: r["updated"], reverse=True)
         return {"supported": True, "rooms": rooms, "driver": bool(caps.get("driver")),
                 "bots": await self.bots(caps), **limits}
@@ -442,7 +452,26 @@ class Rooms:
         driver = driver_view(status)
         self._working[rid] = driver["members"]
         self._pending[rid] = driver["pending"]
+        self._inspected[rid] = time.time()
         return driver
+
+    def _needs_inspection(self, room: Dict[str, Any], now: float) -> bool:
+        """Read the driver state of a room never inspected, recently active, working, waiting on the owner,
+        or not read for COLD_SECONDS: approvals and unknown turns also arise while no phone listens."""
+        rid = str(room["room_id"])
+        seen = self._inspected.get(rid)
+        return (seen is None or now - seen > COLD_SECONDS or float(room.get("updated_at") or 0) > now - ACTIVE_SECONDS
+                or bool(self._working.get(rid)) or bool(self._pending.get(rid)))
+
+    async def _inspect(self, room: Dict[str, Any]) -> None:
+        rid = str(room["room_id"])
+        try:
+            state = await self.call("groups.state", {"room_id": rid})
+            self._observe(rid, state.get("driver_status"))
+        except RoomError:
+            self._working.pop(rid, None)
+            self._pending.pop(rid, None)
+            self._inspected[rid] = time.time()
 
     async def detail(self, room_id: str) -> Dict[str, Any]:
         state = await self._state(identifier(room_id, "room id"))
@@ -485,7 +514,9 @@ class Rooms:
         files = [_media_file(a) for a in atts]
         _check_sizes(files)  # before any byte is read or sent
         if files:
-            payload["attachments"] = [await self._upload(rid, f"{client_id}.a{i}", f) for i, f in enumerate(files)]
+            # Upload ids follow the file, not its position: a retry that drops one file keeps the others'.
+            payload["attachments"] = [await self._upload(rid, f"{client_id}.{hashlib.sha256(f['path'].name.encode()).hexdigest()[:16]}", f)
+                                      for f in files]
         if not payload["text"] and not files:
             raise RoomError("empty message")
         result = await self.call("groups.send", {"room_id": rid, "event_id": client_id, "payload": payload})
@@ -591,7 +622,7 @@ class Rooms:
         self.ad._emit({"type": "room", "room": summary})
 
     def _forget(self, room_id: str) -> None:
-        for cache in (self._tails, self._working, self._pending, self._emitted):
+        for cache in (self._tails, self._working, self._pending, self._emitted, self._inspected):
             cache.pop(room_id, None)
         self.ad._emit({"type": "room_removed", "room_id": room_id})
 
@@ -604,14 +635,8 @@ class Rooms:
         rooms = await self._rooms()
         for room in rooms:
             rid = str(room["room_id"])
-            # Recently active, working or waiting on the owner: only then is the driver state worth a read.
-            if float(room.get("updated_at") or 0) > now - ACTIVE_SECONDS or self._working.get(rid) or self._pending.get(rid):
-                try:
-                    state = await self.call("groups.state", {"room_id": rid})
-                    self._observe(rid, state.get("driver_status"))
-                except RoomError:
-                    self._working.pop(rid, None)
-                    self._pending.pop(rid, None)
+            if self._needs_inspection(room, now):
+                await self._inspect(room)
             summary = await self._safe_summary(room)
             if self._emitted.get(rid) != self._key(summary):
                 self._emit(summary)
