@@ -9,7 +9,6 @@
     <string name="report_message">Segnala messaggio</string>
     <string name="report_include">Includi il messaggio selezionato (facoltativo)</string>
     <string name="report_notice">Controlla un\'email di assistenza per hello@tiyuvta.ai. Aprendo l\'app di posta le passi la bozza; sei tu a decidere se inviarla.</string>
-    <string name="report_subject">Segnalazione problema Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Annulla</string>
     <string name="common_close">Chiudi</string>
@@ -595,10 +594,6 @@
     <string name="phone_settings_wake_word">Parola di attivazione</string>
     <string name="phone_settings_notifications">Notifiche</string>
     <string name="phone_settings_push">Risvegli push</string>
-    <string name="phone_settings_push_on">Attivo. Google riattiva il telefono, il contenuto arriva direttamente da %1$s.</string>
-    <string name="phone_settings_push_off">Non configurato sul server. L\'app usa la propria connessione.</string>
-    <string name="phone_settings_stay_connected">Resta connesso in background</string>
-    <string name="phone_settings_stay_connected_sub">Mantiene una connessione attiva e mostra l\'avanzamento delle esecuzioni. Consuma un po\' più di batteria.</string>
     <string name="phone_settings_channels">Canali</string>
     <string name="phone_settings_channels_sub">Approvazioni, risposte, cron e riepiloghi, esecuzioni live. Disattiva l\'audio di ciascuno separatamente.</string>
     <string name="phone_settings_devices">Dispositivi</string>
@@ -705,7 +700,6 @@
     <string name="support_report_id">ID segnalazione: %1$s</string>
     <string name="support_keep_id">Conserva questo ID per nuovi tentativi o richieste di eliminazione.</string>
     <string name="support_email_alternative">In alternativa via email: %1$s</string>
-    <string name="support_mail_subject">Oggetto: %1$s</string>
     <string name="support_received">Ricevuta da %1$s. È una conferma di ricezione, non una decisione di moderazione né una promessa di intervento o risposta.</string>
     <string name="support_send_failed">Nessuna conferma di ricezione. La bozza è ancora qui. Tocca «Invia segnalazione» per riprovare con lo stesso ID, oppure usa l\'email. Una connessione non riuscita o annullata potrebbe averla consegnata comunque; nulla viene ritentato in automatico.</string>
     <string name="support_mail_failed">Impossibile aprire un\'app di posta. La bozza è ancora qui. Puoi scrivere tu a %1$s.</string>
@@ -1178,8 +1172,6 @@
     <string name="notify_channel_replies_info">Risposte dell\'agente ed esecuzioni completate</string>
     <string name="notify_channel_digests">Cron e riepiloghi</string>
     <string name="notify_channel_digests_info">Risultati dei job pianificati</string>
-    <string name="notify_channel_live">Esecuzioni live e connessione</string>
-    <string name="notify_channel_live_info">Avanzamento delle esecuzioni e connessione in background</string>
     <string name="notify_reply_to">Rispondi a %1$s</string>
     <string name="notify_reply">Rispondi</string>
     <string name="notify_mark_read">Segna come letto</string>
@@ -1189,7 +1181,6 @@
     <string name="notify_approval_needed">Serve un\'approvazione</string>
     <string name="notify_this_session">Questa sessione</string>
     <string name="notify_asks_to_run">%1$s chiede di eseguire:</string>
-    <string name="notify_connected">Connesso</string>
     <string name="notify_reconnecting">Riconnessione…</string>
     <string name="notify_agent_working">%1$s sta lavorando</string>
     <string name="notify_a_run">Un\'esecuzione</string>
@@ -1669,7 +1660,6 @@
     <string name="alarm_next">prossima %1$s · %2$s</string>
     <string name="alarm_none_set">nessuna sveglia impostata</string>
     <string name="alarm_exact_off">Le sveglie esatte sono disattivate</string>
-    <string name="alarm_exact_off_sub">Le sveglie locali non sono pianificate. Consenti le sveglie esatte prima di affidarti a Wake.</string>
     <string name="alarm_notifications_attention">Le notifiche della sveglia richiedono attenzione</string>
     <string name="alarm_notifications_attention_sub">Consenti le notifiche di %1$s e imposta il canale «Sveglia Wake» su importanza alta, così la schermata delle prove è raggiungibile.</string>
     <string name="alarm_fullscreen_off">Le sveglie a schermo intero sono disattivate</string>

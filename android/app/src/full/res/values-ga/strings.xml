@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Optamú ceallra</string>
     <string name="channel_battery_body">Maraíonn fóin áirithe an ceangal cúlra. Ceadaigh do %1$s rith gan srian.</string>
     <string name="channel_allow_unknown_apps">Ceadaigh “Suiteáil aipeanna anaithnide” do %1$s, ansin tapáil an comhad arís</string>
+    <string name="alarm_exact_off_sub">Níl aláraim logánta sceidealta. Ceadaigh aláraim chruinne sula mbraitheann tú ar an ngné Múscailt.</string>
+    <string name="notify_channel_live">Rití beo agus ceangal</string>
+    <string name="notify_channel_live_info">Dul chun cinn na rití agus an ceangal cúlra</string>
+    <string name="notify_connected">Ceangailte</string>
+    <string name="phone_settings_push_off">Níl sé socraithe ar an bhfreastalaí. Úsáideann an aip a ceangal féin ina ionad.</string>
+    <string name="phone_settings_push_on">Ar siúl. Músclaíonn Google an fón, tagann an t-ábhar díreach ó %1$s.</string>
+    <string name="phone_settings_stay_connected">Fan ceangailte sa chúlra</string>
+    <string name="phone_settings_stay_connected_sub">Coinníonn sé ceangal beo agus taispeánann sé dul chun cinn na rití. Úsáideann sé beagán níos mó ceallra.</string>
 </resources>

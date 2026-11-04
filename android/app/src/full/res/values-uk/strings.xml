@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Оптимізація батареї</string>
     <string name="channel_battery_body">Деякі телефони обривають фонове з\'єднання. Дозвольте %1$s працювати без обмежень.</string>
     <string name="channel_allow_unknown_apps">Дозвольте «Установлення невідомих додатків» для %1$s, потім знову натисніть файл</string>
+    <string name="alarm_exact_off_sub">Локальні будильники не заплановано. Дозвольте точні будильники, перш ніж покладатися на Пробудження.</string>
+    <string name="notify_channel_live">Поточні запуски й з\'єднання</string>
+    <string name="notify_channel_live_info">Хід запусків і фонове з\'єднання</string>
+    <string name="notify_connected">Підключено</string>
+    <string name="phone_settings_push_off">Не налаштовано на сервері. Застосунок використовує власне з\'єднання.</string>
+    <string name="phone_settings_push_on">Увімкнено. Google пробуджує телефон, а вміст надходить безпосередньо від %1$s.</string>
+    <string name="phone_settings_stay_connected">Тримати з\'єднання у фоні</string>
+    <string name="phone_settings_stay_connected_sub">Підтримує живе з\'єднання й показує хід виконання. Трохи більше витрачає заряд.</string>
 </resources>

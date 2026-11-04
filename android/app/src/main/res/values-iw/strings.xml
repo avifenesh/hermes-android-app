@@ -9,7 +9,6 @@
     <string name="report_message">דיווח על הודעה</string>
     <string name="report_include">צירוף ההודעה שנבחרה (לא חובה)</string>
     <string name="report_notice">אפשר לעבור על המייל לתמיכה (hello@tiyuvta.ai) לפני השליחה. פתיחת אפליקציית המייל מעבירה אליה את הטיוטה, וההחלטה אם לשלוח היא שלך.</string>
-    <string name="report_subject">דיווח על בעיה ב-Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
 
     <string name="common_cancel">ביטול</string>
@@ -561,10 +560,6 @@
     <string name="phone_settings_wake_word">מילת הפעלה</string>
     <string name="phone_settings_notifications">התראות</string>
     <string name="phone_settings_push">השכמה ב-Push</string>
-    <string name="phone_settings_push_on">פועל. הטלפון מתעורר דרך Google, והתוכן מגיע ישירות מ-%1$s.</string>
-    <string name="phone_settings_push_off">לא הוגדר בשרת. האפליקציה משתמשת בחיבור משלה.</string>
-    <string name="phone_settings_stay_connected">חיבור רציף ברקע</string>
-    <string name="phone_settings_stay_connected_sub">שומר על חיבור פעיל ומציג את התקדמות הריצות. צורך קצת יותר סוללה.</string>
     <string name="phone_settings_channels">ערוצים</string>
     <string name="phone_settings_channels_sub">אישורים, תשובות, Cron וסיכומים, ריצות פעילות. אפשר להשתיק כל אחד בנפרד.</string>
     <string name="phone_settings_devices">מכשירים</string>
@@ -668,7 +663,6 @@
     <string name="support_report_id">מזהה הדיווח: %1$s</string>
     <string name="support_keep_id">כדאי לשמור את המזהה הזה לבקשות של שליחה חוזרת או מחיקה.</string>
     <string name="support_email_alternative">חלופה במייל: %1$s</string>
-    <string name="support_mail_subject">נושא המייל: %1$s</string>
     <string name="support_received">התקבל אצל %1$s. זהו אישור קבלה, לא החלטת מודרציה ולא התחייבות לפעולה או לתגובה.</string>
     <string name="support_send_failed">לא התקבל אישור קבלה. הטיוטה עדיין כאן. אפשר להקיש על \"שליחת הדיווח\" כדי לנסות שוב עם אותו מזהה דיווח, או להשתמש במייל. ייתכן שחיבור שנכשל או בוטל בכל זאת העביר את הדיווח; שום דבר לא נשלח שוב אוטומטית.</string>
     <string name="support_mail_failed">לא ניתן לפתוח אפליקציית מייל. הטיוטה עדיין כאן. אפשר לשלוח מייל ל-%1$s באופן ידני.</string>
@@ -1116,8 +1110,6 @@
     <string name="notify_channel_replies_info">תשובות של הסוכן וריצות שהסתיימו</string>
     <string name="notify_channel_digests">Cron וסיכומים</string>
     <string name="notify_channel_digests_info">תוצאות של משימות מתוזמנות</string>
-    <string name="notify_channel_live">ריצות פעילות וחיבור</string>
-    <string name="notify_channel_live_info">התקדמות הריצות והחיבור ברקע</string>
     <string name="notify_reply_to">תשובה ל-%1$s</string>
     <string name="notify_reply">תשובה</string>
     <string name="notify_mark_read">סימון כנקרא</string>
@@ -1127,7 +1119,6 @@
     <string name="notify_approval_needed">נדרש אישור</string>
     <string name="notify_this_session">בסשן הזה</string>
     <string name="notify_asks_to_run">בקשת הרצה מ-%1$s:</string>
-    <string name="notify_connected">מחובר</string>
     <string name="notify_reconnecting">בהתחברות מחדש…</string>
     <string name="notify_agent_working">%1$s בעבודה</string>
     <string name="notify_a_run">ריצה</string>
@@ -1583,7 +1574,6 @@
     <string name="alarm_next">הבא: %1$s · %2$s</string>
     <string name="alarm_none_set">אין שעון מעורר</string>
     <string name="alarm_exact_off">שעונים מעוררים מדויקים כבויים</string>
-    <string name="alarm_exact_off_sub">שעונים מעוררים מקומיים לא מתוזמנים. כדאי לאפשר שעונים מעוררים מדויקים לפני שסומכים על ההשכמה.</string>
     <string name="alarm_notifications_attention">התראות השעון המעורר דורשות טיפול</string>
     <string name="alarm_notifications_attention_sub">צריך לאפשר התראות של %1$s ולהגדיר לערוץ \"השכמה\" חשיבות גבוהה, כדי שמסך ההוכחה יהיה נגיש.</string>
     <string name="alarm_fullscreen_off">התראות במסך מלא כבויות</string>

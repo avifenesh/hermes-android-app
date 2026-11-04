@@ -9,7 +9,6 @@
     <string name="report_message">Сообщить о проблеме с сообщением</string>
     <string name="report_include">Приложить выбранное сообщение (необязательно)</string>
     <string name="report_notice">Проверьте письмо в поддержку на hello@tiyuvta.ai. При открытии почтового приложения черновик передаётся ему; отправлять или нет, решаете вы.</string>
-    <string name="report_subject">Отчёт о проблеме в Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Отмена</string>
     <string name="common_close">Закрыть</string>
@@ -544,10 +543,6 @@
     <string name="phone_settings_wake_word">Фраза активации</string>
     <string name="phone_settings_notifications">Уведомления</string>
     <string name="phone_settings_push">Push-пробуждение</string>
-    <string name="phone_settings_push_on">Включено. Google будит телефон, а содержимое приходит напрямую от %1$s.</string>
-    <string name="phone_settings_push_off">Не настроено на сервере. Приложение использует собственное подключение.</string>
-    <string name="phone_settings_stay_connected">Оставаться на связи в фоне</string>
-    <string name="phone_settings_stay_connected_sub">Сохраняет активное подключение и показывает ход запусков. Расходует чуть больше заряда батареи.</string>
     <string name="phone_settings_channels">Категории уведомлений</string>
     <string name="phone_settings_channels_sub">Подтверждения, ответы, cron и сводки, текущие запуски. Каждую категорию можно отключить отдельно.</string>
     <string name="phone_settings_devices">Устройства</string>
@@ -655,7 +650,6 @@
     <string name="support_report_id">ID отчёта: %1$s</string>
     <string name="support_keep_id">Сохраните этот ID для повторной отправки или запроса на удаление.</string>
     <string name="support_email_alternative">Или по почте: %1$s</string>
-    <string name="support_mail_subject">Тема письма: %1$s</string>
     <string name="support_received">Отчёт получен издателем %1$s. Это подтверждение получения, а не решение модерации и не обещание действий или ответа.</string>
     <string name="support_send_failed">Получение не подтверждено. Черновик сохранён. Нажмите «Отправить отчёт», чтобы повторить с тем же ID, или воспользуйтесь почтой. Прерванное или отменённое подключение могло всё же доставить отчёт; автоматических повторов нет.</string>
     <string name="support_mail_failed">Не удалось открыть почтовое приложение. Черновик сохранён. Вы можете сами написать на %1$s.</string>
@@ -1101,8 +1095,6 @@
     <string name="notify_channel_replies_info">Ответы агента и завершённые запуски</string>
     <string name="notify_channel_digests">Cron и сводки</string>
     <string name="notify_channel_digests_info">Результаты запланированных задач</string>
-    <string name="notify_channel_live">Текущие запуски и подключение</string>
-    <string name="notify_channel_live_info">Ход запусков и фоновое подключение</string>
     <string name="notify_reply_to">Ответить %1$s</string>
     <string name="notify_reply">Ответить</string>
     <string name="notify_mark_read">Прочитано</string>
@@ -1112,7 +1104,6 @@
     <string name="notify_approval_needed">Нужно подтверждение</string>
     <string name="notify_this_session">В этом сеансе</string>
     <string name="notify_asks_to_run">%1$s просит выполнить:</string>
-    <string name="notify_connected">Подключено</string>
     <string name="notify_reconnecting">Переподключение…</string>
     <string name="notify_agent_working">%1$s работает</string>
     <string name="notify_a_run">Запуск</string>
@@ -1563,7 +1554,6 @@
     <string name="alarm_next">следующий %1$s · %2$s</string>
     <string name="alarm_none_set">будильник не задан</string>
     <string name="alarm_exact_off">Точные будильники отключены</string>
-    <string name="alarm_exact_off_sub">Локальные будильники не запланированы. Разрешите точные будильники, прежде чем полагаться на «Подъём».</string>
     <string name="alarm_notifications_attention">Уведомления будильника требуют внимания</string>
     <string name="alarm_notifications_attention_sub">Разрешите уведомления %1$s и задайте категории уведомлений «Будильник» высокую важность, чтобы экран доказательства был доступен.</string>
     <string name="alarm_fullscreen_off">Полноэкранные будильники отключены</string>

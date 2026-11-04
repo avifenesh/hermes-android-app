@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Batteryoptimering</string>
     <string name="channel_battery_body">Sommige fone maak die agtergrondverbinding dood. Laat %1$s onbeperk loop.</string>
     <string name="channel_allow_unknown_apps">Laat \"Installeer onbekende programme\" vir %1$s toe en tik dan weer op die lêer</string>
+    <string name="alarm_exact_off_sub">Plaaslike alarms is nie geskeduleer nie. Laat presiese alarms toe voordat jy op Wake staatmaak.</string>
+    <string name="notify_channel_live">Lewendige uitvoerings &amp; verbinding</string>
+    <string name="notify_channel_live_info">Uitvoeringsvordering en die agtergrondverbinding</string>
+    <string name="notify_connected">Gekoppel</string>
+    <string name="phone_settings_push_off">Nie op die bediener opgestel nie. Die program val terug op sy eie verbinding.</string>
+    <string name="phone_settings_push_on">Aan. Google wek die foon, inhoud kom direk van %1$s af.</string>
+    <string name="phone_settings_stay_connected">Bly in die agtergrond gekoppel</string>
+    <string name="phone_settings_stay_connected_sub">Hou \'n lewendige verbinding en wys uitvoeringsvordering. Gebruik \'n bietjie meer battery.</string>
 </resources>

@@ -9,7 +9,6 @@
     <string name="report_message">メッセージを報告</string>
     <string name="report_include">選択したメッセージを含める (任意)</string>
     <string name="report_notice">hello@tiyuvta.ai 宛てのサポートメールを確認します。メールアプリを開くと下書きがアプリに渡されます。送信するかどうかはご自身で選べます。</string>
-    <string name="report_subject">Hermes 問題報告</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">キャンセル</string>
     <string name="common_close">閉じる</string>
@@ -493,10 +492,6 @@
     <string name="phone_settings_wake_word">ウェイクワード</string>
     <string name="phone_settings_notifications">通知</string>
     <string name="phone_settings_push">プッシュによる起動</string>
-    <string name="phone_settings_push_on">オン。Google がスマートフォンを起動し、内容は %1$s から直接届きます。</string>
-    <string name="phone_settings_push_off">サーバーで設定されていません。アプリは独自の接続を使用します。</string>
-    <string name="phone_settings_stay_connected">バックグラウンドで接続を維持</string>
-    <string name="phone_settings_stay_connected_sub">常時接続を維持し、実行の進行状況を表示します。電池の消費が少し増えます。</string>
     <string name="phone_settings_channels">通知カテゴリ</string>
     <string name="phone_settings_channels_sub">承認、返信、Cron とダイジェスト、実行状況。それぞれ個別にミュートできます。</string>
     <string name="phone_settings_devices">デバイス</string>
@@ -583,7 +578,6 @@
     <string name="support_report_id">報告 ID: %1$s</string>
     <string name="support_keep_id">再試行や削除の依頼のためにこの ID を控えておいてください。</string>
     <string name="support_email_alternative">メールでの代替手段: %1$s</string>
-    <string name="support_mail_subject">メールの件名: %1$s</string>
     <string name="support_received">%1$s が受信しました。これは受領の確認であり、審査の判断や対応・返信の約束ではありません。</string>
     <string name="support_send_failed">受領を確認できませんでした。下書きは残っています。「報告を送信」をタップすると同じ報告 ID で再試行できます。メールも使用できます。接続が失敗またはキャンセルされても届いている場合があります。自動で再試行はされません。</string>
     <string name="support_mail_failed">メールアプリを開けませんでした。下書きは残っています。%1$s にご自身でメールを送ることもできます。</string>
@@ -966,8 +960,6 @@
     <string name="notify_channel_replies_info">エージェントの返信と完了した実行</string>
     <string name="notify_channel_digests">Cron とダイジェスト</string>
     <string name="notify_channel_digests_info">スケジュール済みジョブの結果</string>
-    <string name="notify_channel_live">実行状況と接続</string>
-    <string name="notify_channel_live_info">実行の進行状況とバックグラウンド接続</string>
     <string name="notify_reply_to">%1$s に返信</string>
     <string name="notify_reply">返信</string>
     <string name="notify_mark_read">既読にする</string>
@@ -977,7 +969,6 @@
     <string name="notify_approval_needed">承認が必要です</string>
     <string name="notify_this_session">このセッション</string>
     <string name="notify_asks_to_run">%1$s が実行の許可を求めています:</string>
-    <string name="notify_connected">接続済み</string>
     <string name="notify_reconnecting">再接続中…</string>
     <string name="notify_agent_working">%1$s が作業中</string>
     <string name="notify_a_run">実行</string>
@@ -1383,7 +1374,6 @@
     <string name="alarm_next">次回 %1$s · %2$s</string>
     <string name="alarm_none_set">アラーム未設定</string>
     <string name="alarm_exact_off">正確なアラームがオフです</string>
-    <string name="alarm_exact_off_sub">ローカル アラームがスケジュールされていません。起床アラームを使う前に、正確なアラームを許可してください。</string>
     <string name="alarm_notifications_attention">アラームの通知を確認してください</string>
     <string name="alarm_notifications_attention_sub">証明画面を開けるように、%1$s の通知を許可し、「起床アラーム」通知カテゴリの重要度を高に設定してください。</string>
     <string name="alarm_fullscreen_off">全画面アラームがオフです</string>

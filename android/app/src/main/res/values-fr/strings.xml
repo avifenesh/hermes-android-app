@@ -9,7 +9,6 @@
     <string name="report_message">Signaler le message</string>
     <string name="report_include">Joindre le message sélectionné (facultatif)</string>
     <string name="report_notice">Relisez un e-mail d\'assistance pour hello@tiyuvta.ai. En ouvrant votre application de messagerie, vous lui transmettez le brouillon ; c\'est vous qui décidez de l\'envoyer.</string>
-    <string name="report_subject">Signalement de problème Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Annuler</string>
     <string name="common_close">Fermer</string>
@@ -595,10 +594,6 @@
     <string name="phone_settings_wake_word">Mot d\'activation</string>
     <string name="phone_settings_notifications">Notifications</string>
     <string name="phone_settings_push">Réveils par push</string>
-    <string name="phone_settings_push_on">Activé. Google réveille le téléphone, le contenu vient directement de %1$s.</string>
-    <string name="phone_settings_push_off">Non configuré sur le serveur. L\'application utilise sa propre connexion.</string>
-    <string name="phone_settings_stay_connected">Rester connecté en arrière-plan</string>
-    <string name="phone_settings_stay_connected_sub">Garde une connexion active et affiche la progression des exécutions. Consomme un peu plus de batterie.</string>
     <string name="phone_settings_channels">Canaux</string>
     <string name="phone_settings_channels_sub">Approbations, réponses, cron et résumés, exécutions en direct. Désactivez le son de chacun séparément.</string>
     <string name="phone_settings_devices">Appareils</string>
@@ -705,7 +700,6 @@
     <string name="support_report_id">ID du signalement : %1$s</string>
     <string name="support_keep_id">Conservez cet ID pour réessayer ou demander une suppression.</string>
     <string name="support_email_alternative">Par e-mail : %1$s</string>
-    <string name="support_mail_subject">Objet : %1$s</string>
     <string name="support_received">Reçu par %1$s. Il s\'agit d\'un accusé de réception, et non d\'une décision de modération ni d\'une promesse d\'action ou de réponse.</string>
     <string name="support_send_failed">Aucune réception confirmée. Votre brouillon est toujours là. Appuyez sur « Envoyer le signalement » pour réessayer avec le même ID, ou utilisez l\'e-mail. Une connexion échouée ou annulée a pu le transmettre quand même ; rien n\'est réessayé automatiquement.</string>
     <string name="support_mail_failed">Impossible d\'ouvrir une application de messagerie. Votre brouillon est toujours là. Vous pouvez écrire vous-même à %1$s.</string>
@@ -1178,8 +1172,6 @@
     <string name="notify_channel_replies_info">Réponses de l\'agent et exécutions terminées</string>
     <string name="notify_channel_digests">Cron et résumés</string>
     <string name="notify_channel_digests_info">Résultats des tâches planifiées</string>
-    <string name="notify_channel_live">Exécutions en direct et connexion</string>
-    <string name="notify_channel_live_info">Progression des exécutions et connexion en arrière-plan</string>
     <string name="notify_reply_to">Répondre à %1$s</string>
     <string name="notify_reply">Répondre</string>
     <string name="notify_mark_read">Marquer comme lu</string>
@@ -1189,7 +1181,6 @@
     <string name="notify_approval_needed">Approbation requise</string>
     <string name="notify_this_session">Cette session</string>
     <string name="notify_asks_to_run">%1$s demande à exécuter :</string>
-    <string name="notify_connected">Connecté</string>
     <string name="notify_reconnecting">Reconnexion…</string>
     <string name="notify_agent_working">%1$s travaille</string>
     <string name="notify_a_run">Une exécution</string>
@@ -1669,7 +1660,6 @@
     <string name="alarm_next">prochain %1$s · %2$s</string>
     <string name="alarm_none_set">aucun réveil réglé</string>
     <string name="alarm_exact_off">Les alarmes exactes sont désactivées</string>
-    <string name="alarm_exact_off_sub">Les alarmes locales ne sont pas planifiées. Autorisez les alarmes exactes avant de compter sur Wake.</string>
     <string name="alarm_notifications_attention">Les notifications d\'alarme demandent votre attention</string>
     <string name="alarm_notifications_attention_sub">Autorisez les notifications de %1$s et réglez le canal « Alarme Wake » sur une importance élevée pour que l\'écran de preuve reste accessible.</string>
     <string name="alarm_fullscreen_off">Les alarmes plein écran sont désactivées</string>

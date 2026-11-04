@@ -25,4 +25,12 @@
     <string name="channel_battery_title">电池优化</string>
     <string name="channel_battery_body">有些手机会终止后台连接。请允许 %1$s 不受限制地运行。</string>
     <string name="channel_allow_unknown_apps">请为 %1$s 开启“安装未知应用”，然后再次点按该文件</string>
+    <string name="alarm_exact_off_sub">本地闹钟未安排。依赖起床闹钟之前，请先允许精确闹钟。</string>
+    <string name="notify_channel_live">实时运行和连接</string>
+    <string name="notify_channel_live_info">运行进度和后台连接</string>
+    <string name="notify_connected">已连接</string>
+    <string name="phone_settings_push_off">服务器未设置。应用会改用自己的连接。</string>
+    <string name="phone_settings_push_on">已开启。Google 负责唤醒手机，内容直接来自 %1$s。</string>
+    <string name="phone_settings_stay_connected">在后台保持连接</string>
+    <string name="phone_settings_stay_connected_sub">保持实时连接并显示运行进度。耗电会稍多一些。</string>
 </resources>

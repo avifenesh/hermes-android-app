@@ -9,7 +9,6 @@
     <string name="report_message">Üzenet jelentése</string>
     <string name="report_include">Kijelölt üzenet csatolása (nem kötelező)</string>
     <string name="report_notice">Nézze át a hello@tiyuvta.ai címre szóló támogatási e-mailt. A levelezőalkalmazás megnyitásakor a piszkozat átkerül oda; Ön dönti el, hogy elküldi-e.</string>
-    <string name="report_subject">Hermes-hibajelentés</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Mégse</string>
     <string name="common_close">Bezárás</string>
@@ -510,10 +509,6 @@
     <string name="phone_settings_wake_word">Ébresztőszó</string>
     <string name="phone_settings_notifications">Értesítések</string>
     <string name="phone_settings_push">Push-ébresztések</string>
-    <string name="phone_settings_push_on">Be. A Google ébreszti fel a telefont, a tartalom közvetlenül %1$s felől érkezik.</string>
-    <string name="phone_settings_push_off">Nincs beállítva a kiszolgálón. Az alkalmazás a saját kapcsolatát használja.</string>
-    <string name="phone_settings_stay_connected">Kapcsolat fenntartása a háttérben</string>
-    <string name="phone_settings_stay_connected_sub">Élő kapcsolatot tart fenn, és mutatja a futtatások előrehaladását. Kicsivel több akkumulátort használ.</string>
     <string name="phone_settings_channels">Csatornák</string>
     <string name="phone_settings_channels_sub">Jóváhagyások, válaszok, cron és összefoglalók, élő futtatások. Mindegyik külön némítható.</string>
     <string name="phone_settings_devices">Eszközök</string>
@@ -607,7 +602,6 @@
     <string name="support_report_id">Jelentésazonosító: %1$s</string>
     <string name="support_keep_id">Őrizze meg ezt az azonosítót újrapróbáláshoz vagy törlési kérelemhez.</string>
     <string name="support_email_alternative">Alternatíva e-mailben: %1$s</string>
-    <string name="support_mail_subject">Levél tárgya: %1$s</string>
     <string name="support_received">%1$s megkapta. Ez átvételi visszaigazolás, nem moderálási döntés, és nem ígéret intézkedésre vagy válaszra.</string>
     <string name="support_send_failed">Nincs megerősített átvétel. A piszkozat még itt van. Ugyanazzal a jelentésazonosítóval való újrapróbáláshoz koppintson a Jelentés küldése gombra, vagy használjon e-mailt. Sikertelen vagy megszakított kapcsolat esetén is megérkezhetett; automatikus újrapróbálás nincs.</string>
     <string name="support_mail_failed">Nem sikerült megnyitni levelezőalkalmazást. A piszkozat még itt van. Saját maga is írhat e-mailt ide: %1$s.</string>
@@ -1011,8 +1005,6 @@
     <string name="notify_channel_replies_info">Ügynökválaszok és befejezett futtatások</string>
     <string name="notify_channel_digests">Cron és összefoglalók</string>
     <string name="notify_channel_digests_info">Ütemezett feladatok eredményei</string>
-    <string name="notify_channel_live">Élő futtatások és kapcsolat</string>
-    <string name="notify_channel_live_info">A futtatások előrehaladása és a háttérkapcsolat</string>
     <string name="notify_reply_to">Válasz %1$s számára</string>
     <string name="notify_reply">Válasz</string>
     <string name="notify_mark_read">Megjelölés olvasottként</string>
@@ -1022,7 +1014,6 @@
     <string name="notify_approval_needed">Jóváhagyás szükséges</string>
     <string name="notify_this_session">Ez a munkamenet</string>
     <string name="notify_asks_to_run">%1$s futtatni szeretné:</string>
-    <string name="notify_connected">Csatlakoztatva</string>
     <string name="notify_reconnecting">Újracsatlakozás…</string>
     <string name="notify_agent_working">%1$s dolgozik</string>
     <string name="notify_a_run">Egy futtatás</string>
@@ -1443,7 +1434,6 @@
     <string name="alarm_next">következő: %1$s · %2$s</string>
     <string name="alarm_none_set">nincs beállított ébresztés</string>
     <string name="alarm_exact_off">A pontos ébresztések ki vannak kapcsolva</string>
-    <string name="alarm_exact_off_sub">A helyi ébresztések nincsenek ütemezve. Engedélyezze a pontos ébresztéseket, mielőtt az Ébresztésre hagyatkozna.</string>
     <string name="alarm_notifications_attention">Az ébresztési értesítések figyelmet igényelnek</string>
     <string name="alarm_notifications_attention_sub">Engedélyezze az értesítéseket ehhez: %1$s, és állítsa az Ébresztő csatornát magas fontosságúra, hogy a bizonyítékképernyő elérhető legyen.</string>
     <string name="alarm_fullscreen_off">A teljes képernyős ébresztések ki vannak kapcsolva</string>

@@ -9,7 +9,6 @@
     <string name="report_message">الإبلاغ عن الرسالة</string>
     <string name="report_include">تضمين الرسالة المحددة (اختياري)</string>
     <string name="report_notice">راجِع رسالة الدعم الموجّهة إلى hello@tiyuvta.ai. يؤدي فتح تطبيق البريد إلى مشاركة المسودة معه، وأنت من يقرر إرسالها.</string>
-    <string name="report_subject">تقرير مشكلة في Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">إلغاء</string>
     <string name="common_close">إغلاق</string>
@@ -580,10 +579,6 @@
     <string name="phone_settings_wake_word">كلمة التنشيط</string>
     <string name="phone_settings_notifications">الإشعارات</string>
     <string name="phone_settings_push">الإيقاظ بالإشعارات الفورية</string>
-    <string name="phone_settings_push_on">مفعّل. توقظ Google الهاتف، ويصل المحتوى مباشرةً من %1$s.</string>
-    <string name="phone_settings_push_off">غير مُعَدّ على الخادم. يعود التطبيق إلى اتصاله الخاص.</string>
-    <string name="phone_settings_stay_connected">البقاء متصلًا في الخلفية</string>
-    <string name="phone_settings_stay_connected_sub">يحافظ على اتصال مباشر ويعرض تقدّم التشغيل. يستهلك قدرًا أكبر قليلًا من البطارية.</string>
     <string name="phone_settings_channels">القنوات</string>
     <string name="phone_settings_channels_sub">الموافقات، والردود، وCron والملخصات، والتشغيلات المباشرة. اكتم كل واحدة على حدة.</string>
     <string name="phone_settings_devices">الهواتف</string>
@@ -705,7 +700,6 @@
     <string name="support_report_id">معرّف البلاغ: %1$s</string>
     <string name="support_keep_id">احتفظ بهذا المعرّف لطلبات إعادة المحاولة أو الحذف.</string>
     <string name="support_email_alternative">بديل عبر البريد الإلكتروني: %1$s</string>
-    <string name="support_mail_subject">موضوع الرسالة: %1$s</string>
     <string name="support_received">تم الاستلام لدى %1$s. هذا إيصال استلام، وليس قرار إشراف أو وعدًا باتخاذ إجراء أو بالرد.</string>
     <string name="support_send_failed">لم يتم تأكيد الاستلام. لا تزال مسودتك هنا. انقر على «إرسال البلاغ» لإعادة المحاولة بمعرّف البلاغ نفسه، أو استخدم البريد الإلكتروني. ربما وصل البلاغ رغم فشل الاتصال أو إلغائه، ولا تُعاد المحاولة تلقائيًا.</string>
     <string name="support_mail_failed">تعذّر فتح تطبيق بريد. لا تزال مسودتك هنا. يمكنك مراسلة %1$s بنفسك.</string>
@@ -1194,8 +1188,6 @@
     <string name="notify_channel_replies_info">ردود الوكيل والتشغيلات المكتملة</string>
     <string name="notify_channel_digests">الملخصات وCron</string>
     <string name="notify_channel_digests_info">نتائج المهام المجدولة</string>
-    <string name="notify_channel_live">التشغيلات المباشرة والاتصال</string>
-    <string name="notify_channel_live_info">تقدّم التشغيل والاتصال في الخلفية</string>
     <string name="notify_reply_to">الرد على %1$s</string>
     <string name="notify_reply">رد</string>
     <string name="notify_mark_read">تعليم كمقروءة</string>
@@ -1205,7 +1197,6 @@
     <string name="notify_approval_needed">الموافقة مطلوبة</string>
     <string name="notify_this_session">هذه الجلسة</string>
     <string name="notify_asks_to_run">طلب تشغيل من %1$s:</string>
-    <string name="notify_connected">متصل</string>
     <string name="notify_reconnecting">جارٍ إعادة الاتصال…</string>
     <string name="notify_agent_working">جارٍ العمل لدى %1$s</string>
     <string name="notify_a_run">تشغيل</string>
@@ -1688,7 +1679,6 @@
     <string name="alarm_next">التالي %1$s · %2$s</string>
     <string name="alarm_none_set">لم يُضبط أي منبّه</string>
     <string name="alarm_exact_off">المنبّهات الدقيقة معطّلة</string>
-    <string name="alarm_exact_off_sub">لم تتم جدولة المنبّهات المحلية. اسمح بالمنبّهات الدقيقة قبل الاعتماد على «الاستيقاظ».</string>
     <string name="alarm_notifications_attention">إشعارات المنبّه تحتاج إلى انتباهك</string>
     <string name="alarm_notifications_attention_sub">اسمح بإشعارات %1$s واضبط قناة «منبّه الاستيقاظ» على أهمية عالية ليمكن الوصول إلى شاشة الإثبات.</string>
     <string name="alarm_fullscreen_off">المنبّهات بملء الشاشة معطّلة</string>

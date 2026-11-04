@@ -52,4 +52,6 @@
 
     <!-- ===== Opening attachments (Play edition) ===== -->
     <string name="channel_apk_unavailable">Installing APK attachments is unavailable in this Play edition. You can still save the file to Downloads.</string>
+    <!-- Overrides the main subtitle: Play has a Run progress channel instead of the live connection channel. -->
+    <string name="phone_settings_channels_sub">Approvals, replies, cron &amp; digests, run progress. Mute each one separately.</string>
 </resources>

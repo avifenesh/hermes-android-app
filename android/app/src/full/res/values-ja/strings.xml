@@ -25,4 +25,12 @@
     <string name="channel_battery_title">電池の最適化</string>
     <string name="channel_battery_body">一部のスマートフォンはバックグラウンド接続を終了させます。%1$s に制限なしでの実行を許可してください。</string>
     <string name="channel_allow_unknown_apps">%1$s に「不明なアプリのインストール」を許可してから、もう一度ファイルをタップしてください</string>
+    <string name="alarm_exact_off_sub">ローカル アラームがスケジュールされていません。起床アラームを使う前に、正確なアラームを許可してください。</string>
+    <string name="notify_channel_live">実行状況と接続</string>
+    <string name="notify_channel_live_info">実行の進行状況とバックグラウンド接続</string>
+    <string name="notify_connected">接続済み</string>
+    <string name="phone_settings_push_off">サーバーで設定されていません。アプリは独自の接続を使用します。</string>
+    <string name="phone_settings_push_on">オン。Google がスマートフォンを起動し、内容は %1$s から直接届きます。</string>
+    <string name="phone_settings_stay_connected">バックグラウンドで接続を維持</string>
+    <string name="phone_settings_stay_connected_sub">常時接続を維持し、実行の進行状況を表示します。電池の消費が少し増えます。</string>
 </resources>

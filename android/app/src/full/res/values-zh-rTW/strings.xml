@@ -25,4 +25,12 @@
     <string name="channel_battery_title">電池最佳化</string>
     <string name="channel_battery_body">有些手機會中斷背景連線。請允許 %1$s 不受限制地執行。</string>
     <string name="channel_allow_unknown_apps">請為 %1$s 允許「安裝不明應用程式」，然後再輕觸檔案一次</string>
+    <string name="alarm_exact_off_sub">本機鬧鐘未排定。依賴起床鬧鐘之前，請先允許精確鬧鐘。</string>
+    <string name="notify_channel_live">即時執行與連線</string>
+    <string name="notify_channel_live_info">執行進度和背景連線</string>
+    <string name="notify_connected">已連線</string>
+    <string name="phone_settings_push_off">伺服器尚未設定。應用程式會改用自己的連線。</string>
+    <string name="phone_settings_push_on">開啟。由 Google 喚醒手機，內容直接來自 %1$s。</string>
+    <string name="phone_settings_stay_connected">在背景保持連線</string>
+    <string name="phone_settings_stay_connected_sub">保持即時連線並顯示執行進度，會稍微多耗一點電。</string>
 </resources>

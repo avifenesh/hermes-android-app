@@ -9,7 +9,6 @@
     <string name="report_message">Mesajı bildir</string>
     <string name="report_include">Seçili mesajı ekle (isteğe bağlı)</string>
     <string name="report_notice">hello@tiyuvta.ai adresine gidecek destek e-postasını inceleyin. E-posta uygulamanızı açtığınızda taslak onunla paylaşılır; göndermeye siz karar verirsiniz.</string>
-    <string name="report_subject">Hermes sorun bildirimi</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">İptal</string>
     <string name="common_close">Kapat</string>
@@ -512,10 +511,6 @@
     <string name="phone_settings_wake_word">Uyandırma kelimesi</string>
     <string name="phone_settings_notifications">Bildirimler</string>
     <string name="phone_settings_push">Push ile uyandırma</string>
-    <string name="phone_settings_push_on">Açık. Google telefonu uyandırır, içerik doğrudan %1$s üzerinden gelir.</string>
-    <string name="phone_settings_push_off">Sunucuda ayarlanmamış. Uygulama kendi bağlantısını kullanır.</string>
-    <string name="phone_settings_stay_connected">Arka planda bağlı kal</string>
-    <string name="phone_settings_stay_connected_sub">Canlı bağlantıyı korur ve çalıştırma ilerlemesini gösterir. Biraz daha fazla pil kullanır.</string>
     <string name="phone_settings_channels">Kanallar</string>
     <string name="phone_settings_channels_sub">Onaylar, yanıtlar, cron ve özetler, canlı çalıştırmalar. Her birini ayrı ayrı sessize alın.</string>
     <string name="phone_settings_devices">Cihazlar</string>
@@ -609,7 +604,6 @@
     <string name="support_report_id">Rapor kimliği: %1$s</string>
     <string name="support_keep_id">Yeniden deneme veya silme talepleri için bu kimliği saklayın.</string>
     <string name="support_email_alternative">E-posta alternatifi: %1$s</string>
-    <string name="support_mail_subject">E-posta konusu: %1$s</string>
     <string name="support_received">%1$s tarafından alındı. Bu bir alındı bildirimidir; moderasyon kararı veya işlem ya da yanıt sözü değildir.</string>
     <string name="support_send_failed">Onaylanmış alındı yok. Taslağınız hâlâ burada. Aynı rapor kimliğiyle yeniden denemek için Raporu gönder düğmesine dokunun veya e-posta kullanın. Başarısız veya iptal edilen bir bağlantı raporu yine de iletmiş olabilir; hiçbir şey otomatik olarak yeniden denenmez.</string>
     <string name="support_mail_failed">E-posta uygulaması açılamadı. Taslağınız hâlâ burada. %1$s adresine kendiniz e-posta gönderebilirsiniz.</string>
@@ -1014,8 +1008,6 @@
     <string name="notify_channel_replies_info">Ajan yanıtları ve biten çalıştırmalar</string>
     <string name="notify_channel_digests">Cron ve özetler</string>
     <string name="notify_channel_digests_info">Zamanlanmış görevlerin sonuçları</string>
-    <string name="notify_channel_live">Canlı çalıştırmalar ve bağlantı</string>
-    <string name="notify_channel_live_info">Çalıştırma ilerlemesi ve arka plan bağlantısı</string>
     <string name="notify_reply_to">%1$s için yanıt</string>
     <string name="notify_reply">Yanıtla</string>
     <string name="notify_mark_read">Okundu işaretle</string>
@@ -1025,7 +1017,6 @@
     <string name="notify_approval_needed">Onay gerekiyor</string>
     <string name="notify_this_session">Bu oturum</string>
     <string name="notify_asks_to_run">%1$s şunu çalıştırmak istiyor:</string>
-    <string name="notify_connected">Bağlı</string>
     <string name="notify_reconnecting">Yeniden bağlanıyor…</string>
     <string name="notify_agent_working">%1$s çalışıyor</string>
     <string name="notify_a_run">Bir çalıştırma</string>
@@ -1448,7 +1439,6 @@
     <string name="alarm_next">sonraki %1$s · %2$s</string>
     <string name="alarm_none_set">alarm kurulmadı</string>
     <string name="alarm_exact_off">Kesin zamanlı alarmlar kapalı</string>
-    <string name="alarm_exact_off_sub">Yerel alarmlar zamanlanmadı. Uyandırma özelliğine güvenmeden önce kesin zamanlı alarmlara izin verin.</string>
     <string name="alarm_notifications_attention">Alarm bildirimlerini kontrol edin</string>
     <string name="alarm_notifications_attention_sub">Kanıt ekranına ulaşılabilmesi için %1$s bildirimlerine izin verin ve Uyandırma alarmı kanalını yüksek önem düzeyine ayarlayın.</string>
     <string name="alarm_fullscreen_off">Tam ekran alarmlar kapalı</string>

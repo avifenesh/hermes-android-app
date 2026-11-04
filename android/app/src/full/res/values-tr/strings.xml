@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Pil optimizasyonu</string>
     <string name="channel_battery_body">Bazı telefonlar arka plan bağlantısını sonlandırır. %1$s uygulamasının kısıtlamasız çalışmasına izin verin.</string>
     <string name="channel_allow_unknown_apps">%1$s için \"Bilinmeyen uygulamaları yükle\" iznini verin, ardından dosyaya yeniden dokunun</string>
+    <string name="alarm_exact_off_sub">Yerel alarmlar zamanlanmadı. Uyandırma özelliğine güvenmeden önce kesin zamanlı alarmlara izin verin.</string>
+    <string name="notify_channel_live">Canlı çalıştırmalar ve bağlantı</string>
+    <string name="notify_channel_live_info">Çalıştırma ilerlemesi ve arka plan bağlantısı</string>
+    <string name="notify_connected">Bağlı</string>
+    <string name="phone_settings_push_off">Sunucuda ayarlanmamış. Uygulama kendi bağlantısını kullanır.</string>
+    <string name="phone_settings_push_on">Açık. Google telefonu uyandırır, içerik doğrudan %1$s üzerinden gelir.</string>
+    <string name="phone_settings_stay_connected">Arka planda bağlı kal</string>
+    <string name="phone_settings_stay_connected_sub">Canlı bağlantıyı korur ve çalıştırma ilerlemesini gösterir. Biraz daha fazla pil kullanır.</string>
 </resources>

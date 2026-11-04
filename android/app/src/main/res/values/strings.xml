@@ -269,7 +269,7 @@
     </plurals>
     <plurals name="approval_context_recent_steps">
         <!-- %1$d: number of recent agent steps. The English one form repeats the original copy; use the correct singular. -->
-        <item quantity="one">%1$d recent steps</item>
+        <item quantity="one">%1$d recent step</item>
         <item quantity="other">%1$d recent steps</item>
     </plurals>
     <!-- Lowercase: the fold includes the latest file diff. -->
@@ -761,7 +761,7 @@
     <string name="session_loading_older">Loading earlier messages…</string>
     <string name="session_empty_title">No messages yet</string>
     <string name="session_empty_sub">Send a message to continue this session.</string>
-    <string name="session_working">Working — your message will steer or queue in the session</string>
+    <string name="session_working">Working: your message will steer or queue in the session</string>
     <string name="session_superseded">This session was superseded. Open its continuation to send messages.</string>
     <!-- Message box placeholder while the agent works. -->
     <string name="session_input_steer">Steer or queue a follow-up…</string>
@@ -987,12 +987,12 @@
     <string name="cron_delivery_dialog_title">Deliver cron to the app?</string>
     <plurals name="cron_delivery_dialog_body">
         <!-- %1$d: jobs that switch; %2$s: product name of the delivery target ("Hermes Mobile"). -->
-        <item quantity="one">%1$d jobs switch their delivery to %2$s. Local-only jobs stay local. You can change any job back in its editor.</item>
+        <item quantity="one">%1$d job switches its delivery to %2$s. Local-only jobs stay local. You can change any job back in its editor.</item>
         <item quantity="other">%1$d jobs switch their delivery to %2$s. Local-only jobs stay local. You can change any job back in its editor.</item>
     </plurals>
     <plurals name="cron_delivery_moved">
         <!-- Toast. %1$d: jobs whose delivery moved to the app. -->
-        <item quantity="one">Moved %1$d jobs</item>
+        <item quantity="one">Moved %1$d job</item>
         <item quantity="other">Moved %1$d jobs</item>
     </plurals>
 
@@ -1138,7 +1138,7 @@
     <string name="meter_session">SESSION</string>
     <plurals name="meter_session_calls">
         <!-- %1$d: model calls in the session. -->
-        <item quantity="one">%1$d calls</item>
+        <item quantity="one">%1$d call</item>
         <item quantity="other">%1$d calls</item>
     </plurals>
 
@@ -1473,19 +1473,19 @@
     <string name="usage_stat_sessions">sessions</string>
     <string name="usage_stat_per_day">per day</string>
     <plurals name="usage_suspect_note">
-        <!-- %1$d: sessions left out of the total; %2$s: their price. English keeps "session(s)" in both forms. -->
-        <item quantity="one">Left out %1$d session(s) priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
-        <item quantity="other">Left out %1$d session(s) priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
+        <!-- %1$d: sessions left out of the total; %2$s: their price. -->
+        <item quantity="one">Left out %1$d session priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
+        <item quantity="other">Left out %1$d sessions priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
     </plurals>
     <plurals name="usage_included_note">
-        <!-- %1$d: sessions on subscriptions. English keeps "session(s)" in both forms. -->
-        <item quantity="one">%1$d session(s) ran on subscriptions (no per-token price).</item>
-        <item quantity="other">%1$d session(s) ran on subscriptions (no per-token price).</item>
+        <!-- %1$d: sessions on subscriptions. -->
+        <item quantity="one">%1$d session ran on subscriptions (no per-token price).</item>
+        <item quantity="other">%1$d sessions ran on subscriptions (no per-token price).</item>
     </plurals>
     <plurals name="usage_unpriced_note">
-        <!-- %1$d: sessions without a known price. English keeps "session(s)" in both forms. -->
-        <item quantity="one">%1$d session(s) on models with no known price, so the total reads low.</item>
-        <item quantity="other">%1$d session(s) on models with no known price, so the total reads low.</item>
+        <!-- %1$d: sessions without a known price. -->
+        <item quantity="one">%1$d session on a model with no known price, so the total reads low.</item>
+        <item quantity="other">%1$d sessions on models with no known price, so the total reads low.</item>
     </plurals>
     <!-- Section header -->
     <string name="usage_by_model">By model</string>
@@ -1791,8 +1791,8 @@
     <string name="hub_no_matching_skills_discover">Try another category, source or search. Installed skills are in Installed.</string>
     <!-- Empty list text. -->
     <string name="hub_no_matching_skills_body">Try another category or search word.</string>
-    <!-- Row subtitle for a skill installed by hand on the machine. "Extensions" is the name of another screen. -->
-    <string name="hub_installed_locally">Installed locally · manage in Extensions</string>
+    <!-- Row subtitle for a skill installed by hand on the machine. "Skills &amp; plugins" is the title of another screen (ext_title). -->
+    <string name="hub_installed_locally">Installed locally · manage in Skills &amp; plugins</string>
     <!-- View chip: items not installed yet. -->
     <string name="hub_scope_discover">Discover</string>
     <!-- View chip: items already installed. -->
@@ -1850,8 +1850,8 @@
     </plurals>
     <!-- Button. -->
     <string name="hub_uninstall">Uninstall</string>
-    <!-- Button. "Extensions" is the name of another screen. -->
-    <string name="hub_manage_in_extensions">Manage in Extensions</string>
+    <!-- Button. "Skills &amp; plugins" is the title of another screen (ext_title). -->
+    <string name="hub_manage_in_extensions">Manage in Skills &amp; plugins</string>
     <!-- %1$s: "Hermes", the agent software (not translated). -->
     <string name="hub_scan_policy_refuses">%1$s\' scan policy refuses this skill. There is no override from the phone; review it on the machine if you must.</string>
     <!-- Section title: files in the skill. -->
@@ -2247,7 +2247,7 @@
     <!-- ================= Wake alarm, wake word, Talk and voice messages ================= -->
     <!-- ===== Talk: voice engine (speech recognizer and text-to-speech) ===== -->
     <!-- Notice under the Talk orb when the phone's text-to-speech engine cannot speak. -->
-    <string name="talk_tts_off">Voice output unavailable — replies shown as text</string>
+    <string name="talk_tts_off">Voice output unavailable, replies shown as text</string>
     <!-- Status under the Talk orb. -->
     <string name="talk_no_recognizer">No speech recognizer on this phone</string>
     <!-- Hint under the Talk orb when nothing was recognized. -->
@@ -2257,7 +2257,7 @@
     <!-- Spoken aloud by the phone when the agent's reply has nothing worth reading out (only code or tables). -->
     <string name="talk_spoken_done">Done.</string>
     <!-- Notice under the Talk orb when the gateway's voice failed and the phone's own voice reads the reply. -->
-    <string name="talk_server_voice_off">Server voice unavailable — using the phone voice</string>
+    <string name="talk_server_voice_off">Server voice unavailable, using the phone voice</string>
     <!-- Spoken aloud in place of a web address when a reply is read out. -->
     <string name="talk_spoken_link">a link</string>
 

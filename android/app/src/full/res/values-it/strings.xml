@@ -38,4 +38,12 @@
 
     <!-- ===== Opening attachments (full edition) ===== -->
     <string name="channel_allow_unknown_apps">Consenti «Installa app sconosciute» per %1$s, poi tocca di nuovo il file</string>
+    <string name="alarm_exact_off_sub">Le sveglie locali non sono pianificate. Consenti le sveglie esatte prima di affidarti a Wake.</string>
+    <string name="notify_channel_live">Esecuzioni live e connessione</string>
+    <string name="notify_channel_live_info">Avanzamento delle esecuzioni e connessione in background</string>
+    <string name="notify_connected">Connesso</string>
+    <string name="phone_settings_push_off">Non configurato sul server. L\'app usa la propria connessione.</string>
+    <string name="phone_settings_push_on">Attivo. Google riattiva il telefono, il contenuto arriva direttamente da %1$s.</string>
+    <string name="phone_settings_stay_connected">Resta connesso in background</string>
+    <string name="phone_settings_stay_connected_sub">Mantiene una connessione attiva e mostra l\'avanzamento delle esecuzioni. Consuma un po\' più di batteria.</string>
 </resources>

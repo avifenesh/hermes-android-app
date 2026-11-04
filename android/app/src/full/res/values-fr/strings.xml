@@ -38,4 +38,12 @@
 
     <!-- ===== Opening attachments (full edition) ===== -->
     <string name="channel_allow_unknown_apps">Autorisez « Installer des applis inconnues » pour %1$s, puis appuyez de nouveau sur le fichier</string>
+    <string name="alarm_exact_off_sub">Les alarmes locales ne sont pas planifiées. Autorisez les alarmes exactes avant de compter sur Wake.</string>
+    <string name="notify_channel_live">Exécutions en direct et connexion</string>
+    <string name="notify_channel_live_info">Progression des exécutions et connexion en arrière-plan</string>
+    <string name="notify_connected">Connecté</string>
+    <string name="phone_settings_push_off">Non configuré sur le serveur. L\'application utilise sa propre connexion.</string>
+    <string name="phone_settings_push_on">Activé. Google réveille le téléphone, le contenu vient directement de %1$s.</string>
+    <string name="phone_settings_stay_connected">Rester connecté en arrière-plan</string>
+    <string name="phone_settings_stay_connected_sub">Garde une connexion active et affiche la progression des exécutions. Consomme un peu plus de batterie.</string>
 </resources>

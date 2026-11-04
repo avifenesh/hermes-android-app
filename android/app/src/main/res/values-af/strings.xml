@@ -9,7 +9,6 @@
     <string name="report_message">Rapporteer boodskap</string>
     <string name="report_include">Sluit gekose boodskap in (opsioneel)</string>
     <string name="report_notice">Hersien \'n ondersteunings-e-pos aan hello@tiyuvta.ai. As jy jou e-posprogram oopmaak, word die konsep daarmee gedeel; jy kies of jy dit stuur.</string>
-    <string name="report_subject">Hermes-probleemverslag</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Kanselleer</string>
     <string name="common_close">Maak toe</string>
@@ -510,10 +509,6 @@
     <string name="phone_settings_wake_word">Wekwoord</string>
     <string name="phone_settings_notifications">Kennisgewings</string>
     <string name="phone_settings_push">Push-wekroepe</string>
-    <string name="phone_settings_push_on">Aan. Google wek die foon, inhoud kom direk van %1$s af.</string>
-    <string name="phone_settings_push_off">Nie op die bediener opgestel nie. Die program val terug op sy eie verbinding.</string>
-    <string name="phone_settings_stay_connected">Bly in die agtergrond gekoppel</string>
-    <string name="phone_settings_stay_connected_sub">Hou \'n lewendige verbinding en wys uitvoeringsvordering. Gebruik \'n bietjie meer battery.</string>
     <string name="phone_settings_channels">Kanale</string>
     <string name="phone_settings_channels_sub">Goedkeurings, antwoorde, cron &amp; opsommings, lewendige uitvoerings. Demp elkeen afsonderlik.</string>
     <string name="phone_settings_devices">Toestelle</string>
@@ -607,7 +602,6 @@
     <string name="support_report_id">Verslag-ID: %1$s</string>
     <string name="support_keep_id">Hou hierdie ID vir herprobeer- of skrappingsversoeke.</string>
     <string name="support_email_alternative">E-posalternatief: %1$s</string>
-    <string name="support_mail_subject">E-posonderwerp: %1$s</string>
     <string name="support_received">Ontvang deur %1$s. Dit is \'n ontvangsbewys, nie \'n moderasiebesluit of \'n belofte van optrede of antwoord nie.</string>
     <string name="support_send_failed">Geen bevestigde ontvangs nie. Jou konsep is steeds hier. Tik Stuur verslag om dieselfde verslag-ID weer te probeer, of gebruik e-pos. \'n Mislukte of gekanselleerde verbinding het dit dalk steeds afgelewer; niks probeer outomaties weer nie.</string>
     <string name="support_mail_failed">Kon nie \'n e-posprogram oopmaak nie. Jou konsep is steeds hier. Jy kan self aan %1$s e-pos stuur.</string>
@@ -1011,8 +1005,6 @@
     <string name="notify_channel_replies_info">Agentantwoorde en voltooide uitvoerings</string>
     <string name="notify_channel_digests">Cron &amp; opsommings</string>
     <string name="notify_channel_digests_info">Resultate van geskeduleerde take</string>
-    <string name="notify_channel_live">Lewendige uitvoerings &amp; verbinding</string>
-    <string name="notify_channel_live_info">Uitvoeringsvordering en die agtergrondverbinding</string>
     <string name="notify_reply_to">Antwoord %1$s</string>
     <string name="notify_reply">Antwoord</string>
     <string name="notify_mark_read">Merk as gelees</string>
@@ -1022,7 +1014,6 @@
     <string name="notify_approval_needed">Goedkeuring nodig</string>
     <string name="notify_this_session">Hierdie sessie</string>
     <string name="notify_asks_to_run">%1$s vra om uit te voer:</string>
-    <string name="notify_connected">Gekoppel</string>
     <string name="notify_reconnecting">Koppel tans weer…</string>
     <string name="notify_agent_working">%1$s is besig</string>
     <string name="notify_a_run">\'n Uitvoering</string>
@@ -1443,7 +1434,6 @@
     <string name="alarm_next">volgende %1$s · %2$s</string>
     <string name="alarm_none_set">geen wekker gestel nie</string>
     <string name="alarm_exact_off">Presiese alarms is af</string>
-    <string name="alarm_exact_off_sub">Plaaslike alarms is nie geskeduleer nie. Laat presiese alarms toe voordat jy op Wake staatmaak.</string>
     <string name="alarm_notifications_attention">Alarmkennisgewings benodig aandag</string>
     <string name="alarm_notifications_attention_sub">Laat %1$s-kennisgewings toe en stel die Wekalarm-kanaal op hoë belangrikheid sodat die bewysskerm bereikbaar is.</string>
     <string name="alarm_fullscreen_off">Volskermalarms is af</string>

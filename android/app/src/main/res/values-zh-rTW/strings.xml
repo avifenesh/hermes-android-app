@@ -9,7 +9,6 @@
     <string name="report_message">回報訊息</string>
     <string name="report_include">附上所選訊息（選填）</string>
     <string name="report_notice">檢查要寄給 hello@tiyuvta.ai 的支援電子郵件。開啟郵件應用程式時會把草稿交給它，是否寄出由你決定。</string>
-    <string name="report_subject">Hermes 問題回報</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">取消</string>
     <string name="common_close">關閉</string>
@@ -493,10 +492,6 @@
     <string name="phone_settings_wake_word">喚醒詞</string>
     <string name="phone_settings_notifications">通知</string>
     <string name="phone_settings_push">推播喚醒</string>
-    <string name="phone_settings_push_on">開啟。由 Google 喚醒手機，內容直接來自 %1$s。</string>
-    <string name="phone_settings_push_off">伺服器尚未設定。應用程式會改用自己的連線。</string>
-    <string name="phone_settings_stay_connected">在背景保持連線</string>
-    <string name="phone_settings_stay_connected_sub">保持即時連線並顯示執行進度，會稍微多耗一點電。</string>
     <string name="phone_settings_channels">通知類別</string>
     <string name="phone_settings_channels_sub">核准、回覆、Cron 與摘要、即時執行。可以個別設為靜音。</string>
     <string name="phone_settings_devices">裝置</string>
@@ -583,7 +578,6 @@
     <string name="support_report_id">回報 ID：%1$s</string>
     <string name="support_keep_id">請保留這個 ID，以便重試或要求刪除。</string>
     <string name="support_email_alternative">改用電子郵件：%1$s</string>
-    <string name="support_mail_subject">郵件主旨：%1$s</string>
     <string name="support_received">%1$s 已收到。這只是收件確認，不代表審核決定，也不保證會採取行動或回覆。</string>
     <string name="support_send_failed">尚未確認收到。你的草稿仍在這裡。輕觸「傳送回報」即可用相同的回報 ID 重試，或改用電子郵件。失敗或取消的連線仍可能已送達，系統不會自動重試。</string>
     <string name="support_mail_failed">無法開啟郵件應用程式。你的草稿仍在這裡。你可以自行寄電子郵件到 %1$s。</string>
@@ -966,8 +960,6 @@
     <string name="notify_channel_replies_info">代理的回覆和已完成的執行</string>
     <string name="notify_channel_digests">Cron 與摘要</string>
     <string name="notify_channel_digests_info">排程任務的結果</string>
-    <string name="notify_channel_live">即時執行與連線</string>
-    <string name="notify_channel_live_info">執行進度和背景連線</string>
     <string name="notify_reply_to">回覆 %1$s</string>
     <string name="notify_reply">回覆</string>
     <string name="notify_mark_read">標示為已讀</string>
@@ -977,7 +969,6 @@
     <string name="notify_approval_needed">需要核准</string>
     <string name="notify_this_session">這個工作階段</string>
     <string name="notify_asks_to_run">%1$s 要求執行：</string>
-    <string name="notify_connected">已連線</string>
     <string name="notify_reconnecting">正在重新連線…</string>
     <string name="notify_agent_working">%1$s 正在工作</string>
     <string name="notify_a_run">一項執行</string>
@@ -1383,7 +1374,6 @@
     <string name="alarm_next">下次 %1$s · %2$s</string>
     <string name="alarm_none_set">未設定鬧鐘</string>
     <string name="alarm_exact_off">精確鬧鐘已關閉</string>
-    <string name="alarm_exact_off_sub">本機鬧鐘未排定。依賴起床鬧鐘之前，請先允許精確鬧鐘。</string>
     <string name="alarm_notifications_attention">鬧鐘通知需要處理</string>
     <string name="alarm_notifications_attention_sub">請允許 %1$s 的通知，並將「起床鬧鐘」通知類別設為高重要性，確保可以開啟證明畫面。</string>
     <string name="alarm_fullscreen_off">全螢幕鬧鐘已關閉</string>

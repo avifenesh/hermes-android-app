@@ -9,7 +9,6 @@
     <string name="report_message">Relatar mensagem</string>
     <string name="report_include">Incluir a mensagem selecionada (opcional)</string>
     <string name="report_notice">Revise um e-mail de suporte para hello@tiyuvta.ai. Ao abrir seu app de e-mail, o rascunho é compartilhado com ele; você decide se vai enviar.</string>
-    <string name="report_subject">Relatório de problema do Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Cancelar</string>
     <string name="common_close">Fechar</string>
@@ -595,10 +594,6 @@
     <string name="phone_settings_wake_word">Palavra de ativação</string>
     <string name="phone_settings_notifications">Notificações</string>
     <string name="phone_settings_push">Ativação por push</string>
-    <string name="phone_settings_push_on">Ativado. O Google ativa o telefone, e o conteúdo vem direto do %1$s.</string>
-    <string name="phone_settings_push_off">Não configurado no servidor. O app usa a própria conexão.</string>
-    <string name="phone_settings_stay_connected">Manter conectado em segundo plano</string>
-    <string name="phone_settings_stay_connected_sub">Mantém uma conexão ao vivo e mostra o progresso das execuções. Usa um pouco mais de bateria.</string>
     <string name="phone_settings_channels">Canais</string>
     <string name="phone_settings_channels_sub">Aprovações, respostas, cron e resumos, execuções ao vivo. Silencie cada um separadamente.</string>
     <string name="phone_settings_devices">Dispositivos</string>
@@ -705,7 +700,6 @@
     <string name="support_report_id">ID do relatório: %1$s</string>
     <string name="support_keep_id">Guarde este ID para novas tentativas ou pedidos de exclusão.</string>
     <string name="support_email_alternative">Alternativa por e-mail: %1$s</string>
-    <string name="support_mail_subject">Assunto: %1$s</string>
     <string name="support_received">Recebido por %1$s. Este é um comprovante de recebimento, não uma decisão de moderação nem uma promessa de ação ou resposta.</string>
     <string name="support_send_failed">Nenhum recebimento confirmado. Seu rascunho continua aqui. Toque em “Enviar relatório” para tentar de novo com o mesmo ID ou use o e-mail. Uma conexão com falha ou cancelada pode ter entregado mesmo assim; nada é repetido automaticamente.</string>
     <string name="support_mail_failed">Não foi possível abrir um app de e-mail. Seu rascunho continua aqui. Você pode enviar um e-mail para %1$s por conta própria.</string>
@@ -1178,8 +1172,6 @@
     <string name="notify_channel_replies_info">Respostas do agente e execuções concluídas</string>
     <string name="notify_channel_digests">Cron e resumos</string>
     <string name="notify_channel_digests_info">Resultados das tarefas agendadas</string>
-    <string name="notify_channel_live">Execuções ao vivo e conexão</string>
-    <string name="notify_channel_live_info">Progresso das execuções e a conexão em segundo plano</string>
     <string name="notify_reply_to">Responder a %1$s</string>
     <string name="notify_reply">Responder</string>
     <string name="notify_mark_read">Marcar como lida</string>
@@ -1189,7 +1181,6 @@
     <string name="notify_approval_needed">Aprovação necessária</string>
     <string name="notify_this_session">Esta sessão</string>
     <string name="notify_asks_to_run">%1$s pede para executar:</string>
-    <string name="notify_connected">Conectado</string>
     <string name="notify_reconnecting">Reconectando…</string>
     <string name="notify_agent_working">%1$s está trabalhando</string>
     <string name="notify_a_run">Uma execução</string>
@@ -1669,7 +1660,6 @@
     <string name="alarm_next">próximo %1$s · %2$s</string>
     <string name="alarm_none_set">nenhum alarme definido</string>
     <string name="alarm_exact_off">Os alarmes exatos estão desativados</string>
-    <string name="alarm_exact_off_sub">Os alarmes locais não estão agendados. Permita alarmes exatos antes de contar com o Wake.</string>
     <string name="alarm_notifications_attention">As notificações de alarme precisam de atenção</string>
     <string name="alarm_notifications_attention_sub">Permita as notificações do %1$s e defina o canal “Alarme Wake” com importância alta para que a tela de prova fique acessível.</string>
     <string name="alarm_fullscreen_off">Os alarmes em tela cheia estão desativados</string>

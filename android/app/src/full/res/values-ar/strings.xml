@@ -25,4 +25,12 @@
     <string name="channel_battery_title">تحسين البطارية</string>
     <string name="channel_battery_body">تُنهي بعض الهواتف الاتصال في الخلفية. اسمح لـ %1$s بالعمل دون قيود.</string>
     <string name="channel_allow_unknown_apps">اسمح بـ «تثبيت التطبيقات غير المعروفة» لـ %1$s، ثم انقر على الملف مرة أخرى</string>
+    <string name="alarm_exact_off_sub">لم تتم جدولة المنبّهات المحلية. اسمح بالمنبّهات الدقيقة قبل الاعتماد على «الاستيقاظ».</string>
+    <string name="notify_channel_live">التشغيلات المباشرة والاتصال</string>
+    <string name="notify_channel_live_info">تقدّم التشغيل والاتصال في الخلفية</string>
+    <string name="notify_connected">متصل</string>
+    <string name="phone_settings_push_off">غير مُعَدّ على الخادم. يعود التطبيق إلى اتصاله الخاص.</string>
+    <string name="phone_settings_push_on">مفعّل. توقظ Google الهاتف، ويصل المحتوى مباشرةً من %1$s.</string>
+    <string name="phone_settings_stay_connected">البقاء متصلًا في الخلفية</string>
+    <string name="phone_settings_stay_connected_sub">يحافظ على اتصال مباشر ويعرض تقدّم التشغيل. يستهلك قدرًا أكبر قليلًا من البطارية.</string>
 </resources>

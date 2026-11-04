@@ -38,4 +38,12 @@
 
     <!-- ===== Opening attachments (full edition) ===== -->
     <string name="channel_allow_unknown_apps">Erlaube „Unbekannte Apps installieren“ für %1$s und tippe dann erneut auf die Datei</string>
+    <string name="alarm_exact_off_sub">Lokale Wecker werden nicht geplant. Erlaube exakte Wecker, bevor du dich auf Wake verlässt.</string>
+    <string name="notify_channel_live">Live-Läufe &amp; Verbindung</string>
+    <string name="notify_channel_live_info">Fortschritt von Läufen und die Hintergrundverbindung</string>
+    <string name="notify_connected">Verbunden</string>
+    <string name="phone_settings_push_off">Auf dem Server nicht eingerichtet. Die App nutzt stattdessen ihre eigene Verbindung.</string>
+    <string name="phone_settings_push_on">Ein. Google weckt das Smartphone, der Inhalt kommt direkt von %1$s.</string>
+    <string name="phone_settings_stay_connected">Im Hintergrund verbunden bleiben</string>
+    <string name="phone_settings_stay_connected_sub">Hält eine Live-Verbindung und zeigt den Fortschritt von Läufen. Braucht etwas mehr Akku.</string>
 </resources>

@@ -29,4 +29,12 @@
     <string name="channel_battery_body">בחלק מהטלפונים החיבור ברקע מתנתק. כדאי לאפשר ל-%1$s לפעול ללא הגבלה.</string>
 
     <string name="channel_allow_unknown_apps">צריך לאפשר \"התקנת אפליקציות לא מוכרות\" עבור %1$s, ואז להקיש שוב על הקובץ</string>
+    <string name="alarm_exact_off_sub">שעונים מעוררים מקומיים לא מתוזמנים. כדאי לאפשר שעונים מעוררים מדויקים לפני שסומכים על ההשכמה.</string>
+    <string name="notify_channel_live">ריצות פעילות וחיבור</string>
+    <string name="notify_channel_live_info">התקדמות הריצות והחיבור ברקע</string>
+    <string name="notify_connected">מחובר</string>
+    <string name="phone_settings_push_off">לא הוגדר בשרת. האפליקציה משתמשת בחיבור משלה.</string>
+    <string name="phone_settings_push_on">פועל. הטלפון מתעורר דרך Google, והתוכן מגיע ישירות מ-%1$s.</string>
+    <string name="phone_settings_stay_connected">חיבור רציף ברקע</string>
+    <string name="phone_settings_stay_connected_sub">שומר על חיבור פעיל ומציג את התקדמות הריצות. צורך קצת יותר סוללה.</string>
 </resources>

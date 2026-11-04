@@ -9,7 +9,6 @@
     <string name="report_message">Nachricht melden</string>
     <string name="report_include">Ausgewählte Nachricht anhängen (optional)</string>
     <string name="report_notice">Prüfe eine Support-E-Mail an hello@tiyuvta.ai. Beim Öffnen deiner Mail-App erhält sie den Entwurf; du entscheidest, ob du sie sendest.</string>
-    <string name="report_subject">Hermes-Problembericht</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Abbrechen</string>
     <string name="common_close">Schließen</string>
@@ -578,10 +577,6 @@
     <string name="phone_settings_wake_word">Aktivierungswort</string>
     <string name="phone_settings_notifications">Benachrichtigungen</string>
     <string name="phone_settings_push">Push-Wecksignale</string>
-    <string name="phone_settings_push_on">Ein. Google weckt das Smartphone, der Inhalt kommt direkt von %1$s.</string>
-    <string name="phone_settings_push_off">Auf dem Server nicht eingerichtet. Die App nutzt stattdessen ihre eigene Verbindung.</string>
-    <string name="phone_settings_stay_connected">Im Hintergrund verbunden bleiben</string>
-    <string name="phone_settings_stay_connected_sub">Hält eine Live-Verbindung und zeigt den Fortschritt von Läufen. Braucht etwas mehr Akku.</string>
     <string name="phone_settings_channels">Kanäle</string>
     <string name="phone_settings_channels_sub">Genehmigungen, Antworten, Cron &amp; Digests, Live-Läufe. Jeden einzeln stummschalten.</string>
     <string name="phone_settings_devices">Geräte</string>
@@ -681,7 +676,6 @@
     <string name="support_report_id">Bericht-ID: %1$s</string>
     <string name="support_keep_id">Bewahre diese ID für erneute Versuche oder Löschanfragen auf.</string>
     <string name="support_email_alternative">Alternativ per E-Mail: %1$s</string>
-    <string name="support_mail_subject">Betreff: %1$s</string>
     <string name="support_received">Von %1$s empfangen. Dies ist eine Empfangsbestätigung, keine Moderationsentscheidung und kein Versprechen einer Maßnahme oder Antwort.</string>
     <string name="support_send_failed">Kein bestätigter Empfang. Dein Entwurf ist noch da. Tippe auf „Bericht senden“, um es mit derselben Bericht-ID erneut zu versuchen, oder nutze E-Mail. Eine fehlgeschlagene oder abgebrochene Verbindung kann ihn trotzdem zugestellt haben; nichts wird automatisch wiederholt.</string>
     <string name="support_mail_failed">Keine Mail-App konnte geöffnet werden. Dein Entwurf ist noch da. Du kannst selbst an %1$s schreiben.</string>
@@ -1133,8 +1127,6 @@
     <string name="notify_channel_replies_info">Antworten des Agents und abgeschlossene Läufe</string>
     <string name="notify_channel_digests">Cron &amp; Digests</string>
     <string name="notify_channel_digests_info">Ergebnisse geplanter Jobs</string>
-    <string name="notify_channel_live">Live-Läufe &amp; Verbindung</string>
-    <string name="notify_channel_live_info">Fortschritt von Läufen und die Hintergrundverbindung</string>
     <string name="notify_reply_to">Antwort an %1$s</string>
     <string name="notify_reply">Antworten</string>
     <string name="notify_mark_read">Als gelesen markieren</string>
@@ -1144,7 +1136,6 @@
     <string name="notify_approval_needed">Genehmigung erforderlich</string>
     <string name="notify_this_session">Diese Session</string>
     <string name="notify_asks_to_run">%1$s möchte ausführen:</string>
-    <string name="notify_connected">Verbunden</string>
     <string name="notify_reconnecting">Verbindung wird wiederhergestellt…</string>
     <string name="notify_agent_working">%1$s arbeitet</string>
     <string name="notify_a_run">Ein Lauf</string>
@@ -1609,7 +1600,6 @@
     <string name="alarm_next">nächster %1$s · %2$s</string>
     <string name="alarm_none_set">kein Wecker gestellt</string>
     <string name="alarm_exact_off">Exakte Wecker sind aus</string>
-    <string name="alarm_exact_off_sub">Lokale Wecker werden nicht geplant. Erlaube exakte Wecker, bevor du dich auf Wake verlässt.</string>
     <string name="alarm_notifications_attention">Wecker-Benachrichtigungen brauchen Aufmerksamkeit</string>
     <string name="alarm_notifications_attention_sub">Erlaube Benachrichtigungen von %1$s und stelle den Kanal „Wake-Wecker“ auf hohe Wichtigkeit, damit der Nachweisbildschirm erreichbar ist.</string>
     <string name="alarm_fullscreen_off">Vollbild-Wecker sind aus</string>

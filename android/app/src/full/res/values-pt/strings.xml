@@ -38,4 +38,12 @@
 
     <!-- ===== Opening attachments (full edition) ===== -->
     <string name="channel_allow_unknown_apps">Permita “Instalar apps desconhecidos” para o %1$s e toque no arquivo de novo</string>
+    <string name="alarm_exact_off_sub">Os alarmes locais não estão agendados. Permita alarmes exatos antes de contar com o Wake.</string>
+    <string name="notify_channel_live">Execuções ao vivo e conexão</string>
+    <string name="notify_channel_live_info">Progresso das execuções e a conexão em segundo plano</string>
+    <string name="notify_connected">Conectado</string>
+    <string name="phone_settings_push_off">Não configurado no servidor. O app usa a própria conexão.</string>
+    <string name="phone_settings_push_on">Ativado. O Google ativa o telefone, e o conteúdo vem direto do %1$s.</string>
+    <string name="phone_settings_stay_connected">Manter conectado em segundo plano</string>
+    <string name="phone_settings_stay_connected_sub">Mantém uma conexão ao vivo e mostra o progresso das execuções. Usa um pouco mais de bateria.</string>
 </resources>

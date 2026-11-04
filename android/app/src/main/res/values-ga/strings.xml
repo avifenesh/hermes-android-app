@@ -9,7 +9,6 @@
     <string name="report_message">Tuairiscigh teachtaireacht</string>
     <string name="report_include">Cuir an teachtaireacht roghnaithe san áireamh (roghnach)</string>
     <string name="report_notice">Athbhreithnigh ríomhphost tacaíochta chuig hello@tiyuvta.ai. Má osclaíonn tú d\'aip ríomhphoist, roinnfear an dréacht léi; is tusa a shocraíonn an seolfar é.</string>
-    <string name="report_subject">Tuairisc ar fhadhb le Hermes</string>
     <string name="report_email">hello@tiyuvta.ai</string>
     <string name="common_cancel">Cealaigh</string>
     <string name="common_close">Dún</string>
@@ -561,10 +560,6 @@
     <string name="phone_settings_wake_word">Focal múscailte</string>
     <string name="phone_settings_notifications">Fógraí</string>
     <string name="phone_settings_push">Múscailtí brú</string>
-    <string name="phone_settings_push_on">Ar siúl. Músclaíonn Google an fón, tagann an t-ábhar díreach ó %1$s.</string>
-    <string name="phone_settings_push_off">Níl sé socraithe ar an bhfreastalaí. Úsáideann an aip a ceangal féin ina ionad.</string>
-    <string name="phone_settings_stay_connected">Fan ceangailte sa chúlra</string>
-    <string name="phone_settings_stay_connected_sub">Coinníonn sé ceangal beo agus taispeánann sé dul chun cinn na rití. Úsáideann sé beagán níos mó ceallra.</string>
     <string name="phone_settings_channels">Cainéil</string>
     <string name="phone_settings_channels_sub">Faomhuithe, freagraí, cron agus achoimrí, rití beo. Balbhaigh gach ceann ar leith.</string>
     <string name="phone_settings_devices">Gléasanna</string>
@@ -679,7 +674,6 @@
     <string name="support_report_id">Aitheantas tuairisce: %1$s</string>
     <string name="support_keep_id">Coinnigh an t-aitheantas seo le haghaidh iarratais athiarrachta nó scriosta.</string>
     <string name="support_email_alternative">Rogha eile ríomhphoist: %1$s</string>
-    <string name="support_mail_subject">Ábhar an ríomhphoist: %1$s</string>
     <string name="support_received">Faighte ag %1$s. Admháil é seo, ní cinneadh modhnóireachta ná gealltanas gnímh nó freagra.</string>
     <string name="support_send_failed">Níl admháil dheimhnithe ann. Tá do dhréacht anseo fós. Tapáil Seol tuairisc chun triail eile a bhaint as leis an aitheantas tuairisce céanna, nó úsáid ríomhphost. Seans gur seachadadh í fós fiú má theip ar an gceangal nó má cealaíodh é; ní dhéantar aon athiarracht go huathoibríoch.</string>
     <string name="support_mail_failed">Níorbh fhéidir aip ríomhphoist a oscailt. Tá do dhréacht anseo fós. Is féidir leat ríomhphost a sheoladh chuig %1$s tú féin.</string>
@@ -1146,8 +1140,6 @@
     <string name="notify_channel_replies_info">Freagraí ó agents agus rití críochnaithe</string>
     <string name="notify_channel_digests">Cron agus achoimrí</string>
     <string name="notify_channel_digests_info">Torthaí ó phoist sceidealta</string>
-    <string name="notify_channel_live">Rití beo agus ceangal</string>
-    <string name="notify_channel_live_info">Dul chun cinn na rití agus an ceangal cúlra</string>
     <string name="notify_reply_to">Freagair %1$s</string>
     <string name="notify_reply">Freagair</string>
     <string name="notify_mark_read">Marcáil mar léite</string>
@@ -1157,7 +1149,6 @@
     <string name="notify_approval_needed">Faomhadh ag teastáil</string>
     <string name="notify_this_session">An seisiún seo</string>
     <string name="notify_asks_to_run">Tá %1$s ag iarraidh seo a rith:</string>
-    <string name="notify_connected">Ceangailte</string>
     <string name="notify_reconnecting">Ag athcheangal…</string>
     <string name="notify_agent_working">Tá %1$s ag obair</string>
     <string name="notify_a_run">Rith</string>
@@ -1623,7 +1614,6 @@
     <string name="alarm_next">an chéad cheann eile %1$s · %2$s</string>
     <string name="alarm_none_set">níl aláram socraithe</string>
     <string name="alarm_exact_off">Tá aláraim chruinne as</string>
-    <string name="alarm_exact_off_sub">Níl aláraim logánta sceidealta. Ceadaigh aláraim chruinne sula mbraitheann tú ar an ngné Múscailt.</string>
     <string name="alarm_notifications_attention">Teastaíonn aird ar fhógraí aláraim</string>
     <string name="alarm_notifications_attention_sub">Ceadaigh fógraí %1$s agus tabhair tábhacht ard don chainéal “Aláram múscailte” ionas gur féidir an scáileán cruthúnais a bhaint amach.</string>
     <string name="alarm_fullscreen_off">Tá aláraim lánscáileáin as</string>

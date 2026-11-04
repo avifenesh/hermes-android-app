@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Akkumulátor-optimalizálás</string>
     <string name="channel_battery_body">Egyes telefonok leállítják a háttérkapcsolatot. Engedélyezze, hogy %1$s korlátozás nélkül fusson.</string>
     <string name="channel_allow_unknown_apps">Engedélyezze az „Ismeretlen alkalmazások telepítése” beállítást ehhez: %1$s, majd koppintson újra a fájlra</string>
+    <string name="alarm_exact_off_sub">A helyi ébresztések nincsenek ütemezve. Engedélyezze a pontos ébresztéseket, mielőtt az Ébresztésre hagyatkozna.</string>
+    <string name="notify_channel_live">Élő futtatások és kapcsolat</string>
+    <string name="notify_channel_live_info">A futtatások előrehaladása és a háttérkapcsolat</string>
+    <string name="notify_connected">Csatlakoztatva</string>
+    <string name="phone_settings_push_off">Nincs beállítva a kiszolgálón. Az alkalmazás a saját kapcsolatát használja.</string>
+    <string name="phone_settings_push_on">Be. A Google ébreszti fel a telefont, a tartalom közvetlenül %1$s felől érkezik.</string>
+    <string name="phone_settings_stay_connected">Kapcsolat fenntartása a háttérben</string>
+    <string name="phone_settings_stay_connected_sub">Élő kapcsolatot tart fenn, és mutatja a futtatások előrehaladását. Kicsivel több akkumulátort használ.</string>
 </resources>

@@ -25,4 +25,12 @@
     <string name="channel_battery_title">Оптимизация батареи</string>
     <string name="channel_battery_body">Некоторые телефоны обрывают фоновое подключение. Разрешите %1$s работать без ограничений.</string>
     <string name="channel_allow_unknown_apps">Включите для %1$s параметр «Установка неизвестных приложений» и снова нажмите на файл</string>
+    <string name="alarm_exact_off_sub">Локальные будильники не запланированы. Разрешите точные будильники, прежде чем полагаться на «Подъём».</string>
+    <string name="notify_channel_live">Текущие запуски и подключение</string>
+    <string name="notify_channel_live_info">Ход запусков и фоновое подключение</string>
+    <string name="notify_connected">Подключено</string>
+    <string name="phone_settings_push_off">Не настроено на сервере. Приложение использует собственное подключение.</string>
+    <string name="phone_settings_push_on">Включено. Google будит телефон, а содержимое приходит напрямую от %1$s.</string>
+    <string name="phone_settings_stay_connected">Оставаться на связи в фоне</string>
+    <string name="phone_settings_stay_connected_sub">Сохраняет активное подключение и показывает ход запусков. Расходует чуть больше заряда батареи.</string>
 </resources>
