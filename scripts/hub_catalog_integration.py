@@ -15,6 +15,21 @@ import tempfile
 
 if "hermes_constants" in sys.modules or "hermes_bootstrap" in sys.modules:
     raise RuntimeError("Run directly in a fresh Hermes Python process")
+CHECKOUT = Path.home() / ".hermes/hermes-agent"
+# Profile resolution must stay inside this disposable root, so it lives outside ~/.hermes. Hermes keeps
+# dependencies per data root, and such a root has none: the managed interpreter would refuse to start.
+# Relaunch once, before any home exists, under the owner's committed environment (a venv interpreter
+# keeps its own packages). Nothing is created before the exec, so nothing can leak across it.
+if sys.prefix == sys.base_prefix and os.environ.get("HM_HUB_RELAUNCHED") != "1":
+    import subprocess
+    _probe = ("import sys; sys.path.insert(0, sys.argv[1]); from pathlib import Path;"
+              " from pm.environments import committed_venv; print(committed_venv(Path(sys.argv[1])) or '')")
+    _env = {k: v for k, v in os.environ.items() if k != "HERMES_HOME"}
+    _venv = subprocess.run([sys.executable, "-I", "-c", _probe, str(CHECKOUT)], env=_env, capture_output=True,
+                           text=True, timeout=60).stdout.strip()
+    if _venv and (Path(_venv) / "bin/python").is_file():
+        os.environ["HM_HUB_RELAUNCHED"] = "1"
+        os.execv(str(Path(_venv) / "bin/python"), [str(Path(_venv) / "bin/python"), *sys.argv])
 SCRATCH = Path.home() / ".cache/hub-discovery-fix"
 SCRATCH.mkdir(parents=True, exist_ok=True)
 _HOME = tempfile.TemporaryDirectory(prefix="hub-integration-", dir=SCRATCH)
@@ -24,7 +39,7 @@ os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
 os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
 assert Path(_HOME.name).resolve().is_relative_to(SCRATCH.resolve())
 assert Path(_HOME.name).resolve() != (Path.home() / ".hermes").resolve()
-sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
+sys.path.insert(0, str(CHECKOUT))
 import hermes_bootstrap  # noqa: E402,F401
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 

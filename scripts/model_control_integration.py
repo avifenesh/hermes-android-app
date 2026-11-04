@@ -14,7 +14,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-SCRATCH = Path.home() / ".cache/model-switch-fix"
+# Under the Hermes home, where the managed runtime finds its dependency environment.
+SCRATCH = Path.home() / ".hermes/cache/scratch"
 SCRATCH.mkdir(parents=True, exist_ok=True)
 _HOME = tempfile.TemporaryDirectory(prefix="routes-", dir=SCRATCH)
 atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)

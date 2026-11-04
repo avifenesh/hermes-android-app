@@ -11,7 +11,8 @@ import sys
 import tempfile
 import unittest
 
-SCRATCH = Path.home() / ".cache/mobile-skills-fix"
+# Under the Hermes home, where the managed runtime finds its dependency environment.
+SCRATCH = Path.home() / ".hermes/cache/scratch"
 SCRATCH.mkdir(parents=True, exist_ok=True)
 _HOME = tempfile.TemporaryDirectory(prefix="skills-", dir=SCRATCH)
 atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
