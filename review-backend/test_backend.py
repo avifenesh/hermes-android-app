@@ -1562,6 +1562,57 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'room again'}))[0], 200)
         await self.idle()
 
+    async def test_capacity_refuses_session_actions_that_add_lines(self):
+        for limit, status in (('TENANT_QUOTA', 413), ('DISK_CAP', 507)):
+            setattr(self.backend, limit, 1)
+            try:
+                for action in ('new', 'compress', 'undo', 'save'):
+                    st, d = await self.call('POST', '/v1/chats/c-planning/session', {'action': action, 'arg': '', 'confirmed': True})
+                    self.assertEqual(st, status, (limit, action))
+                    self.assertIn('full' if status == 413 else 'out of storage', d['error'])
+            finally:
+                setattr(self.backend, limit, getattr(server.Backend, limit))
+        self.assertTrue((await self.call('POST', '/v1/chats/c-planning/session', {'action': 'new', 'arg': '', 'confirmed': True}))[1]['ok'])
+
+    async def test_capacity_stops_every_append(self):
+        """At capacity, actions that must keep working (restart, emergency stop, deny, stop) write no rows."""
+        await self.call('POST', '/v1/chats/c-welcome/messages', {'text': 'one more approval'})
+        await self.idle()
+        pending = [a['id'] for a in (await self.call('GET', '/v1/sync?since=0'))[1]['approvals'] if a['state'] == 'pending']
+        rows = lambda: self.tenant()._db.execute('SELECT COUNT(*) FROM messages').fetchone()[0]
+        for limit, status in (('TENANT_QUOTA', 413), ('DISK_CAP', 507)):
+            setattr(self.backend, limit, 1)
+            try:
+                before = rows()
+                for action in ('status', 'context'):
+                    self.assertEqual((await self.call('POST', '/v1/chats/c-planning/session', {'action': action, 'arg': ''}))[0], 200)
+                for _ in range(5):
+                    self.assertEqual((await self.call('POST', '/v1/restart', {}))[0], 200)
+                for _ in range(3):
+                    await self.call('POST', '/v1/wake/test')
+                    self.assertTrue((await self.call('POST', '/v1/wake/override', {'password': server.REVIEW_PASSWORD}))[1]['ok'])
+                self.assertEqual((await self.call('POST', '/v1/approvals/' + pending.pop(), {'choice': 'deny'}))[0], 200)
+                self.assertEqual((await self.call('POST', '/v1/chats/c-planning/stop', {}))[0], 200)
+                self.assertEqual(rows(), before, limit)  # repeated signed requests cannot grow a full sandbox
+            finally:
+                setattr(self.backend, limit, getattr(server.Backend, limit))
+        before = rows()
+        self.assertEqual((await self.call('POST', '/v1/restart', {}))[0], 200)
+        self.assertEqual(rows(), before + 1)  # with room again, the restart line is written as before
+
+    async def test_weekly_catch_up_delivers_the_latest_missed_run(self):
+        """Missed runs collapse into the latest one, even when it lies more than a day back."""
+        clock = [datetime(2026, 10, 23, 10, 0, tzinfo=timezone.utc).timestamp()]  # a Friday
+        self.backend.clock = lambda: clock[0]
+        ids = []
+        for schedule in ('every monday 9am', '0 9 * * 1'):
+            _, d = await self.call('POST', '/v1/cronjob', {'name': schedule, 'schedule': schedule, 'prompt': 'p', 'deliver': 'mobile'})
+            ids.append(d['job_id'])
+        clock[0] = datetime(2026, 11, 4, 10, 0, tzinfo=timezone.utc).timestamp()  # the Wednesday after two missed Mondays
+        for _ in range(2):  # a second load adds nothing
+            jobs = {j['id']: j for j in (await self.call('GET', '/v1/cron'))[1]['jobs']}
+            self.assertEqual([jobs[i]['runs'] for i in ids], [['2026-11-02_09-00-00']] * 2)
+
     async def test_interval_daily_and_cron_jobs_come_due(self):
         """Scheduled runs come due after each job's last run: one synthetic run per load, at the latest missed time."""
         t0 = datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc).timestamp()  # a Monday, sandbox timezone UTC

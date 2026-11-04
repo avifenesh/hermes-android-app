@@ -196,6 +196,24 @@ def parse_schedule(expr):
     raise ValueError(f"Couldn't read the schedule '{expr}'. Try 'every 2h', 'every day at 9am', 'weekdays at 9am', 'in 45m' or '0 9 * * *'.")
 
 
+def prev_cron(expr, before, tz):
+    """The latest occurrence at or before `before` (searching back about 400 days), or None."""
+    mins, hours, doms, months, dows = [_cron_field(f, lo, hi) for f, (lo, hi) in
+                                       zip(expr.split(), ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7)))]
+    dows = {d % 7 for d in dows}
+    end = datetime.fromtimestamp(before, tz).replace(second=0, microsecond=0)
+    day = end.replace(hour=0, minute=0)
+    for _ in range(400):
+        if day.month in months and day.day in doms and (day.isoweekday() % 7) in dows:
+            for h in sorted(hours, reverse=True):
+                for mi in sorted(mins, reverse=True):
+                    cand = day.replace(hour=h, minute=mi)
+                    if cand <= end:
+                        return cand.timestamp()
+        day = (day - timedelta(days=1)).replace(hour=0, minute=0)
+    return None
+
+
 def next_cron(expr, after, tz):
     mins, hours, doms, months, dows = [_cron_field(f, lo, hi) for f, (lo, hi) in
                                        zip(expr.split(), ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7)))]
@@ -314,6 +332,7 @@ class Backend:
             d = self.home / did
             d.mkdir(mode=0o700, exist_ok=True)
             s = S.Store(d / 'fixture.db')
+            s.did = did  # lets note() find this sandbox's storage state
             if not s.kv_get('seeded'):
                 self.seed(s)
             self.stores[did] = s
@@ -443,6 +462,14 @@ class Backend:
         return ((r.method, canon) in self.GROWS
                 or (r.method, canon, action) == ('POST', '/v1/cron/{jid}/{action}', 'run')
                 or (r.method == 'POST' and canon == '/v1/radar/findings/{fid}/{action}' and action in ('feedback', 'note', 'spawn')))
+
+    def note(self, s, cid, content, **kw):
+        """An agent line written by an action that must keep working at capacity (stop, deny, emergency stop, restart,
+        scheduled runs). It is written only while there is room, so a full sandbox or a full disk stops growing."""
+        did = getattr(s, 'did', None)
+        if did is not None and self.storage_error(did):
+            return None
+        return s.add_message(cid, 'agent', content, **kw)
 
     def runtime(self, did):
         return self.rt.setdefault(did, {'working': {}, 'tasks': {}, 'steer': {}, 'tts': [], 'session_tasks': {}})
@@ -879,7 +906,7 @@ class Backend:
                 except asyncio.TimeoutError:
                     s.set_approval(gate_id, 'expired', None)
                     gate_id = None
-                    s.add_message(cid, 'agent', f'The approval waited {int(timeout)} s with no answer, so the run ended. Nothing ran. (synthetic)',
+                    self.note(s, cid, f'The approval waited {int(timeout)} s with no answer, so the run ended. Nothing ran. (synthetic)',
                                   kind='status', meta={'demo': True})
                     return
                 finally:
@@ -888,7 +915,7 @@ class Backend:
                 shown[-1].update(status='ok', what=f'Approval {state}')
                 s.kv_put('steps:' + cid, shown)
                 if state != 'approved':
-                    s.add_message(cid, 'agent', '🛑 Denied, so the run stopped here. Nothing ran. (synthetic)', meta={'demo': True})
+                    self.note(s, cid, '🛑 Denied, so the run stopped here. Nothing ran. (synthetic)', meta={'demo': True})
                     return
                 msg, final = None, GATED_RESULT + '\n\n' + final
             steer = rt['steer'].pop(cid, None)
@@ -904,11 +931,11 @@ class Backend:
                 s.set_approval(gate_id, 'expired', None)  # a stopped run's pending approval can no longer be answered
             if msg is not None:
                 s.edit_message(msg['id'], content=(msg.get('content') or '').rstrip(' …') + ' …', meta={'demo': True, 'stopped': True})
-            s.add_message(cid, 'agent', '⏹ Stopped. (synthetic run)', kind='status', meta={'quiet': True, 'demo': True})
+            self.note(s, cid, '⏹ Stopped. (synthetic run)', kind='status', meta={'quiet': True, 'demo': True})
         except (sqlite3.ProgrammingError, sqlite3.OperationalError):
             pass  # the sandbox was closed under the reply (revoke or shutdown); nothing to record
         except Exception:
-            s.add_message(cid, 'agent', 'The scripted reply could not be written for this message. Nothing ran. (synthetic)', kind='status', meta={'quiet': True, 'demo': True})
+            self.note(s, cid, 'The scripted reply could not be written for this message. Nothing ran. (synthetic)', kind='status', meta={'quiet': True, 'demo': True})
         finally:
             rt['working'].pop(cid, None)
             rt.setdefault('depth', {})[cid] = max(0, rt['depth'].get(cid, 1) - 1)
@@ -1079,6 +1106,10 @@ class Backend:
         action, arg = str(b.get('action') or ''), str(b.get('arg') or '').strip().replace('\n', ' ')[:120]
         if action not in ('new', 'undo', 'compress', 'title', 'save', 'status', 'context'):
             return E('bad action')
+        if action in ('new', 'undo', 'compress', 'save'):
+            full = self.storage_error(did)  # these add a line (or a file) to the chat every time
+            if full:
+                return J({'error': full[0]}, full[1])
         if action in ('new', 'undo', 'compress') and cid in self.runtime(did)['working']:
             return E('Hermes Demo is working in this chat. Stop the run first.', 409)
         msgs = s.messages(cid, limit=400)
@@ -1121,7 +1152,7 @@ class Backend:
         else:
             out['reply'] = f'🗜️ Compressed {max(0, len(live) - 2)} earlier messages into a short summary. (synthetic)'
         if action in ('new', 'undo', 'compress') and out['ok']:
-            s.add_message(cid, 'agent', out['reply'], kind='status', meta={'session_event': action, 'quiet': True, 'demo': True})
+            self.note(s, cid, out['reply'], kind='status', meta={'session_event': action, 'quiet': True, 'demo': True})
         return J(out)
 
     # ------------------------------------------------------------ approvals
@@ -1147,10 +1178,10 @@ class Backend:
         if gate is not None:
             gate.set()  # the paused run resumes (or stops on deny) and reports for itself
         elif s.kv_get('gate:' + aid):
-            s.add_message(a['chat_id'], 'agent', 'The run that asked for this ended before your answer (the sandbox restarted). Your choice is recorded; nothing ran.',
+            self.note(s, a['chat_id'], 'The run that asked for this ended before your answer (the sandbox restarted). Your choice is recorded; nothing ran.',
                           kind='status', meta={'quiet': True, 'demo': True})
         else:
-            s.add_message(a['chat_id'], 'agent', ('🛑 Denied' if choice == 'deny' else f'✅ Approved ({choice})') + '. ' + NOTE,
+            self.note(s, a['chat_id'], ('🛑 Denied' if choice == 'deny' else f'✅ Approved ({choice})') + '. ' + NOTE,
                           kind='status', meta={'quiet': True, 'demo': True})
         return J({'approval': a, 'resolved': 1, 'demo': True})
 
@@ -1470,8 +1501,6 @@ class Backend:
         """Wall clock for schedules; tests move it to check that interval and cron jobs come due."""
         return time.time()
 
-    CATCHUP_STEPS = 1500  # enough to walk one day of a per-minute cron
-
     def last_due(self, s, j, now):
         """The latest scheduled run time after the job's last run (or creation) that has passed, or None.
 
@@ -1486,16 +1515,10 @@ class Backend:
         if sched['kind'] == 'interval':
             k = int((now - base) // sched['seconds'])
             return base + k * sched['seconds'] if k >= 1 else None
-        tz = self.tz(s)
-        due = next_cron(sched['expr'], base, tz)
-        if due is None or due > now:
-            return None
-        step = next_cron(sched['expr'], max(due, now - 86400), tz)
-        for _ in range(self.CATCHUP_STEPS):
-            if step is None or step > now:
-                break
-            due, step = step, next_cron(sched['expr'], step, tz)
-        return due
+        # The latest occurrence at or before now, counted only if it falls after the last run: one search back from
+        # now, so no occurrence between the last run and now is ever skipped.
+        due = prev_cron(sched['expr'], now, self.tz(s))
+        return due if due is not None and due > base else None
 
     def job_view(self, s, j):
         sched = safe_schedule(j['schedule_expr'])
@@ -1536,7 +1559,7 @@ class Backend:
         if safe_schedule(j['schedule_expr'])['kind'] == 'once':
             j['enabled'] = False
         if 'mobile' in j['deliver']:
-            s.add_message('cron-job-' + j['id'], 'agent', text, meta={'delivery': True, 'job_id': j['id'], 'demo': True},
+            self.note(s, 'cron-job-' + j['id'], text, meta={'delivery': True, 'job_id': j['id'], 'demo': True},
                           title=j['name'], chat_kind='digest')
 
     def save_job(self, s, job):
@@ -1920,7 +1943,7 @@ class Backend:
             e['loaded'] = e.get('configured', True)
         s.kv_put('hub', hub)
         reply = '♻️ Restart acknowledged. The sandbox reloaded its synthetic config and plugins; no process restarted on any machine.'
-        s.add_message('c-hermes', 'agent', reply, kind='status', meta={'quiet': True, 'demo': True}, title='Hermes')
+        self.note(s, 'c-hermes', reply, kind='status', meta={'quiet': True, 'demo': True}, title='Hermes')
         return J({'ok': True, 'reply': reply})
 
     # ------------------------------------------------------------ Hub (synthetic catalogue, synthetic jobs)
@@ -2330,7 +2353,7 @@ class Backend:
             for i, q in enumerate(x['content']['questions']):
                 fb = (x.get('feedback') or [{}] * 5)[i]
                 lines.append(f"**{i + 1}. {q}**\nYou: {x['answers'][i] or '(blank)'}\n{fb.get('verdict', '')}: {fb.get('note', '')}\n")
-        s.add_message('wake', 'agent', '\n'.join(lines), meta={'demo': True}, title='Wake', chat_kind='digest')
+        self.note(s, 'wake', '\n'.join(lines), meta={'demo': True}, title='Wake', chat_kind='digest')
 
     def wake_close(self, s, w, outcome):
         x = w['session']
@@ -2339,7 +2362,7 @@ class Backend:
             self.wake_summary(s, w, x)
         elif outcome == 'override':
             hhmm = datetime.fromtimestamp(x['fire'], self.wake_tz(w)).strftime('%H:%M')
-            s.add_message('wake', 'agent', f'**Wake {hhmm}**: stopped with the emergency password. Nobody was messaged. ({NOTE})',
+            self.note(s, 'wake', f'**Wake {hhmm}**: stopped with the emergency password. Nobody was messaged. ({NOTE})',
                           meta={'demo': True}, title='Wake', chat_kind='digest')
 
     def wake_tick(self, s, w):
@@ -2367,7 +2390,7 @@ class Backend:
         if not x['escalated'] and now >= x['fire'] + cfg['escalate_min'] * 60:
             x['escalated'] = True
             who = 'you' if x['test'] else 'your escalation contacts'
-            s.add_message('wake', 'agent', f'Synthetic escalation: the sandbox would message {who} now. Nothing was sent.',
+            self.note(s, 'wake', f'Synthetic escalation: the sandbox would message {who} now. Nothing was sent.',
                           kind='status', meta={'demo': True}, title='Wake', chat_kind='digest')
 
     def wake_view(self, w):
