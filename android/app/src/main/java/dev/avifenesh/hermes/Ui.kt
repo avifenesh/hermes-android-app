@@ -301,6 +301,7 @@ fun Main() {
             }
         }
         if (Ui.composeOpen.value) ComposeSheet()
+        EditionFirstRunNotice()
     }
 }
 

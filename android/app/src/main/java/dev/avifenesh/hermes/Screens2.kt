@@ -712,6 +712,7 @@ fun MeScreen() {
         item { MachinesSection() }
         item { Panel { NavRow(Ic.shield, "Privacy policy", "Offline policy: data, permissions, retention and support") { Ui.push(Route.PrivacyR) } } }
         item { Panel { NavRow(Ic.book, "Licenses", "Offline notices, model restrictions and full license texts") { Ui.push(Route.LegalR()) } } }
+        editionHelpItems()
         item { ReportProblemRow() }
         item {
             Text("$EDITION_NAME " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(),
