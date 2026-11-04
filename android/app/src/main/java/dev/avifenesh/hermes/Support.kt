@@ -101,12 +101,20 @@ internal object Support {
     fun current(request: SupportRequest): Boolean = Prefs.paired && Ui.paired.value && Ui.pairLink.value == null &&
         request.generation == Api.epoch.capture() && request.route == Ui.stack.lastOrNull() && request.tab == Ui.tab.value
 
+    /** A long-pressed message opens actions only over the conversation that shows it: a mobile chat, or another
+     *  app's session (SessionScreen rows carry the session id as chatId). */
+    fun owns(route: Route?, message: Msg): Boolean = when (route) {
+        is Route.ChatR -> route.id == message.chatId
+        is Route.SessR -> route.id == message.chatId
+        else -> false
+    }
+
     fun open(message: Msg? = null) {
         synchronized(Api.epoch) {
             if (!Prefs.paired || !Ui.paired.value || Ui.pairLink.value != null) return
             val route = Ui.stack.lastOrNull()
             // Do not let an outgoing animated chat open actions over a different chat.
-            if (message != null && route != Route.ChatR(message.chatId)) return
+            if (message != null && !owns(route, message)) return
             if (message == null && (route != null || Ui.tab.value != "me")) return
             Ui.supportRequest.value = SupportRequest(Api.epoch.capture(), route, Ui.tab.value, message?.content)
         }
