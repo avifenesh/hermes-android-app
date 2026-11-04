@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -154,18 +155,21 @@ fun TerminalViewport(snapshot: JSONObject, onClick: (Int, Int) -> Unit, modifier
 }
 
 @Composable
-private fun TerminalButton(label: String, enabled: Boolean = true, selected: Boolean = false, onClick: () -> Unit) {
+private fun TerminalButton(label: String, enabled: Boolean = true, selected: Boolean = false, primary: Boolean = false, onClick: () -> Unit) {
     val p = P
     val active = selected && enabled
+    // A primary action keeps its accent fill while disabled and only dims its label, like Btn and IconBtn,
+    // so Send never turns into a dark key that reads as missing or broken.
+    val filled = primary || active
     Box(modifier = Modifier.clip(RoundedCornerShape(12.dp))
-        .background(if (active) p.acc else p.s2)
-        .border(1.dp, if (active) p.acc else p.line, RoundedCornerShape(12.dp))
-        .semantics { this.selected = active }
+        .background(if (filled) p.acc else p.s2)
+        .border(1.dp, if (filled) p.acc else p.line, RoundedCornerShape(12.dp))
+        .semantics { if (!primary) this.selected = active }
         .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         .heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center) {
-        Text(label, style = sans(13f, 600, if (!enabled) p.mu else if (active) p.ink else p.tx),
-            maxLines = 1, softWrap = false)
+        Text(label, style = sans(13f, 600, if (primary || active) p.ink else if (!enabled) p.mu else p.tx),
+            maxLines = 1, softWrap = false, modifier = Modifier.alpha(if (primary && !enabled) 0.45f else 1f))
     }
 }
 
@@ -230,6 +234,6 @@ fun FleetComposer(text: String, onText: (String) -> Unit, onSend: () -> Unit, bu
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         InputBox(text, onText, label, Modifier.weight(1f), maxLines = if (compact) 1 else 3)
         Spacer(Modifier.width(8.dp))
-        TerminalButton(if (busy) "Sending…" else "Send", !busy && text.isNotBlank(), selected = true, onClick = onSend)
+        TerminalButton(if (busy) "Sending…" else "Send", !busy && text.isNotBlank(), primary = true, onClick = onSend)
     }
 }
