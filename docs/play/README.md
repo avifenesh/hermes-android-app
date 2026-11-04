@@ -1,6 +1,6 @@
 # Google Play preparation
 
-Candidate: **0.16.9 / versionCode 41**, `dev.avifenesh.hermes.play`.
+Candidate: **0.16.16 / versionCode 48**, `dev.avifenesh.hermes.play`.
 
 **Not submitted, not approved, not ready for production.** The full GitHub release remains separate and unchanged. Preparing these files does not create a Play listing, choose the permanent signing setup, deploy a reviewer service or start a testing track.
 
@@ -22,19 +22,19 @@ JAVA_HOME=/path/to/jdk-21 python3 scripts/build_play_candidate.py
 
 This runs the real Gradle test/lint/APK/AAB tasks and stops its daemon. `dist/build-provenance-play.json` binds the exact command and successful result to content hashes for the tracked/nonignored source tree, produced artifacts and every unit/lint XML report. Changed sources, replaced reports/artifacts, missing provenance and entirely skipped tests fail qualification. Gradle's normal input/output cache may be reused; this is local build provenance, not a hermetic supply-chain attestation.
 
-Use bundletool `build-apks --mode=universal` with the trusted publisher signer and extract `universal.apk` to `dist/Hermes-Play-0.16.9-from-bundle.apk`. Keep signing passwords out of command lines and logs. From the repository root, qualify the exact built APK/AAB and this bundle-generated APK. Supply paths to the installed SDK Build Tools, Java 21 and bundletool. Supply the expected **upload** certificate from the publisher's trusted record; do not obtain trust from the candidate itself. The existing full-release certificate is used only for this local candidate, not approval of the permanent Play App Signing strategy.
+Use bundletool `build-apks --mode=universal` with the trusted publisher signer and extract `universal.apk` to `dist/Hermes-Play-0.16.16-from-bundle.apk`. Keep signing passwords out of command lines and logs. From the repository root, qualify the exact built APK/AAB and this bundle-generated APK. Supply paths to the installed SDK Build Tools, Java 21 and bundletool. Supply the expected **upload** certificate from the publisher's trusted record; do not obtain trust from the candidate itself. The existing full-release certificate is used only for this local candidate, not approval of the permanent Play App Signing strategy.
 
 ```sh
 python3 scripts/qualify_play.py \
   --apk android/app/build/outputs/apk/play/release/app-play-release.apk \
   --bundle android/app/build/outputs/bundle/playRelease/app-play-release.aab \
-  --bundle-apk dist/Hermes-Play-0.16.9-from-bundle.apk \
+  --bundle-apk dist/Hermes-Play-0.16.16-from-bundle.apk \
   --provenance dist/build-provenance-play.json \
   --expected-cert-sha256 TRUSTED_UPLOAD_CERTIFICATE_SHA256 \
   --bundletool /path/to/bundletool.jar \
   --build-tools /path/to/Android/Sdk/build-tools/36.0.0 \
   --java /path/to/jdk-21/bin/java \
-  --output dist/verification-play-0.16.9
+  --output dist/verification-play-0.16.16
 ```
 
 The script validates artifact identity/signing, native 16 KiB alignment, the complete ABI set, legal notices, the exact packaged Play policy and actual Gradle XML reports. It does not establish Play acceptance, runtime coverage, real push/voice behavior or public reviewer availability. Rebuild after changes and bind final receipts to the committed tree. It rejects unreviewed bundle modules and asymmetric DEX/native/asset inventories, applies the complete Play manifest boundary to the AAB, and repeats artifact checks on the bundle-generated universal APK. This does not qualify every device-specific split combination.
@@ -47,7 +47,7 @@ uv run --with pillow --with cairosvg python scripts/build_play_artwork.py
 
 ## Submission blockers
 
-1. **AI-content reporting.** The publisher approved an explicit voluntary in-app reporting flow, with no automatic telemetry. The 0.16.9 candidate replaces the email-only limitation with a separate publisher receiver, while keeping email as an alternative. Signed source-built and bundle-generated release checks now verify no send before explicit consent, exact preview/body receipt, both themes, compact 320dp/200% text, and deletion readback using synthetic reports. Transport and receiver tests cover retry/conflict behavior. The publisher must operate the manual review process; no automated moderation or continuous monitoring is established. A locally stored flag or email-app handoff is not delivery to the developer within the app. Keep the policy and Data Safety answers aligned with the deployed receiver.
+1. **AI-content reporting.** The publisher approved an explicit voluntary in-app reporting flow, with no automatic telemetry. The 0.16.16 candidate replaces the email-only limitation with a separate publisher receiver, while keeping email as an alternative. Signed source-built and bundle-generated release checks now verify no send before explicit consent, exact preview/body receipt, both themes, compact 320dp/200% text, and deletion readback using synthetic reports. Transport and receiver tests cover retry/conflict behavior. The publisher must operate the manual review process; no automated moderation or continuous monitoring is established. A locally stored flag or email-app handoff is not delivery to the developer within the app. Keep the policy and Data Safety answers aligned with the deployed receiver.
 2. **Reviewer access.** Deploy a dedicated HTTPS backend with repeatable isolated enrollment, no valuable execution-host mounts and no real customer data. Implement reviewable behavior for every retained surface. The local fixture currently returns explicit unsupported responses for several surfaces, rather than fabricating success. Verify the submitted artifact against the final hosted backend, not a public demo claim.
 3. **Publisher decisions and Console setup.** Confirm final package/title and Play App Signing/upload-key plan; review the account's contact identity. No app existed when the Console was inspected read-only on 2026-10-19. Do not upload the full APK or change its package/signing lineage.
 4. **Declarations and policy hosting.** The deployed report receiver serves the app policy at `/privacy` and report-deletion instructions at `/delete`. Finalize Data Safety, target audience/content rating, ads, app access, activity/fitness, foreground-service and full-screen declarations. Record demonstration videos where required. Reconcile every answer to the submitted artifact and enabled SDK behavior.

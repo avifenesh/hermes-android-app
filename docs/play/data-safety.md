@@ -1,6 +1,6 @@
 # Play Data Safety worksheet
 
-**Draft, not submitted.** Scope: the Play edition `dev.avifenesh.hermes.play`, candidate 0.16.9. Review against the final configured artifact and every version distributed on Play, not against the full sideload edition or only the review fixture. The publisher must approve final answers.
+**Draft, not submitted.** Scope: the Play edition `dev.avifenesh.hermes.play`, candidate 0.16.16. Review against the final configured artifact and every version distributed on Play, not against the full sideload edition or only the review fixture. The publisher must approve final answers.
 
 Google defines collection as transmission off the user's device, including SDKs and third-party servers. **Self-hosting does not mean no collection.** Sharing exclusions, ephemeral-processing criteria and optional/required answers must be evaluated per actual purpose/recipient. A provider or gateway acting as a service provider is not automatically the same as an independent third party. User-directed transfers may meet an exclusion; document the facts instead of assuming one.
 
