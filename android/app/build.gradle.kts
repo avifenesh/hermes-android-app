@@ -82,7 +82,13 @@ android {
     externalNativeBuild {
         cmake { path = file("src/main/cpp/microwakeword/CMakeLists.txt"); version = "3.22.1" }
     }
-    lint { checkReleaseBuilds = true; abortOnError = true }
+    lint {
+        checkReleaseBuilds = true; abortOnError = true
+        // Translations: lint checks every values-<locale> folder that ships (a declared language without a folder
+        // falls back to English). StringResourcesTest adds key and placeholder parity per locale.
+        error += listOf("MissingTranslation", "ExtraTranslation", "MissingQuantity", "StringFormatInvalid",
+            "StringFormatCount", "StringFormatMatches", "ImpliedQuantity")
+    }
 }
 
 dependencies {
