@@ -1,10 +1,8 @@
 package dev.avifenesh.hermes
 
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
@@ -14,7 +12,6 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.core.app.RemoteInput
-import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.work.CoroutineWorker
@@ -29,9 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -75,56 +69,6 @@ class SyncWorker(c: Context, p: WorkerParameters) : CoroutineWorker(c, p) {
         } catch (e: Exception) {
             Log.w("hermes", "sync failed: ${e.message}")
             if (runAttemptCount < 3) Result.retry() else Result.failure()
-        }
-    }
-}
-
-/** Fallback when push isn't configured: keeps the event stream open; doubles as the live-run notification. */
-class LiveService : Service() {
-    private var job: Job? = null
-    override fun onBind(intent: Intent?) = null
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        try {
-            ServiceCompat.startForeground(this, 7, Notify.live(this, Hub.working.value), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } catch (e: RuntimeException) {
-            // Permission, background-start restrictions, or the Android 15 dataSync budget can reject promotion.
-            Log.w("hermes", "live connection unavailable: ${e.message}")
-            stopSelf(); return START_NOT_STICKY
-        }
-        if (!Prefs.paired || !(Prefs.live || Prefs.phoneArmed)) {
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        Hub.connect()
-        if (job == null) job = Hub.scope.launch {
-            combine(Hub.working, Hub.online, Hub.chats) { w, on, ch -> Triple(w.toString(), on, w.keys.map { ch[it]?.title }) }
-                .distinctUntilChanged()
-                .collect { Notify.post(this@LiveService, 7, Notify.live(this@LiveService, Hub.working.value)) }
-        }
-        return START_STICKY
-    }
-
-    override fun onTimeout(startId: Int, fgsType: Int) {
-        // Android 15 limits dataSync foreground work to six hours in the background.
-        // WorkManager remains scheduled; do not restart a service whose budget is exhausted.
-        job?.cancel(); job = null
-        if (!Hub.foreground) Hub.disconnect()
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        stopSelf()
-    }
-
-    override fun onDestroy() {
-        job?.cancel(); job = null
-        if (!Hub.foreground) Hub.disconnect()
-        super.onDestroy()
-    }
-
-    companion object {
-        fun sync(c: Context) {
-            val i = Intent(c, LiveService::class.java)
-            if (Prefs.paired && (Prefs.live || Prefs.phoneArmed)) runCatching { ContextCompat.startForegroundService(c, i) } else c.stopService(i)
         }
     }
 }

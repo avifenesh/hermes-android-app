@@ -30,8 +30,8 @@ object Notify {
                 description = "Commands waiting for your OK"; enableVibration(true); lockscreenVisibility = Notification.VISIBILITY_PRIVATE },
             NotificationChannel(CH_MSG, "Replies", NotificationManager.IMPORTANCE_HIGH).apply { description = "Agent replies and finished runs" },
             NotificationChannel(CH_DIG, "Cron & digests", NotificationManager.IMPORTANCE_DEFAULT).apply { description = "Results from scheduled jobs" },
-            NotificationChannel(CH_LIVE, "Live runs & connection", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Run progress and the background connection"; setShowBadge(false) },
+            NotificationChannel(CH_LIVE, LiveService.CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
+                description = LiveService.CHANNEL_DESCRIPTION; setShowBadge(false) },
         ))
     }
 
@@ -167,20 +167,4 @@ object Notify {
 
     fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(nid("a$aid"))
     fun cancelChat(c: Context, cid: String) = NotificationManagerCompat.from(c).cancel(nid("c$cid"))
-
-    fun live(c: Context, working: Map<String, Double>): Notification {
-        val b = NotificationCompat.Builder(c, CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(LIME)
-            .setOngoing(true).setOnlyAlertOnce(true).setSilent(true).setShowWhen(false)
-            .setContentIntent(PendingIntent.getActivity(c, 3, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PI))
-        if (working.isEmpty()) {
-            b.setContentTitle("Hermes").setContentText(if (Hub.online.value) "Connected" else "Reconnecting…")
-        } else {
-            val (cid, since) = working.entries.maxBy { it.value }
-            b.setContentTitle(Hub.agent.value + " is working").setContentText(Hub.chats.value[cid]?.title ?: "A run")
-                .setProgress(0, 0, true).setShowWhen(true).setUsesChronometer(true).setWhen((since * 1000).toLong())
-                .setContentIntent(openIntent(c, cid))
-            if (working.size > 1) b.setSubText("${working.size} runs")
-        }
-        return b.build()
-    }
 }

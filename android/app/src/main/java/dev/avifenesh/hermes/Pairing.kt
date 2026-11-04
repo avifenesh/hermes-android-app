@@ -226,7 +226,7 @@ object Pairing {
                 // Nothing to roll back on failure or cancel.
                 Api.pair(link) { a.claimCommit() }
                 ok = true
-                Prefs.seq = 0; Prefs.nseq = 0; Prefs.live = true
+                Prefs.seq = 0; Prefs.nseq = 0; LiveService.firstPair()
                 Machines.park()
                 Ui.stack.clear(); Ui.tab.value = "inbox"
                 Ui.pairLink.value = null; Ui.paired.value = true

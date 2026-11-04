@@ -41,17 +41,24 @@ class TalkService : Service() {
             Ui.say("Android couldn't keep Talk active. Open Talk again while $APP_NAME is on screen.")
             stopSelf(); return START_NOT_STICKY
         }
+        active = true
         if (wl == null) wl = getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "hermes:talk").apply { acquire(30 * 60 * 1000L) }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         runCatching { wl?.release() }; wl = null
+        active = false
+        // Talk held the event stream open for its replies; release it unless something else still needs it.
+        if (!Hub.foreground && !LiveService.keepConnected()) Hub.disconnect()
         TalkBus.ended.tryEmit(Unit)
         super.onDestroy()
     }
 
     companion object {
+        /** A Talk conversation holds its microphone foreground service (and needs the event stream for replies). */
+        @Volatile var active = false
+
         fun start(c: Context, state: String) = runCatching {
             ContextCompat.startForegroundService(c, Intent(c, TalkService::class.java).putExtra("state", state))
         }.onFailure {

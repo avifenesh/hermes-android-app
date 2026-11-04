@@ -38,8 +38,8 @@ class App : Application() {
         Push.init(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             var n = 0
-            override fun onActivityStarted(a: Activity) { if (n++ == 0) { Hub.foreground = true; Hub.connect() } }
-            override fun onActivityStopped(a: Activity) { if (--n == 0) { Hub.foreground = false; if (!Prefs.live && !Prefs.phoneArmed) Hub.disconnect() } }
+            override fun onActivityStarted(a: Activity) { if (n++ == 0) { Hub.foreground = true; LiveService.foreground(); Hub.connect() } }
+            override fun onActivityStopped(a: Activity) { if (--n == 0) { Hub.foreground = false; if (!LiveService.keepConnected()) Hub.disconnect() } }
             override fun onActivityCreated(a: Activity, b: Bundle?) {}
             override fun onActivityResumed(a: Activity) {}
             override fun onActivityPaused(a: Activity) {}

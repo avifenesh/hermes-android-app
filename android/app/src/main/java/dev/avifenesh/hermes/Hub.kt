@@ -260,7 +260,7 @@ object Hub {
         if (es !== src) return@synchronized
         es = null
         online.value = false
-        if (!wanted || !(foreground || Prefs.live || Prefs.phoneArmed)) return@synchronized
+        if (!wanted || !(foreground || LiveService.keepConnected())) return@synchronized
         retry?.cancel()
         val ticket = Api.epoch.capture()
         retry = scope.launch {
@@ -338,7 +338,7 @@ object Hub {
         try { refreshMe() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
         Api.epoch.commit(ticket) { }
         val push = try { Push.refresh(c) } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
-        Api.epoch.commit(ticket) { Prefs.live = !push; connect() }
+        Api.epoch.commit(ticket) { LiveService.afterPair(push); connect() }
         LiveService.sync(c)
         // Last, so it cannot hold up the live stream: the new machine's needs-you count for the Radar row in Me,
         // which stays on screen through a switch.
@@ -382,7 +382,7 @@ object Hub {
         val b = JSONObject().put("text", text).put("mode", mode)
         if (atts.isNotEmpty()) b.put("attachments", JSONArray(atts))
         return sessionRequest({ Api.post("/v1/chats/$cid/messages", b) }) { o ->
-            msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)) }
+            msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)); LiveService.started(app, cid, it.seq) }
         }
     }
 
@@ -407,6 +407,8 @@ object Hub {
         return sessionRequest({ Api.post("/v1/approvals/$aid", JSONObject().put("choice", choice), h) }) { o ->
             val a = o.optJSONObject("approval")?.let { appr(it) }
             if (a != null) approvals.update { it + (a.id to a) }
+            // The decision resumes the waiting run (or lets it react to a denial): follow it again.
+            if (a != null && a.chatId.isNotBlank()) LiveService.started(app, a.chatId, Prefs.seq)
             a
         }
     }
@@ -417,6 +419,7 @@ object Hub {
             if (::app.isInitialized) Wake.reset(app.applicationContext)
             Api.cancelCalls()
             disconnect()
+            LiveService.reset()
             capabilityEpoch.invalidate()
             otherCapabilityEpochs.values.forEach { it.invalidate() }
             chats.value = emptyMap(); msgs.value = emptyMap(); approvals.value = emptyMap(); working.value = emptyMap()

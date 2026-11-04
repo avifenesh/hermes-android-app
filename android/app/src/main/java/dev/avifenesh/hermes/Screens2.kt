@@ -740,7 +740,6 @@ fun PhoneSettingsScreen() {
     var tab by rememberSaveable { mutableStateOf("look") }
     var devices by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var thisId by remember { mutableStateOf("") }
-    var live by remember { mutableStateOf(Prefs.live) }
     var unpair by remember { mutableStateOf(false) }
     var push by remember { mutableStateOf(Prefs.fcmCfg != null) }
     suspend fun loadDevices() { runCatching { val o = Api.get("/v1/devices"); devices = o.optJSONArray("devices").objs(); thisId = o.str("this") } }
@@ -785,11 +784,7 @@ fun PhoneSettingsScreen() {
                 item { Section("Notifications", null) }
                 item {
                     Panel {
-                        SettingRow("Push wake-ups", if (push) "On. Google wakes the phone, content comes straight from Hermes." else "Not set up on the server. The app falls back to its own connection.") {}
-                        Line()
-                        SettingRow("Stay connected in background", "Keeps a live connection and shows run progress. Uses a bit more battery.") {
-                            Toggle(live, { v -> live = v; Prefs.live = v; LiveService.sync(ctx); if (!v && !Hub.foreground && !Prefs.phoneArmed) Hub.disconnect() })
-                        }
+                        ChannelConnectionSettings(push)
                         Line()
                         CronDeliveryRow()
                         Line()

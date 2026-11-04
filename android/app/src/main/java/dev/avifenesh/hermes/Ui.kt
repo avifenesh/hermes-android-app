@@ -221,7 +221,7 @@ fun Main() {
         runCatching { Hub.sync() }.onFailure { Ui.say("Sync failed: " + it.message) }
         runCatching { Hub.refreshMe() }
         runCatching { Wake.refresh(ctx) }
-        runCatching { if (Push.refresh(ctx) && Prefs.live) { Prefs.live = false; LiveService.sync(ctx) } }
+        runCatching { if (Push.refresh(ctx)) LiveService.pushReady(ctx) }
     }
     val stack = Ui.stack
     val routeState = rememberSaveableStateHolder()
