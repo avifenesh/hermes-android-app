@@ -9,31 +9,21 @@ SQLite store. Patched: the STT provider call, the authorization and skill lookup
 handler asks first, and the base adapter's session dispatch (the test plays the gateway's turn
 order: typing, transcription, answer, stop, drain). No gateway, provider, live data or phone.
 """
-import atexit
 import asyncio
 import os
 from pathlib import Path
-import shutil
 import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
-if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
-    raise RuntimeError("Run directly in a fresh managed-Python process")
-SCRATCH = Path.home() / ".hermes/cache/scratch"
-SCRATCH.mkdir(parents=True, exist_ok=True)
-_HOME = tempfile.TemporaryDirectory(prefix="voice-transcripts-", dir=SCRATCH)
-atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
-os.environ["HERMES_HOME"] = _HOME.name
-os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
-os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
 os.environ.pop("HERMES_LANGUAGE", None)
 os.environ.pop("HERMES_GATEWAY_BUSY_ACK_ENABLED", None)
-assert Path(_HOME.name).resolve() != (Path.home() / ".hermes").resolve()
-sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
-import hermes_bootstrap  # noqa: E402,F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Its own Hermes root outside ~/.hermes; may relaunch once into Hermes' dependency environment.
+from isolated_home import enter  # noqa: E402
+_HOME = enter("voice-transcripts-")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 from mobile import adapter as A  # noqa: E402
 from mobile import store as S  # noqa: E402
