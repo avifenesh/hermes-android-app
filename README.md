@@ -304,6 +304,7 @@ installs/relaunches. It needs the existing managed dependencies and the Hermes s
 ```sh
 "$HERMES_PYTHON" scripts/phone_control_integration.py
 "$HERMES_PYTHON" scripts/replay_security_integration.py
+"$HERMES_PYTHON" scripts/pair_retry_integration.py
 ```
 
 Run these scripts directly in fresh processes; do not import bootstrap or discover plugins first.
