@@ -14,6 +14,7 @@ import re
 import struct
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -53,6 +54,40 @@ def payload_parity(apk: Path, bundle: Path) -> None:
         for name in payload:
             bundled = next((key for key, value in profiles.items() if value == name), 'base/' + name)
             require(a.read(name) == b.read(bundled), 'APK/bundle content differs: ' + name)
+
+
+def unsigned_payload(apk: Path) -> dict[str, bytes]:
+    """Every APK entry except signature files, which differ by signer."""
+    with zipfile.ZipFile(apk) as archive:
+        return {info.filename: archive.read(info) for info in archive.infolist()
+                if not info.is_dir() and not info.filename.upper().startswith('META-INF/')}
+
+
+def same_payload(expected: dict[str, bytes], actual: dict[str, bytes]) -> None:
+    require(expected.keys() == actual.keys(),
+            f'Bundle APK entries differ from a fresh universal build: {sorted(expected.keys() ^ actual.keys())[:5]}')
+    differing = sorted(name for name in expected if expected[name] != actual[name])
+    require(not differing, f'Bundle APK content differs from a fresh universal build: {differing[:5]}')
+
+
+def generated_from_bundle(java: str, keytool: str, bundletool: Path, bundle: Path, bundle_apk: Path, log: Path) -> None:
+    """Prove the supplied APK is the universal APK of this AAB: regenerate it here and compare every entry.
+
+    Parity of code/native/assets alone also accepts the source-built APK. The throwaway key only signs the
+    regenerated copy; signature files are excluded from the comparison, the real signer is checked separately.
+    Use the same bundletool version that produced the supplied APK.
+    """
+    with tempfile.TemporaryDirectory(prefix='qualify-regen-') as tmp:
+        work = Path(tmp)
+        ks = work / 'throwaway.jks'
+        command([keytool, '-genkeypair', '-keystore', str(ks), '-storepass', 'throwaway', '-keypass', 'throwaway',
+                 '-alias', 'regen', '-keyalg', 'EC', '-dname', 'CN=regen', '-validity', '1'], log.with_name(log.stem + '-key.log'))
+        apks = work / 'regen.apks'
+        command([java, '-jar', str(bundletool), 'build-apks', '--mode=universal', f'--bundle={bundle}', f'--output={apks}',
+                 f'--ks={ks}', '--ks-pass=pass:throwaway', '--ks-key-alias=regen', '--key-pass=pass:throwaway'], log)
+        with zipfile.ZipFile(apks) as archive:
+            (work / 'universal.apk').write_bytes(archive.read('universal.apk'))
+        same_payload(unsigned_payload(work / 'universal.apk'), unsigned_payload(bundle_apk))
 
 
 def validate_apk_identity(badging: str, code: int, version: str) -> None:
@@ -199,6 +234,7 @@ def main() -> None:
     certificates = re.findall(r'SHA256:\s*([A-Fa-f0-9:]+)', certificate)
     require(certificates and {item.replace(':', '').lower() for item in certificates} == {args.expected_cert_sha256.lower()}, 'Unexpected bundle signer')
     payload_parity(args.bundle_apk, args.bundle)
+    generated_from_bundle(args.java, keytool, Path(args.bundletool), args.bundle, args.bundle_apk, args.output / 'bundle-regeneration.log')
     command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.bundle_apk),
         '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'bundle-apk-distribution.json')
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.bundle_apk)], args.output / 'bundle-apk-legal.json')
