@@ -375,6 +375,9 @@ object Api {
         exec(request(p).put(body.toString().toRequestBody(JSON)).apply { headers.forEach { (k, v) -> header(k, v) } }.build())
     suspend fun patch(p: String, body: JSONObject): JSONObject = exec(request(p).patch(body.toString().toRequestBody(JSON)).build())
     suspend fun delete(p: String): JSONObject = exec(request(p).delete().build())
+    /** Build now, send later: the request's identity is the machine it was built on (see MachineBound). */
+    internal fun buildPost(p: String, body: JSONObject): Request = request(p).post(body.toString().toRequestBody(JSON)).build()
+    internal suspend fun send(req: Request): JSONObject = exec(req)
     suspend fun upload(name: String, mime: String, bytes: ByteArray, generation: Long = epoch.capture()): JSONObject =
         exec(epoch.commit(generation) {
             request("/v1/upload?name=${Uri.encode(name)}&mime=${Uri.encode(mime)}").post(bytes.toRequestBody(mime.toMediaType())).build()

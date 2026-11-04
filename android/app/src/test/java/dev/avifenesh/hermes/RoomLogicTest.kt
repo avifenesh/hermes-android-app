@@ -223,4 +223,24 @@ class RoomLogicTest {
             assertEquals(500, e.code)
         }
     }
+
+    @Test fun aQueuedReadNeverReachesAnotherMachine() = runBlocking {
+        val session = SessionEpoch()
+        val gate = SessionEpoch()
+        val sent = ArrayList<String>()
+        // Captured when the room was read on machine A.
+        val read = MachineBound(session, session.capture(), gate, gate.capture())
+        session.invalidate()  // the phone switched to machine B before the queued post started
+        try {
+            read.send({ "POST /v1/rooms/crew/read on ${session.capture()}" }) { sent += it }
+            fail("a read captured on one machine was sent on another")
+        } catch (_: CancellationException) { }
+        val gated = MachineBound(session, session.capture(), gate, gate.capture())
+        gate.invalidate()  // rooms turned off and on again
+        try { gated.send({ "late" }) { sent += it }; fail("a read crossed a capability change") } catch (_: CancellationException) { }
+        assertEquals(emptyList<String>(), sent)  // nothing was built, so nothing was signed or posted
+        val current = MachineBound(session, session.capture(), gate, gate.capture())
+        current.send({ "POST /v1/rooms/crew/read" }) { sent += it }
+        assertEquals(listOf("POST /v1/rooms/crew/read"), sent)
+    }
 }

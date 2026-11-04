@@ -216,6 +216,17 @@ internal suspend fun roomListAnswer(fetch: suspend () -> JSONObject): JSONObject
         JSONObject().put("supported", false).put("rooms", JSONArray()).put("bots", JSONArray())
     }
 
+/** A request captured on one machine (session) and capability generation. [send] builds it inside both
+ *  commits, so a request queued past a machine switch or a capability change is never built, signed or sent;
+ *  a built request carries that same identity, which the signer checks again before the wire. */
+internal class MachineBound(private val session: SessionEpoch, private val ticket: Long,
+                            private val gate: SessionEpoch, private val gateTicket: Long) {
+    suspend fun <R, T> send(build: () -> R, send: suspend (R) -> T): T {
+        val request = session.commit(ticket) { gate.commit(gateTicket) { build() } }
+        return send(request)
+    }
+}
+
 /** Gateway-hosted Group Chats (Hermes Desktop's Bot Mode rooms), shared with every surface of the gateway. */
 object Rooms {
     val list = MutableStateFlow<Map<String, Room>>(emptyMap())
@@ -328,14 +339,20 @@ object Rooms {
     suspend fun stop(rid: String) { call({ Api.post("/v1/rooms/${enc(rid)}/stop") }) { } }
 
     /** Clears the badge at once; the cursor post runs on the app scope, so the recomposition this causes
-     *  (the effect that called it is keyed on the room) cannot cancel it before the gateway saves it. */
+     *  (the effect that called it is keyed on the room) cannot cancel it before the gateway saves it. The post
+     *  is bound to the machine and capability generation of this call: queued behind a machine switch, it is
+     *  never built with the new machine's credentials (two gateways can share a room id). */
     fun markRead(rid: String, seq: Long) {
         val r = list.value[rid] ?: return
         if (seq <= r.readSeq && r.unread == 0) return
+        val gate = Hub.epochFor("/v1/rooms")!!
+        val bound = MachineBound(Api.epoch, Api.epoch.capture(), gate, gate.capture())
         put(r.copy(readSeq = maxOf(seq, r.readSeq), unread = 0))
         Notify.cancelRoom(Hub.app, rid)
+        val path = "/v1/rooms/${enc(rid)}/read"
+        val body = JSONObject().put("seq", seq)
         Hub.scope.launch {
-            try { call({ Api.post("/v1/rooms/${enc(rid)}/read", JSONObject().put("seq", seq)) }) { } }
+            try { bound.send({ Api.buildPost(path, body) }) { Api.send(it) } }
             catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { }
         }
     }
