@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes telefon kontrolü</string>
+    <string name="phone_service_desc">Hermes ajanınızın ekranı okumasına ve bu telefonda dokunma, yazma ve kaydırma yapmasına izin verir. Yalnızca uygulamada Kontrol açıkken çalışır (Ben, Bu telefon, Kontrol).</string>
+    <string name="phone_control_notice_title">Telefon kontrolü açık</string>
+    <string name="phone_control_notice_text">Ajanınız kilidi açık bu telefonu okuyabilir ve kullanabilir.</string>
+    <string name="phone_control_stop">Kontrolü durdur</string>
+    <string name="phone_control_accessibility_service">Erişilebilirlik hizmeti</string>
+    <string name="phone_control_service_enabled">Android ayarlarında etkin.</string>
+    <string name="phone_control_service_disabled">Android Erişilebilirlik ayarlarında %1$s telefon kontrolünü etkinleştirin.</string>
+    <string name="phone_control_allow">Ajan kontrolüne izin ver</string>
+    <string name="phone_control_allow_on">Açık. Ajan okuyabilir, dokunabilir, yazabilir, kaydırabilir ve uygulama açabilir.</string>
+    <string name="phone_control_allow_off">Kapalı. Ekran içeriği veya komut gönderilmez.</string>
+    <string name="phone_control_enable_service_first">Önce Erişilebilirlik hizmetini etkinleştirin</string>
+    <string name="phone_control_server_unavailable">Telefon kontrolü sunucuda henüz kullanılamıyor</string>
+    <string name="phone_control_enable_channel">Kontrolü durdur erişilebilir kalsın diye Canlı çalıştırmalar ve bağlantı bildirim kanalını etkinleştirin</string>
+    <string name="phone_control_confirm_title">Telefon kontrolüne izin ver</string>
+    <string name="phone_control_activation_cancelled">Kontrol, eşleştirme veya Erişilebilirlik değiştiği için etkinleştirme iptal edildi</string>
+    <string name="phone_control_not_armed">Sunucu bu telefonu hazırlamadı veya etkinleştirmenin yerini yenisi aldı</string>
+    <string name="phone_control_sideload_help">Dışarıdan yüklenen APK için ilk kurulum: Android, Erişilebilirlik hizmetini engelleyebilir. Android Ayarlar → Uygulamalar → %1$s → ⋮ → Kısıtlanmış ayarlara izin ver yolunu açın, ardından hizmeti burada etkinleştirin. Bunu yalnızca bir kez yapmanız gerekir.</string>
+    <string name="phone_control_limits">Kontrol yalnızca ekran açık ve kilidi açıkken çalışır. Android korumalı ekranların ekran görüntüsünü engeller. Şifre alanları gizli kalır. Kontrolü istediğiniz zaman buradan veya bildirimden kapatın.</string>
+    <string name="phone_control_confirming">Parmak izi veya PIN ile onaylayın…</string>
+    <string name="channel_tab_control">Kontrol</string>
+    <string name="channel_control_section">Ajanın telefon kontrolü</string>
+    <string name="channel_battery_title">Pil optimizasyonu</string>
+    <string name="channel_battery_body">Bazı telefonlar arka plan bağlantısını sonlandırır. %1$s uygulamasının kısıtlamasız çalışmasına izin verin.</string>
+    <string name="channel_allow_unknown_apps">%1$s için \"Bilinmeyen uygulamaları yükle\" iznini verin, ardından dosyaya yeniden dokunun</string>
+</resources>

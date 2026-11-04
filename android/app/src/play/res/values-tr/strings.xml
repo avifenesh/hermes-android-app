@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Herms filosu</string>
+    <string name="channel_control_unavailable_title">Bu sürümde kullanılamıyor</string>
+    <string name="channel_control_unavailable_body">Bu Play sürümü diğer uygulamaları okuyamaz veya kullanamaz. Uzak komutlar bu özelliği etkinleştiremez.</string>
+    <string name="channel_background_title">Arka planda teslim</string>
+    <string name="channel_background_body">Android pil optimizasyonu etkin kalır. Push (yapılandırıldıysa) ve düzenli eşitleme kullanılabilir kalır; arka planda teslim gecikebilir.</string>
+    <string name="channel_apk_unavailable">Bu Play sürümünde APK eklerini yüklemek kullanılamıyor. Dosyayı yine de İndirilenler klasörüne kaydedebilirsiniz.</string>
+</resources>
