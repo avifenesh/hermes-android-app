@@ -44,7 +44,7 @@ internal fun LazyListScope.languageSettings() {
 @Composable
 private fun LanguageRow() {
     val ctx = LocalContext.current
-    val ui = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val ui = LocalConfiguration.current.locales[0] ?: Locale.ROOT
     var open by rememberSaveable { mutableStateOf(false) }
     val chosen = remember(ui) { Locales.current(ctx) }
     val current = remember(ui) { Locales.currentOffered(ctx) }

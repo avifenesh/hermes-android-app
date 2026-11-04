@@ -79,6 +79,8 @@ android {
     buildFeatures { compose = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
     androidResources { noCompress += "tflite" }
+    // The in-app language picker needs every language installed: an app bundle must not split strings by language.
+    bundle { language { enableSplit = false } }
     externalNativeBuild {
         cmake { path = file("src/main/cpp/microwakeword/CMakeLists.txt"); version = "3.22.1" }
     }

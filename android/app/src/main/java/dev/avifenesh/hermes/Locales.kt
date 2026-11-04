@@ -57,7 +57,7 @@ object Locales {
                 if (tag == null) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
             return
         }
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply { if (tag == null) remove(KEY) else putString(KEY, tag) }.commit()
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply { if (tag == null) remove(KEY) else putString(KEY, tag) }.apply()
         applyDefault(c)
         relocalized(c.applicationContext)
         synchronized(live) { live.toList() }.filter { it is MainActivity || it is WakeActivity }.forEach { it.recreate() }
