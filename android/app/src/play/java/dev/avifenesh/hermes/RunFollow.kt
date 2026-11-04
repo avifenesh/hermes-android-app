@@ -17,7 +17,8 @@ internal class RunFollow(private val graceMs: Long = START_GRACE_MS, private val
         WORKING,
         /** The turn ended but a send queued another one. Ends on the grace unless the next turn starts. */
         NEXT,
-        /** The stream dropped while working. The reconnect hello re-confirms it within the grace, or it ends. */
+        /** The stream dropped while working. The reconnect's working set re-confirms it within the grace; if the chat
+         *  is gone from it, the run ended (or, with a queued turn, waits for that turn as NEXT). */
         UNCONFIRMED,
     }
 
@@ -32,13 +33,17 @@ internal class RunFollow(private val graceMs: Long = START_GRACE_MS, private val
      * working queues or interrupts into a new turn, so the follow survives the current turn's end; a steer does not.
      * False when Android has no dataSync time left.
      */
-    @Synchronized fun start(chat: String, afterSeq: Long, now: Long, foreground: Boolean, nextTurn: Boolean = false): Boolean {
+    @Synchronized fun start(chat: String, afterSeq: Long, now: Long, foreground: Boolean, nextTurn: Boolean = false, busy: Boolean = false): Boolean {
         if (foreground) exhausted = false
         if (exhausted) return false
         val old = runs.remove(chat)
+        // The send queues a turn when the chat is busy as the user sends: this phone's follow is working, unconfirmed
+        // or already between turns, or the gateway lists the chat busy with a run this phone does not follow (cron,
+        // another device). Decided at send time, it cannot see the send's own turn.
+        val queues = nextTurn && (busy || old?.state == State.WORKING || old?.state == State.UNCONFIRMED || old?.state == State.NEXT)
         // Re-adding moves the chat to the end, so followed() lists the newest start first.
-        runs[chat] = if (old == null) Run(now, afterSeq, State.PENDING, now, false)
-            else old.copy(afterSeq = maxOf(old.afterSeq, afterSeq), next = old.next || (nextTurn && (old.state == State.WORKING || old.state == State.UNCONFIRMED)))
+        runs[chat] = if (old == null) Run(now, afterSeq, State.PENDING, now, queues)
+            else old.copy(afterSeq = maxOf(old.afterSeq, afterSeq), next = old.next || queues)
         return true
     }
 
@@ -58,7 +63,9 @@ internal class RunFollow(private val graceMs: Long = START_GRACE_MS, private val
             val run = runs.getValue(chat)
             when {
                 chat in busy -> if (run.state != State.WORKING) runs[chat] = run.copy(state = State.WORKING)
-                run.state == State.WORKING && run.next -> runs[chat] = run.copy(state = State.NEXT, graceFrom = now, next = false)
+                // The turn ended (seen live, or while the stream was down): wait for the queued one on a fresh grace.
+                (run.state == State.WORKING || run.state == State.UNCONFIRMED) && run.next ->
+                    runs[chat] = run.copy(state = State.NEXT, graceFrom = now, next = false)
                 run.state == State.WORKING || run.state == State.UNCONFIRMED -> runs.remove(chat)
             }
         }

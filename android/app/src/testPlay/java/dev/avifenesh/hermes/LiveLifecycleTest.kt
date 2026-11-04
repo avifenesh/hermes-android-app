@@ -315,6 +315,18 @@ class LiveLifecycleTest {
         assertTrue(p.svc?.foreground == true)
     }
 
+    @Test fun aSendIntoAChatBusyWithAnotherRunFollowsItsQueuedTurn() {
+        val (p, life) = setup()
+        val f = LiveLifecycle.Follow("c1")
+        life.starting(f, 1, 0, nextTurn = true, busy = true) // Hub.working listed c1 when the user sent
+        p.settle()
+        life.started(f, 2, 5)
+        life.step(10, online = true, busy = setOf("c1")) { null }
+        assertTrue("the other run ended; the queued turn is next", life.step(20, online = true, busy = emptySet()) { null } != null)
+        life.step(30, online = true, busy = setOf("c1")) { null }
+        assertNull(life.step(40, online = true, busy = emptySet()) { null })
+    }
+
     @Test fun timeoutStopsAndRefusesBackgroundStartsUntilForeground() {
         val (p, life) = setup()
         life.send("c1", 1, 0)

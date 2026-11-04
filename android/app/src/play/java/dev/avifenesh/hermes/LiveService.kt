@@ -131,7 +131,9 @@ class LiveService : Service(), LiveLifecycle.Instance {
         @Suppress("UNUSED_PARAMETER")
         internal fun starting(c: Context, chat: String, afterSeq: Long, nextTurn: Boolean): LiveLifecycle.Follow {
             val f = LiveLifecycle.Follow(chat)
-            onMain { life.starting(f, afterSeq, System.currentTimeMillis(), nextTurn) }
+            // Read before the request is sent, so it can only show a turn already running, never this send's own.
+            val busy = Hub.working.value.containsKey(chat)
+            onMain { life.starting(f, afterSeq, System.currentTimeMillis(), nextTurn, busy) }
             return f
         }
 

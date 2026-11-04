@@ -214,6 +214,66 @@ class RunFollowTest {
         assertFalse("a drop does not extend the wait for a turn that never starts", f.active())
     }
 
+    @Test fun aSendIntoABusyChatWithoutAFollowWaitsForItsQueuedTurn() {
+        val f = follow()
+        // A cron run or another device's run is working; this phone follows nothing yet.
+        f.start("c1", 1, 0, true, nextTurn = true, busy = true)
+        f.working(setOf("c1"), 0)
+        f.working(emptySet(), 1_000) // the other run ended
+        assertTrue("the user's queued turn is still to come", f.active())
+        f.working(setOf("c1"), 2_000)
+        f.working(emptySet(), 3_000)
+        assertFalse(f.active())
+    }
+
+    @Test fun aSendIntoAnIdleChatIsItsOwnTurn() {
+        val f = follow()
+        f.start("c1", 1, 0, true, nextTurn = true, busy = false)
+        f.working(setOf("c1"), 10)
+        f.working(emptySet(), 20)
+        assertFalse(f.active())
+    }
+
+    @Test fun aSecondSendBetweenTurnsQueuesAnotherTurn() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true, busy = true)
+        f.working(emptySet(), 2_000) // between turns
+        f.start("c1", 7, 2_500, true, nextTurn = true, busy = false)
+        f.working(setOf("c1"), 3_000)
+        f.working(emptySet(), 4_000)
+        assertTrue("the second queued turn is still to come", f.active())
+        f.working(setOf("c1"), 5_000)
+        f.working(emptySet(), 6_000)
+        assertFalse(f.active())
+    }
+
+    @Test fun aReconnectAfterTheTurnEndedKeepsTheQueuedTurn() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true, busy = true)
+        f.offline(2_000)
+        // The fresh set after the reconnect lacks c1: the first turn ended while the stream was down.
+        f.working(emptySet(), 10_000)
+        assertTrue("waiting for the queued turn", f.active())
+        f.expire(10_000 + grace - 1)
+        assertTrue(f.active())
+        f.working(setOf("c1"), 20_000)
+        f.working(emptySet(), 21_000)
+        assertFalse(f.active())
+    }
+
+    @Test fun aReconnectWithoutAQueuedTurnEndsTheRun() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.offline(2_000)
+        f.working(emptySet(), 10_000)
+        assertFalse(f.active())
+    }
+
     @Test fun aSteerEndsWithTheTurnItSteers() {
         val f = follow()
         f.start("c1", 1, 0, true)

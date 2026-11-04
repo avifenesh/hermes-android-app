@@ -52,9 +52,10 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
 
     /** The user acts from this phone (a send, an approval decision): follow before the request returns, while the
      *  app may still start a foreground service. */
-    fun starting(follow: Follow, afterSeq: Long, now: Long, nextTurn: Boolean) {
+    /** [busy]: the gateway listed the chat as working when the user sent, so a send (not a steer) queues a turn. */
+    fun starting(follow: Follow, afterSeq: Long, now: Long, nextTurn: Boolean, busy: Boolean = false) {
         follow.created = !runs.has(follow.chat)
-        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request(follow)
+        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn, busy)) request(follow)
         else follow.created = false
     }
 
