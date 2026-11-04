@@ -1,6 +1,7 @@
 export const MAX_RAW_BYTES = 64 * 1024;
 export const MAX_TEXT_BYTES = 8192;
-const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Canonical lowercase only (what the app generates): the stored ID is the exact key operators delete by.
+const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export class InputError extends Error {
   constructor(status, code) { super(code); this.status = status; }
 }
@@ -46,6 +47,23 @@ export async function readReport(request) {
     throw new InputError(400, 'invalid_report');
   }
   if (new TextEncoder().encode(report.text).length > MAX_TEXT_BYTES) throw new InputError(413, 'text_too_large');
-  // No trimming, case folding, or normalization: preserve the exact reviewed text and ID.
+  // No trimming or normalization of text: preserve the exact reviewed text and canonical ID.
   return report;
+}
+
+const v4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+/** Rate-limit key: one budget per IPv4 address and per IPv6 /64, the smallest prefix a single host usually controls. */
+export function rateKey(ip) {
+  if (typeof ip !== 'string') return null;
+  if (v4.test(ip)) return `v4:${ip}`;
+  const bare = ip.split('%')[0].toLowerCase();
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(bare);
+  if (mapped) return v4.test(mapped[1]) ? `v4:${mapped[1]}` : null;
+  if (!/^[0-9a-f:]+$/.test(bare) || bare.split('::').length > 2) return null;
+  const [head, tail] = bare.includes('::') ? bare.split('::') : [bare, null];
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const groups = tail === null ? left : [...left, ...Array(8 - left.length - right.length).fill('0'), ...right];
+  if (groups.length !== 8 || groups.some(g => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return `v6:${groups.slice(0, 4).map(g => parseInt(g, 16).toString(16)).join(':')}::/64`;
 }
