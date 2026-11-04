@@ -150,6 +150,13 @@ class DistributionGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             check.manifest_check(manifest(extra=twice), "play")
 
+    def test_play_resource_strings_exclude_phone_control_text(self):
+        check.resource_text_check("String pool of 2 unique UTF-8 strings\nString #0 : Talk\n", "play")
+        for marker in check.FORBIDDEN_RESOURCE_TEXT:
+            with self.subTest(marker=marker), self.assertRaises(ValueError):
+                check.resource_text_check(f"String #7 : {marker}\n", "play")
+            check.resource_text_check(f"String #7 : {marker}\n", "full")
+
     def test_dex_full_contract(self):
         classes = {f"Ldev/avifenesh/hermes/{name};" for name in check.FULL_CLASSES}
         check.dex_check(set(), classes, "full")

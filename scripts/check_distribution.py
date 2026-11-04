@@ -73,6 +73,8 @@ FORBIDDEN_DEX_STRINGS = (
 )
 # Play-only safeguard: the first-run AI-content notice.
 PLAY_DEX_STRINGS = ("About AI replies",)
+# Phone-control UI text lives in full-only string resources; Play's resource table must not carry it either.
+FORBIDDEN_RESOURCE_TEXT = ("Allow agent control", "Allow phone control")
 FULL_CLASSES = ("PhoneService", "PhoneStopReceiver", "PhoneNotice", "PhoneControlKt")
 DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "MarkdownProbeActivity", "FleetProbeActivity", "ReleaseLinkageProbe",
@@ -147,7 +149,8 @@ def source_check(root: Path = ROOT) -> dict:
             count += 1
         for p in (src / source_set / "res").rglob("*"):
             if p.is_file() and p.suffix == ".xml":
-                require("phone_service" not in p.read_text(), f"full-only resource in Play: {p}")
+                text = p.read_text()
+                require("phone_service" not in text and "phone_control_" not in text, f"full-only resource in Play: {p}")
     for source_set in ("main", "full", "play", "release", "fullRelease", "playRelease"):
         require(not (src / source_set / DEBUG_ASSET_DIR).exists(), f"debug fixture assets outside debug: {source_set}")
     for name in ("PhoneService.kt", "PhoneControl.kt"):
@@ -262,6 +265,13 @@ def dex_check(strings: set[str], classes: set[str], flavor: str, debug: bool = F
         require(not any(has(n) for n in DEBUG_CLASSES), "debug fixture in release DEX")
 
 
+def resource_text_check(pool: str, flavor: str) -> None:
+    """`aapt2 dump strings` output: the compiled resource string pool."""
+    if flavor == "play":
+        for token in FORBIDDEN_RESOURCE_TEXT:
+            require(token not in pool, f"full-only resource text in Play: {token}")
+
+
 def payload_check(names: list[str], debug: bool = False) -> None:
     if not debug:
         require(not any(n.startswith(DEBUG_ASSET_DIR) for n in names), "debug fixture asset in release")
@@ -292,6 +302,7 @@ def artifact_check(apk: Path, flavor: str, cert: str | None, debug: bool) -> dic
         resources = subprocess.check_output([sdk_tool("aapt2"), "dump", "resources", str(apk)], text=True)
         phone_xml = bool(re.search(r"(?m)^\s*resource\s+0x[0-9a-fA-F]+\s+(?:[^\s:]+:)?xml/phone_service\s*$", resources))
         require(phone_xml == (flavor == "full"), "wrong phone_service.xml resource boundary")
+        resource_text_check(subprocess.check_output([sdk_tool("aapt2"), "dump", "strings", str(apk)], text=True), flavor)
     dex_check(strings, classes, flavor, debug)
     signature = subprocess.check_output([sdk_tool("apksigner"), "verify", "--print-certs", str(apk)], text=True)
     fingerprints = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)", signature)
