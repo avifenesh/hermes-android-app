@@ -7,7 +7,7 @@
 | Video | Declaration | Required? |
 |---|---|---|
 | V1 | Foreground service: microphone (Talk and wake word) | Yes. Play asks for "a link to a video demonstrating each foreground service feature". |
-| V2 | Foreground service: dataSync (run in progress) | Yes, after code change C1. Do not record it on the current build. |
+| V2 | Foreground service: dataSync (run in progress) | Yes, after code change C1 and the sandbox's approval-gated scenario. Do not record it before both. |
 | V3 | Foreground service for the alarm (systemExempted after C2, or mediaPlayback), plus the full-screen alarm | Yes for mediaPlayback. If C2 lands and the Console still lists the alarm service, attach it there too. Also shows the full-screen intent grant. |
 | None | Exact alarm (`SCHEDULE_EXACT_ALARM`) | No. Play reviews only `USE_EXACT_ALARM`, which the Play build does not declare. V3 shows the grant anyway. |
 | None | Full-screen intent | No video is listed for it. The app does not claim automatic access. V3 covers the behavior if Google asks. |
@@ -44,14 +44,17 @@ Shows two user-started microphone features, their notifications and how each sto
 
 ## V2: dataSync, while a run is in progress
 
-Record only after C1. It shows the service starting from a user action, staying only while the run works, and ending by itself.
+**Prerequisites:** C1, and an approval-gated scenario in the reviewer sandbox, redeployed on the hosted sandbox. Today's `feat/review-coverage` sandbox writes the final reply first, then creates the approval card and clears the working state, and approving does not resume anything. A run that waits for approval and finishes afterwards cannot be shown on it. A backend change being written adds that scenario: the prompt text "approval please" starts a run that stops at an approval card, stays working, and finishes its reply only after **Approve**. Record V2 only after both are live, and check the scenario once by hand first.
+
+It shows the service starting from a user action, staying only while the run works, and ending by itself.
 
 1. Me > This phone > Alerts: show the background setting as it reads after C1.
-2. Open "Launch checklist · example project". Type "Draft a longer release plan with an approval" and send.
+2. Open "Launch checklist · example project". Type `approval please` and send.
 3. Press Home right away. Pull down the shade: "Hermes Demo is working" with the chat title and elapsed time.
-4. Wait for the approval notification. Approve it from the notification (biometric prompt) or open the app and approve.
-5. Keep the shade open until the run finishes. The working notification disappears by itself.
-6. Show that nothing stays in the shade after the run, and that the reply is in the chat.
+4. Wait for the approval notification. Show that the working notification is still there: the run is waiting on the approval.
+5. Approve from the notification (biometric prompt), or open the app and tap **Approve** on the card.
+6. Keep the shade open until the run finishes its reply. The working notification disappears by itself.
+7. Show that nothing stays in the shade after the run, and that the full reply is in the chat.
 
 ## V3: alarm sound and full-screen alarm
 

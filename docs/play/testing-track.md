@@ -22,7 +22,7 @@ Google requires personal developer accounts created after 2023-11-13 to "run a c
 2. Complete every App content declaration. Record the demo videos ([demo-videos.md](demo-videos.md)).
 3. Create a Google Group for testers, for example `herms-testers@googlegroups.com` (owner picks the name). Settings: anyone can ask to join; the owner approves; members cannot see each other's addresses.
 4. In Play Console: Test and release > Testing > Closed testing > Manage track > Testers > **Google Groups**, enter the group address. Set the feedback channel to `hello@tiyuvta.ai`. It appears on the opt-in page.
-5. Set the countries for the closed track to cover every tester. Country changes apply across all tracks.
+5. Set the closed track's countries: Closed testing > **Manage track** > **Countries / regions**. The track syncs with production by default; click **Unsync** to target it on its own (allowed while no bundle is in production, as before launch), then **Edit countries / regions**. Include the country each tester's Google Play account is registered in. Targeting follows that account country, not where the tester is. This does not widen production availability. Internal testing has no country targeting.
 6. Send the release for review. Wait for "Published".
 
 ### 2. Recruit
@@ -112,3 +112,4 @@ Read on 2026-11-04.
 
 - App testing requirements for new personal developer accounts: https://support.google.com/googleplay/android-developer/answer/14151465
 - Set up an open, closed, or internal test: https://support.google.com/googleplay/android-developer/answer/9845334
+- Distribute app releases to specific countries (testing track targeting, Unsync): https://support.google.com/googleplay/android-developer/answer/9874837

@@ -29,7 +29,7 @@ Each item says what blocks what. Details are in the section named.
 | C3 | **Redeploy the hosted reviewer sandbox from `feat/review-coverage`** (or main after it lands). | On 2026-11-04 the hosted `/review` page did not show the alarm password, and `/v1/health` reported `fleet`, `radar`, `projects` and `wake_wa` as false. That is the older backend, which answers the alarm clock, server voice and several settings surfaces with HTTP 501. Reviewers must reach every feature, and the demo videos need the alarm flow. | App access, demo videos |
 | C4 | **Name the app and the Play developer in the hosted policy and the `/delete` page.** The policy must name "Herms for Hermes Agent" or the developer "Avifen". `/delete` must reference the app or developer name as it appears on Play. | Developer Program Policy: "The entity (for example, developer, company) named in the app's Google Play store listing must appear in the privacy policy or the app must be named in the privacy policy." Account deletion help: the web link must "reference the app or developer name (that is, as it appears on your store listing in Google Play)". The policy is being rebranded on the owner's branch; `report-worker/delete.html` still says "Hermes Android" and needs a redeploy. | Privacy policy, Data safety deletion URL |
 | C5 | Owner decision: in-app publisher and product names. The report dialog says "Voluntary report to Tiyuvta, the app publisher" while the Play developer is "Avifen". The pairing screen title, the version line and the report body still say "Hermes" / "Hermes for Android". | Data safety: the first party "has an obligation to make reasonably clear to users which organization is primarily responsible for processing data". Impersonation policy: no in-app elements that could mislead users about the app's relationship to someone else. "Hermes" alone on the pairing screen reads like the official Hermes Agent app. | Not a hard blocker; lowers review risk |
-| C6 | Optional: drop `CAMERA` from the Play build. | Both camera paths use the system camera through `ActivityResultContracts.TakePicture`, which needs no permission. Android only demands the grant because the manifest declares `CAMERA`. Removing it removes a runtime prompt. | Nothing |
+| C6 | Optional: drop `CAMERA` from the Play build **and** launch the system camera without asking for it. Being implemented on `play/compliance`. Three call sites gate `TakePicture` on a `CAMERA` grant today: the composer menu's Camera item (`Screens.kt` about line 457), the compose sheet's Camera button (`Ui.kt` about line 547) and the Wake photo proof (`WakeUi.kt` lines 300 to 301). In the Play build each must launch `TakePicture` directly, and Wake's optional-proof permission list (`WakeUi.kt` about line 512) must stop adding `CAMERA`. | `ActivityResultContracts.TakePicture` uses the system camera, which needs no permission; Android only demands the grant because the manifest declares `CAMERA`. Removing the manifest entry alone would break capture: every `RequestPermission(CAMERA)` would return denied, so the camera would never open. The manifest change and the three call-site changes must ship together. | Nothing. Removes a runtime prompt |
 
 ## Privacy policy
 
@@ -71,7 +71,7 @@ No account. The app pairs with a self-hosted server; we host a synthetic sandbox
 6. Approvals: send a message containing the word "approval". Approve the card with the fingerprint or PIN prompt, or deny it.
 7. Alarm clock: open the Cron tab and switch to **Alarm clock**. Allow exact alarms and full-screen alarms when the screen asks. Tap **Test the alarm now**. Pass a proof, or use **Emergency stop** with the password `review-sandbox`.
 8. Voice: tap the microphone on the inbox header to open Talk. Allow the microphone. Wake word: Me > This phone > Voice > Wake word.
-9. Content report: long-press any reply, tap **Report**, then **Review report**, then **Send report**. Me > Report a problem works without a message.
+9. Content report: long-press any reply in a chat, tap **Report**, then **Review report**, then **Send report**. Me > Report a problem works without a message.
 10. A fresh sandbox: repeat steps 2 and 3. Each enrollment is a separate synthetic tenant. Do not enter personal data.
 
 Source: [Requirements for providing sign in details](https://support.google.com/googleplay/android-developer/answer/15748846), [Policy declarations question text](https://developers.google.com/android-publisher/app-store-review/policy-declarations).
@@ -156,14 +156,34 @@ Source: [Health apps declaration](https://support.google.com/googleplay/android-
 
 Google defines collection as "transmitting data from your app off a user's device", including SDK traffic, "irrespective of whether data is transmitted to you or a third-party server". Self-hosting is therefore collection. [data-safety.md](data-safety.md) is the worksheet behind this answer.
 
-### How each recipient is classified
+### What Google counts as sharing
 
-- **The paired gateway.** Data goes there because the user paired with it. That is a user-initiated transfer the user reasonably expects, which Play exempts from sharing. Declared as collected, not shared.
-- **Model, speech and vision providers configured on the gateway.** The gateway sends data to them, not the app. They are not declared as app sharing. The privacy policy names them.
-- **Firebase Cloud Messaging, only when the gateway supplies push configuration.** Google receives the Firebase installation ID and the push token. Google processes them for the gateway operator's own Firebase project, not for the developer. Neither the service-provider exception nor the user-initiated exception fits cleanly. **Recommended: declare Device or other IDs as shared, for app functionality.** It costs one line on the listing.
-- **ML Kit (QR code scanner).** Google says ML Kit collects device and app information, identifiers, performance metrics, event types and error codes "for diagnostics and usage analytics", and does not share them with third parties. This is SDK processing for the developer. Declared as collected for analytics.
-- **Voluntary content reports.** These go to the publisher's Cloudflare Worker, a service provider. Collected, not shared.
-- **Support email, share, export, open with.** These go to another app only on the user's explicit action. Not shared.
+- "'Sharing' refers to transferring user data collected from your app to a third party." It includes "server to server transfers. For example, if you transfer user data collected from your app from your server to a third-party server."
+- "'Third party' means any organization other than the first party or its service providers." A "service provider" is "an entity that processes user data on behalf of the developer and based on the developer's instructions."
+- Transfers that need not be disclosed as sharing: to service providers; for legal purposes; "based on a specific user-initiated action, where the user reasonably expects the data to be shared, or based on a prominent in-app disclosure and consent that meets the requirements described in our User Data policy"; and fully anonymized data.
+- Google's pages say nothing about an app whose server is run by the user. No primary source found on 2026-11-04 addresses that case. The answers below therefore treat the user's gateway as a possible third party, and the gateway's onward transfers as transfers of data collected from the app. The forwarding code is partly the publisher's own: the mobile plugin sends Wake photo proofs to the gateway's vision model (`server/mobile/wake.py` 501 to 504).
+
+### Each flow and the exception claimed
+
+| Flow | Recipient | Exception | Evidence in the app | Result |
+|---|---|---|---|---|
+| Phone to the paired gateway (all types) | The gateway the user paired with; it may be run by another organization | User-initiated action | The user runs `hermes mobile pair` on their gateway and pastes or scans the link, or taps **Pair with this machine**; every later upload is a send, attach, record or proof action toward that gateway | Not sharing |
+| Chat text, Talk transcripts, steer text to the agent's model and tool providers | Model, TTS and tool providers configured on the gateway; other-app platforms such as Telegram when the user steers those sessions | User-initiated action, arguable | The model picker shows the model and provider, but nothing names the providers when the user sends, and tools are invisible to the phone user | **Declared shared** |
+| Attached photos, videos, audio, music and files to the model and tools | Same | User-initiated action, arguable | The attachment notice says only "Files and photos upload to your paired gateway when selected, before Send" | **Declared shared** |
+| Voice notes to speech recognition | The gateway's speech-to-text provider | User-initiated action, arguable | No notice names the provider | **Declared shared** |
+| Wake photo proof to the vision model | The gateway's vision provider | User-initiated action | The proof card says "The photo uploads to your gateway and its vision provider for checking" | Covered. Photos are declared shared anyway because chat attachments are not covered |
+| Wake reading answers and check-in puzzle answers to the judging model; cron prompts and memory entries to the model | The gateway's model provider | None demonstrated | No notice names the provider | **Declared shared** (Other user-generated content) |
+| Wake escalation contacts and the user's own test number | WhatsApp, through the operator's send-only bridge, and the contacts themselves | User-initiated action, arguable | The section is labelled Escalation with "whatsapp", and the user types each contact to be messaged | **Declared shared** (Contacts, Phone number) |
+| Step timestamps | Judged on the gateway only (`wake.py` `_p_steps`), not forwarded | Not a transfer | | Not shared |
+| Search queries, read state, approvals, toggles | Stay on the gateway | Not a transfer | | Not shared |
+| Firebase installation ID and push token | Google, for the gateway operator's own Firebase project | Service provider does not fit: Google acts for the operator, not the developer | | **Declared shared** (Device or other IDs) |
+| ML Kit diagnostics and IDs | Google | Service provider. Google states ML Kit "does not transfer this data to third-parties" | | Not shared |
+| Voluntary content reports | The publisher's Cloudflare Worker and D1 | Service provider | | Not shared |
+| Support email, share, export, open with | Another app on the phone, then its own service | User-initiated action | The user picks the target app each time | Not shared |
+
+Every "Declared shared" uses the purpose **App functionality**.
+
+**Alternative (owner decision, code change):** show a prominent disclosure at pairing that names the destinations: this gateway, the AI, speech and vision providers it is configured with, its tools, and its messaging bridges. Require a tap on an explicit accept button. The User Data policy requires the disclosure to be "within the app itself", "displayed in the normal usage of the app", to "describe the data being accessed or collected", to "require affirmative user action", and not to treat navigating away as consent. With that in place the "prominent in-app disclosure and consent" exception covers the gateway's onward transfers, and those rows can return to "not shared". Firebase stays shared either way.
 
 ### Top-level answers
 
@@ -179,28 +199,29 @@ Google defines collection as "transmitting data from your app off a user's devic
 
 | Category > type | Collected | Shared | Required or optional | Purposes | What and where |
 |---|---|---|---|---|---|
-| Personal info > Phone number | Yes | No | Optional | App functionality | The user's own number for Wake test escalations, sent to the gateway |
-| Personal info > Email address | Yes | No | Optional | App functionality | Only when the user chooses to email support from their mail app. Declared to be safe; the app itself never sends it |
-| Messages > Other in-app messages | Yes | No | Required | App functionality | Chat messages, replies, voice transcripts, steer text; and, if the user opts in, one message's text in a content report |
-| Photos and videos > Photos | Yes | No | Optional | App functionality | Attached and camera photos, Wake photo proofs, sent to the gateway and its vision provider |
-| Photos and videos > Videos | Yes | No | Optional | App functionality | Any video the user attaches through the file picker |
-| Audio > Voice or sound recordings | Yes | No | Optional | App functionality | Recorded voice notes uploaded to the gateway |
-| Audio > Other audio files | Yes | No | Optional | App functionality | Audio files the user attaches |
-| Files and docs | Yes | No | Optional | App functionality | Attached files, names, types and sizes. Uploads start when selected, before Send |
-| Contacts | Yes | No | Optional | App functionality | Names and phone numbers the user types as Wake escalation contacts. The app does not read the Android contacts database |
-| Health and fitness > Fitness info | Yes | No | Optional | App functionality | Step timestamps from the Wake step proof |
+| Personal info > Phone number | Yes | **Yes** | Optional | App functionality | The user's own number for Wake test escalations; the gateway's WhatsApp bridge messages it |
+| Personal info > Email address | Yes | No | Optional | App functionality | Only when the user chooses to email support from their mail app. Declared conservatively; the app itself never sends it |
+| Messages > Other in-app messages | Yes | **Yes** | Required | App functionality | Chat messages, replies, voice transcripts, steer text, sent to the gateway and on to its model, TTS and tool providers; and, if the user opts in, one message's text in a content report |
+| Photos and videos > Photos | Yes | **Yes** | Optional | App functionality | Attached and camera photos and Wake photo proofs, sent to the gateway and on to its model or vision provider |
+| Photos and videos > Videos | Yes | **Yes** | Optional | App functionality | Any video the user attaches through the file picker |
+| Audio > Voice or sound recordings | Yes | **Yes** | Optional | App functionality | Recorded voice notes, sent to the gateway and its speech-to-text provider |
+| Audio > Music files | Yes | **Yes** | Optional | App functionality | The File action accepts any type (`*/*`) and `uploadUri` uploads audio, music included |
+| Audio > Other audio files | Yes | **Yes** | Optional | App functionality | Other audio files the user attaches |
+| Files and docs | Yes | **Yes** | Optional | App functionality | Attached files, names, types and sizes. Uploads start when selected, before Send |
+| Contacts | Yes | **Yes** | Optional | App functionality | Names and phone numbers the user types as Wake escalation contacts, messaged through the gateway's WhatsApp bridge. The app does not read the Android contacts database |
+| Health and fitness > Fitness info | Yes | No | Optional | App functionality | Step timestamps from the Wake step proof, judged on the gateway |
 | App activity > App interactions | Yes | No | Required | App functionality | Read state, sync position and the device's last-seen time at the gateway |
-| App activity > In-app search history | Yes | No | Optional | App functionality | "Search everything" queries, sent to the gateway |
-| App activity > Other user-generated content | Yes | No | Optional | App functionality; Fraud prevention, security, and compliance | Memory entries, cron prompts, Wake answers, settings values, report notes. The report note serves content moderation |
+| App activity > In-app search history | Yes | No | Optional | App functionality | "Search everything" queries, answered by the gateway |
+| App activity > Other user-generated content | Yes | **Yes** | Optional | App functionality; Fraud prevention, security, and compliance | Memory entries, cron prompts, Wake answers, settings values, report notes. Wake answers, cron prompts and memory reach the gateway's model. The report note serves content moderation |
 | App activity > Other actions | Yes | No | Required | App functionality | Approval and denial decisions, proof results, votes, toggles |
-| App info and performance > Diagnostics | Yes | No | Required | Analytics | ML Kit diagnostics when the scanner is used; in a voluntary report, app version, package, Android version and device model |
-| Device or other IDs | Yes | **Yes** (Firebase) | Required | App functionality; Fraud prevention, security, and compliance; Analytics | Gateway device ID, device label (manufacturer and model) and public signing keys; Firebase installation ID and push token when the gateway enables push; ML Kit per-installation IDs |
+| App info and performance > Diagnostics | Yes | No | Optional | Analytics | ML Kit diagnostics, only when the user scans a QR code; in a voluntary report, app version, package, Android version and device model |
+| Device or other IDs | Yes | **Yes** (Firebase) | Required | App functionality; Fraud prevention, security, and compliance; Analytics | Gateway device ID, device label (manufacturer and model) and public signing keys; Firebase installation ID and push token when the gateway enables push; ML Kit per-installation IDs when scanning |
 
-Not collected: name, address, user IDs, race, political or religious beliefs, sexual orientation, other personal info, financial info, health info, location, emails, SMS, music files, calendar, installed apps, web browsing, crash logs, other app performance data. The timezone ID goes to the gateway for alarm scheduling. Play's approximate location means an area of at least 3 square kilometers, such as a city; a timezone is far coarser and is not used to locate the user. Camera photos can carry EXIF location if the camera app adds it. The app does not read it. Stripping EXIF before upload would remove the question.
+Not collected: name, address, user IDs, race, political or religious beliefs, sexual orientation, other personal info, financial info, health info, location, emails, SMS, calendar, installed apps, web browsing, crash logs, other app performance data. The timezone ID goes to the gateway for alarm scheduling. Play's approximate location means an area of at least 3 square kilometers, such as a city; a timezone is far coarser and is not used to locate the user. Camera photos can carry EXIF location if the camera app adds it. The app does not read it. Stripping EXIF before upload would remove the question.
 
-"Optional" is used only where every user can use the app without that data type. Device or other IDs and diagnostics are marked required, because pairing and the Google SDKs send them without a separate opt-in.
+"Optional" is used only where every user can use the app without that data type. Diagnostics are optional: a user can paste the pairing link instead of scanning a QR code, and reports are voluntary. Collection inside an optional feature does not make the type required. Device or other IDs stay required, because pairing always creates a device ID and signing keys at the gateway.
 
-Sources: [Data safety form](https://support.google.com/googleplay/android-developer/answer/10787469), [Firebase data disclosure](https://firebase.google.com/docs/android/play-data-disclosure), [ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure).
+Sources: [Data safety form](https://support.google.com/googleplay/android-developer/answer/10787469), [User Data policy, prominent disclosure and consent](https://support.google.com/googleplay/android-developer/answer/10144311), [Firebase data disclosure](https://firebase.google.com/docs/android/play-data-disclosure), [ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure).
 
 ## Advertising ID
 
@@ -326,7 +347,7 @@ None of these has a Play Console declaration. Each is disclosed in the privacy p
 |---|---|---|
 | `POST_NOTIFICATIONS` | Replies, approvals, cron digests, alarm and service notifications. Requested once on first open. | Runtime permission; no declaration |
 | `RECORD_AUDIO` | Talk, voice notes, on-device wake word | Runtime; counted in health-policy scope but not a health feature; covered by the microphone service entry |
-| `CAMERA` | Camera attachments and photo proofs, through the system camera | Runtime; no declaration. Removable (C6) |
+| `CAMERA` | Camera attachments and photo proofs, through the system camera | Runtime; no declaration. Removable together with the three permission gates (C6) |
 | `ACTIVITY_RECOGNITION` | Wake step proof | Runtime; answered in the Health apps declaration |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm Wake alarms after reboot, update, time or timezone change | Normal. The receiver only reschedules alarms and enqueues WorkManager. It starts no foreground service: Android 14 forbids microphone services from boot, and Android 15 adds dataSync and mediaPlayback |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Approval signatures with Keystore keys | Normal |
