@@ -202,6 +202,53 @@ class MirrorDelivery(Fixture, unittest.TestCase):
         self.assertEqual(chats["h-" + dm].get("readonly"), "")
         self.assertIn("Noon works.", [r[1] for r in self.rows("h-" + group)])
 
+    def test_back_sync_imports_deliveries_into_a_taken_over_telegram_chat(self):
+        # The phone took this Telegram DM over; back-sync follows its original session. A cron brief delivered into
+        # that Telegram chat has no phone copy: it must arrive as an agent row, not be skipped for good.
+        chat = uid("tg")
+        sid = self.session("telegram", chat, turns=[("user", "Any news?"), ("assistant", "Not yet."), ("user", "Ok")])
+        self.mirror._conv("", HOME, {})
+        self.assertEqual(self.mirror.take_over("h-" + sid), sid)
+        _maybe_mirror_cron_delivery({"id": "brief", "name": "Evening brief"}, "telegram", chat, "Two PRs merged.", enabled=True)
+        with self.later():
+            self.mirror._back(HOME)
+        rows = [r for r in self.rows("h-" + sid) if "Two PRs merged." in r[1]]
+        self.assertEqual([(r[0], r[1], r[2].get("delivery_mirror")) for r in rows], [("agent", "Two PRs merged.", "cron")])
+        self.assertFalse([r for r in self.rows("h-" + sid) if "[Cron delivery" in r[1]])
+
+    def test_every_existing_group_mirror_is_flagged_once(self):
+        # After an upgrade: group mirrors an older plugin left writable, aged out of chains()'s newest entries,
+        # untaken, also in a named profile. One pass over every mirror row flags them all.
+        lab = HOME / "profiles" / "lab"
+        lab.mkdir(parents=True, exist_ok=True)
+        ldb = SessionDB(lab / "state.db")
+        self.addCleanup(ldb.close)
+        mirror = MR.Mirror(self.store, STATE, profiles=[("", HOME), ("lab", lab)])
+        old_group = self.session("telegram", uid("grp"), chat_type="group", user_id="member",
+                                 turns=[("user", "Team lunch?"), ("assistant", "Noon works."), ("user", "Booked")])
+        lab_group = uid("s")
+        ldb.create_session(lab_group, "telegram", chat_id=uid("grp"), chat_type="supergroup", user_id="member",
+                           session_key="agent:main:telegram:group:x")
+        for role, text in (("user", "Ship?"), ("assistant", "Shipped."), ("user", "Thanks")):
+            ldb.append_message(lab_group, role, text, platform_message_id=uid("pm") if role == "user" else None)
+        for cid, sid, prof in (("h-" + old_group, old_group, ""), (f"h-lab-{lab_group}", lab_group, "lab")):
+            self.store.ensure_chat(cid, title="Old group")  # as the older plugin left them: mirrored, writable
+            mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,0,?)",
+                       (cid, sid, sid, "telegram", prof))
+        # Newer conversations push both out of the newest entries chains() visits.
+        self.session("telegram", uid("dm"), turns=[("user", "Hi"), ("assistant", "Hello."), ("user", "Bye")])
+        newer = uid("s")
+        ldb.create_session(newer, "telegram", chat_id=uid("dm"), chat_type="dm", user_id="owner", session_key="agent:main:telegram:dm:y")
+        for role, text in (("user", "Hi"), ("assistant", "Hello."), ("user", "Bye")):
+            ldb.append_message(newer, role, text, platform_message_id=uid("pm") if role == "user" else None)
+        with patch.object(MR, "MAX_CHATS", 1):
+            mirror.sync_once()
+            self.assertEqual(self.store.get_chat("h-" + old_group)["readonly"], "telegram:group")
+            self.assertEqual(self.store.get_chat(f"h-lab-{lab_group}")["readonly"], "telegram:supergroup")
+            seq = self.store.get_chat("h-" + old_group)["seq"]
+            mirror.sync_once()
+            self.assertEqual(self.store.get_chat("h-" + old_group)["seq"], seq, "once: nothing churns later")
+
     def test_group_chats_taken_over_earlier_become_read_only_once(self):
         group = self.session("telegram", uid("grp"), chat_type="group", user_id="member",
                              turns=[("user", "Team lunch?"), ("assistant", "Noon works."), ("user", "Booked")])
@@ -307,6 +354,18 @@ class ReadOnlySends(Fixture, unittest.IsolatedAsyncioTestCase):
         self.ad._message_handler.assert_not_called()
         taken = self.store._db.execute("SELECT taken FROM mirror WHERE chat_id=?", (cid,)).fetchone()[0]
         self.assertEqual(taken, 0, "the group session is never taken over")
+
+    async def test_a_send_checks_the_source_session_live(self):
+        # Defense in depth: a group mirror whose flag is still empty (not reached by any pass yet) is refused anyway,
+        # from its source session's chat type, and keeps the flag from then on.
+        sid, cid = self.group_chat()
+        self.mirror._tx("UPDATE chats SET readonly='' WHERE id=?", (cid,))
+        before = self.rows(cid)
+        with self.assertRaises(AD.ReadOnlyChat):
+            await self.ad.post_from_app(cid, "On my way")
+        self.assertEqual(self.rows(cid), before)
+        self.ad.handle_message.assert_not_called()
+        self.assertEqual(self.store.get_chat(cid)["readonly"], "telegram:group")
 
     async def test_a_private_mirror_still_takes_replies(self):
         sid = self.session("telegram", uid("dm"), turns=[("user", "Private"), ("assistant", "Ok."), ("user", "Thanks")])

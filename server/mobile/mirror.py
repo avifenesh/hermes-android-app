@@ -34,6 +34,7 @@ _DELIVERY = re.compile(r"\[(Cron|Webhook) delivery: [^\n]*\]\n")
 # Session chat types that are not the owner's private chat. Mirrored read-only: the phone would resume a reply in
 # its own DM lane.
 SHARED_CHAT_TYPES = ("group", "forum", "channel", "supergroup")
+SHARED_PASS = "mirror_shared_flagged"  # kv: the one-time read-only backfill over every mirror row ran
 
 
 def _delivery(row, text: str, shared: str) -> Optional[Tuple[str, str]]:
@@ -304,7 +305,7 @@ class Mirror:
     def sync_once(self) -> List[str]:
         """Import new chats/messages/reports. Returns ids of newly stored messages."""
         try:
-            self._flag_taken_groups()
+            self._flag_shared_mirrors()
         except Exception as e:
             logger.debug("[mobile] mirror read-only pass failed: %s", e)
         known = {r[0]: (r[1], r[2], r[3]) for r in self.st._db.execute("SELECT chat_id, tip, last_id, taken FROM mirror")}
@@ -334,18 +335,19 @@ class Mirror:
         lines the phone doesn't already have. Dedup is by content against the phone chat."""
         now = time.time()
         db = self.st._db
-        chats = {r[0] for r in db.execute("SELECT id FROM chats")}
+        chats = {r[0]: r[1] for r in db.execute("SELECT id, COALESCE(readonly,'') FROM chats")}
         cur = {r[0]: (r[1], r[2]) for r in db.execute("SELECT session_id, chat_id, last_id FROM backsync")}
         c = self._src(home)
         new: List[str] = []
         try:
             pmid = _pmid_col(c)
-            pairs = [(r["id"], r["chat_id"]) for r in c.execute(
+            # native: a phone chat's own mobile session; else the original session of a mirror the phone took over
+            pairs = [(r["id"], r["chat_id"], True) for r in c.execute(
                 "SELECT id, chat_id FROM sessions WHERE source='mobile' AND COALESCE(chat_id,'')!=''"
                 " AND COALESCE(last_activity_at, started_at) > ?", (now - BACK_WINDOW,))]
             for cid, tip in db.execute("SELECT chat_id, tip FROM mirror WHERE taken=1 AND COALESCE(profile,'')=''"):
-                pairs.append((tip, cid))
-            for sid, cid in pairs:
+                pairs.append((tip, cid, False))
+            for sid, cid, native in pairs:
                 if cid not in chats or self.busy(cid):
                     continue
                 last = cur.get(sid, (cid, 0))[1]
@@ -370,9 +372,13 @@ class Mirror:
                 for r in rows:
                     role = "agent" if r["role"] == "assistant" else "user"
                     t = _clean(r["role"], r["content"])
-                    # A delivery into a phone chat: the phone already holds the delivered message itself.
-                    if not t or t.startswith(INJECTED) or _delivery(r, t, "") is not None:
+                    if not t or t.startswith(INJECTED):
                         continue
+                    d = _delivery(r, t, chats[cid])
+                    if d is not None:
+                        if native:
+                            continue  # a delivery into a phone chat: the phone already holds the delivered message
+                        role, t = "agent", d[1]  # delivered on the taken-over chat's own surface: no phone copy
                     ts = _ts(r["timestamp"], now)
                     n = self._norm(t)
                     if len(n) > 40:
@@ -384,6 +390,8 @@ class Mirror:
                         continue
                     have.append((role, n, ts))
                     meta = {"mirror": "elsewhere", "session": sid}
+                    if d is not None:
+                        meta["delivery_mirror"] = d[0]
                     if role == "user" and t.startswith(("\u2714 [", "\u2716 [")):  # kanban notices
                         cand.append(("agent", t, ts, {**meta, "quiet": True}, "status"))
                     else:
@@ -410,38 +418,80 @@ class Mirror:
             c.close()
         return new
 
-    def _flag_taken_groups(self) -> None:
-        """Once per mobile.db: group chats an older plugin let the phone take over become read-only too. Conversation
-        import skips taken chats for good, so it never marks them; take_over already refuses new ones."""
-        if self.st.kv_get("mirror_taken_groups_flagged"):
-            return
-        home = next((h for p, h in self.profiles if not p), None)
+    def _home(self, prof: str) -> Optional[Path]:
+        """The state.db home of profile ``prof`` ("" = default), also for a profile no longer mirrored."""
+        homes = dict(self.profiles)
+        if prof in homes:
+            return homes[prof]
+        base = homes.get("")
+        return base / "profiles" / prof if base is not None else None
+
+    def _source_type(self, prof: str, tip: str) -> Optional[str]:
+        """Chat type of a mirrored chat's source session ("" when unknown or the column predates it). None: unreadable."""
+        home = self._home(prof)
         if home is None or not (home / "state.db").exists():
-            return  # try again on a later pass
-        taken = self.st._db.execute("SELECT chat_id, tip, source FROM mirror WHERE taken=1 AND COALESCE(profile,'')=''").fetchall()
-        c = self._src(home)
+            return None
         try:
-            shared = {}
-            if _has_chat_type(c):
-                for cid, tip, source in taken:
-                    r = c.execute("SELECT LOWER(COALESCE(chat_type,'')) FROM sessions WHERE id=?", (tip,)).fetchone()
-                    if r and r[0] in SHARED_CHAT_TYPES:
-                        shared[cid] = f"{source}:{r[0]}"
-        finally:
-            c.close()
+            c = self._src(home)
+            try:
+                if not _has_chat_type(c):
+                    return ""
+                r = c.execute("SELECT LOWER(COALESCE(chat_type,'')) FROM sessions WHERE id=?", (tip,)).fetchone()
+                return r[0] if r else ""
+            finally:
+                c.close()
+        except Exception as e:
+            logger.debug("[mobile] mirror source of %s unreadable: %s", tip, e)
+            return None
+
+    def _set_readonly(self, flags: Dict[str, str], done_key: Optional[str] = None) -> None:
         with self.st._lock:
             db = self.st._db
             db.execute("BEGIN IMMEDIATE")
             try:
-                for cid, ro in shared.items():
+                for cid, ro in flags.items():
                     if db.execute("SELECT 1 FROM chats WHERE id=? AND COALESCE(readonly,'')!=?", (cid, ro)).fetchone():
                         db.execute("UPDATE chats SET readonly=?, seq=? WHERE id=?", (ro, self.st._next_seq(), cid))
-                db.execute("INSERT INTO kv(k,v) VALUES('mirror_taken_groups_flagged','true')"
-                           " ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+                if done_key:
+                    db.execute("INSERT INTO kv(k,v) VALUES(?,'true') ON CONFLICT(k) DO UPDATE SET v=excluded.v", (done_key,))
                 db.execute("COMMIT")
             except Exception:
                 db.execute("ROLLBACK")
                 raise
+
+    def _flag_shared_mirrors(self) -> None:
+        """Once per mobile.db: every chat mirrored from a group, forum, channel or supergroup session becomes
+        read-only, whatever its age (conversation import visits only the newest MAX_CHATS chains), taken or not, in
+        any profile. Recorded as done only when every source that still exists was read; sends also check live."""
+        if self.st.kv_get(SHARED_PASS):
+            return
+        flags: Dict[str, str] = {}
+        for cid, tip, source, prof in self.st._db.execute(
+                "SELECT chat_id, tip, source, COALESCE(profile,'') FROM mirror").fetchall():
+            ct = self._source_type(prof, tip)
+            if ct is None:
+                home = self._home(prof)
+                if home is not None and (home / "state.db").exists():
+                    return  # unreadable now: try the whole pass again later
+                continue  # its profile is gone; a send into it is checked live and refused
+            if ct in SHARED_CHAT_TYPES:
+                flags[cid] = f"{source}:{ct}"
+        self._set_readonly(flags, SHARED_PASS)
+
+    def source_readonly(self, cid: str) -> Optional[str]:
+        """The read-only flag a mirrored chat should carry, from its source session now (defense in depth before a
+        send). "" for a private conversation or a chat that is no mirror; None when the source can't be read.
+        A group found here keeps the flag."""
+        row = self.st._db.execute("SELECT tip, source, COALESCE(profile,'') FROM mirror WHERE chat_id=?", (cid,)).fetchone()
+        if not row:
+            return ""
+        ct = self._source_type(row[2], row[0])
+        if ct is None:
+            return None
+        ro = f"{row[1]}:{ct}" if ct in SHARED_CHAT_TYPES else ""
+        if ro:
+            self._set_readonly({cid: ro})
+        return ro
 
     def _readonly_stale(self, cid: str, readonly: str) -> bool:
         row = self.st._db.execute("SELECT COALESCE(readonly,'') FROM chats WHERE id=?", (cid,)).fetchone()

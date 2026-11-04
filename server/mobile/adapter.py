@@ -804,11 +804,20 @@ class MobileAdapter(BasePlatformAdapter):
         return self._json({"message": msg})
 
     def readonly_chat(self, cid: str) -> str:
-        """"telegram:group" for a chat mirrored read-only, else ""."""
-        return str((self.store.get_chat(cid) or {}).get("readonly") or "")
+        """"telegram:group" for a chat mirrored read-only, else "". A mirrored chat whose flag is still empty is
+        checked against its source session's chat type right now; "unverified" when that source can't be read."""
+        ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
+        mirror = getattr(self, "_mirror", None)
+        if ro or not cid.startswith("h-") or not mirror:
+            return ro
+        live = mirror.source_readonly(cid)
+        return "unverified" if live is None else live
 
     @staticmethod
     def readonly_error(readonly: str) -> str:
+        if readonly == "unverified":
+            return ("This conversation is mirrored from another app and its source can't be read right now, so it "
+                    "can't be checked for a group chat. Try again shortly.")
         surface = readonly.split(":", 1)[0].capitalize() if ":" in readonly else "the app it came from"
         return f"This is a group conversation mirrored from {surface}. It is read-only here: reply in {surface}."
 
