@@ -2,6 +2,7 @@ package dev.avifenesh.hermes
 
 import android.annotation.SuppressLint
 import android.content.pm.ServiceInfo
+import androidx.annotation.StringRes
 
 /**
  * Foreground service type of the alarm sound. Android documents systemExempted for apps holding SCHEDULE_EXACT_ALARM
@@ -20,4 +21,5 @@ internal const val WAKE_FGS_TYPE = ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EX
  */
 internal fun wakeServiceAllowed(canExact: Boolean): Boolean = canExact
 
-internal const val WAKE_EXACT_OFF = "Wake can't ring until you allow exact alarms. Local alarms are not scheduled, and alarms from your gateway can't start the alarm sound."
+/** Subtitle of the "Exact alarms are off" row: here alarms from the gateway cannot ring without the access either. */
+@StringRes internal val WAKE_EXACT_OFF = R.string.alarm_exact_off_cant_ring

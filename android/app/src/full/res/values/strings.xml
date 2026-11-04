@@ -54,6 +54,24 @@
     <string name="channel_battery_title">Battery optimization</string>
     <!-- %1$s: the app's own name -->
     <string name="channel_battery_body">Some phones kill the background connection. Allow %1$s to run unrestricted.</string>
+    <!-- Push wake-ups row subtitle when push is set up. %1$s: "Hermes", the agent software on the machine. -->
+    <string name="phone_settings_push_on">On. Google wakes the phone, content comes straight from %1$s.</string>
+    <!-- Push wake-ups row subtitle when push is not set up. -->
+    <string name="phone_settings_push_off">Not set up on the server. The app falls back to its own connection.</string>
+    <!-- Setting title with an on/off switch: the always-on background connection. -->
+    <string name="phone_settings_stay_connected">Stay connected in background</string>
+    <string name="phone_settings_stay_connected_sub">Keeps a live connection and shows run progress. Uses a bit more battery.</string>
+
+    <!-- ===== Background connection notification (full edition) ===== -->
+    <!-- Notification channel name and description (Android settings > Notifications). phone_control_enable_channel names this channel. -->
+    <string name="notify_channel_live">Live runs &amp; connection</string>
+    <string name="notify_channel_live_info">Run progress and the background connection</string>
+    <!-- Ongoing notification text while no run is working. -->
+    <string name="notify_connected">Connected</string>
+
+    <!-- ===== Wake alarm settings (full edition) ===== -->
+    <!-- Subtitle of the "Exact alarms are off" row (alarm_exact_off). "Wake" is the name of the alarm feature. -->
+    <string name="alarm_exact_off_sub">Local alarms are not scheduled. Allow exact alarms before relying on Wake.</string>
 
     <!-- ===== Opening attachments (full edition) ===== -->
     <!-- "Install unknown apps" is the Android setting's name: use the name Android shows in this language. %1$s: the app's own name -->

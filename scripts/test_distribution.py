@@ -80,20 +80,19 @@ class DistributionGuardTests(unittest.TestCase):
 
     def test_dex_play_contract_and_negative_markers(self):
         inert = {"Ldev/avifenesh/hermes/UnsupportedPhoneControl;"}
-        notice = set(check.PLAY_DEX_STRINGS)
-        check.dex_check(notice, inert, "play")
+        check.dex_check(set(), inert, "play")
         for name in check.FULL_CLASSES + ("PhoneProbeActivity",):
             with self.subTest(name=name), self.assertRaises(ValueError):
-                check.dex_check(notice, inert | {f"Ldev/avifenesh/hermes/{name};"}, "play")
+                check.dex_check(set(), inert | {f"Ldev/avifenesh/hermes/{name};"}, "play")
         for marker in check.FORBIDDEN_DEX_STRINGS:
             with self.subTest(marker=marker), self.assertRaises(ValueError):
-                check.dex_check(notice | {marker}, inert, "play")
+                check.dex_check({marker}, inert, "play")
 
-    def test_play_dex_keeps_always_on_connection_out_and_ai_notice_in(self):
-        inert = {"Ldev/avifenesh/hermes/UnsupportedPhoneControl;"}
+    def test_play_keeps_always_on_connection_out_and_ai_notice_in(self):
         self.assertIn("Stay connected in background", check.FORBIDDEN_DEX_STRINGS)
+        self.assertIn("Stay connected in background", check.FORBIDDEN_RESOURCE_TEXT)
         with self.assertRaisesRegex(ValueError, "AI-content notice"):
-            check.dex_check(set(), inert, "play")
+            check.resource_text_check("String pool of 1 unique UTF-8 strings\nString #0 : Talk\n", "play")
 
     def test_fgs_type_bits_from_names_and_hex(self):
         self.assertEqual(check.fgs_bits("systemExempted"), 0x400)
@@ -151,17 +150,18 @@ class DistributionGuardTests(unittest.TestCase):
             check.manifest_check(manifest(extra=twice), "play")
 
     def test_play_resource_strings_exclude_phone_control_text(self):
-        check.resource_text_check("String pool of 2 unique UTF-8 strings\nString #0 : Talk\n", "play")
+        notice = "".join(f"String #9 : {token}\n" for token in check.PLAY_RESOURCE_TEXT)
+        check.resource_text_check("String pool of 2 unique UTF-8 strings\nString #0 : Talk\n" + notice, "play")
         for marker in check.FORBIDDEN_RESOURCE_TEXT:
             with self.subTest(marker=marker), self.assertRaises(ValueError):
-                check.resource_text_check(f"String #7 : {marker}\n", "play")
+                check.resource_text_check(f"String #7 : {marker}\n" + notice, "play")
             check.resource_text_check(f"String #7 : {marker}\n", "full")
 
     def test_dex_full_contract(self):
         classes = {f"Ldev/avifenesh/hermes/{name};" for name in check.FULL_CLASSES}
         check.dex_check(set(), classes, "full")
         with self.assertRaisesRegex(ValueError, "AI-content notice"):
-            check.dex_check(set(check.PLAY_DEX_STRINGS), classes, "full")
+            check.resource_text_check("".join(f"String #9 : {token}\n" for token in check.PLAY_RESOURCE_TEXT), "full")
         with self.assertRaises(ValueError):
             check.dex_check(set(), set(), "full")
 

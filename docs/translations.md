@@ -42,6 +42,8 @@ Keep these exactly as written, in every language:
 - Email addresses, URLs, file names and commands (`hermes mobile pair`); most of these arrive as arguments.
 - Widget and accessibility-service labels referenced from the manifest cannot take arguments, so their English
   text names the app; translations keep that name (`StringResourcesTest` checks it).
+- The launcher label `app_name` is the product name itself, marked `translatable="false"` (Play overrides it with
+  Herms). Translations leave it out.
 
 Tone: short, plain and direct, like the English. Address the user the way the language's Android system UI does.
 Sentence case unless the language capitalizes otherwise. No exclamation marks the English does not have. Keep

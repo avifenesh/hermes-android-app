@@ -203,7 +203,7 @@ object Wake {
     private fun notifyCantRing(c: Context) {
         val open = PendingIntent.getActivity(c, 103, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PI)
         val n = NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
-            .setContentTitle("Wake can't ring").setContentText("Allow exact alarms in $APP_NAME so Wake alarms can ring.")
+            .setContentTitle(str(R.string.wake_cant_ring_title)).setContentText(str(R.string.wake_cant_ring_text, APP_NAME))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_ERROR)
             .setContentIntent(open).setAutoCancel(true).build()
         Notify.post(c, 103, n)

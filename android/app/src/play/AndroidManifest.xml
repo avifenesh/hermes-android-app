@@ -13,7 +13,7 @@
          Lint reads this removal as a declaration; the merged manifest has no CAMERA permission. -->
     <uses-permission android:name="android.permission.CAMERA" tools:node="remove" tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove" />
-    <application android:label="Herms" tools:replace="android:label">
+    <application android:label="@string/app_name" tools:replace="android:label">
         <receiver android:name=".FleetWidget" android:label="@string/widget_label" tools:replace="android:label" />
         <service android:name=".WakeService" android:foregroundServiceType="systemExempted" tools:replace="android:foregroundServiceType" />
     </application>

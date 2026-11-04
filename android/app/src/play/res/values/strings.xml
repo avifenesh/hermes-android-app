@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Launcher and Android Settings name of the Play edition. A product name, the same as APP_NAME. -->
+    <string name="app_name" translatable="false">Herms</string>
+
     <!-- ================= Edition-specific settings and files ================= -->
     <!-- Widget name in the launcher's widget list; keep "Herms" as is. -->
     <string name="widget_label">Herms fleet</string>
@@ -8,6 +11,44 @@
     <string name="channel_control_unavailable_body">This Play edition cannot read or operate other apps. Remote commands cannot enable this capability.</string>
     <string name="channel_background_title">Background delivery</string>
     <string name="channel_background_body">Android battery optimization stays enabled. Push (when configured) and periodic sync remain available; background delivery can be delayed.</string>
+    <!-- Push wake-ups row subtitle when push is set up on the user's gateway. -->
+    <string name="phone_settings_push_on_gateway">On. Google wakes the phone; content comes straight from your gateway.</string>
+    <!-- Push wake-ups row subtitle when push is not set up. -->
+    <string name="phone_settings_push_off_gateway">Not set up on your gateway.</string>
+    <!-- Row title: the run progress notification this edition shows. -->
+    <string name="phone_settings_run_progress">Run progress</string>
+    <!-- %1$s: the app name (not translated). -->
+    <string name="phone_settings_run_progress_sub">After you send a message or approve a step from this phone, %1$s stays connected while that run works and shows its progress in a notification. It stops when the run ends.</string>
+    <!-- Row title: how notifications arrive when the gateway has no push. -->
+    <string name="phone_settings_without_push">Without push</string>
+    <!-- %1$s: the app name (not translated). -->
+    <string name="phone_settings_without_push_sub">Notifications arrive while such a run is working and when you open %1$s. Android\'s periodic background check can also deliver them, often 15 minutes or more late. Set up push on your gateway for prompt notifications.</string>
+
+    <!-- ===== Run progress notification (Play edition) ===== -->
+    <!-- Notification channel name and description (Android settings > Notifications). -->
+    <string name="notify_channel_run_progress">Run progress</string>
+    <string name="notify_channel_run_progress_info">Shown while a run works after you send a message or approve a step from this phone</string>
+    <!-- Notification action (verb): stop showing this run's progress. The run itself goes on. -->
+    <string name="notify_stop_updates">Stop updates</string>
+
+    <!-- ===== Wake alarm settings (Play edition) ===== -->
+    <!-- Subtitle of the "Exact alarms are off" row (alarm_exact_off). "Wake" is the name of the alarm feature. -->
+    <string name="alarm_exact_off_cant_ring">Wake can\'t ring until you allow exact alarms. Local alarms are not scheduled, and alarms from your gateway can\'t start the alarm sound.</string>
+
+    <!-- ===== AI-content notice (Play edition) ===== -->
+    <!-- Dialog title, shown once before the first chat, and the title of its row under Me. -->
+    <string name="ai_notice_title">About AI replies</string>
+    <!-- %1$s: "Hermes", the agent software on the user's machine. %2$s: the publisher's name (Avifen). Neither is translated. -->
+    <string name="ai_notice_source">Replies come from the AI models and providers configured on your own %1$s gateway. %2$s does not run or choose them.</string>
+    <string name="ai_notice_risk">Replies can be wrong, outdated or inappropriate. Check anything important before you rely on it or let the agent act on it.</string>
+    <!-- %1$s: the publisher's name (Avifen), not translated. -->
+    <string name="ai_notice_privacy">%1$s does not see your chats. They go between this phone, your gateway and the providers it uses.</string>
+    <!-- "Report" is the long-press action (support_report), "Me" the tab, "Report a problem" its row (report_problem) and "Send report" the button (support_send): use their translations. -->
+    <string name="ai_notice_report">To report a reply, long-press it and tap Report. For anything else, open Me, then Report a problem. Nothing is sent until you review the report and tap Send report.</string>
+    <!-- Subtitle of the About AI replies row under Me. -->
+    <string name="ai_notice_row_sub">Where replies come from, who sees your chats, how to report one</string>
+    <!-- Button that closes the notice the first time and records that it was read. -->
+    <string name="ai_notice_got_it">Got it</string>
 
     <!-- ===== Opening attachments (Play edition) ===== -->
     <string name="channel_apk_unavailable">Installing APK attachments is unavailable in this Play edition. You can still save the file to Downloads.</string>

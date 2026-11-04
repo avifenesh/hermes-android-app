@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -58,8 +59,9 @@ class LiveService : Service() {
     }
 
     companion object {
-        const val CHANNEL_NAME = "Live runs & connection"
-        const val CHANNEL_DESCRIPTION = "Run progress and the background connection"
+        /** This edition's live notification channel, by resource (Notify registers it in the app language). */
+        @StringRes val CHANNEL_NAME = R.string.notify_channel_live
+        @StringRes val CHANNEL_DESCRIPTION = R.string.notify_channel_live_info
 
         fun sync(c: Context) {
             val i = Intent(c, LiveService::class.java)
@@ -105,13 +107,13 @@ class LiveService : Service() {
                 .setOngoing(true).setOnlyAlertOnce(true).setSilent(true).setShowWhen(false)
                 .setContentIntent(PendingIntent.getActivity(c, 3, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PI))
             if (working.isEmpty()) {
-                b.setContentTitle("Hermes").setContentText(if (Hub.online.value) "Connected" else "Reconnecting…")
+                b.setContentTitle(APP_NAME).setContentText(if (Hub.online.value) str(R.string.notify_connected) else str(R.string.notify_reconnecting))
             } else {
                 val (cid, since) = working.entries.maxBy { it.value }
-                b.setContentTitle(Hub.agent.value + " is working").setContentText(Hub.chats.value[cid]?.title ?: "A run")
+                b.setContentTitle(str(R.string.notify_agent_working, Hub.agent.value)).setContentText(Hub.chats.value[cid]?.title ?: str(R.string.notify_a_run))
                     .setProgress(0, 0, true).setShowWhen(true).setUsesChronometer(true).setWhen((since * 1000).toLong())
                     .setContentIntent(Notify.openIntent(c, cid))
-                if (working.size > 1) b.setSubText("${working.size} runs")
+                if (working.size > 1) b.setSubText(plural(R.plurals.notify_runs, working.size, working.size))
             }
             return b.build()
         }

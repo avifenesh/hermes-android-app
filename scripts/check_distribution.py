@@ -71,10 +71,11 @@ FORBIDDEN_DEX_STRINGS = (
     "Landroid/accessibilityservice/GestureDescription;",
     "Stay connected in background",
 )
-# Play-only safeguard: the first-run AI-content notice.
-PLAY_DEX_STRINGS = ("About AI replies",)
-# Phone-control UI text lives in full-only string resources; Play's resource table must not carry it either.
-FORBIDDEN_RESOURCE_TEXT = ("Allow agent control", "Allow phone control")
+# Play-only safeguard: the first-run AI-content notice, a Play string resource.
+PLAY_RESOURCE_TEXT = ("About AI replies",)
+# Phone-control and always-on connection UI text lives in full-only string resources; Play's resource table must
+# not carry it either.
+FORBIDDEN_RESOURCE_TEXT = ("Allow agent control", "Allow phone control", "Stay connected in background")
 FULL_CLASSES = ("PhoneService", "PhoneStopReceiver", "PhoneNotice", "PhoneControlKt")
 DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "MarkdownProbeActivity", "FleetProbeActivity", "ReleaseLinkageProbe",
@@ -257,10 +258,8 @@ def dex_check(strings: set[str], classes: set[str], flavor: str, debug: bool = F
         for token in FORBIDDEN_DEX_STRINGS:
             require(not any(token in s for s in strings), f"full-only DEX marker: {token}")
         require(has("UnsupportedPhoneControl"), "missing inert Play contract")
-        require(all(token in strings for token in PLAY_DEX_STRINGS), "missing Play AI-content notice")
     else:
         require(all(has(n) for n in FULL_CLASSES), "full implementation missing from DEX")
-        require(not any(token in strings for token in PLAY_DEX_STRINGS), "Play AI-content notice in full DEX")
     if not debug:
         require(not any(has(n) for n in DEBUG_CLASSES), "debug fixture in release DEX")
 
@@ -270,6 +269,9 @@ def resource_text_check(pool: str, flavor: str) -> None:
     if flavor == "play":
         for token in FORBIDDEN_RESOURCE_TEXT:
             require(token not in pool, f"full-only resource text in Play: {token}")
+        require(all(token in pool for token in PLAY_RESOURCE_TEXT), "missing Play AI-content notice")
+    else:
+        require(not any(token in pool for token in PLAY_RESOURCE_TEXT), "Play AI-content notice in full resources")
 
 
 def payload_check(names: list[str], debug: bool = False) -> None:

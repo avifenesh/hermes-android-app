@@ -30,8 +30,8 @@ object Notify {
                 description = str(R.string.notify_channel_approvals_info); enableVibration(true); lockscreenVisibility = Notification.VISIBILITY_PRIVATE },
             NotificationChannel(CH_MSG, str(R.string.notify_channel_replies), NotificationManager.IMPORTANCE_HIGH).apply { description = str(R.string.notify_channel_replies_info) },
             NotificationChannel(CH_DIG, str(R.string.notify_channel_digests), NotificationManager.IMPORTANCE_DEFAULT).apply { description = str(R.string.notify_channel_digests_info) },
-            NotificationChannel(CH_LIVE, LiveService.CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
-                description = LiveService.CHANNEL_DESCRIPTION; setShowBadge(false) },
+            NotificationChannel(CH_LIVE, str(LiveService.CHANNEL_NAME), NotificationManager.IMPORTANCE_LOW).apply {
+                description = str(LiveService.CHANNEL_DESCRIPTION); setShowBadge(false) },
         ))
     }
 

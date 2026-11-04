@@ -38,9 +38,9 @@ internal fun ChannelBatterySettings() {
 internal fun ChannelConnectionSettings(push: Boolean) {
     val ctx = LocalContext.current
     var live by remember { mutableStateOf(Prefs.live) }
-    SettingRow("Push wake-ups", if (push) "On. Google wakes the phone, content comes straight from Hermes." else "Not set up on the server. The app falls back to its own connection.") {}
+    SettingRow(stringResource(R.string.phone_settings_push), if (push) stringResource(R.string.phone_settings_push_on, HERMES) else stringResource(R.string.phone_settings_push_off)) {}
     Line()
-    SettingRow("Stay connected in background", "Keeps a live connection and shows run progress. Uses a bit more battery.") {
+    SettingRow(stringResource(R.string.phone_settings_stay_connected), stringResource(R.string.phone_settings_stay_connected_sub)) {
         Toggle(live, { v -> live = v; Prefs.live = v; LiveService.sync(ctx); if (!v && !Hub.foreground && !Prefs.phoneArmed) Hub.disconnect() })
     }
 }

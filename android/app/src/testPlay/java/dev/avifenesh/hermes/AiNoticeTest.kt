@@ -2,12 +2,15 @@ package dev.avifenesh.hermes
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class AiNoticeTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     @Test fun aiNoticeCoversSourceRiskPrivacyAndReporting() {
-        val text = AiNotice.POINTS.joinToString("\n")
-        assertTrue(AiNotice.TITLE.isNotBlank())
+        val text = AiNotice.points().joinToString("\n")
+        assertTrue(str(R.string.ai_notice_title).isNotBlank())
         assertTrue("replies come from the user's gateway models", text.contains("models") && text.contains("gateway"))
         assertTrue("replies can be wrong or inappropriate", text.contains("wrong") && text.contains("inappropriate"))
         assertTrue("the publisher does not see chats", text.contains("$EDITION_PUBLISHER does not see your chats"))

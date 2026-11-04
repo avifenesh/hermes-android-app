@@ -9,6 +9,7 @@ import android.content.pm.ServiceInfo
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
@@ -91,8 +92,9 @@ class LiveService : Service(), LiveLifecycle.Instance {
     }
 
     companion object {
-        const val CHANNEL_NAME = "Run progress"
-        const val CHANNEL_DESCRIPTION = "Shown while a run works after you send a message or approve a step from this phone"
+        /** This edition's live notification channel, by resource (Notify registers it in the app language). */
+        @StringRes val CHANNEL_NAME = R.string.notify_channel_run_progress
+        @StringRes val CHANNEL_DESCRIPTION = R.string.notify_channel_run_progress_info
         private const val ID = 7
         private const val STOP = "stop"
         private const val LIME = 0xFFD4F75C.toInt()
@@ -164,11 +166,11 @@ class LiveService : Service(), LiveLifecycle.Instance {
             val since = chat?.let { Hub.working.value[it]?.let { s -> (s * 1000).toLong() } ?: life.runs.startedAt(it) }
             val b = NotificationCompat.Builder(c, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(LIME)
                 .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
-                .setContentTitle(Hub.agent.value + " is working")
-                .setContentText(chat?.let { Hub.chats.value[it]?.title } ?: "A run")
+                .setContentTitle(str(R.string.notify_agent_working, Hub.agent.value))
+                .setContentText(chat?.let { Hub.chats.value[it]?.title } ?: str(R.string.notify_a_run))
                 .setProgress(0, 0, true).setContentIntent(open)
-                .addAction(0, "Stop updates", stop)
-                .setSubText(if (!Hub.online.value) "Reconnecting…" else if (chats.size > 1) "${chats.size} runs" else null)
+                .addAction(0, str(R.string.notify_stop_updates), stop)
+                .setSubText(if (!Hub.online.value) str(R.string.notify_reconnecting) else if (chats.size > 1) plural(R.plurals.notify_runs, chats.size, chats.size) else null)
             if (since != null) b.setShowWhen(true).setUsesChronometer(true).setWhen(since) else b.setShowWhen(false)
             return b.build()
         }

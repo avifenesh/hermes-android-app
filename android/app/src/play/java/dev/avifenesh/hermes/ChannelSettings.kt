@@ -21,13 +21,12 @@ internal fun ChannelBatterySettings() {
 /** Push status and what this edition's connection does. There is no always-on background connection here. */
 @Composable
 internal fun ChannelConnectionSettings(push: Boolean) {
-    SettingRow("Push wake-ups", if (push) "On. Google wakes the phone; content comes straight from your gateway."
-        else "Not set up on your gateway.") {}
+    SettingRow(stringResource(R.string.phone_settings_push),
+        stringResource(if (push) R.string.phone_settings_push_on_gateway else R.string.phone_settings_push_off_gateway)) {}
     Line()
-    SettingRow("Run progress", "After you send a message or approve a step from this phone, $APP_NAME stays connected while that run works and shows its progress in a notification. It stops when the run ends.") {}
+    SettingRow(stringResource(R.string.phone_settings_run_progress), stringResource(R.string.phone_settings_run_progress_sub, APP_NAME)) {}
     if (!push) {
         Line()
-        SettingRow("Without push", "Notifications arrive while such a run is working and when you open $APP_NAME. " +
-            "Android's periodic background check can also deliver them, often 15 minutes or more late. Set up push on your gateway for prompt notifications.") {}
+        SettingRow(stringResource(R.string.phone_settings_without_push), stringResource(R.string.phone_settings_without_push_sub, APP_NAME)) {}
     }
 }

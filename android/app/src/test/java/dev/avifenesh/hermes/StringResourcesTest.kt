@@ -128,8 +128,8 @@ object StringRules {
     private val PRODUCTS = listOf("Hermes", "Herms")
 
     /** Strings referenced from the manifest or XML, which cannot take arguments, so the name stays in the text
-     * (translators keep it): widget and accessibility labels. report_subject predates the rule. */
-    private val NAMED = setOf("widget_label", "phone_service_label", "phone_service_desc", "report_subject")
+     * (translators keep it): widget and accessibility labels. */
+    private val NAMED = setOf("widget_label", "phone_service_label", "phone_service_desc")
 
     /** Positional placeholders in order of index; plain %s / %d count as %1$s, %2$d... by position. */
     fun placeholders(text: String): List<String> {

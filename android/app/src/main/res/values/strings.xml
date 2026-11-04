@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Launcher and Android Settings name of the app. A product name: the Play edition overrides it. -->
+    <string name="app_name" translatable="false">Hermes</string>
     <string name="widget_desc">Agents waiting on you, what\'s running, and one-tap Talk</string>
     <string name="tile_talk">Talk</string>
     <string name="sc_talk">Talk</string>
@@ -867,11 +869,6 @@
     <string name="phone_settings_wake_word">Wake word</string>
     <string name="phone_settings_notifications">Notifications</string>
     <string name="phone_settings_push">Push wake-ups</string>
-    <!-- %1$s: "Hermes", the agent software on the machine. -->
-    <string name="phone_settings_push_on">On. Google wakes the phone, content comes straight from %1$s.</string>
-    <string name="phone_settings_push_off">Not set up on the server. The app falls back to its own connection.</string>
-    <string name="phone_settings_stay_connected">Stay connected in background</string>
-    <string name="phone_settings_stay_connected_sub">Keeps a live connection and shows run progress. Uses a bit more battery.</string>
     <!-- Row title: Android notification channels. -->
     <string name="phone_settings_channels">Channels</string>
     <string name="phone_settings_channels_sub">Approvals, replies, cron &amp; digests, live runs. Mute each one separately.</string>
@@ -1007,7 +1004,7 @@
     <string name="support_report">Report</string>
     <!-- Dialog title while previewing the report. -->
     <string name="support_review_title">Review report</string>
-    <!-- %1$s: publisher name ("Tiyuvta"). -->
+    <!-- %1$s: the publisher's name (Tiyuvta, or Avifen on Play), not translated. -->
     <string name="support_disclosure">Voluntary report to %1$s, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received.</string>
     <!-- Button: open the privacy policy. -->
     <string name="support_privacy_policy">Privacy policy</string>
@@ -1019,7 +1016,7 @@
     <string name="support_keep_id">Keep this ID for retry or deletion requests.</string>
     <!-- %1$s: support email address. -->
     <string name="support_email_alternative">Email alternative: %1$s</string>
-    <!-- %1$s: publisher name ("Tiyuvta"). -->
+    <!-- %1$s: the publisher's name (Tiyuvta, or Avifen on Play), not translated. -->
     <string name="support_received">Received by %1$s. This is a receipt, not a moderation decision or a promise of action or response.</string>
     <string name="support_send_failed">No confirmed receipt. Your draft is still here. Tap Send report to retry the same report ID, or use email. A failed or cancelled connection may still have delivered it; nothing retries automatically.</string>
     <!-- %1$s: support email address. -->
@@ -1040,7 +1037,7 @@
     <string name="support_send">Send report</string>
     <!-- Button: go on to the preview of the report (verb). -->
     <string name="support_review_button">Review report</string>
-    <!-- Me row subtitle. %1$s: publisher name ("Tiyuvta"). -->
+    <!-- Me row subtitle. %1$s: the publisher's name (Tiyuvta, or Avifen on Play), not translated. -->
     <string name="support_row_sub">Review a voluntary report to %1$s, or use email. Nothing sends automatically.</string>
 
     <!-- ===== Privacy policy screen ===== -->
@@ -1695,8 +1692,6 @@
     <string name="notify_channel_replies_info">Agent replies and finished runs</string>
     <string name="notify_channel_digests">Cron &amp; digests</string>
     <string name="notify_channel_digests_info">Results from scheduled jobs</string>
-    <string name="notify_channel_live">Live runs &amp; connection</string>
-    <string name="notify_channel_live_info">Run progress and the background connection</string>
     <!-- Inline reply field. %1$s: agent name -->
     <string name="notify_reply_to">Reply to %1$s</string>
     <!-- Notification action -->
@@ -1714,8 +1709,7 @@
     <string name="notify_this_session">This session</string>
     <!-- %1$s: group chat member; the command follows on the next line -->
     <string name="notify_asks_to_run">%1$s asks to run:</string>
-    <!-- Background connection notification -->
-    <string name="notify_connected">Connected</string>
+    <!-- Run progress notification -->
     <string name="notify_reconnecting">Reconnecting…</string>
     <!-- %1$s: agent name -->
     <string name="notify_agent_working">%1$s is working</string>
@@ -2352,6 +2346,10 @@
     <string name="wake_notif_checkin">Check-in: one quick puzzle</string>
     <!-- Alarm notification title: the name of the Wake alarm feature. -->
     <string name="wake_notif_title">Wake</string>
+    <!-- Notification title when an alarm from the gateway cannot start the alarm sound. "Wake" is the name of the alarm feature. -->
+    <string name="wake_cant_ring_title">Wake can\'t ring</string>
+    <!-- Notification text under wake_cant_ring_title. %1$s: the app name. -->
+    <string name="wake_cant_ring_text">Allow exact alarms in %1$s so Wake alarms can ring.</string>
 
     <!-- ===== Wake alarm screen ===== -->
     <string name="wake_photo_unreadable">Could not read the photo</string>
@@ -2476,6 +2474,8 @@
 
     <!-- ===== Alarm clock settings ===== -->
     <string name="alarm_proof_permissions_denied">You can use reading proof without these permissions. Enable camera or activity in Android app settings to use those proofs.</string>
+    <!-- Toast when step proof's activity permission was denied, in an edition whose photo proof needs no permission. -->
+    <string name="alarm_proof_permissions_denied_no_camera">You can use reading or photo proof without this permission. Enable physical activity in Android app settings to use step proof.</string>
     <!-- %1$s: the app name as listed in Android Settings. -->
     <string name="alarm_open_app_settings">Open Android Settings &gt; Apps &gt; %1$s to change this permission.</string>
     <!-- Screen title. -->
@@ -2485,8 +2485,6 @@
     <!-- Screen subtitle, lowercase. -->
     <string name="alarm_none_set">no alarm set</string>
     <string name="alarm_exact_off">Exact alarms are off</string>
-    <!-- "Wake" is the name of the alarm feature. -->
-    <string name="alarm_exact_off_sub">Local alarms are not scheduled. Allow exact alarms before relying on Wake.</string>
     <string name="alarm_notifications_attention">Alarm notifications need attention</string>
     <!-- %1$s: the app name. "Wake alarm" is the notification channel name (wake_channel); use the same translation. -->
     <string name="alarm_notifications_attention_sub">Allow %1$s notifications and set the Wake alarm channel to high importance so the proof screen is reachable.</string>
@@ -2540,6 +2538,9 @@
     <string name="alarm_section_proof_permissions">Optional proof permissions</string>
     <string name="alarm_proof_permissions">Photo and step proofs</string>
     <string name="alarm_proof_permissions_sub">Only supported hardware needs permission. Reading proof works without camera or activity access.</string>
+    <!-- Row title in an edition whose photo proof needs no permission: only step proof asks for one. -->
+    <string name="alarm_step_proof">Step proof</string>
+    <string name="alarm_step_proof_sub">Step proof needs physical activity access. Photo proof uses your camera app and needs no permission. Reading proof needs neither.</string>
     <string name="alarm_previously_denied">Previously denied?</string>
     <string name="alarm_previously_denied_sub">Android may stop showing permission prompts. You can change them in app settings.</string>
     <!-- Section header (noun). -->
@@ -2552,6 +2553,8 @@
     <!-- Toast after the test message was sent. -->
     <string name="alarm_whatsapp_sent">Sent</string>
     <string name="alarm_test_now">Test the alarm now</string>
+    <!-- Toast when the test button is tapped without exact-alarm access. "Wake" is the name of the alarm feature. -->
+    <string name="alarm_test_needs_exact">Allow exact alarms first. Wake can\'t ring without them.</string>
     <string name="alarm_test_cancel">Cancel a running test</string>
 
     <!-- ===== Voice messages in chat ===== -->

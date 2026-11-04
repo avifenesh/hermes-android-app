@@ -1,6 +1,7 @@
 package dev.avifenesh.hermes
 
 import android.content.pm.ServiceInfo
+import androidx.annotation.StringRes
 
 /** Foreground service type of the alarm sound. Full keeps mediaPlayback. */
 internal const val WAKE_FGS_TYPE = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
@@ -9,4 +10,5 @@ internal const val WAKE_FGS_TYPE = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLA
 @Suppress("UNUSED_PARAMETER")
 internal fun wakeServiceAllowed(canExact: Boolean): Boolean = true
 
-internal const val WAKE_EXACT_OFF = "Local alarms are not scheduled. Allow exact alarms before relying on Wake."
+/** Subtitle of the "Exact alarms are off" row. */
+@StringRes internal val WAKE_EXACT_OFF = R.string.alarm_exact_off_sub

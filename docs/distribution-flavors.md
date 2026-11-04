@@ -80,7 +80,7 @@ sha256sum android/app/build/outputs/apk/full/release/app-full-release.apk
 apksigner verify --verbose --print-certs android/app/build/outputs/apk/full/release/app-full-release.apk
 ```
 
-The guard uses SDK `apkanalyzer` for the packaged manifest, parses every DEX's defined classes/string tables, checks the packaged phone XML boundary, and invokes `apksigner verify --print-certs`. It rejects release debug components, wrong identities, full-only Play permissions/classes/transport/arming/settings markers and an unexpected signer. `--debug` is an explicit alternative for debug artifacts; it is not a distribution-signing bypass. Save JSON output beside the exact artifact. Run the same checks on bundletool-generated universal APKs; the script does not inspect AAB signatures, split APK coverage, native 16 KB behavior, model licenses, privacy or Google policy eligibility.
+The guard uses SDK `apkanalyzer` for the packaged manifest, parses every DEX's defined classes/string tables, checks the packaged phone XML boundary, reads the compiled resource string pool (`aapt2 dump strings`: no phone-control or always-on connection text in Play, the AI-content notice in Play only), and invokes `apksigner verify --print-certs`. It rejects release debug components, wrong identities, full-only Play permissions/classes/transport/arming/settings markers and an unexpected signer. `--debug` is an explicit alternative for debug artifacts; it is not a distribution-signing bypass. Save JSON output beside the exact artifact. Run the same checks on bundletool-generated universal APKs; the script does not inspect AAB signatures, split APK coverage, native 16 KB behavior, model licenses, privacy or Google policy eligibility.
 
 ## Executed scope and remaining acceptance
 

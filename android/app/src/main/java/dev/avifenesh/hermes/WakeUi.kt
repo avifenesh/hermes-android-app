@@ -537,8 +537,8 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     val proofsGranted = remember(permissionRevision) { proofPermissions.all { ctx.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } }
     val askProofs = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         permissionRevision++
-        if (r.values.any { !it }) Ui.say(if (CAMERA_PERMISSIONS.isEmpty()) "You can use reading or photo proof without this permission. Enable physical activity in Android app settings to use step proof."
-            else str(R.string.alarm_proof_permissions_denied))
+        if (r.values.any { !it }) Ui.say(if (CAMERA_PERMISSIONS.isEmpty()) R.string.alarm_proof_permissions_denied_no_camera
+            else R.string.alarm_proof_permissions_denied)
     }
     fun settings(i: Intent) {
         runCatching { ctx.startActivity(i) }.onFailure {
@@ -565,7 +565,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow(stringResource(R.string.alarm_exact_off), WAKE_EXACT_OFF) {
+                    SettingRow(stringResource(R.string.alarm_exact_off), stringResource(WAKE_EXACT_OFF)) {
                         Btn(stringResource(R.string.common_allow), primary = false) { settings(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))) }
                     }
                 }
@@ -719,9 +719,8 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             if (!proofsGranted) item {
                 Section(stringResource(R.string.alarm_section_proof_permissions), null)
                 Panel {
-                    SettingRow(if (CAMERA_PERMISSIONS.isEmpty()) "Step proof" else stringResource(R.string.alarm_proof_permissions),
-                        if (CAMERA_PERMISSIONS.isEmpty()) "Step proof needs physical activity access. Photo proof uses your camera app and needs no permission. Reading proof needs neither."
-                        else stringResource(R.string.alarm_proof_permissions_sub)) {
+                    SettingRow(stringResource(if (CAMERA_PERMISSIONS.isEmpty()) R.string.alarm_step_proof else R.string.alarm_proof_permissions),
+                        stringResource(if (CAMERA_PERMISSIONS.isEmpty()) R.string.alarm_step_proof_sub else R.string.alarm_proof_permissions_sub)) {
                         Btn(stringResource(R.string.common_allow), primary = false) { askProofs.launch(proofPermissions.filter { ctx.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }.toTypedArray()) }
                     }
                     Line()
@@ -743,7 +742,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                             }
                         }
                         Btn(stringResource(R.string.alarm_test_now), Modifier.fillMaxWidth()) {
-                            if (!Wake.canRing(ctx)) { Ui.say("Allow exact alarms first. Wake can't ring without them."); return@Btn }
+                            if (!Wake.canRing(ctx)) { Ui.say(R.string.alarm_test_needs_exact); return@Btn }
                             scope.launch {
                                 runCatching { Wake.request(ticket, "/v1/wake/test", "POST") }.onSuccess { Wake.session.value = it.optJSONObject("session"); WakeService.start(ctx, "check") }.onFailure { Ui.say(it.message) }
                             }

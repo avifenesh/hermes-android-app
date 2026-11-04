@@ -80,11 +80,9 @@ internal object SupportPayload {
     }
 }
 
-/** Report copy naming this edition's publisher and app. */
+/** The mail subject names this edition's app and stays fixed text in every language. The report strings take the
+ * publisher's name ([EDITION_PUBLISHER]) as an argument: support_disclosure, support_received, support_row_sub. */
 internal object SupportCopy {
-    const val INTRO = "Voluntary report to $EDITION_PUBLISHER, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received."
-    const val RECEIPT = "Received by $EDITION_PUBLISHER. This is a receipt, not a moderation decision or a promise of action or response."
-    const val ROW = "Review a voluntary report to $EDITION_PUBLISHER, or use email. Nothing sends automatically."
     const val SUBJECT = "$APP_NAME issue report"
 }
 
@@ -224,7 +222,7 @@ internal fun SupportDialog(
     val draft = remember(body, draftId) { PublisherReportDraft(body, draftId) }
     var received by rememberSaveable(draftId) { mutableStateOf(false) }
     HDialog(if (stage == "preview") stringResource(R.string.support_review_title) else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
-        Text(SupportCopy.INTRO, style = sans(13.5f, 400, p.tx2, 19f))
+        Text(stringResource(R.string.support_disclosure, EDITION_PUBLISHER), style = sans(13.5f, 400, p.tx2, 19f))
         Spacer(Modifier.height(12.dp))
         Btn(stringResource(R.string.support_privacy_policy), Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
             Support.act(request) { Ui.push(Route.PrivacyR) }
@@ -241,7 +239,7 @@ internal fun SupportDialog(
             Spacer(Modifier.height(12.dp))
             // No ellipsis or collapsed section: both destinations get exactly this text.
             Text(body, style = sans(13.5f, 400, p.tx, 19f))
-            if (received) Text(SupportCopy.RECEIPT, style = sans(13.5f, 600, p.tx2, 19f))
+            if (received) Text(stringResource(R.string.support_received, EDITION_PUBLISHER), style = sans(13.5f, 600, p.tx2, 19f))
             if (sendError) Text(stringResource(R.string.support_send_failed), style = sans(13.5f, 600, p.tx2, 19f))
             if (mailError) {
                 Spacer(Modifier.height(12.dp))
@@ -300,7 +298,7 @@ internal fun SupportDialog(
 /** General support never looks through the user's loaded chats for a quote. */
 @Composable
 fun ReportProblemRow() {
-    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), SupportCopy.ROW) { Support.open() } }
+    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), stringResource(R.string.support_row_sub, EDITION_PUBLISHER)) { Support.open() } }
 }
 
 /** Long-press only opens the themed action chooser. Clipboard writes require a separate Copy tap. */
