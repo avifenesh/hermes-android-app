@@ -805,11 +805,20 @@ class MobileAdapter(BasePlatformAdapter):
 
     def readonly_chat(self, cid: str) -> str:
         """"telegram:group" for a chat mirrored read-only, else "". A mirrored chat whose flag is still empty is
-        checked against its source session's chat type right now; "unverified" when that source can't be read."""
+        checked against its source session's chat type right now; "unverified" when that can't be done."""
         ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
-        mirror = getattr(self, "_mirror", None)
-        if ro or not cid.startswith("h-") or not mirror:
+        if ro or not cid.startswith("h-"):
             return ro
+        if getattr(self, "_mirror", None) is None:
+            # The mirror is created lazily (/health, /sync, /events), but a write can come first after a start, e.g.
+            # a notification's Reply. Create it now: that also runs the one-time read-only backfill.
+            self._ensure_mirror()
+            ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
+            if ro:
+                return ro
+        mirror = getattr(self, "_mirror", None)
+        if not mirror:
+            return "unverified"  # no mirror to read the source with: refuse rather than guess
         live = mirror.source_readonly(cid)
         return "unverified" if live is None else live
 

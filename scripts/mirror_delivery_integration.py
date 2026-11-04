@@ -374,6 +374,69 @@ class ReadOnlySends(Fixture, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(msg["role"], "user")
 
 
+class FirstRequestAfterStart(Fixture, unittest.IsolatedAsyncioTestCase):
+    """After an upgrade the mirror is created lazily (by /health, /sync or /events). A write can come first, e.g. a
+    notification's Reply: it must still be refused for an old group mirror the plugin has not flagged yet."""
+
+    async def asyncSetUp(self):
+        # An older plugin mirrored a Telegram group: chat and mirror row, writable, no read-only pass recorded.
+        self.sid = self.session("telegram", uid("grp"), chat_type="group", user_id="member",
+                                turns=[("user", "Team lunch?"), ("assistant", "Noon works."), ("user", "Booked")])
+        self.cid = "h-" + self.sid
+        self.store.ensure_chat(self.cid, title="Team")
+        self.mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,0,'')",
+                        (self.cid, self.sid, self.sid, "telegram"))
+        self.assertEqual(self.store.get_chat(self.cid)["readonly"], "")
+        self.assertFalse(self.store.kv_get(MR.SHARED_PASS))
+        # A freshly started adapter: connect() ran, nothing has created the mirror yet.
+        self.ad = object.__new__(AD.MobileAdapter)
+        self.ad.store = self.store
+        self.ad._working = {}
+        self.ad._profiles = SimpleNamespace(profile_of=lambda cid: "", busy=lambda cid: False, send=AsyncMock(),
+                                            stop=AsyncMock(return_value=False))
+        self.ad._emit_msg = lambda *a, **kw: None
+        self.ad.build_source = lambda **kw: SimpleNamespace(platform="mobile", **kw)
+        self.ad.handle_message = AsyncMock()
+        self.assertIsNone(getattr(self.ad, "_mirror", None))
+
+        @web.middleware
+        async def as_device(request, handler):
+            request["device"] = {"id": "d-synthetic"}
+            return await handler(request)
+
+        app = web.Application(middlewares=[as_device])
+        app.router.add_post("/v1/chats/{cid}/messages", self.ad.h_post_message)
+        self.client = TestClient(TestServer(app))
+        await self.client.start_server()
+
+    async def asyncTearDown(self):
+        await self.client.close()
+        task = getattr(self.ad, "_mirror_task", None)
+        if task:
+            task.cancel()
+
+    async def send(self):
+        async with self.client.post(f"/v1/chats/{self.cid}/messages", json={"text": "On my way"}) as r:
+            return r.status, await r.json()
+
+    async def test_the_first_request_is_a_reply_into_an_unflagged_group_mirror(self):
+        status, body = await self.send()
+        self.assertEqual(status, 409, body)
+        self.assertIn("Telegram", body.get("error", ""))
+        # Creating the mirror imports the group's own conversation into the chat; the phone's reply is not stored.
+        self.assertNotIn("On my way", [r[1] for r in self.rows(self.cid)])
+        self.ad.handle_message.assert_not_called()
+        self.assertEqual(self.store.get_chat(self.cid)["readonly"], "telegram:group")
+
+    async def test_no_mirror_to_verify_with_means_no_send(self):
+        with patch.object(MR, "Mirror", side_effect=RuntimeError("state.db unreadable")):
+            status, body = await self.send()
+        self.assertEqual(status, 409, body)
+        self.assertIn("can't be checked", body.get("error", ""))
+        self.assertNotIn("On my way", [r[1] for r in self.rows(self.cid)])
+        self.ad.handle_message.assert_not_called()
+
+
 if __name__ == "__main__":
     try:
         unittest.main(verbosity=2)
