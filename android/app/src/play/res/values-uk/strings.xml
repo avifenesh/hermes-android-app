@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Флот Herms</string>
+    <string name="channel_control_unavailable_title">Недоступно в цій версії</string>
+    <string name="channel_control_unavailable_body">Ця версія для Play не може читати інші застосунки чи керувати ними. Віддалені команди не можуть увімкнути цю можливість.</string>
+    <string name="channel_background_title">Фонова доставка</string>
+    <string name="channel_background_body">Оптимізація батареї Android залишається ввімкненою. Push (якщо налаштовано) і періодична синхронізація доступні; фонова доставка може затримуватися.</string>
+    <string name="channel_apk_unavailable">Установлення APK-вкладень недоступне у версії для Play. Ви все одно можете зберегти файл у «Завантаження».</string>
+</resources>
