@@ -15,9 +15,11 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import sqlite3
 import struct
 import time
+from collections import OrderedDict, deque
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo
@@ -50,7 +52,8 @@ LIMITS = ['FCM push delivery (push-config reports disabled; the app falls back t
           'Android background, alarm and permission behaviour depends on the device, not on this server']
 REVIEW_PASSWORD = 'review-sandbox'  # Alarm emergency-stop password; printed on the /review page.
 MAX_BODY, MAX_UPLOAD, TENANT_QUOTA = 1024 * 1024, 12 * 1024 * 1024, 64 * 1024 * 1024
-BIG_BODY_PATHS = ('/v1/upload', '/v1/wake/proof')
+# The only routes allowed past the 1 MiB request limit: uploads (camera photos) and photo proofs.
+BIG_BODY_PATHS = {'/v1/upload': MAX_UPLOAD, '/v1/wake/proof': 3 * 1024 * 1024}
 NOTE = 'Synthetic review sandbox: nothing ran on any machine.'
 
 
@@ -142,16 +145,27 @@ def _cron_field(text, lo, hi):
     return out
 
 
+MAX_INTERVAL = 366 * 86400
+
+
+def safe_schedule(expr):
+    """A stored schedule that no longer parses must never break the lists that show it."""
+    try:
+        return parse_schedule(str(expr))
+    except (ValueError, OverflowError):
+        return {'kind': 'invalid', 'display': 'Invalid schedule: edit this job'}
+
+
 def parse_schedule(expr):
     """The schedule forms the editor offers. Returns a dict or raises ValueError with a readable message."""
     t = ' '.join(expr.lower().split())
     m = re.fullmatch(r'(in\s+|every\s+)?(\d+)\s*(m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)', t)
     if m:
-        n = int(m.group(2))
         unit = {'m': 60, 'h': 3600, 'd': 86400}[m.group(3)[0]]
         word = {60: 'minute', 3600: 'hour', 86400: 'day'}[unit]
-        if n < 1:
-            raise ValueError('Use a positive interval.')
+        n = int(m.group(2)) if len(m.group(2)) <= 6 else MAX_INTERVAL
+        if n < 1 or n * unit > MAX_INTERVAL:
+            raise ValueError('Use an interval from 1 minute to 366 days.')
         once = (m.group(1) or '').startswith('in')
         label = f'{n} {word}' + ('s' if n != 1 else '')
         return {'kind': 'once' if once else 'interval', 'seconds': n * unit,
@@ -194,9 +208,33 @@ def next_cron(expr, after, tz):
     return None
 
 
+class Refused(Exception):
+    """A request the sandbox turns down with a readable error (quota, capacity)."""
+    def __init__(self, message, status):
+        super().__init__(message)
+        self.status = status
+
+
+def reject_constant(name):
+    raise ValueError(f'{name} is not a number this sandbox accepts')
+
+
 class Backend:
     REPLY_STEP = 0.35   # seconds between streamed edits of a scripted reply
     JOB_SECONDS = 1.2   # synthetic Hub jobs finish after this long
+    # Hosting bounds; README "Retention and capacity" explains each default. Tests shrink them per instance.
+    MAX_OPEN_TENANTS = 32         # open SQLite stores (about 3 fds each); idle ones close least recently used first
+    IDLE_CLOSE = 600              # seconds before an unused store closes; it reopens on the next request
+    MAX_ENROLLMENTS = 200         # active enrollments at once
+    DISK_CAP = 2 * 1024 ** 3      # all sandbox state on disk together
+    TENANT_TTL = 14 * 86400       # an enrollment unused this long is revoked and its sandbox deleted
+    SWEEP_EVERY = 3600            # retention sweep interval
+    MAX_STREAMS = 3               # live event streams per enrollment
+    KEEPALIVE = 15                # seconds between SSE keepalives when nothing changes
+    MAX_CHATS = 200               # chats per enrollment, including Radar spawns
+    MAX_SPAWNS = 50               # Radar spawns per enrollment
+    MAX_FILES = 300               # stored uploads per enrollment
+    MAX_PW_TRIES = 10             # alarm password checks per enrollment per minute
 
     def __init__(self, home, public_url, client_header=None):
         self.home = state_root(home)
@@ -208,9 +246,15 @@ class Backend:
         self.url = public_url.rstrip('/')
         self.auth = S.Store(self.home / 'auth.db')
         self.replay = SG.Replay()
-        self.stores = {}
+        self.stores = OrderedDict()   # did -> open Store, least recently used first
+        self.used, self.inuse, self.listeners = {}, {}, {}
+        self.closing, self.bg = set(), set()
         self.rt = {}
-        self.hits = []
+        self.buckets = {}
+        self.disk = (0, -math.inf)
+        self.tbytes = {}
+        self.pw_tries = {}
+        self.shutting = False
         # Set only behind a TLS proxy that writes this header; never trust a client-supplied value.
         self.client_header = client_header
         invitation = self.home / 'invitation.txt'
@@ -220,8 +264,9 @@ class Backend:
                 f.write(secrets.token_urlsafe(32))
         self.invitation = invitation.read_text().strip()
 
-    # Per-client budget so one script cannot lock reviewers out; the global ceiling bounds total work.
-    CLIENT_LIMIT, GLOBAL_LIMIT, WINDOW = 20, 400, 300
+    # Unauthenticated failures only spend the failing client's own budget. The shared ceiling counts invited
+    # enrollments only, so guessing from many addresses can never lock invited reviewers out.
+    CLIENT_LIMIT, ENROLL_LIMIT, WINDOW, MAX_TRACKED = 20, 400, 300, 10000
 
     def client(self, r):
         """Client key: IPv4 address or IPv6 /64, from the proxy's own hop when a proxy header is configured."""
@@ -238,31 +283,154 @@ class Backend:
             ip = ip.ipv4_mapped
         return str(ipaddress.ip_network(f'{ip}/64', strict=False)) if ip.version == 6 else str(ip)
 
-    def limited(self, key):
+    def over(self, bucket, key, limit, window=None):
         now = time.monotonic()
-        self.hits = [(t, k) for t, k in self.hits if now - t < self.WINDOW]
-        if len(self.hits) >= self.GLOBAL_LIMIT or sum(1 for _, k in self.hits if k == key) >= self.CLIENT_LIMIT:
-            return True
-        self.hits.append((now, key))
-        return False
+        q = self.buckets.setdefault(bucket, OrderedDict()).get(key)
+        while q and now - q[0] >= (window or self.WINDOW):
+            q.popleft()
+        return bool(q) and len(q) >= limit
 
-    # ------------------------------------------------------------ tenants
+    def count(self, bucket, key):
+        b = self.buckets.setdefault(bucket, OrderedDict())
+        b.setdefault(key, deque()).append(time.monotonic())
+        b.move_to_end(key)
+        while len(b) > self.MAX_TRACKED:  # bounded memory; the oldest clients are forgotten first
+            b.popitem(last=False)
+
+    # ------------------------------------------------------------ tenants: open stores, retention, capacity
     def tenant(self, did):
         # did comes only from our authenticated production devices table.
-        if did not in self.stores:
+        if did in self.closing:
+            raise Refused('This enrollment was removed. Get a fresh pairing link.', 410)
+        s = self.stores.get(did)
+        if s is None:
             d = self.home / did
             d.mkdir(mode=0o700, exist_ok=True)
             s = S.Store(d / 'fixture.db')
             if not s.kv_get('seeded'):
                 self.seed(s)
             self.stores[did] = s
-        return self.stores[did]
+        self.stores.move_to_end(did)
+        self.used[did] = time.monotonic()
+        self.evict()
+        return s
+
+    def tenant_tasks(self, did):
+        rt = self.rt.get(did) or {}
+        return [*rt.get('tasks', {}).values(), *(t for g in rt.get('all', {}).values() for t in g),
+                *(t for g in rt.get('session_tasks', {}).values() for t in g)]
+
+    def busy(self, did):
+        return self.inuse.get(did, 0) > 0 or bool(self.listeners.get(did)) or any(not t.done() for t in self.tenant_tasks(did))
+
+    def close_store(self, did):
+        s = self.stores.pop(did, None)
+        if s is not None:
+            s._db.close()
+
+    def evict(self):
+        now = time.monotonic()
+        for did in list(self.stores):
+            if (len(self.stores) > self.MAX_OPEN_TENANTS or now - self.used.get(did, now) > self.IDLE_CLOSE) and not self.busy(did):
+                self.close_store(did)
+
+    def retire(self, did):
+        """End a revoked or expired enrollment: its streams and replies stop, then its sandbox closes and is deleted."""
+        if did in self.closing:
+            return None
+        self.closing.add(did)
+        self.notify(did)
+        task = asyncio.get_running_loop().create_task(self.finalize(did))
+        self.bg.add(task)
+        task.add_done_callback(self.bg.discard)
+        return task
+
+    async def finalize(self, did):
+        tasks = [t for t in self.tenant_tasks(did) if not t.done()]
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        for _ in range(200):  # the revoking request itself and closing streams finish within milliseconds
+            if not self.inuse.get(did) and not self.listeners.get(did):
+                break
+            await asyncio.sleep(0.05)
+        self.close_store(did)
+        for m in (self.rt, self.used, self.inuse, self.listeners, self.tbytes, self.pw_tries):
+            m.pop(did, None)
+        shutil.rmtree(self.home / did, ignore_errors=True)
+        self.disk = (0, -math.inf)
+        self.closing.discard(did)
+
+    async def sweep(self):
+        """Retention: revoke enrollments unused for TENANT_TTL, delete revoked and orphaned sandboxes, close idle stores."""
+        now, jobs = time.time(), []
+        for d in self.auth.devices():
+            if not d['revoked'] and now - (d['last_seen'] or d['created'] or 0) > self.TENANT_TTL:
+                self.auth.revoke(d['id'])
+                jobs.append(self.retire(d['id']))
+            elif d['revoked'] and (self.home / d['id']).exists():
+                jobs.append(self.retire(d['id']))
+        with self.auth._lock:
+            self.auth._db.execute('DELETE FROM devices WHERE revoked=1 AND last_seen<?', (now - self.TENANT_TTL,))
+        known = {d['id'] for d in self.auth.devices()}
+        for p in self.home.iterdir():
+            if p.is_dir() and p.name.startswith('d-') and p.name not in known and p.name not in self.closing:
+                shutil.rmtree(p, ignore_errors=True)
+        await asyncio.gather(*[j for j in jobs if j], return_exceptions=True)
+        self.evict()
+
+    async def sweeper(self):
+        while True:
+            try:
+                await self.sweep()
+            except (sqlite3.Error, OSError):
+                pass
+            await asyncio.sleep(self.SWEEP_EVERY)
+
+    def disk_used(self):
+        total, at = self.disk
+        if time.monotonic() - at > 10:
+            total = sum(p.stat().st_size for p in self.home.rglob('*') if p.is_file())
+            self.disk = (total, time.monotonic())
+        return total
+
+    def tenant_bytes(self, did):
+        total, at = self.tbytes.get(did, (0, -math.inf))
+        if time.monotonic() - at > 5:
+            d = self.home / did
+            total = sum(p.stat().st_size for p in d.iterdir() if p.is_file()) if d.is_dir() else 0
+            self.tbytes[did] = (total, time.monotonic())
+        return total
+
+    def grew(self, did, n):
+        total, at = self.tbytes.get(did, (0, -math.inf))
+        self.tbytes[did] = (total + n, at)
+        self.disk = (self.disk[0] + n, self.disk[1])
+
+    def capacity_error(self):
+        active = self.auth._db.execute('SELECT COUNT(*) FROM devices WHERE revoked=0').fetchone()[0]
+        if active >= self.MAX_ENROLLMENTS:
+            return f'The review sandbox is full ({self.MAX_ENROLLMENTS} active enrollments). Unpair an old device or try again after unused sandboxes expire.'
+        if self.disk_used() >= self.DISK_CAP:
+            return 'The review sandbox is out of storage. Try again after unused sandboxes expire.'
+        return None
+
+    def storage_error(self, did, extra=0):
+        if self.disk_used() + extra > self.DISK_CAP:
+            return 'The review sandbox is out of storage. Try again after unused sandboxes expire.', 507
+        if self.tenant_bytes(did) + extra > TENANT_QUOTA:
+            return 'Sandbox storage is full for this enrollment. Get a fresh pairing link for a clean sandbox.', 413
+        return None
 
     def runtime(self, did):
         return self.rt.setdefault(did, {'working': {}, 'tasks': {}, 'steer': {}, 'tts': [], 'session_tasks': {}})
 
     def working_list(self, did):
         return [{'chat_id': c, 'since': t} for c, t in self.runtime(did)['working'].items()]
+
+    def notify(self, did):
+        for ev in self.listeners.get(did, ()):
+            ev.set()
 
     def kv(self, s, key, default):
         """Lazily initialised tenant state, so older enrollments gain new surfaces without a reseed."""
@@ -324,6 +492,7 @@ class Backend:
     # ------------------------------------------------------------ auth
     @web.middleware
     async def auth_mw(self, r, handler):
+        did = None
         try:
             if r.path in ('/v1/health', '/v1/pair', '/review', '/review/enroll', '/review/pr'):
                 return await handler(r)
@@ -331,21 +500,34 @@ class Backend:
             dev = self.auth.device_for_token(token[7:] if token.startswith('Bearer ') else '')
             if not dev:
                 return J({'error': 'unauthorized'}, 401)
+            if r.path in BIG_BODY_PATHS:
+                # Only these two routes may exceed the app-wide 1 MiB request limit.
+                r = r.clone(client_max_size=BIG_BODY_PATHS[r.path])
             body = await r.read()
-            if len(body) > MAX_BODY and r.path not in BIG_BODY_PATHS:
-                return J({'error': 'Request too large for the sandbox'}, 413)
             ts = r.headers.get('X-HM-Ts', '')
             if not self.replay.fresh(r.headers.get('X-HM-Sig', ''), pub=dev['pub'],
                                      msg=SG.canonical(r.method, r.raw_path, ts, body), ts=ts,
                                      scope='request', store=self.auth):
                 return J({'error': 'bad signature'}, 401)
+            did = dev['id']
+            self.inuse[did] = self.inuse.get(did, 0) + 1
             r['device'], r['signature_replay'], r['signature_store'] = dev, self.replay, self.auth
-            r['store'] = self.tenant(dev['id'])
+            r['store'] = self.tenant(did)
+            if r.method in ('POST', 'PUT', 'PATCH') and not (r.method == 'POST' and r.path.startswith('/v1/devices')):
+                full = self.storage_error(did)
+                if full:
+                    return J({'error': full[0]}, full[1])
             return await handler(r)
+        except Refused as e:
+            return J({'error': str(e)}, e.status)
         except (sqlite3.Error, OSError):
             return J({'error': 'sandbox storage unavailable'}, 503)
-        except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError, KeyError):
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError, KeyError, OverflowError):
             return J({'error': 'invalid request'}, 400)
+        finally:
+            if did is not None:
+                self.inuse[did] = self.inuse.get(did, 1) - 1
+                self.notify(did)
 
     def signed(self, r, msg):
         return SG.approval_ok(r, msg)
@@ -356,7 +538,7 @@ class Backend:
         raw = await r.read()
         if not raw.strip():
             return {}
-        value = json.loads(raw)
+        value = json.loads(raw, parse_constant=reject_constant)  # NaN and Infinity are not JSON the app sends
         if not isinstance(value, dict):
             raise ValueError('object required')
         return value
@@ -377,41 +559,71 @@ class Backend:
                                      '<h1>Synthetic pull request</h1><p>This pull request exists only in the Hermes review sandbox. '
                                      'Nothing was pushed and no repository was changed.</p>', content_type='text/html',
                                 headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff'})
-        if self.limited(self.client(r)):
-            return J({'error': 'too many attempts'}, 429)
+        client = self.client(r)
         if r.path == '/review/enroll':
+            if self.over('enroll-fail', client, self.CLIENT_LIMIT):
+                return J({'error': 'too many attempts'}, 429)
             if not hmac.compare_digest(r.headers.get('Authorization', ''), 'Bearer ' + self.invitation):
+                self.count('enroll-fail', client)
                 return J({'error': 'invitation required'}, 401)
+            if self.over('enroll', client, self.CLIENT_LIMIT) or self.over('enroll', '*', self.ENROLL_LIMIT):
+                return J({'error': 'too many attempts'}, 429)
+            self.count('enroll', client)
+            self.count('enroll', '*')
+            full = self.capacity_error()
+            if full:
+                return J({'error': full}, 503)
             code = self.auth.create_pair_code(600)
             link = 'hermes://pair?' + urlencode({'u': self.url, 'c': code, 'n': 'Hermes Review Sandbox'})
             return web.json_response({'link': link, 'expires_in': 600}, headers={'Cache-Control': 'no-store'})
-        b = await self.body(r)
+        if self.over('pair-fail', client, self.CLIENT_LIMIT):
+            return J({'error': 'too many attempts'}, 429)
+        try:
+            b = await self.body(r)
+        except ValueError:
+            self.count('pair-fail', client)
+            return J({'error': 'invalid request'}, 400)
         pub, apub = b.get('pub', ''), b.get('apub', '')
         if not SG.load_pub(pub) or not SG.load_pub(apub):
+            self.count('pair-fail', client)
             return J({'error': 'device keys required (P-256 SPKI, base64)'}, 400)
+        full = self.capacity_error()
+        if full:
+            return J({'error': full}, 503)
         result = self.auth.claim_pair_code(str(b.get('code', '')), str(b.get('device_name', 'Reviewer')), pub, apub, nolock=b.get('lock') is False)
         if not result:
+            self.count('pair-fail', client)
             return J({'error': 'invalid or expired code'}, 403)
         self.tenant(result['device_id'])
         return web.json_response({**result, 'server': {'name': 'Hermes Review Sandbox', 'profile': 'default'}, 'cf': {}}, headers={'Cache-Control': 'no-store'})
 
     async def events(self, r):
         s, did = r['store'], r['device']['id']
-        resp = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache'})
-        await resp.prepare(r)
-        last = None
+        mine = self.listeners.setdefault(did, set())
+        if len(mine) >= self.MAX_STREAMS:
+            return J({'error': f'At most {self.MAX_STREAMS} live connections per enrollment.'}, 429)
+        ev = asyncio.Event()
+        mine.add(ev)
         try:
-            while self.auth.device_active(did):
+            resp = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache'})
+            await resp.prepare(r)
+            last = None
+            # Event driven: requests and scripted replies wake the stream; otherwise one keepalive per KEEPALIVE seconds.
+            while not self.shutting and did not in self.closing and self.auth.device_active(did):
+                ev.clear()
                 work = self.working_list(did)
                 now = (s.seq(), tuple(sorted(w['chat_id'] for w in work)))
                 if now != last:
-                    await resp.write(('data: ' + json.dumps({'type': 'hello' if last is None else 'seq', 'seq': s.seq(), 'working': work}) + '\n\n').encode())
+                    await resp.write(('data: ' + json.dumps({'type': 'hello' if last is None else 'seq', 'seq': now[0], 'working': work}) + '\n\n').encode())
                     last = now
-                else:
+                try:
+                    await asyncio.wait_for(ev.wait(), self.KEEPALIVE)
+                except asyncio.TimeoutError:
                     await resp.write(b': keepalive\n\n')
-                await asyncio.sleep(0.25)
         except (ConnectionResetError, RuntimeError):
             pass
+        finally:
+            mine.discard(ev)
         return resp
 
     # ------------------------------------------------------------ identity, sync, chats
@@ -439,11 +651,16 @@ class Backend:
             prof = str(b.get('profile') or 'default')
             if prof not in ('default', 'research'):
                 return E(f'unknown profile {prof}')
+            self.room_for_chat(s)
             chat = s.ensure_chat(S.new_id('c'), str(b.get('title') or 'New chat')[:80])
             if prof != 'default':
                 chat = s.update_chat(chat['id'], profile=prof)
             return J({'chat': chat})
         return J({'chats': s.list_chats(r.query.get('archived') == '1'), 'working': self.working_list(r['device']['id'])})
+
+    def room_for_chat(self, s):
+        if s._db.execute('SELECT COUNT(*) FROM chats').fetchone()[0] >= self.MAX_CHATS:
+            raise Refused(f'This sandbox holds at most {self.MAX_CHATS} chats. Get a fresh pairing link for a clean sandbox.', 409)
 
     def chat_or_404(self, r):
         cid = r.match_info['cid']
@@ -477,7 +694,7 @@ class Backend:
             return E('chat not found', 404)
         b = await self.body(r)
         text = str(b.get('text') or '').strip()[:8000]
-        atts = [a for a in (b.get('attachments') or []) if isinstance(a, dict)][:10]
+        atts = self.attachments(b.get('attachments'))
         if not text and not atts:
             return E('empty')
         mode = str(b.get('mode') or 'send')
@@ -495,6 +712,22 @@ class Backend:
             depth[cid] = depth.get(cid, 0) + 1
             self.spawn_reply(did, s, cid, text, atts, rt['tasks'].get(cid) if running else None)
         return J({'message': msg})
+
+    @staticmethod
+    def attachments(raw):
+        """Keep only the attachment fields the app sends, with the types it sends them."""
+        out = []
+        for a in (raw if isinstance(raw, list) else [])[:10]:
+            if not isinstance(a, dict):
+                continue
+            item = {'kind': a['kind'] if a.get('kind') in ('image', 'voice', 'file') else 'file'}
+            for k in ('id', 'file_name', 'mime'):
+                if isinstance(a.get(k), str):
+                    item[k] = a[k][:200]
+            if isinstance(a.get('size'), (int, float)) and not isinstance(a.get('size'), bool) and math.isfinite(a['size']):
+                item['size'] = int(max(0, min(a['size'], 1 << 40)))
+            out.append(item)
+        return out
 
     async def h_stop(self, r):
         did = r['device']['id']
@@ -590,19 +823,23 @@ class Backend:
             except Exception:
                 pass
         since = time.time()
-        rt['working'][cid] = since
         msg = None
-        final, steps = self.compose(s, cid, text, atts)
+        rt['working'][cid] = since
+        self.notify(did)
+        # Everything after the working flag is inside try/finally, so no failure can leave the chat "working".
         try:
+            final, steps = self.compose(s, cid, text, atts)
             shown = []
             for i, st in enumerate(steps):
                 shown.append({**st, 'ts': since + i * self.REPLY_STEP, 'status': 'ok'})
                 s.kv_put('steps:' + cid, shown)
+                self.notify(did)
                 await asyncio.sleep(self.REPLY_STEP)
             words = final.split(' ')
             for frac in (0.35, 0.7):
                 part = ' '.join(words[:max(1, int(len(words) * frac))]) + ' …'
                 msg = s.add_message(cid, 'agent', part, meta={'demo': True}) if msg is None else s.edit_message(msg['id'], content=part)
+                self.notify(did)
                 await asyncio.sleep(self.REPLY_STEP)
             steer = rt['steer'].pop(cid, None)
             if steer:
@@ -617,17 +854,21 @@ class Backend:
             if msg is not None:
                 s.edit_message(msg['id'], content=(msg.get('content') or '').rstrip(' …') + ' …', meta={'demo': True, 'stopped': True})
             s.add_message(cid, 'agent', '⏹ Stopped. (synthetic run)', kind='status', meta={'quiet': True, 'demo': True})
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            pass  # the sandbox was closed under the reply (revoke or shutdown); nothing to record
+        except Exception:
+            s.add_message(cid, 'agent', 'The scripted reply could not be written for this message. Nothing ran. (synthetic)', kind='status', meta={'quiet': True, 'demo': True})
         finally:
             rt['working'].pop(cid, None)
             rt.setdefault('depth', {})[cid] = max(0, rt['depth'].get(cid, 1) - 1)
             if rt['tasks'].get(cid) is asyncio.current_task():
                 rt['tasks'].pop(cid, None)
+            self.notify(did)
 
     async def idle(self, did):
         """Test helper: wait until no scripted work is pending for this tenant."""
-        rt = self.runtime(did)
         while True:
-            pending = [t for t in [*rt['tasks'].values(), *rt['session_tasks'].values(), *(x for g in rt.get('all', {}).values() for x in g)] if not t.done()]
+            pending = [t for t in self.tenant_tasks(did) if not t.done()]
             if not pending:
                 return
             await asyncio.gather(*pending, return_exceptions=True)
@@ -859,18 +1100,17 @@ class Backend:
         return J({'message': msg, 'calls': calls, 'files': list(files.values())})
 
     # ------------------------------------------------------------ files and voice
-    def tenant_bytes(self, did):
-        d = self.home / did
-        return sum(p.stat().st_size for p in d.iterdir() if p.name.startswith('u-') and p.is_file())
-
     def store_upload(self, r, data):
         did = r['device']['id']
-        if self.tenant_bytes(did) + len(data) > TENANT_QUOTA:
-            raise web.HTTPRequestEntityTooLarge(max_size=TENANT_QUOTA, actual_size=len(data),
-                                                text=json.dumps({'error': 'Sandbox storage is full for this enrollment. Get a fresh pairing link for a clean sandbox.'}),
-                                                content_type='application/json')
+        full = self.storage_error(did, len(data))
+        if full:
+            raise Refused(*full)
+        d = self.home / did
+        if sum(1 for p in d.iterdir() if p.name.startswith('u-')) >= self.MAX_FILES:
+            raise Refused(f'This sandbox keeps at most {self.MAX_FILES} files. Get a fresh pairing link for a clean sandbox.', 413)
         name = S.new_id('u')
-        (self.home / did / name).write_bytes(data)
+        (d / name).write_bytes(data)
+        self.grew(did, len(data))
         return name
 
     async def h_upload(self, r):
@@ -986,24 +1226,33 @@ class Backend:
         a = max(0, i - 40)
         return ('…' if a else '') + text[a:i] + '>>>' + text[i:i + len(word)] + '<<<' + text[i + len(word):i + len(word) + 80]
 
+    SEARCH_ROWS, SEARCH_CHARS, SEARCH_QUERY, SEARCH_TERMS = 1000, 4000, 200, 8
+
     async def h_search(self, r):
+        """Bounded work: the newest SEARCH_ROWS chat messages and every other-app session, each read up to SEARCH_CHARS."""
         s = r['store']
         q = (r.query.get('q') or '').strip()
         if len(q) < 2:
             return J({'results': [], 'query': q})
+        if len(q) > self.SEARCH_QUERY or len(q.split()) > self.SEARCH_TERMS:
+            return J({'results': [], 'query': q[:self.SEARCH_QUERY], 'error': f'Use at most {self.SEARCH_TERMS} words and {self.SEARCH_QUERY} characters.'}, 400)
         hit, out = self.matcher(q), []
-        for c in s.list_chats(True):
-            for m in s.messages(c['id']):
-                w = hit(m['content']) if m['kind'] == 'text' else None
-                if w:
-                    out.append({'id': m['id'], 'session_id': 'sandbox-' + c['id'], 'chat_id': c['id'], 'source': 'mobile', 'title': c['title'],
-                                'role': 'user' if m['role'] == 'user' else 'assistant', 'snippet': self.snippet(m['content'], w), 'timestamp': m['ts']})
+        titles = {row['id']: row['title'] for row in s._db.execute('SELECT id, title FROM chats')}
+        rows = s._db.execute("SELECT id, chat_id, role, content, ts FROM messages WHERE kind='text' ORDER BY ts DESC LIMIT ?", (self.SEARCH_ROWS,))
+        for m in rows:
+            text = (m['content'] or '')[:self.SEARCH_CHARS]
+            w = hit(text)
+            if w:
+                out.append({'id': m['id'], 'session_id': 'sandbox-' + m['chat_id'], 'chat_id': m['chat_id'], 'source': 'mobile',
+                            'title': titles.get(m['chat_id'], 'Chat'), 'role': 'user' if m['role'] == 'user' else 'assistant',
+                            'snippet': self.snippet(text, w), 'timestamp': m['ts']})
         for x in self.sessions(s):
             for m in x['messages']:
-                w = hit(m['content'])
+                text = m['content'][:self.SEARCH_CHARS]
+                w = hit(text)
                 if w:
                     out.append({'id': m['id'], 'session_id': x['id'], 'chat_id': None, 'source': x['source'], 'title': x['title'],
-                                'role': m['role'], 'snippet': self.snippet(m['content'], w), 'timestamp': m['timestamp']})
+                                'role': m['role'], 'snippet': self.snippet(text, w), 'timestamp': m['timestamp']})
         out.sort(key=lambda x: -x['timestamp'])
         return J({'results': out[:40], 'query': q})
 
@@ -1061,16 +1310,21 @@ class Backend:
         x['submissions'] = [*x['submissions'], sub][-50:] if sub else x['submissions']
         x['running'], x['generation'] = True, x['generation'] + 1
         self.save_session(s, x)
-        self.runtime(did)['session_tasks'][x['id']] = asyncio.get_running_loop().create_task(self.session_reply(s, x['id'], x['generation']))
+        # Every pending reply stays tracked (a second send must not orphan the first) for idle(), revoke and shutdown.
+        task = asyncio.get_running_loop().create_task(self.session_reply(did, s, x['id'], x['generation']))
+        group = self.runtime(did)['session_tasks'].setdefault(x['id'], set())
+        group.add(task)
+        task.add_done_callback(group.discard)
         return J({'ok': True, 'submission_id': sub, 'queued': True})
 
-    async def session_reply(self, s, sid, generation):
+    async def session_reply(self, did, s, sid, generation):
         await asyncio.sleep(self.REPLY_STEP * 3)
         x = self.session_or_404(s, sid)
         if x and x['running'] and x['generation'] == generation:
             self.session_add(x, 'assistant', f"Synthetic {x['source']} session reply: message received. {NOTE}")
             x['running'] = False
             self.save_session(s, x)
+            self.notify(did)
 
     async def h_session_prompt(self, r):
         s = r['store']
@@ -1143,9 +1397,9 @@ class Backend:
             return timezone.utc
 
     def job_view(self, s, j):
-        sched = parse_schedule(j['schedule_expr'])
+        sched = safe_schedule(j['schedule_expr'])
         now, base = time.time(), j.get('last_run_at') or j['created_at']
-        if not j['enabled']:
+        if not j['enabled'] or sched['kind'] == 'invalid':
             nxt = None
         elif sched['kind'] == 'cron':
             nxt = next_cron(sched['expr'], now, self.tz(s))
@@ -1178,7 +1432,7 @@ class Backend:
         outs[run_id(ts)] = text
         s.kv_put('cron_out:' + j['id'], dict(sorted(outs.items())[-14:]))
         j.update(last_run_at=ts, last_status='ok', last_error='')
-        if parse_schedule(j['schedule_expr'])['kind'] == 'once':
+        if safe_schedule(j['schedule_expr'])['kind'] == 'once':
             j['enabled'] = False
         if 'mobile' in j['deliver']:
             s.add_message('cron-job-' + j['id'], 'agent', text, meta={'delivery': True, 'job_id': j['id'], 'demo': True},
@@ -1225,14 +1479,19 @@ class Backend:
             if k == 'skills':
                 v = [x.strip()[:80] for x in (v or []) if isinstance(x, str) and x.strip()][:10]
             elif k == 'repeat':
-                v = int(v) if v not in (None, '', 0) else None
+                if v in (None, '', 0):
+                    v = None
+                elif isinstance(v, bool) or not isinstance(v, (int, str)) or not str(v).isdigit() or not 1 <= int(v) <= 10000:
+                    raise ValueError('Repeat must be a whole number from 1 to 10000.')
+                else:
+                    v = int(v)
             else:
                 v = str(v or '').strip()[:4000]
             out[k] = v
         if 'deliver' in out and out['deliver'] not in ('mobile', 'telegram,mobile', 'telegram', 'local', ''):
-            raise ValueError('bad deliver')
+            raise ValueError('Deliver to must be one of the listed choices.')
         if 'reasoning_effort' in out and out['reasoning_effort'] not in ('', *C.EFFORTS):
-            raise ValueError('bad reasoning')
+            raise ValueError('Pick one of the listed reasoning levels.')
         return out
 
     async def h_cronjob_get(self, r):
@@ -1242,7 +1501,10 @@ class Backend:
 
     async def h_cronjob_create(self, r):
         s = r['store']
-        f = self.job_fields(await self.body(r), True)
+        try:
+            f = self.job_fields(await self.body(r), True)
+        except ValueError as e:
+            return J({'success': False, 'error': str(e)}, 400)
         if not f.get('schedule'):
             return J({'success': False, 'error': "A schedule is required (e.g. 'every 2h', '0 9 * * *', '30m')."}, 400)
         if not f.get('prompt') and not f.get('skills'):
@@ -1266,7 +1528,10 @@ class Backend:
         job = next((j for j in self.jobs(s) if j['id'] == r.match_info['jid']), None)
         if not job:
             return J({'success': False, 'error': 'unknown job'}, 404)
-        f = self.job_fields(await self.body(r), False)
+        try:
+            f = self.job_fields(await self.body(r), False)
+        except ValueError as e:
+            return J({'success': False, 'error': str(e)}, 400)
         if 'schedule' in f:
             try:
                 parse_schedule(f['schedule'])
@@ -1325,6 +1590,7 @@ class Backend:
             content = str(b.get('content') or '').strip()[:4000]
             if action != 'remove' and not content:
                 return J({'success': False, 'error': 'Content is empty.'}, 400)
+            before = sum(map(len, mem[target]))
             if action == 'add':
                 mem[target].append(content)
             else:
@@ -1336,7 +1602,9 @@ class Backend:
                 else:
                     mem[target][i] = content
             limit = int(settings.get('memory.memory_char_limit' if target == 'memory' else 'memory.user_char_limit') or 8000)
-            if sum(map(len, mem[target])) > limit:
+            after = sum(map(len, mem[target]))
+            # Only growth is refused: forgetting or shortening must work even when a lowered limit is already exceeded.
+            if after > limit and after > before:
                 return J({'success': False, 'error': f'Memory is full ({limit} characters). Forget an entry first.'}, 400)
             s.kv_put('memory', mem)
             return J({'success': True, 'message': {'add': 'Added', 'replace': 'Updated', 'remove': 'Forgotten'}[action], 'demo': True})
@@ -1433,8 +1701,15 @@ class Backend:
 
     # ------------------------------------------------------------ skills, plugins, MCP, restart
     def hub(self, s):
-        return self.kv(s, 'hub', lambda: {'skills': {'default': {C.HUB_SEED_INSTALLED['identifier']: dict(C.HUB_SEED_INSTALLED['entry'])}, 'research': {}},
-                                          'plugins': {}, 'mcp': {}, 'jobs': {}})
+        hub = self.kv(s, 'hub', lambda: {'skills': {'default': {C.HUB_SEED_INSTALLED['identifier']: dict(C.HUB_SEED_INSTALLED['entry'])}, 'research': {}},
+                                         'plugins': {}, 'mcp': {}, 'jobs': {}})
+        if not hub.get('plugins_seeded'):
+            # An installed plugin one release behind the catalogue, so Update (with its capability consent) is reachable.
+            for name, entry in C.HUB_SEED_PLUGINS.items():
+                hub['plugins'].setdefault(name, dict(entry))
+            hub['plugins_seeded'] = True
+            s.kv_put('hub', hub)
+        return hub
 
     def skills(self, s):
         base = self.kv(s, 'skills', lambda: [{**x, 'enabled': True} for x in C.SKILLS])
@@ -1548,7 +1823,19 @@ class Backend:
         return J({'ok': True, 'reply': reply})
 
     # ------------------------------------------------------------ Hub (synthetic catalogue, synthetic jobs)
+    @staticmethod
+    def job_key(kind, profile, effect):
+        return (kind, profile or 'default', effect.get('ident') or effect['name'])
+
     def hub_job(self, s, hub, kind, action, target, profile, effect):
+        # One running job per item: the same action returns the job in flight (as production does); a different
+        # action waits, so a remove can never overtake an update of the same item.
+        key = self.job_key(kind, profile, effect)
+        for j in hub['jobs'].values():
+            if j['state'] == 'running' and self.job_key(j['kind'], j['profile'], j['effect']) == key:
+                if j['action'] == action:
+                    return j
+                raise Refused(f"A {j['action']} of {target} is still running. Try again when it finishes.", 409)
         job = {'id': 'hj-' + secrets.token_hex(6), 'kind': kind, 'action': action, 'target': target, 'profile': profile or 'default',
                'state': 'running', 'started': time.time(), 'ended': None, 'log': f'Synthetic {action} of {target}: nothing is downloaded or run.',
                'error': '', 'result': None, 'effect': effect}
@@ -1561,58 +1848,68 @@ class Backend:
     def job_out(job):
         return {k: v for k, v in job.items() if k != 'effect'}
 
+    def hub_apply(self, hub, job):
+        """One job's effect. Returns (state, result, log lines); a missing target fails the job, never the Hub."""
+        e = job['effect']
+        now = datetime.now().isoformat(timespec='seconds')
+        gone = (e['op'] in ('skill_update', 'skill_uninstall') and e['ident'] not in hub['skills'].get(e['profile'], {})) or \
+               (e['op'] in ('plugin_update', 'plugin_remove') and e['name'] not in hub['plugins']) or \
+               (e['op'] == 'mcp_remove' and e['name'] not in hub['mcp'])
+        if gone:
+            return 'failed', {'ok': False}, [f"{e['name']} was removed before this {job['action']} finished."]
+        if e['op'] == 'skill_install':
+            hub['skills'].setdefault(e['profile'], {})[e['ident']] = {'name': e['name'], 'trust_level': e['trust'], 'scan_verdict': e['verdict'],
+                                                                      'source': e['source'], 'installed_at': now, 'updated_at': None,
+                                                                      'version': e['version'], 'enabled': True}
+            return 'ok', {'ok': True}, ['Security scan: ' + e['verdict'], f"Installed {e['name']} into {e['profile']} (synthetic)"]
+        if e['op'] == 'skill_update':
+            hub['skills'][e['profile']][e['ident']].update(version=e['version'], updated_at=now)
+            return 'ok', {'ok': True}, [f"Updated {e['name']} to {e['version']} (synthetic)"]
+        if e['op'] == 'skill_uninstall':
+            hub['skills'][e['profile']].pop(e['ident'])
+            return 'ok', {'ok': True}, [f"Removed {e['name']} (synthetic)"]
+        if e['op'] == 'plugin_install':
+            c = C.hub_plugin(e['name'])
+            hub['plugins'][e['name']] = {'sha': c['sha'], 'version': c['version'], 'configured': True, 'loaded': False}
+            return 'ok', {'ok': True, 'plugin_name': e['name'], 'warnings': ['Synthetic install: no code was downloaded.'],
+                          'python_dependencies': [], 'missing_env': c.get('capabilities', {}).get('requires_env', []), 'enabled': True,
+                          'gateway_reloaded': False, 'activation': 'restart', 'restart_required': True,
+                          'known_issues': c.get('known_issues', [])}, [f"Installed plugin {e['name']} (synthetic)", 'Restart Hermes to load it.']
+        if e['op'] == 'plugin_update':
+            c = C.hub_plugin(e['name'])
+            if c.get('update_adds') and not e.get('accept'):
+                error = f"Updating '{e['name']}' to {c['sha'][:8]} adds {c['update_adds']}. Confirm to continue."
+                job['error'] = error
+                return 'consent', {'ok': False, 'consent_required': True, 'name': e['name'], 'sha': c['sha'], 'error': error,
+                                   'delta': {}, 'delta_lines': [c['update_adds']]}, []
+            hub['plugins'][e['name']].update(sha=c['sha'], version=c['version'], loaded=False)
+            return 'ok', {'ok': True, 'name': e['name'], 'sha': c['sha'], 'unchanged': False, 'restart_required': True}, \
+                [f"Updated plugin {e['name']} to {c['version']} (synthetic)", 'Restart Hermes to load it.']
+        if e['op'] == 'plugin_remove':
+            hub['plugins'].pop(e['name'])
+            return 'ok', {'ok': True, 'restart_required': True}, [f"Removed plugin {e['name']} (synthetic)"]
+        if e['op'] == 'mcp_install':
+            c = C.hub_mcp(e['name'])
+            hub['mcp'][e['name']] = {'configured': True, 'loaded': False, 'tools': c.get('tools', 2), 'env_keys': e['env_keys']}
+            return 'ok', {'ok': True, 'error': '', 'post_install': c.get('post_install', '')}, \
+                [f"Added MCP server {e['name']} (synthetic). Credentials are discarded, never stored."]
+        hub['mcp'].pop(e['name'])
+        return 'ok', {'ok': True}, [f"Removed MCP server {e['name']} (synthetic)"]
+
     def hub_settle(self, s):
         """Finish synthetic jobs whose time has come and apply their effect to tenant state."""
         hub = self.hub(s)
         changed = False
-        for job in hub['jobs'].values():
+        for job in sorted(hub['jobs'].values(), key=lambda j: j['started']):
             if job['state'] != 'running' or time.time() - job['started'] < self.JOB_SECONDS:
                 continue
-            e, changed = job['effect'], True
-            state, result, log = 'ok', {'ok': True}, []
-            if e['op'] == 'skill_install':
-                hub['skills'].setdefault(e['profile'], {})[e['ident']] = {'name': e['name'], 'trust_level': e['trust'], 'scan_verdict': e['verdict'],
-                                                                          'source': e['source'], 'installed_at': datetime.now().isoformat(timespec='seconds'),
-                                                                          'updated_at': None, 'version': e['version'], 'enabled': True}
-                log = ['Security scan: ' + e['verdict'], f"Installed {e['name']} into {e['profile']} (synthetic)"]
-            elif e['op'] == 'skill_update':
-                entry = hub['skills'].get(e['profile'], {}).get(e['ident'])
-                if entry:
-                    entry.update(version=e['version'], updated_at=datetime.now().isoformat(timespec='seconds'))
-                log = [f"Updated {e['name']} to {e['version']} (synthetic)"]
-            elif e['op'] == 'skill_uninstall':
-                hub['skills'].get(e['profile'], {}).pop(e['ident'], None)
-                log = [f"Removed {e['name']} (synthetic)"]
-            elif e['op'] == 'plugin_install':
-                c = C.hub_plugin(e['name'])
-                hub['plugins'][e['name']] = {'sha': c['sha'], 'version': c['version'], 'configured': True, 'loaded': False}
-                result = {'ok': True, 'plugin_name': e['name'], 'warnings': ['Synthetic install: no code was downloaded.'],
-                          'python_dependencies': [], 'missing_env': c.get('capabilities', {}).get('requires_env', []), 'enabled': True,
-                          'gateway_reloaded': False, 'activation': 'restart', 'restart_required': True, 'known_issues': c.get('known_issues', [])}
-                log = [f"Installed plugin {e['name']} (synthetic)", 'Restart Hermes to load it.']
-            elif e['op'] == 'plugin_update':
-                c = C.hub_plugin(e['name'])
-                if c.get('update_adds') and not e.get('accept'):
-                    state = 'consent'
-                    result = {'ok': False, 'consent_required': True, 'name': e['name'], 'sha': c['sha'],
-                              'error': f"Updating '{e['name']}' to {c['sha'][:8]} adds {c['update_adds']}. Confirm to continue.",
-                              'delta': {}, 'delta_lines': [c['update_adds']]}
-                    job['error'] = result['error']
-                else:
-                    hub['plugins'][e['name']].update(sha=c['sha'], version=c['version'], loaded=False)
-                    result = {'ok': True, 'name': e['name'], 'sha': c['sha'], 'unchanged': False}
-                    log = [f"Updated plugin {e['name']} to {c['version']} (synthetic)", 'Restart Hermes to load it.']
-            elif e['op'] == 'plugin_remove':
-                hub['plugins'].pop(e['name'], None)
-                log = [f"Removed plugin {e['name']} (synthetic)"]
-            elif e['op'] == 'mcp_install':
-                c = C.hub_mcp(e['name'])
-                hub['mcp'][e['name']] = {'configured': True, 'loaded': False, 'tools': c.get('tools', 2), 'env_keys': e['env_keys']}
-                result = {'ok': True, 'error': '', 'post_install': c.get('post_install', '')}
-                log = [f"Added MCP server {e['name']} (synthetic). Credentials are discarded, never stored."]
-            elif e['op'] == 'mcp_remove':
-                hub['mcp'].pop(e['name'], None)
-                log = [f"Removed MCP server {e['name']} (synthetic)"]
+            changed = True
+            try:
+                state, result, log = self.hub_apply(hub, job)
+            except (KeyError, TypeError, ValueError) as e:
+                state, result, log = 'failed', {'ok': False}, [f'The synthetic job could not finish ({type(e).__name__}).']
+            if state == 'failed':
+                job['error'] = log[0]
             job.update(state=state, ended=time.time(), result=result, log=job['log'] + '\n' + '\n'.join(log))
         if changed:
             s.kv_put('hub', hub)
@@ -1855,12 +2152,28 @@ class Backend:
                                'recheck_min': 10, 'checkin_min': 2, 'answer_min': 5, 'escalate_min': 30, 'level_base': 1,
                                'level_auto': True, 'level_since': time.time()},
                     'last_fired': {}, 'session': None, 'photos': [],
-                    'pw': {'salt': salt, 'hash': self.pw_hash(REVIEW_PASSWORD, salt)}}
+                    'pw': {'alg': 'sha256', 'salt': salt, 'hash': self.pw_hash(REVIEW_PASSWORD, salt)}}
         return self.kv(s, 'wake', make)
 
     @staticmethod
     def pw_hash(pw, salt):
-        return hashlib.pbkdf2_hmac('sha256', pw.encode(), bytes.fromhex(salt), 200_000).hex()
+        # The default password is published on /review, so a slow KDF protects nothing and would stall the event loop.
+        return hashlib.sha256(bytes.fromhex(salt) + pw.encode()).hexdigest()
+
+    async def pw_ok(self, did, w, pw):
+        """Constant-time check; sandboxes created before the change still hold a PBKDF2 hash, checked off the loop."""
+        rec = w['pw']
+        if rec.get('alg') == 'sha256':
+            return hmac.compare_digest(self.pw_hash(pw, rec['salt']), rec['hash'])
+        if self.over('pw', did, self.MAX_PW_TRIES, window=60):
+            raise Refused('Too many password attempts. Wait a minute.', 429)
+        self.count('pw', did)
+        legacy = await asyncio.to_thread(hashlib.pbkdf2_hmac, 'sha256', pw.encode(), bytes.fromhex(rec['salt']), 200_000)
+        if not hmac.compare_digest(legacy.hex(), rec['hash']):
+            return False
+        salt = secrets.token_hex(16)
+        w['pw'] = {'alg': 'sha256', 'salt': salt, 'hash': self.pw_hash(pw, salt)}
+        return True
 
     def wake_tz(self, w):
         try:
@@ -1904,22 +2217,29 @@ class Backend:
                 if a['id'] == alarm_id and not a.get('days'):
                     a['on'] = False
 
+    def wake_summary(self, s, w, x):
+        """The Wake chat summary, posted the moment the morning is done (as the app's result screen promises)."""
+        if x.get('summarized'):
+            return
+        x['summarized'] = True
+        hhmm = datetime.fromtimestamp(x['fire'], self.wake_tz(w)).strftime('%H:%M')
+        lines = [f"**Wake {hhmm}**: awake, proof: {(x['proof'] or {}).get('kind', '-')}. (synthetic)"]
+        if x.get('answers'):
+            lines.append(f"\n## {x['content']['title']}\n")
+            for i, q in enumerate(x['content']['questions']):
+                fb = (x.get('feedback') or [{}] * 5)[i]
+                lines.append(f"**{i + 1}. {q}**\nYou: {x['answers'][i] or '(blank)'}\n{fb.get('verdict', '')}: {fb.get('note', '')}\n")
+        s.add_message('wake', 'agent', '\n'.join(lines), meta={'demo': True}, title='Wake', chat_kind='digest')
+
     def wake_close(self, s, w, outcome):
         x = w['session']
         w['session'] = None
-        if outcome in ('awake', 'override'):
+        if outcome == 'awake':
+            self.wake_summary(s, w, x)
+        elif outcome == 'override':
             hhmm = datetime.fromtimestamp(x['fire'], self.wake_tz(w)).strftime('%H:%M')
-            if outcome == 'override':
-                text = f'**Wake {hhmm}**: stopped with the emergency password. Nobody was messaged. ({NOTE})'
-            else:
-                lines = [f"**Wake {hhmm}**: awake, proof: {(x['proof'] or {}).get('kind', '-')}. (synthetic)"]
-                if x.get('answers'):
-                    lines.append(f"\n## {x['content']['title']}\n")
-                    for i, q in enumerate(x['content']['questions']):
-                        fb = (x.get('feedback') or [{}] * 5)[i]
-                        lines.append(f"**{i + 1}. {q}**\nYou: {x['answers'][i] or '(blank)'}\n{fb.get('verdict', '')}: {fb.get('note', '')}\n")
-                text = '\n'.join(lines)
-            s.add_message('wake', 'agent', text, meta={'demo': True}, title='Wake', chat_kind='digest')
+            s.add_message('wake', 'agent', f'**Wake {hhmm}**: stopped with the emergency password. Nobody was messaged. ({NOTE})',
+                          meta={'demo': True}, title='Wake', chat_kind='digest')
 
     def wake_tick(self, s, w):
         """Advance the alarm state lazily whenever the phone asks. No timers run in the sandbox."""
@@ -2070,9 +2390,11 @@ class Backend:
             out = {'ok': ok, 'reason': 'Correct. Good morning.' if ok else 'Not quite. Try once more.', 'correct': ok, 'note': f'Expected: {ans}'}
             if ok:
                 x['done'] = now
+                self.wake_summary(s, w, x)
         else:
             if kind == 'read':
-                answers = [str(a or '').strip() for a in (b.get('answers') or [])][:5]
+                raw = b.get('answers') if isinstance(b.get('answers'), list) else []
+                answers = [str(a or '').strip()[:500] for a in raw[:5]]  # slice before building anything
                 answers += [''] * (5 - len(answers))
                 topic = next(t for t in C.WAKE_READINGS if t['title'] == x['content']['title'])
                 fb = []
@@ -2098,7 +2420,9 @@ class Backend:
                     w['photos'] = [*w['photos'], digest][-20:]
                     out = {'ok': True, 'reason': f'Photo received ({len(data) // 1024} KB). The sandbox accepts any new photo; no image analysis runs.'}
             else:
-                steps = sorted(float(t) for t in (b.get('steps') or [])[:5000])
+                raw = b.get('steps') if isinstance(b.get('steps'), list) else []
+                steps = sorted(float(v) for v in raw[:5000] if isinstance(v, (int, float)) and not isinstance(v, bool)
+                               and math.isfinite(v) and abs(v - now) < 86400)
                 need = 30 + 10 * (x['step'] - 1)
                 span = steps[-1] - steps[0] if len(steps) > 1 else 0
                 if len(steps) < need:
@@ -2135,7 +2459,7 @@ class Backend:
         b = await self.body(r)
         if not w['session']:
             return J({'ok': False, 'reason': 'No alarm is running.'})
-        if not hmac.compare_digest(self.pw_hash(str(b.get('password') or ''), w['pw']['salt']), w['pw']['hash']):
+        if not await self.pw_ok(r['device']['id'], w, str(b.get('password') or '')[:200]):
             return J({'ok': False, 'reason': 'Wrong password.'})
         self.wake_close(s, w, 'override')
         self.wake_save(s, w)
@@ -2145,13 +2469,13 @@ class Backend:
         s = r['store']
         w = self.wake(s)
         b = await self.body(r)
-        if not hmac.compare_digest(self.pw_hash(str(b.get('old') or ''), w['pw']['salt']), w['pw']['hash']):
+        if not await self.pw_ok(r['device']['id'], w, str(b.get('old') or '')[:200]):
             return J({'ok': False, 'reason': 'Current password is wrong.'})
         new = str(b.get('new') or '')
-        if len(new) < 8:
-            return J({'ok': False, 'reason': 'Use at least 8 characters.'})
+        if not 8 <= len(new) <= 200:
+            return J({'ok': False, 'reason': 'Use 8 to 200 characters.'})
         salt = secrets.token_hex(16)
-        w['pw'] = {'salt': salt, 'hash': self.pw_hash(new, salt)}
+        w['pw'] = {'alg': 'sha256', 'salt': salt, 'hash': self.pw_hash(new, salt)}
         self.wake_save(s, w)
         return J({'ok': True})
 
@@ -2210,8 +2534,11 @@ class Backend:
             mode, prompt = b.get('mode'), str(b.get('prompt') or f['prompt']).strip()[:6000]
             if mode not in ('chat', 'task'):
                 return E('mode must be chat or task')
+            if sum(x['spawned'] for x in rd['findings']) >= self.MAX_SPAWNS:
+                return E(f'This sandbox allows {self.MAX_SPAWNS} Radar spawns. Get a fresh pairing link for a clean sandbox.', 409)
             out = {'ok': True}
             if mode == 'chat':
+                self.room_for_chat(s)
                 chat = s.ensure_chat(S.new_id('c'), ('Radar: ' + f['title'])[:80])
                 full = f"{prompt}\n\n---\nFrom Radar finding {fid} ({C.RADAR_TYPES.get(f['type'], f['type'])}): {f['title']}\nWhy: {f['why']}"
                 s.add_message(chat['id'], 'user', full, meta={'demo': True})
@@ -2401,7 +2728,7 @@ class Backend:
                 raise ValueError('duplicate key')
             return dict(pairs)
         try:
-            body = json.loads(raw.decode('utf-8'), object_pairs_hook=no_dupes)
+            body = json.loads(raw.decode('utf-8'), object_pairs_hook=no_dupes, parse_constant=reject_constant)
             action = body.get('action') if isinstance(body, dict) else None
             fields = {'key': {'action', 'key', 'shift', 'ctrl', 'alt'}, 'click': {'action', 'row', 'col', 'frame'},
                       'scroll': {'action', 'direction', 'amount', 'frame'}}
@@ -2569,7 +2896,9 @@ class Backend:
         did = r.match_info['did']
         if did != r['device']['id']:
             return E('not found', 404)
-        return J({'ok': self.auth.revoke(did)})
+        ok = self.auth.revoke(did)
+        self.retire(did)  # streams close, replies stop, then the sandbox's store closes and its data is deleted
+        return J({'ok': ok})
 
     async def h_push_config(self, r):
         return J({'enabled': False, 'config': {}})
@@ -2578,8 +2907,9 @@ class Backend:
         return J({'ok': True, 'push': False})  # Deliberately discard token.
 
     async def h_capabilities(self, r):
+        # surfaces_complete only says no known Play surface is unsupported here; hosting and device checks are separate.
         return J({'demo': True, 'unsupported': UNSUPPORTED, 'limits': LIMITS, 'surfaces': sorted({f'{m} {p}' for m, p, _ in self.routes()}),
-                  'submission_ready': not UNSUPPORTED})
+                  'surfaces_complete': not UNSUPPORTED})
 
     async def unsupported(self, r):
         return J({'error': 'Unsupported in synthetic review sandbox', 'demo': True, 'surface': r.path}, 501)
@@ -2636,8 +2966,8 @@ class Backend:
         ]
 
     def app(self):
-        # Uploads and photo proofs may be larger than ordinary JSON; the middleware keeps 1 MiB for everything else.
-        app = web.Application(middlewares=[self.auth_mw], client_max_size=MAX_UPLOAD)
+        # 1 MiB for every request; the middleware lifts it only for BIG_BODY_PATHS.
+        app = web.Application(middlewares=[self.auth_mw], client_max_size=MAX_BODY)
         app.router.add_get('/v1/health', self.public)
         app.router.add_get('/review', self.public)
         app.router.add_get('/review/pr', self.public)
@@ -2648,13 +2978,24 @@ class Backend:
             app.router.add_route(method, path, handler)
         app.router.add_route('*', '/{path:.*}', self.unsupported)
 
+        async def startup(app):
+            self.sweep_task = asyncio.get_running_loop().create_task(self.sweeper())
+        app.on_startup.append(startup)
+
+        async def shutdown(app):
+            # Open event streams would otherwise hold Ctrl-C/SIGTERM for the whole shutdown timeout.
+            self.shutting = True
+            for did in list(self.listeners):
+                self.notify(did)
+        app.on_shutdown.append(shutdown)
+
         async def close(app):
-            tasks = [t for rt in self.rt.values() for t in [*rt['tasks'].values(), *rt['session_tasks'].values(),
-                                                            *(x for g in rt.get('all', {}).values() for x in g)] if not t.done()]
+            self.sweep_task.cancel()
+            tasks = [t for did in list(self.rt) for t in self.tenant_tasks(did) if not t.done()]
             for t in tasks:
                 t.cancel()
             # Let cancelled replies record their stop line before the databases close.
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(self.sweep_task, *tasks, *list(self.bg), return_exceptions=True)
             for s in [self.auth, *self.stores.values()]:
                 s._db.close()
         app.on_cleanup.append(close)
