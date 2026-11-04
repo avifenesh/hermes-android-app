@@ -236,6 +236,25 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Persists across restart', d['memory']['entries'])
         self.assertEqual(len((await self.call('GET', '/v1/chats'))[1]['chats']), 3)
 
+    async def test_android_contracts_for_files_and_sessions(self):
+        """Shapes the shipping app actually renders: file chips need meta.media; session rows need id/position."""
+        _, d = await self.call('GET', '/v1/sync?since=0')
+        files = [m for m in d['messages'] if m['kind'] == 'file']
+        self.assertEqual(len(files), 1)
+        media = files[0]['meta'].get('media')
+        self.assertEqual(media, 'checklist.txt')
+        self.assertEqual((await self.call('GET', '/v1/media/' + media))[1], self.backend.sample_file())
+        status, d = await self.call('GET', '/v1/sessions/c-welcome/messages')
+        self.assertEqual(status, 200)
+        rows = d['messages']
+        self.assertGreaterEqual(len(rows), 2)
+        self.assertEqual(len({m['id'] for m in rows}), len(rows))
+        self.assertEqual([m['position'] for m in rows], list(range(len(rows))))
+        # A write to the read-only session view must not report success without storing anything.
+        status, d = await self.call('PUT', '/v1/sessions/c-welcome/messages', {'text': 'reviewer draft'})
+        self.assertEqual(status, 501)
+        self.assertEqual(len((await self.call('GET', '/v1/sessions/c-welcome/messages'))[1]['messages']), len(rows))
+
     async def test_explicit_limits_and_no_auth_bypass(self):
         self.assertEqual((await self.raw('GET', '/v1/sync'))[0], 401)
         for p in ['/v1/tts', '/v1/restart', '/v1/settings', '/v1/wake', '/v1/hub/skills/install', '/v1/fleet/x/input', '/v1/cronjob']:

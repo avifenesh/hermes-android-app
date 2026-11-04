@@ -123,7 +123,7 @@ class Backend:
             s.add_message(cid, 'agent', answer, meta={'demo': True})
         s.update_chat('c-welcome', pinned=1)
         s.add_message('c-planning', 'agent', 'Download the synthetic checklist.', kind='file',
-                      meta={'id': 'checklist.txt', 'kind': 'file', 'file_name': 'checklist.txt', 'mime': 'text/plain', 'size': len(self.sample_file())})
+                      meta={'id': 'checklist.txt', 'media': 'checklist.txt', 'kind': 'file', 'file_name': 'checklist.txt', 'mime': 'text/plain', 'size': len(self.sample_file())})
         s.add_approval('c-welcome', 'demo', 'demo: confirm checklist',
                        'Synthetic approval. Nothing will execute.', ['once', 'deny'])
         s.kv_put('jobs', [{'id': 'demo-digest', 'name': 'Synthetic morning digest', 'schedule': '0 9 * * *',
@@ -298,8 +298,10 @@ class Backend:
             out = {'results': [{'session_id': c['id'], 'chat_id': c['id'], 'source': 'demo', 'title': c['title'], 'role': m['role'], 'snippet': m['content'], 'content': m['content'], 'timestamp': m['ts']} for c in s.list_chats(True) for m in s.messages(c['id']) if q and q in m['content'].lower()][:50]}
         elif p == '/v1/sessions':
             out = {'sessions': [{'id': c['id'], 'source': 'demo', 'title': c['title'], 'model': 'synthetic-demo', 'started_at': c['created'], 'ended_at': c['updated'], 'cost': 0} for c in s.list_chats(True)]}
-        elif len(parts) == 4 and parts[1] == 'sessions' and parts[3] == 'messages':
-            out = {'messages': [{'role': 'assistant' if m['role'] == 'agent' else m['role'], 'content': m['content'], 'timestamp': m['ts']} for m in s.messages(parts[2])]}
+        elif len(parts) == 4 and parts[1] == 'sessions' and parts[3] == 'messages' and method == 'GET':
+            # Read-only view: writes fall through to the explicit 501. id/position match what the app keys rows by.
+            out = {'messages': [{'id': m['id'], 'position': i, 'role': 'assistant' if m['role'] == 'agent' else m['role'],
+                                 'content': m['content'], 'timestamp': m['ts']} for i, m in enumerate(s.messages(parts[2]))]}
         elif len(parts) == 3 and parts[1] == 'approvals' and method == 'POST':
             aid, choice = parts[2], b.get('choice')
             a = s.get_approval(aid)
