@@ -37,7 +37,7 @@
     <string name="channel_battery_body">Manche Smartphones beenden die Hintergrundverbindung. Erlaube %1$s die uneingeschränkte Ausführung.</string>
 
     <!-- ===== Opening attachments (full edition) ===== -->
-    <string name="channel_allow_unknown_apps">Erlaube „Unbekannte Apps installieren“ für %1$s und tippe dann erneut auf die Datei</string>
+    <string name="channel_allow_unknown_apps">Erlaube „Installieren unbekannter Apps“ für %1$s und tippe dann erneut auf die Datei</string>
     <string name="alarm_exact_off_sub">Lokale Wecker werden nicht geplant. Erlaube exakte Wecker, bevor du dich auf Wake verlässt.</string>
     <string name="notify_channel_live">Live-Läufe &amp; Verbindung</string>
     <string name="notify_channel_live_info">Fortschritt von Läufen und die Hintergrundverbindung</string>

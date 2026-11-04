@@ -23,7 +23,7 @@
     <string name="channel_tab_control">التحكم</string>
     <string name="channel_control_section">تحكم الوكيل في الهاتف</string>
     <string name="channel_battery_title">تحسين البطارية</string>
-    <string name="channel_battery_body">تُنهي بعض الهواتف الاتصال في الخلفية. اسمح لـ %1$s بالعمل دون قيود.</string>
+    <string name="channel_battery_body">تُنهي بعض الهواتف الاتصال في الخلفية. اسمح لـ %1$s بـ «الاستخدام غير المحدّد بقيود».</string>
     <string name="channel_allow_unknown_apps">اسمح بـ «تثبيت التطبيقات غير المعروفة» لـ %1$s، ثم انقر على الملف مرة أخرى</string>
     <string name="alarm_exact_off_sub">لم تتم جدولة المنبّهات المحلية. اسمح بالمنبّهات الدقيقة قبل الاعتماد على «الاستيقاظ».</string>
     <string name="notify_channel_live">التشغيلات المباشرة والاتصال</string>

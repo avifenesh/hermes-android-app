@@ -1561,7 +1561,7 @@
     <string name="alarm_notifications_attention_sub">Разрешите уведомления %1$s и задайте категории уведомлений «Будильник» высокую важность, чтобы экран доказательства был доступен.</string>
     <string name="alarm_fullscreen_off">Полноэкранные будильники отключены</string>
     <string name="alarm_fullscreen_off_sub">«Подъём» может звонить, но Android может показать только уведомление. Разрешите полноэкранные уведомления, чтобы доказательства показывались поверх экрана блокировки.</string>
-    <string name="alarm_battery_on">Оптимизация батареи включена</string>
+    <string name="alarm_battery_on">Экономия заряда батареи включена</string>
     <string name="alarm_battery_on_sub">Точные будильники всё равно сработают. Фоновая синхронизация может задерживаться; проверьте настройки батареи, если напоминания приходят с опозданием.</string>
     <string name="alarm_battery_review">Проверить</string>
     <string name="alarm_section_alarms">Будильники</string>

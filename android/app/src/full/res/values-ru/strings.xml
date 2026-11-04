@@ -7,7 +7,7 @@
     <string name="phone_control_stop">Остановить управление</string>
     <string name="phone_control_accessibility_service">Служба специальных возможностей</string>
     <string name="phone_control_service_enabled">Включено в настройках Android.</string>
-    <string name="phone_control_service_disabled">Включите «Управление телефоном %1$s» в разделе «Специальные возможности» настроек Android.</string>
+    <string name="phone_control_service_disabled">Включите «Управление телефоном %1$s» в разделе «Спец. возможности» настроек Android.</string>
     <string name="phone_control_allow">Разрешить агенту управлять телефоном</string>
     <string name="phone_control_allow_on">Включено. Агент может читать экран, нажимать, вводить текст, проводить по экрану и открывать приложения.</string>
     <string name="phone_control_allow_off">Выключено. Содержимое экрана и команды не передаются.</string>
@@ -22,7 +22,7 @@
     <string name="phone_control_confirming">Подтвердите отпечатком пальца или PIN-кодом…</string>
     <string name="channel_tab_control">Управление</string>
     <string name="channel_control_section">Управление телефоном агентом</string>
-    <string name="channel_battery_title">Оптимизация батареи</string>
+    <string name="channel_battery_title">Экономия заряда батареи</string>
     <string name="channel_battery_body">Некоторые телефоны обрывают фоновое подключение. Разрешите %1$s работать без ограничений.</string>
     <string name="channel_allow_unknown_apps">Включите для %1$s параметр «Установка неизвестных приложений» и снова нажмите на файл</string>
     <string name="alarm_exact_off_sub">Локальные будильники не запланированы. Разрешите точные будильники, прежде чем полагаться на «Подъём».</string>

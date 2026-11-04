@@ -4,7 +4,7 @@
     <string name="channel_control_unavailable_title">Недоступно в этой версии</string>
     <string name="channel_control_unavailable_body">Версия для Play не может читать другие приложения или управлять ими. Удалённые команды не могут включить эту возможность.</string>
     <string name="channel_background_title">Фоновая доставка</string>
-    <string name="channel_background_body">Оптимизация батареи Android остаётся включённой. Push-уведомления (если настроены) и периодическая синхронизация работают; фоновая доставка может задерживаться.</string>
+    <string name="channel_background_body">Экономия заряда батареи в Android остаётся включённой. Push-уведомления (если настроены) и периодическая синхронизация работают; фоновая доставка может задерживаться.</string>
     <string name="phone_settings_push_on_gateway">Включено. Google будит телефон, а содержимое приходит напрямую от вашего gateway.</string>
     <string name="phone_settings_push_off_gateway">Не настроено на вашем gateway.</string>
     <string name="phone_settings_run_progress">Ход запусков</string>

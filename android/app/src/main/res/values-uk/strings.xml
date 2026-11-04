@@ -1566,8 +1566,8 @@
     <string name="alarm_notifications_attention_sub">Дозвольте сповіщення %1$s і встановіть для каналу «Будильник пробудження» високу важливість, щоб екран доказу був доступний.</string>
     <string name="alarm_fullscreen_off">Повноекранні будильники вимкнено</string>
     <string name="alarm_fullscreen_off_sub">Пробудження може дзвонити, але Android може показати лише сповіщення. Дозвольте повноекранні будильники, щоб докази з\'являлися на заблокованому екрані.</string>
-    <string name="alarm_battery_on">Оптимізацію батареї ввімкнено</string>
-    <string name="alarm_battery_on_sub">Точні будильники все одно спрацюють. Фонова синхронізація може затримуватися; перегляньте налаштування батареї, якщо нагадування надходять із запізненням.</string>
+    <string name="alarm_battery_on">Оптимізацію акумулятора ввімкнено</string>
+    <string name="alarm_battery_on_sub">Точні будильники все одно спрацюють. Фонова синхронізація може затримуватися; перегляньте налаштування акумулятора, якщо нагадування надходять із запізненням.</string>
     <string name="alarm_battery_review">Переглянути</string>
     <string name="alarm_section_alarms">Будильники</string>
     <string name="alarm_once">Один раз</string>

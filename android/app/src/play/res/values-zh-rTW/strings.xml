@@ -4,7 +4,7 @@
     <string name="channel_control_unavailable_title">這個版本無法使用</string>
     <string name="channel_control_unavailable_body">Play 版無法讀取或操作其他應用程式。遠端指令也無法啟用這項功能。</string>
     <string name="channel_background_title">背景傳送</string>
-    <string name="channel_background_body">Android 電池最佳化會保持啟用。推播（若已設定）和定期同步仍可使用；背景傳送可能會延遲。</string>
+    <string name="channel_background_body">Android 電池效能最佳化會保持啟用。推播（若已設定）和定期同步仍可使用；背景傳送可能會延遲。</string>
     <string name="phone_settings_push_on_gateway">開啟。由 Google 喚醒手機，內容直接來自你的 Gateway。</string>
     <string name="phone_settings_push_off_gateway">尚未在你的 Gateway 上設定。</string>
     <string name="phone_settings_run_progress">執行進度</string>

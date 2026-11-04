@@ -4,7 +4,7 @@
     <string name="channel_control_unavailable_title">לא זמין במהדורה הזו</string>
     <string name="channel_control_unavailable_body">מהדורת Play הזו לא יכולה לקרוא אפליקציות אחרות או להפעיל אותן. פקודות מרחוק לא יכולות להפעיל את היכולת הזו.</string>
     <string name="channel_background_title">קבלת עדכונים ברקע</string>
-    <string name="channel_background_body">אופטימיזציית הסוללה של Android נשארת פעילה. Push (אם הוגדר) וסנכרון תקופתי ממשיכים לפעול; קבלת עדכונים ברקע עלולה להתעכב.</string>
+    <string name="channel_background_body">האופטימיזציה של הסוללה ב-Android נשארת פעילה. Push (אם הוגדר) וסנכרון תקופתי ממשיכים לפעול; קבלת עדכונים ברקע עלולה להתעכב.</string>
     <string name="phone_settings_push_on_gateway">פועל. הטלפון מתעורר דרך Google, והתוכן מגיע ישירות מה-gateway שלך.</string>
     <string name="phone_settings_push_off_gateway">לא הוגדר ב-gateway שלך.</string>
     <string name="phone_settings_run_progress">התקדמות הריצות</string>

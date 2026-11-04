@@ -22,8 +22,8 @@
     <string name="phone_control_confirming">Erősítse meg ujjlenyomattal vagy PIN-kóddal…</string>
     <string name="channel_tab_control">Vezérlés</string>
     <string name="channel_control_section">Ügynöki telefonvezérlés</string>
-    <string name="channel_battery_title">Akkumulátor-optimalizálás</string>
-    <string name="channel_battery_body">Egyes telefonok leállítják a háttérkapcsolatot. Engedélyezze, hogy %1$s korlátozás nélkül fusson.</string>
+    <string name="channel_battery_title">Akkumulátoroptimalizálás</string>
+    <string name="channel_battery_body">Egyes telefonok leállítják a háttérkapcsolatot. Engedélyezze, hogy %1$s korlátlanul fusson.</string>
     <string name="channel_allow_unknown_apps">Engedélyezze az „Ismeretlen alkalmazások telepítése” beállítást ehhez: %1$s, majd koppintson újra a fájlra</string>
     <string name="alarm_exact_off_sub">A helyi ébresztések nincsenek ütemezve. Engedélyezze a pontos ébresztéseket, mielőtt az Ébresztésre hagyatkozna.</string>
     <string name="notify_channel_live">Élő futtatások és kapcsolat</string>

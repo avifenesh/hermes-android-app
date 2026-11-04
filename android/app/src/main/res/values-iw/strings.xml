@@ -1581,7 +1581,7 @@
     <string name="alarm_notifications_attention_sub">צריך לאפשר התראות של %1$s ולהגדיר לערוץ \"השכמה\" חשיבות גבוהה, כדי שמסך ההוכחה יהיה נגיש.</string>
     <string name="alarm_fullscreen_off">התראות במסך מלא כבויות</string>
     <string name="alarm_fullscreen_off_sub">ההשכמה יכולה לצלצל, אבל ייתכן ש-Android יציג רק התראה. כדי להציג הוכחות מעל מסך הנעילה, צריך לאפשר התראות במסך מלא.</string>
-    <string name="alarm_battery_on">אופטימיזציית הסוללה פועלת</string>
+    <string name="alarm_battery_on">האופטימיזציה של הסוללה פועלת</string>
     <string name="alarm_battery_on_sub">שעונים מעוררים מדויקים עדיין יכולים לפעול. סנכרון ברקע עלול להתעכב; אם תזכורות מגיעות באיחור, כדאי לבדוק את הגדרות הסוללה.</string>
     <string name="alarm_battery_review">בדיקה</string>
     <string name="alarm_section_alarms">שעונים מעוררים</string>

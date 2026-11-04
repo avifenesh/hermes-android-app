@@ -1432,7 +1432,7 @@
     <string name="wake_offline_wrong">Verkeerd, nuwe een</string>
     <string name="alarm_proof_permissions_denied">Jy kan leesbewys sonder hierdie toestemmings gebruik. Aktiveer kamera of aktiwiteit in Android se programinstellings om daardie bewyse te gebruik.</string>
     <string name="alarm_proof_permissions_denied_no_camera">Jy kan lees- of fotobewys sonder hierdie toestemming gebruik. Aktiveer fisieke aktiwiteit in Android se programinstellings om treebewys te gebruik.</string>
-    <string name="alarm_open_app_settings">Maak Android-instellings &gt; Programme &gt; %1$s oop om hierdie toestemming te verander.</string>
+    <string name="alarm_open_app_settings">Maak Android-instellings &gt; Apps &gt; %1$s oop om hierdie toestemming te verander.</string>
     <string name="alarm_title">Wekker</string>
     <string name="alarm_next">volgende %1$s · %2$s</string>
     <string name="alarm_none_set">geen wekker gestel nie</string>

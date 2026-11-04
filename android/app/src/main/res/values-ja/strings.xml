@@ -1381,8 +1381,8 @@
     <string name="alarm_notifications_attention_sub">証明画面を開けるように、%1$s の通知を許可し、「起床アラーム」通知カテゴリの重要度を高に設定してください。</string>
     <string name="alarm_fullscreen_off">全画面アラームがオフです</string>
     <string name="alarm_fullscreen_off_sub">起床アラームは鳴りますが、Android が通知しか表示しない場合があります。ロック画面の上に証明を表示するには全画面アラームを許可してください。</string>
-    <string name="alarm_battery_on">電池の最適化がオンです</string>
-    <string name="alarm_battery_on_sub">正確なアラームは引き続き作動します。バックグラウンドの同期が遅れる場合があるため、リマインダーが遅れて届くときは電池の設定を確認してください。</string>
+    <string name="alarm_battery_on">バッテリーの最適化がオンです</string>
+    <string name="alarm_battery_on_sub">正確なアラームは引き続き作動します。バックグラウンドの同期が遅れる場合があるため、リマインダーが遅れて届くときはバッテリーの設定を確認してください。</string>
     <string name="alarm_battery_review">確認</string>
     <string name="alarm_section_alarms">アラーム</string>
     <string name="alarm_once">1 回のみ</string>

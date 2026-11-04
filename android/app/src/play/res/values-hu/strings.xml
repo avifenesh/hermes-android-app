@@ -4,7 +4,7 @@
     <string name="channel_control_unavailable_title">Ebben a kiadásban nem érhető el</string>
     <string name="channel_control_unavailable_body">Ez a Play-kiadás nem tud más alkalmazásokat olvasni vagy kezelni. Távoli parancsokkal sem lehet engedélyezni ezt a képességet.</string>
     <string name="channel_background_title">Háttérkézbesítés</string>
-    <string name="channel_background_body">Az Android akkumulátor-optimalizálása bekapcsolva marad. A push (ha be van állítva) és az időszakos szinkronizálás továbbra is elérhető; a háttérkézbesítés késhet.</string>
+    <string name="channel_background_body">Az Android akkumulátoroptimalizálása bekapcsolva marad. A push (ha be van állítva) és az időszakos szinkronizálás továbbra is elérhető; a háttérkézbesítés késhet.</string>
     <string name="phone_settings_push_on_gateway">Be. A Google ébreszti fel a telefont; a tartalom közvetlenül a gateway felől érkezik.</string>
     <string name="phone_settings_push_off_gateway">Nincs beállítva a gateway-en.</string>
     <string name="phone_settings_run_progress">Futtatások előrehaladása</string>

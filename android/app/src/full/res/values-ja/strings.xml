@@ -22,7 +22,7 @@
     <string name="phone_control_confirming">指紋または PIN で確認…</string>
     <string name="channel_tab_control">操作</string>
     <string name="channel_control_section">エージェントによるスマートフォン操作</string>
-    <string name="channel_battery_title">電池の最適化</string>
+    <string name="channel_battery_title">バッテリーの最適化</string>
     <string name="channel_battery_body">一部のスマートフォンはバックグラウンド接続を終了させます。%1$s に制限なしでの実行を許可してください。</string>
     <string name="channel_allow_unknown_apps">%1$s に「不明なアプリのインストール」を許可してから、もう一度ファイルをタップしてください</string>
     <string name="alarm_exact_off_sub">ローカル アラームがスケジュールされていません。起床アラームを使う前に、正確なアラームを許可してください。</string>

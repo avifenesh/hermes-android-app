@@ -7,7 +7,7 @@
     <string name="phone_control_stop">停止控制</string>
     <string name="phone_control_accessibility_service">无障碍服务</string>
     <string name="phone_control_service_enabled">已在 Android 设置中启用。</string>
-    <string name="phone_control_service_disabled">请在 Android 无障碍设置中启用 %1$s 手机控制。</string>
+    <string name="phone_control_service_disabled">请在 Android 设置的“无障碍功能”中启用 %1$s 手机控制。</string>
     <string name="phone_control_allow">允许智能体控制</string>
     <string name="phone_control_allow_on">已开启。智能体可以读取、点按、输入、滑动和打开应用。</string>
     <string name="phone_control_allow_off">已关闭。不会发送任何屏幕内容或命令。</string>
@@ -23,7 +23,7 @@
     <string name="channel_tab_control">控制</string>
     <string name="channel_control_section">智能体手机控制</string>
     <string name="channel_battery_title">电池优化</string>
-    <string name="channel_battery_body">有些手机会终止后台连接。请允许 %1$s 不受限制地运行。</string>
+    <string name="channel_battery_body">有些手机会终止后台连接。请允许 %1$s 无限制地运行。</string>
     <string name="channel_allow_unknown_apps">请为 %1$s 开启“安装未知应用”，然后再次点按该文件</string>
     <string name="alarm_exact_off_sub">本地闹钟未安排。依赖起床闹钟之前，请先允许精确闹钟。</string>
     <string name="notify_channel_live">实时运行和连接</string>

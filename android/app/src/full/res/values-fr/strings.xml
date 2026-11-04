@@ -37,7 +37,7 @@
     <string name="channel_battery_body">Certains téléphones coupent la connexion en arrière-plan. Autorisez %1$s à s\'exécuter sans restriction.</string>
 
     <!-- ===== Opening attachments (full edition) ===== -->
-    <string name="channel_allow_unknown_apps">Autorisez « Installer des applis inconnues » pour %1$s, puis appuyez de nouveau sur le fichier</string>
+    <string name="channel_allow_unknown_apps">Activez « Installation d\'applis inconnues » pour %1$s, puis appuyez de nouveau sur le fichier</string>
     <string name="alarm_exact_off_sub">Les alarmes locales ne sont pas planifiées. Autorisez les alarmes exactes avant de compter sur Wake.</string>
     <string name="notify_channel_live">Exécutions en direct et connexion</string>
     <string name="notify_channel_live_info">Progression des exécutions et connexion en arrière-plan</string>

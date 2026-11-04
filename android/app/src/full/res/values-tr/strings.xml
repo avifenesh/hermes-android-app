@@ -17,14 +17,14 @@
     <string name="phone_control_confirm_title">Telefon kontrolüne izin ver</string>
     <string name="phone_control_activation_cancelled">Kontrol, eşleştirme veya Erişilebilirlik değiştiği için etkinleştirme iptal edildi</string>
     <string name="phone_control_not_armed">Sunucu bu telefonu hazırlamadı veya etkinleştirmenin yerini yenisi aldı</string>
-    <string name="phone_control_sideload_help">Dışarıdan yüklenen APK için ilk kurulum: Android, Erişilebilirlik hizmetini engelleyebilir. Android Ayarlar → Uygulamalar → %1$s → ⋮ → Kısıtlanmış ayarlara izin ver yolunu açın, ardından hizmeti burada etkinleştirin. Bunu yalnızca bir kez yapmanız gerekir.</string>
+    <string name="phone_control_sideload_help">Dışarıdan yüklenen APK için ilk kurulum: Android, Erişilebilirlik hizmetini engelleyebilir. Android Ayarlar → Uygulamalar → %1$s → ⋮ → Kısıtlanmış ayarlara izin verme yolunu açın, ardından hizmeti burada etkinleştirin. Bunu yalnızca bir kez yapmanız gerekir.</string>
     <string name="phone_control_limits">Kontrol yalnızca ekran açık ve kilidi açıkken çalışır. Android korumalı ekranların ekran görüntüsünü engeller. Şifre alanları gizli kalır. Kontrolü istediğiniz zaman buradan veya bildirimden kapatın.</string>
     <string name="phone_control_confirming">Parmak izi veya PIN ile onaylayın…</string>
     <string name="channel_tab_control">Kontrol</string>
     <string name="channel_control_section">Ajanın telefon kontrolü</string>
     <string name="channel_battery_title">Pil optimizasyonu</string>
-    <string name="channel_battery_body">Bazı telefonlar arka plan bağlantısını sonlandırır. %1$s uygulamasının kısıtlamasız çalışmasına izin verin.</string>
-    <string name="channel_allow_unknown_apps">%1$s için \"Bilinmeyen uygulamaları yükle\" iznini verin, ardından dosyaya yeniden dokunun</string>
+    <string name="channel_battery_body">Bazı telefonlar arka plan bağlantısını sonlandırır. %1$s uygulamasının pil kullanımını \"Kısıtlanmamış\" olarak ayarlayın.</string>
+    <string name="channel_allow_unknown_apps">%1$s için \"Bilinmeyen uygulamaları yükleme\" iznini verin, ardından dosyaya yeniden dokunun</string>
     <string name="alarm_exact_off_sub">Yerel alarmlar zamanlanmadı. Uyandırma özelliğine güvenmeden önce kesin zamanlı alarmlara izin verin.</string>
     <string name="notify_channel_live">Canlı çalıştırmalar ve bağlantı</string>
     <string name="notify_channel_live_info">Çalıştırma ilerlemesi ve arka plan bağlantısı</string>

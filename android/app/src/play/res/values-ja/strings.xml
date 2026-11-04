@@ -4,7 +4,7 @@
     <string name="channel_control_unavailable_title">このエディションでは利用できません</string>
     <string name="channel_control_unavailable_body">この Play エディションは他のアプリを読み取ったり操作したりできません。リモートコマンドでこの機能を有効にすることはできません。</string>
     <string name="channel_background_title">バックグラウンド配信</string>
-    <string name="channel_background_body">Android の電池の最適化は有効なままです。プッシュ (設定時) と定期同期は引き続き利用できますが、バックグラウンド配信が遅れることがあります。</string>
+    <string name="channel_background_body">Android のバッテリーの最適化は有効なままです。プッシュ (設定時) と定期同期は引き続き利用できますが、バックグラウンド配信が遅れることがあります。</string>
     <string name="phone_settings_push_on_gateway">オン。Google がスマートフォンを起動し、内容は Gateway から直接届きます。</string>
     <string name="phone_settings_push_off_gateway">Gateway で設定されていません。</string>
     <string name="phone_settings_run_progress">実行の進行状況</string>

@@ -24,7 +24,7 @@
     <string name="phone_control_confirm_title">Consenti il controllo del telefono</string>
     <string name="phone_control_activation_cancelled">Attivazione annullata perché controllo, associazione o Accessibilità sono cambiati</string>
     <string name="phone_control_not_armed">Il server non ha abilitato questo telefono oppure l\'attivazione è stata sostituita</string>
-    <string name="phone_control_sideload_help">Prima configurazione di un APK installato manualmente: Android potrebbe bloccare l\'Accessibilità. Apri Impostazioni di Android → App → %1$s → ⋮ → Consenti impostazioni con restrizioni, poi attiva il servizio qui. Basta farlo una volta.</string>
+    <string name="phone_control_sideload_help">Prima configurazione di un APK installato manualmente: Android potrebbe bloccare l\'Accessibilità. Apri Impostazioni di Android → App → %1$s → ⋮ → Consenti impostazioni con limitazioni, poi attiva il servizio qui. Basta farlo una volta.</string>
     <string name="phone_control_limits">Il controllo funziona solo con lo schermo acceso e sbloccato. Android blocca gli screenshot delle schermate protette. I campi password restano privati. Disattiva il controllo qui o dalla notifica in qualsiasi momento.</string>
     <string name="phone_control_confirming">Conferma con l\'impronta o il PIN…</string>
 
