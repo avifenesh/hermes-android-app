@@ -14,7 +14,7 @@ class RunFollowTest {
 
     @Test fun pairingAloneNeverHoldsTheService() {
         val f = follow()
-        f.working(setOf("cron-chat"))
+        f.working(setOf("cron-chat"), 0)
         f.expire(0)
         assertFalse("runs this phone did not start must not keep a connection", f.active())
         assertNull(f.wakeIn(0))
@@ -24,10 +24,10 @@ class RunFollowTest {
         val f = follow()
         assertTrue(f.start("c1", afterSeq = 10, now = 0, foreground = true))
         assertTrue(f.active())
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         f.expire(grace + 1)
         assertTrue("a run seen working outlives the start grace", f.active())
-        f.working(emptySet())
+        f.working(emptySet(), 0)
         assertFalse("run ended or failed: the chat left the working set", f.active())
     }
 
@@ -55,17 +55,17 @@ class RunFollowTest {
     @Test fun aReplyDuringAWorkingRunWaitsForTheRunToEnd() {
         val f = follow()
         f.start("c1", 10, 0, true)
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         f.replied("c1", 11)
         assertTrue("streamed partial replies arrive while the run works", f.active())
-        f.working(emptySet())
+        f.working(emptySet(), 0)
         assertFalse(f.active())
     }
 
     @Test fun androidFifteenBudgetCapsEveryRunOnEveryApiLevel() {
         val f = follow()
         f.start("c1", 1, now = 5, foreground = true)
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         f.expire(5 + cap - 1)
         assertTrue(f.active())
         assertEquals(1L, f.wakeIn(5 + cap - 1))
@@ -76,7 +76,7 @@ class RunFollowTest {
     @Test fun timeoutDropsRunsAndRefusesBackgroundStartsUntilForeground() {
         val f = follow()
         f.start("c1", 1, 0, true)
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         f.timedOut()
         assertFalse(f.active())
         assertFalse("Android 15 refuses dataSync until the app is foreground again", f.start("c2", 2, 10, foreground = false))
@@ -101,18 +101,18 @@ class RunFollowTest {
         val f = follow()
         f.start("c1", 1, 0, true)
         f.start("c2", 2, 100, true)
-        f.working(setOf("c1", "c2"))
-        f.working(setOf("c2"))
+        f.working(setOf("c1", "c2"), 0)
+        f.working(setOf("c2"), 0)
         assertTrue(f.active())
         assertEquals(listOf("c2"), f.followed())
-        f.working(emptySet())
+        f.working(emptySet(), 0)
         assertFalse(f.active())
     }
 
     @Test fun restartingAFollowedRunKeepsItsStartAndState() {
         val f = follow()
         f.start("c1", 5, now = 0, foreground = true)
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         // A steer or an approval decision from this phone while the same run works.
         f.start("c1", 9, now = 1_000, foreground = true)
         assertEquals(0L, f.startedAt("c1"))
@@ -125,12 +125,84 @@ class RunFollowTest {
     @Test fun approvalWaitEndsTheRunAndTheDecisionResumesIt() {
         val f = follow()
         f.start("c1", 5, 0, true)
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
         // The gateway pauses typing while it waits for an approval; the server reaps working after 14 s.
-        f.working(emptySet())
+        f.working(emptySet(), 0)
         assertFalse("no foreground service while the run waits for the user", f.active())
         assertTrue(f.start("c1", afterSeq = 12, now = 60_000, foreground = false))
-        f.working(setOf("c1"))
+        f.working(setOf("c1"), 0)
+        assertTrue(f.active())
+    }
+
+    @Test fun aDroppedStreamPutsWorkingRunsBackOnTheGrace() {
+        val f = follow()
+        f.start("c1", 1, now = 0, foreground = true)
+        f.working(setOf("c1"), 0)
+        f.offline(100_000)
+        f.expire(100_000 + grace - 1)
+        assertTrue(f.active())
+        f.replied("c1", 99)
+        assertTrue("a run that was working is not ended by its own streamed reply", f.active())
+        f.expire(100_000 + grace)
+        assertFalse("an unreachable gateway cannot hold the service for hours", f.active())
+    }
+
+    @Test fun theReconnectWorkingSetDecidesAnUnconfirmedRun() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.start("c2", 2, 0, true)
+        f.working(setOf("c1", "c2"), 0)
+        f.offline(1_000)
+        f.offline(20_000) // still down: the grace runs from the drop, not from each pass
+        f.working(setOf("c1"), 25_000)
+        assertEquals("c2 ended while the stream was down", listOf("c1"), f.followed())
+        f.expire(1_000 + grace + 60_000)
+        assertTrue("re-confirmed runs leave the grace", f.active())
+    }
+
+    @Test fun aSendIntoAWorkingChatFollowsTheTurnItQueued() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true)
+        f.working(emptySet(), 2_000)
+        assertTrue("between turns", f.active())
+        f.replied("c1", 9)
+        assertTrue("the finished turn's reply does not end the queued one", f.active())
+        f.working(setOf("c1"), 3_000)
+        f.working(emptySet(), 4_000)
+        assertFalse("the queued turn ended too", f.active())
+    }
+
+    @Test fun aQueuedTurnThatNeverStartsEndsOnTheGrace() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true)
+        f.working(emptySet(), 2_000)
+        f.expire(2_000 + grace - 1)
+        assertTrue(f.active())
+        f.expire(2_000 + grace)
+        assertFalse(f.active())
+    }
+
+    @Test fun aSteerEndsWithTheTurnItSteers() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = false)
+        f.working(emptySet(), 2_000)
+        assertFalse(f.active())
+    }
+
+    @Test fun abandonDropsOnlyARunNotYetSeenWorking() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.abandon("c1")
+        assertFalse("the send failed before the gateway accepted it", f.active())
+        f.start("c2", 1, 0, true)
+        f.working(setOf("c2"), 0)
+        f.abandon("c2")
         assertTrue(f.active())
     }
 

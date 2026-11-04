@@ -848,7 +848,7 @@ fun PhoneSettingsScreen() {
             scope.launch {
                 runCatching { Prefs.deviceId?.let { Api.delete("/v1/devices/$it") } }
                 PhoneService.disarm(ctx)
-                ctx.stopService(Intent(ctx, LiveService::class.java))
+                LiveService.stop(ctx)
                 Hub.reset(); Keys.reset(); val th = Prefs.theme; Prefs.clear(); Prefs.theme = th; Ui.stack.clear(); Ui.paired.value = false
             }
         }

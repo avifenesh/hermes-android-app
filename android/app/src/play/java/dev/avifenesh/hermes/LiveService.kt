@@ -6,10 +6,14 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,30 +23,25 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Play: progress of a run the user started from this phone. Play allows a foreground service only for as long as
- * its task needs, so this dataSync service runs only while [runs] follows a run, and stops by itself when the run
- * ends, fails, never starts, or reaches the Android 15 dataSync limit. Pairing never starts it and there is no
- * always-on connection: without push, other notifications arrive when the app opens or at the periodic sync.
+ * Play: progress of a run the user started, or approved a step of, from this phone. Play allows a foreground service
+ * only for as long as its task needs, so this dataSync service runs only while [LiveLifecycle] follows a run, and
+ * stops by itself when the run ends, fails, never starts, loses its gateway, or reaches the Android 15 dataSync
+ * limit. Pairing never starts it and there is no always-on connection: without push, other notifications arrive
+ * when the app opens or at the periodic sync.
+ *
+ * Every lifecycle decision runs on the main thread (onStartCommand, the follow loop, onTimeout, onDestroy, and
+ * the posted [starting]/[started]/[abandon]/[reset] calls), so a start request and a stop can never interleave.
  */
-class LiveService : Service() {
+class LiveService : Service(), LiveLifecycle.Instance {
     private var job: Job? = null
     private var shown: List<Any?>? = null
     override fun onBind(intent: Intent?) = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // "Stop updates" arrives through startService: the run goes on at the gateway, the phone stops following it.
-        if (intent?.action == STOP) { reset(); end(); return START_NOT_STICKY }
-        // startForegroundService requires startForeground even when the service is about to stop.
-        try {
-            ServiceCompat.startForeground(this, ID, notification(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } catch (e: RuntimeException) {
-            // Background-start restrictions or an exhausted Android 15 dataSync budget.
-            refused(e)
-            stopSelf(); return START_NOT_STICKY
+        if (life.onStart(this, startId, intent?.action == STOP) && job == null) {
+            job = Hub.scope.launch(Dispatchers.Main.immediate) { follow() }
         }
-        if (!Prefs.paired || !runs.active()) { end(); return START_NOT_STICKY }
-        Hub.connect()
-        if (job == null) job = Hub.scope.launch { follow() }
+        version.update { it + 1 }
         // The followed runs live in this process. A restarted process has nothing to follow.
         return START_NOT_STICKY
     }
@@ -50,112 +49,121 @@ class LiveService : Service() {
     private suspend fun follow() {
         combine(Hub.working, Hub.msgs, Hub.chats, Hub.online, version) { _, _, _, _, _ -> Unit }.collectLatest {
             while (true) {
-                val now = System.currentTimeMillis()
-                runs.working(Hub.working.value.keys)
                 val msgs = Hub.msgs.value
-                for (chat in runs.followed()) {
-                    msgs[chat]?.lastOrNull { it.role != "user" && it.kind in REPLY_KINDS }?.let { runs.replied(chat, it.seq) }
-                }
-                runs.expire(now)
-                if (!runs.active()) {
-                    // Decide on the main thread, where onStartCommand runs: a send that raced this check keeps it.
-                    ContextCompat.getMainExecutor(this@LiveService).execute { if (!runs.active()) end() }
-                    return@collectLatest
-                }
-                post()
-                delay(runs.wakeIn(now) ?: return@collectLatest)
+                val wait = life.step(System.currentTimeMillis(), Hub.online.value, Hub.working.value.keys) { chat ->
+                    msgs[chat]?.lastOrNull { it.role != "user" && it.kind in REPLY_KINDS }?.seq
+                } ?: return@collectLatest
+                delay(wait)
             }
         }
     }
 
-    private fun post() {
-        val chats = runs.followed()
+    override fun promote() {
+        shown = null
+        ServiceCompat.startForeground(this, ID, notification(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+    }
+
+    override fun demote() {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        NotificationManagerCompat.from(this).cancel(ID)
+        shown = null
+    }
+
+    override fun stopIfLatest(startId: Int): Boolean = stopSelfResult(startId)
+
+    override fun notifyProgress() {
+        val chats = life.runs.followed()
         val key = listOf(chats, chats.map { Hub.chats.value[it]?.title }, Hub.online.value, Hub.agent.value, chats.firstOrNull()?.let { Hub.working.value[it] })
         if (key == shown) return
         shown = key
         Notify.post(this, ID, notification(this))
     }
 
-    /** Main thread only. */
-    private fun end() {
-        job?.cancel(); job = null
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        stopSelf()
-    }
-
     override fun onTimeout(startId: Int, fgsType: Int) {
-        // Android 15: dataSync has run 6 hours in the last 24 in the background. Stop within seconds and start no
-        // new dataSync service until the user opens the app, which resets the budget.
-        runs.timedOut(); version.update { it + 1 }
-        end()
-        if (!Hub.foreground && !keepConnected()) Hub.disconnect()
+        life.onTimeout()
+        version.update { it + 1 }
     }
 
     override fun onDestroy() {
         job?.cancel(); job = null
-        if (!Hub.foreground && !keepConnected()) Hub.disconnect()
+        life.onDestroy(this)
         super.onDestroy()
     }
 
     companion object {
         const val CHANNEL_NAME = "Run progress"
-        const val CHANNEL_DESCRIPTION = "Shown while a run you started from this phone is working"
+        const val CHANNEL_DESCRIPTION = "Shown while a run works after you send a message or approve a step from this phone"
         private const val ID = 7
         private const val STOP = "stop"
         private const val LIME = 0xFFD4F75C.toInt()
         /** Agent output that answers a send; a run never seen working ends when one arrives. */
         private val REPLY_KINDS = setOf("text", "image", "file", "voice", "approval")
-        internal val runs = RunFollow()
         private val version = MutableStateFlow(0L)
+        private val main by lazy { Handler(Looper.getMainLooper()) }
 
-        fun sync(c: Context) {
-            val i = Intent(c, LiveService::class.java)
-            if (!Prefs.paired || !runs.active()) { c.stopService(i); return }
-            try { ContextCompat.startForegroundService(c, i) } catch (e: RuntimeException) { refused(e) }
-        }
+        internal val life = LiveLifecycle(RunFollow(), object : LiveLifecycle.Host {
+            override val paired get() = Prefs.paired
+            override val foreground get() = Hub.foreground
+            override val talkActive get() = TalkService.active
+            override fun requestStart() {
+                try { ContextCompat.startForegroundService(Hub.app, Intent(Hub.app, LiveService::class.java)) }
+                catch (e: RuntimeException) { Log.w("hermes", "run progress unavailable: ${e.message}"); throw e }
+            }
+            override fun connect() = Hub.connect()
+            override fun disconnect() = Hub.disconnect()
+        })
 
-        /** Android refused the service: a background start without an exemption, or an exhausted Android 15
-         *  dataSync budget. Stop following; a later start from the app or a notification action tries again. */
-        private fun refused(e: RuntimeException) {
-            Log.w("hermes", "run progress unavailable: ${e.message}")
-            runs.clear()
-            version.update { it + 1 }
-            if (!Hub.foreground && !keepConnected()) Hub.disconnect()
-        }
+        /** Always post, even from the main thread: one FIFO orders every start request against every stop. */
+        private fun onMain(block: () -> Unit) { main.post { block(); version.update { it + 1 } } }
 
-        /** The event stream stays open in the background only for a followed run or an active Talk conversation. */
-        fun keepConnected(): Boolean = runs.active() || TalkService.active
-
-        /** Pairing does not start a background connection in this edition. */
-        fun firstPair() {}
         @Suppress("UNUSED_PARAMETER")
-        fun afterPair(push: Boolean) {}
-        @Suppress("UNUSED_PARAMETER")
-        fun pushReady(c: Context) {}
+        fun sync(c: Context) = onMain { life.request() }
 
-        /** The user sent from this phone, or decided an approval that resumes the run in [chat]. */
-        fun started(c: Context, chat: String, afterSeq: Long) {
-            if (!runs.start(chat, afterSeq, System.currentTimeMillis(), Hub.foreground)) return
-            version.update { it + 1 }
-            sync(c)
+        fun keepConnected(): Boolean = life.keepConnected()
+
+        fun firstPair() = life.firstPair()
+        fun afterPair(push: Boolean) = life.afterPair(push)
+        @Suppress("UNUSED_PARAMETER")
+        fun pushReady(c: Context) = life.pushReady()
+
+        /** The user sends or decides an approval in [chat]: follow now, while the app may still start a foreground
+         *  service, before the request returns. [nextTurn]: a send (not a steer) into a working chat queues a turn. */
+        @Suppress("UNUSED_PARAMETER")
+        internal fun starting(c: Context, chat: String, afterSeq: Long, nextTurn: Boolean): LiveLifecycle.Follow {
+            val f = LiveLifecycle.Follow(chat)
+            onMain { life.starting(f, afterSeq, System.currentTimeMillis(), nextTurn) }
+            return f
         }
 
-        fun foreground() = runs.foreground()
+        /** The gateway accepted it; [afterSeq] is the accepted message, the reply baseline. */
+        @Suppress("UNUSED_PARAMETER")
+        internal fun started(c: Context, f: LiveLifecycle.Follow, afterSeq: Long, nextTurn: Boolean) =
+            onMain { life.started(f, afterSeq, System.currentTimeMillis(), nextTurn) }
 
-        /** Unpair or machine switch: the previous machine's runs are not this one's. */
-        fun reset() { runs.clear(); version.update { it + 1 } }
+        /** The request failed or resumed nothing. */
+        @Suppress("UNUSED_PARAMETER")
+        internal fun abandon(c: Context, f: LiveLifecycle.Follow) = onMain { life.abandon(f) }
+
+        fun foreground() = life.runs.foreground()
+
+        /** Unpair or machine switch: the previous machine's runs are not this one's. The service stops itself. */
+        fun reset() = onMain { life.runs.clear() }
+
+        /** Unpair. Never stopService: a pending startForegroundService would then crash the app. */
+        @Suppress("UNUSED_PARAMETER")
+        fun stop(c: Context) = reset()
 
         private fun notification(c: Context): Notification {
-            val chats = runs.followed()
+            val chats = life.runs.followed()
             val chat = chats.firstOrNull()
             val stop = PendingIntent.getService(c, 48, Intent(c, LiveService::class.java).setAction(STOP), PendingIntent.FLAG_IMMUTABLE)
             val open = chat?.let { Notify.openIntent(c, it) } ?: PendingIntent.getActivity(c, 3,
                 Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val since = chat?.let { Hub.working.value[it]?.let { s -> (s * 1000).toLong() } ?: runs.startedAt(it) }
+            val since = chat?.let { Hub.working.value[it]?.let { s -> (s * 1000).toLong() } ?: life.runs.startedAt(it) }
             val b = NotificationCompat.Builder(c, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(LIME)
                 .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
                 .setContentTitle(Hub.agent.value + " is working")
-                .setContentText(chat?.let { Hub.chats.value[it]?.title } ?: "A run you started")
+                .setContentText(chat?.let { Hub.chats.value[it]?.title } ?: "A run")
                 .setProgress(0, 0, true).setContentIntent(open)
                 .addAction(0, "Stop updates", stop)
                 .setSubText(if (!Hub.online.value) "Reconnecting…" else if (chats.size > 1) "${chats.size} runs" else null)

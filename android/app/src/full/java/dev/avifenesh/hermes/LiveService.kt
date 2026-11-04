@@ -79,8 +79,19 @@ class LiveService : Service() {
         fun pushReady(c: Context) { if (Prefs.live) { Prefs.live = false; sync(c) } }
 
         /** Full follows every run through its own live connection; nothing per run to track. */
+        class Follow internal constructor()
+
         @Suppress("UNUSED_PARAMETER")
-        fun started(c: Context, chat: String, afterSeq: Long) {}
+        fun starting(c: Context, chat: String, afterSeq: Long, nextTurn: Boolean) = Follow()
+
+        @Suppress("UNUSED_PARAMETER")
+        fun started(c: Context, f: Follow, afterSeq: Long, nextTurn: Boolean) {}
+
+        @Suppress("UNUSED_PARAMETER")
+        fun abandon(c: Context, f: Follow) {}
+
+        /** Unpair: the sideload service has no run to wind down. */
+        fun stop(c: Context) { c.stopService(Intent(c, LiveService::class.java)) }
 
         fun foreground() {}
 

@@ -381,8 +381,16 @@ object Hub {
     suspend fun send(cid: String, text: String, mode: String = "send", atts: List<JSONObject> = emptyList()): Msg {
         val b = JSONObject().put("text", text).put("mode", mode)
         if (atts.isNotEmpty()) b.put("attachments", JSONArray(atts))
-        return sessionRequest({ Api.post("/v1/chats/$cid/messages", b) }) { o ->
-            msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)); LiveService.started(app, cid, it.seq) }
+        // Follow before awaiting the request, while the user is still here; a steer joins the current turn.
+        val nextTurn = mode != "steer"
+        val follow = LiveService.starting(app, cid, Prefs.seq, nextTurn)
+        try {
+            return sessionRequest({ Api.post("/v1/chats/$cid/messages", b) }) { o ->
+                msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)); LiveService.started(app, follow, it.seq, nextTurn) }
+            }
+        } catch (e: Throwable) {
+            LiveService.abandon(app, follow)
+            throw e
         }
     }
 
@@ -404,12 +412,20 @@ object Hub {
         val h = HashMap<String, String>()
         if (ts != null) h["X-HM-Ts"] = ts
         if (asig != null) h["X-HM-ASig"] = asig
-        return sessionRequest({ Api.post("/v1/approvals/$aid", JSONObject().put("choice", choice), h) }) { o ->
-            val a = o.optJSONObject("approval")?.let { appr(it) }
-            if (a != null) approvals.update { it + (a.id to a) }
-            // The decision resumes the waiting run (or lets it react to a denial): follow it again.
-            if (a != null && a.chatId.isNotBlank()) LiveService.started(app, a.chatId, Prefs.seq)
-            a
+        // A decision resumes the waiting run (or lets it react to a denial): follow it before awaiting the request.
+        val follow = approvals.value[aid]?.chatId?.takeIf { it.isNotBlank() }?.let { LiveService.starting(app, it, Prefs.seq, false) }
+        try {
+            return sessionRequest({ Api.post("/v1/approvals/$aid", JSONObject().put("choice", choice), h) }) { o ->
+                val a = o.optJSONObject("approval")?.let { appr(it) }
+                if (a != null) approvals.update { it + (a.id to a) }
+                val resumed = a != null && approvalResumesRun(if (o.has("resolved")) o.optInt("resolved") else null, a.state)
+                val f = follow ?: if (resumed) a?.chatId?.takeIf { it.isNotBlank() }?.let { LiveService.starting(app, it, Prefs.seq, false) } else null
+                if (f != null) { if (resumed) LiveService.started(app, f, Prefs.seq, false) else LiveService.abandon(app, f) }
+                a
+            }
+        } catch (e: Throwable) {
+            follow?.let { LiveService.abandon(app, it) }
+            throw e
         }
     }
 
