@@ -175,6 +175,23 @@ class Store:
         with self._lock:
             self._db.execute("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, json.dumps(v)))
 
+    # -- restart to apply: one record, owned by the gateway process (boot) that made the change --
+    def mark_restart_needed(self, boot: str) -> float:
+        """Record that a change made in process ``boot`` loads on the next restart. Keeps the first time."""
+        with self._lock:
+            cur = self.kv_get("restart_needed")
+            if not (isinstance(cur, dict) and cur.get("boot") == boot and cur.get("since")):
+                cur = {"boot": boot, "since": time.time()}
+                self.kv_put("restart_needed", cur)
+            return float(cur["since"])
+
+    def restart_needed_since(self, boot: str) -> Optional[float]:
+        """When process ``boot`` started needing a restart. A record from another process is stale: it restarted."""
+        cur = self.kv_get("restart_needed")
+        if isinstance(cur, dict) and cur.get("boot") == boot and cur.get("since"):
+            return float(cur["since"])
+        return None
+
     def seq(self) -> int:
         row = self._db.execute("SELECT v FROM kv WHERE k='seq'").fetchone()
         return int(row["v"]) if row else 0

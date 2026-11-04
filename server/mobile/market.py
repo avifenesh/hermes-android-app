@@ -343,11 +343,29 @@ def mcp_catalog() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- jobs
+def restart_needed(kind: str, action: str, result: Any) -> bool:
+    """Whether a finished Hub job takes effect only after a gateway restart. Core reports ``restart_required`` for
+    plugin writes it could not load live; a plugin removal has no live unload; MCP servers connect at startup."""
+    if kind == "mcp":
+        return True
+    if kind == "plugin":
+        return bool((result if isinstance(result, dict) else {}).get("restart_required", action != "install"))
+    return False
+
+
 class Jobs:
     """Install/update/remove runs. A job is a CLI child (``hermes -p … skills …``) or an in-process call."""
 
-    def __init__(self):
+    def __init__(self, on_restart: Optional[Callable[[], None]] = None):
         self.jobs: Dict[str, Dict[str, Any]] = {}
+        self.on_restart = on_restart
+
+    def _settled(self, job: Dict[str, Any]) -> None:
+        if self.on_restart and job["state"] == "ok" and restart_needed(job["kind"], job["action"], job["result"]):
+            try:
+                self.on_restart()
+            except Exception:
+                logger.warning("[mobile] could not record restart-needed for hub job %s", job["id"], exc_info=True)
 
     def _new(self, kind: str, action: str, target: str, profile: str) -> Dict[str, Any]:
         jid = "hj-" + uuid.uuid4().hex[:12]
@@ -403,6 +421,7 @@ class Jobs:
                 if not err and verify:
                     err = await asyncio.to_thread(verify) or ""
                 job.update(state="failed" if err else "ok", error=err, result={"rc": rc})
+                self._settled(job)
             except Exception as e:
                 logger.warning("[mobile] hub job %s failed", job["id"], exc_info=True)
                 job.update(state="failed", error=str(e) or type(e).__name__)
@@ -424,6 +443,7 @@ class Jobs:
                 ok = bool(res.get("ok"))
                 job.update(state="ok" if ok else ("consent" if res.get("consent_required") else "failed"),
                            error="" if ok else str(res.get("error") or "failed"), result=res)
+                self._settled(job)
             except Exception as e:
                 logger.warning("[mobile] hub job %s raised", job["id"], exc_info=True)
                 job.update(state="failed", error=str(e) or type(e).__name__)
@@ -444,9 +464,9 @@ def view(job: Dict[str, Any], log: bool = True) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- routes
-def routes(r, j) -> Jobs:
+def routes(r, j, on_restart: Optional[Callable[[], None]] = None) -> Jobs:
     from . import control as C
-    jobs = Jobs()
+    jobs = Jobs(on_restart)
 
     def bad(msg: str, status: int = 400):
         return j({"ok": False, "error": msg}, status)

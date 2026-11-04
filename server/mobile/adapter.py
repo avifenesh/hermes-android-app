@@ -111,6 +111,18 @@ def route_delivery(store: S.Store, chat_id: str, content: str, home: str, job_id
     return {"chat_id": f"cron-{S._digest_slug(title)}", "title": title, "kind": "digest"}
 
 
+_PROCESS_BOOT: Optional[str] = None
+
+
+def process_boot() -> str:
+    """This gateway process's id, made at its first adapter connect. Plugins and restart-flagged config load once per
+    process: a restart from any surface is a new process with a new id; a same-process adapter reconnect is not."""
+    global _PROCESS_BOOT
+    if _PROCESS_BOOT is None:
+        _PROCESS_BOOT = S.new_id("boot")
+    return _PROCESS_BOOT
+
+
 def _copy_media(src: str) -> Dict[str, str]:
     p = Path(src)
     name = S.new_id("f") + (p.suffix.lower() or "")
@@ -244,7 +256,7 @@ class MobileAdapter(BasePlatformAdapter):
         PJ.routes(r, self._json)
         self._phone = PH.Phone(self)
         PH.routes(r, self, self._json)
-        self._hub = MK.routes(r, self._json)
+        self._hub = MK.routes(r, self._json, on_restart=self.mark_restart_needed)
         RD.routes(r, self, self._json)
         MO.routes(r, self._json, S.data_dir(), write=not cli, scout=RD.has_store)
         return app
@@ -252,6 +264,7 @@ class MobileAdapter(BasePlatformAdapter):
     async def connect(self, *, is_reconnect: bool = False) -> bool:
         from aiohttp import web
         app = self._build_app()
+        self.start_boot()
         host, _, port = self._bind.rpartition(":")
         self._runner = web.AppRunner(app, access_log=None)
         await self._runner.setup()
@@ -291,6 +304,24 @@ class MobileAdapter(BasePlatformAdapter):
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
+
+    # ------------------------------------------------------------ restart to apply
+    def start_boot(self) -> str:
+        """At connect: this process's boot id, reported in /v1/me and the event stream's hello."""
+        self._boot = process_boot()
+        return self._boot
+
+    def mark_restart_needed(self) -> None:
+        """A change made through this plugin takes effect on the next gateway restart."""
+        self.store.mark_restart_needed(process_boot())
+
+    def restart_state(self) -> Dict[str, Any]:
+        """Authoritative "restart to apply" for /v1/me. ``pending``: a restart (or shutdown) is already draining."""
+        boot = process_boot()
+        since = self.store.restart_needed_since(boot)
+        runner = getattr(self, "gateway_runner", None)
+        pending = runner is not None and bool(getattr(runner, "_restart_requested", False) or getattr(runner, "_draining", False))
+        return {"boot": boot, "needed": since is not None, "since": since, "pending": pending}
 
     # ------------------------------------------------------------ events
     def _emit(self, ev: Dict[str, Any], device: Optional[str] = None) -> None:
@@ -630,7 +661,8 @@ class MobileAdapter(BasePlatformAdapter):
         return {"name": socket.gethostname(), "profile": _profile_name(), "model": model,
                 "agent_name": ID.agent_name(), "user_name": ID.user_name(),
                 "models": self._recent_models(model), "profiles": profiles, "public_url": self._public_url,
-                "features": self._features(), "security": {"signature_replay": SG.REPLAY_VERSION}}
+                "features": self._features(), "security": {"signature_replay": SG.REPLAY_VERSION},
+                "restart": self.restart_state()}
 
     async def h_me(self, request):
         d = request["device"]
@@ -653,7 +685,8 @@ class MobileAdapter(BasePlatformAdapter):
         setattr(q, "_phone_device", request["device"]["id"])
         self._subs.add(q)
         try:
-            hello = {"type": "hello", "seq": self.store.seq(), "working": self._working_list()}
+            # boot: a reconnect after a gateway restart tells the app to re-read /v1/me (restart state).
+            hello = {"type": "hello", "seq": self.store.seq(), "working": self._working_list(), "boot": process_boot()}
             await resp.write(f"data: {json.dumps(hello)}\n\n".encode())
             while True:
                 try:

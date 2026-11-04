@@ -218,6 +218,25 @@ _GUARDED = re.compile(r"^(approvals\.|security\.|terminal\.|hooks|code_execution
                       r"auxiliary\.stream_only|model_catalog\.|models_dev\.|cron\.chronos\.)")
 
 
+# Curated settings the gateway reads once per process: a saved change sets "restart to apply" (/v1/me).
+RESTART_KEYS = frozenset(f["key"] for g in GROUPS for f in g["fields"] if f.get("restart"))
+
+
+def restart_outcome(runner, before: bool, reply: str) -> Tuple[Dict[str, Any], int]:
+    """What /restart actually did, from the runner's own flags (core answers "draining" both for a restart it just
+    started and for one already under way). ``before``: a restart or drain was already running."""
+    try:
+        active = int(runner._running_agent_count())
+    except Exception:
+        active = 0
+    if before:
+        return {"ok": True, "state": "in_progress", "active": active, "reply": reply}, 200
+    if not getattr(runner, "_restart_requested", False):
+        return {"ok": False, "state": "refused", "active": active, "reply": reply,
+                "error": reply or "Hermes did not start a restart"}, 409
+    return {"ok": True, "state": "draining" if active else "restarting", "active": active, "reply": reply}, 200
+
+
 def guarded_key(key: str) -> bool:
     return bool(_GUARDED.match(key or ""))
 
@@ -670,6 +689,8 @@ def routes(r, ctl: Control, j) -> None:
         if guarded_key(key) and not guard_ok(request, "config", key, body.get("value")):
             return j({"ok": False, "error": "biometric confirmation required", "need_sig": True}, 403)
         ok, msg = await asyncio.to_thread(config_set, key, body.get("value"))
+        if ok and key in RESTART_KEYS:
+            ctl.ad.mark_restart_needed()
         from hermes_cli.config import load_config
         val = _dotget(await asyncio.to_thread(load_config), key)
         return j({"ok": ok, "key": key, "value": val, "message": msg, "error": "" if ok else (msg or "config set failed")},
@@ -693,7 +714,11 @@ def routes(r, ctl: Control, j) -> None:
         body = await request.json()
         if not guard_ok(request, "plugin", str(body.get("name") or ""), bool(body.get("enabled"))):
             return j({"ok": False, "error": "biometric confirmation required", "need_sig": True}, 403)
-        return ok_or(await asyncio.to_thread(plugin_toggle, str(body.get("name") or ""), bool(body.get("enabled"))))
+        res = await asyncio.to_thread(plugin_toggle, str(body.get("name") or ""), bool(body.get("enabled")))
+        # Core loads an enabled plugin live when the gateway answers; a disable is config-only until restart.
+        if res.get("ok") and res.get("restart_required", True):
+            ctl.ad.mark_restart_needed()
+        return ok_or(res)
 
     async def h_mcp(request):
         return j(await asyncio.to_thread(mcp_list))
@@ -704,11 +729,17 @@ def routes(r, ctl: Control, j) -> None:
     async def h_restart(request):
         ad = ctl.ad
         ad.store.ensure_chat(SYSTEM_CHAT, title="Hermes")
+        runner = ctl.runner
+        known = runner is not None and hasattr(runner, "_restart_requested")
+        before = known and bool(runner._restart_requested or getattr(runner, "_draining", False))
         try:
             reply = await ctl.command(SYSTEM_CHAT, "/restart")
         except Exception as e:
             return j({"ok": False, "error": str(e)}, 500)
-        return j({"ok": True, "reply": reply})
+        if not known:  # no runner flags to read: the reply alone is all there is
+            return j({"ok": True, "state": "requested", "reply": reply})
+        res, status = restart_outcome(runner, before, reply)
+        return j(res, status)
 
     async def h_confirm(request):
         """Resolve a pending slash confirmation (e.g. the cost guard on /model) raised by a control call."""
