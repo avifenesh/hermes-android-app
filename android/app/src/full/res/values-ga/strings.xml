@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Rialú fóin Hermes</string>
+    <string name="phone_service_desc">Ligeann sé do d\'agent Hermes an scáileán a léamh agus tapáil, clóscríobh agus svaidhpeáil ar an bhfón seo. Ní ghníomhaíonn sé ach fad atá Rialú casta air san aip (Mise, An fón seo, Rialú).</string>
+    <string name="phone_control_notice_title">Tá rialú fóin ar siúl</string>
+    <string name="phone_control_notice_text">Is féidir le d\'agent an fón díghlasáilte seo a léamh agus a oibriú.</string>
+    <string name="phone_control_stop">Stop an rialú</string>
+    <string name="phone_control_accessibility_service">Seirbhís inrochtaineachta</string>
+    <string name="phone_control_service_enabled">Cumasaithe i socruithe Android.</string>
+    <string name="phone_control_service_disabled">Cumasaigh “Rialú fóin %1$s” i socruithe Inrochtaineachta Android.</string>
+    <string name="phone_control_allow">Ceadaigh rialú don agent</string>
+    <string name="phone_control_allow_on">Ar siúl. Is féidir leis an agent léamh, tapáil, clóscríobh, svaidhpeáil agus aipeanna a oscailt.</string>
+    <string name="phone_control_allow_off">As. Ní sheoltar ábhar scáileáin ná orduithe.</string>
+    <string name="phone_control_enable_service_first">Cumasaigh an tseirbhís inrochtaineachta ar dtús</string>
+    <string name="phone_control_server_unavailable">Níl rialú fóin ar fáil ar an bhfreastalaí fós</string>
+    <string name="phone_control_enable_channel">Cumasaigh an cainéal fógraí “Rití beo agus ceangal” ionas go mbeidh “Stop an rialú” ar fáil i gcónaí</string>
+    <string name="phone_control_confirm_title">Ceadaigh rialú fóin</string>
+    <string name="phone_control_activation_cancelled">Cealaíodh an gníomhachtú mar gur athraigh an rialú, an phéireáil nó an Inrochtaineacht</string>
+    <string name="phone_control_not_armed">Níor ullmhaigh an freastalaí an fón seo nó ionadaíodh an gníomhachtú</string>
+    <string name="phone_control_sideload_help">An chéad socrú do APK a suiteáladh de láimh: d\'fhéadfadh Android bac a chur ar Inrochtaineacht. Oscail Socruithe Android → Aipeanna → %1$s → ⋮ → Ceadaigh socruithe srianta, ansin cumasaigh an tseirbhís anseo. Ní gá é seo a dhéanamh ach uair amháin.</string>
+    <string name="phone_control_limits">Ní oibríonn rialú ach fad atá an scáileán ar siúl agus díghlasáilte. Cuireann Android bac ar sheatanna scáileáin de scáileáin chosanta. Fanann réimsí pasfhocail príobháideach. Cas an rialú as anseo nó ón bhfógra am ar bith.</string>
+    <string name="phone_control_confirming">Deimhnigh le méarlorg nó PIN…</string>
+    <string name="channel_tab_control">Rialú</string>
+    <string name="channel_control_section">Rialú fóin ag an agent</string>
+    <string name="channel_battery_title">Optamú ceallra</string>
+    <string name="channel_battery_body">Maraíonn fóin áirithe an ceangal cúlra. Ceadaigh do %1$s rith gan srian.</string>
+    <string name="channel_allow_unknown_apps">Ceadaigh “Suiteáil aipeanna anaithnide” do %1$s, ansin tapáil an comhad arís</string>
+</resources>

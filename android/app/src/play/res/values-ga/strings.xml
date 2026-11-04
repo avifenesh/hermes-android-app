@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Cabhlach Herms</string>
+    <string name="channel_control_unavailable_title">Níl sé ar fáil san eagrán seo</string>
+    <string name="channel_control_unavailable_body">Ní féidir leis an eagrán Play seo aipeanna eile a léamh ná a oibriú. Ní féidir le horduithe cianda an cumas seo a chumasú.</string>
+    <string name="channel_background_title">Seachadadh cúlra</string>
+    <string name="channel_background_body">Fanann optamú ceallra Android cumasaithe. Fanann brú (nuair atá sé cumraithe) agus sioncronú tréimhsiúil ar fáil; d\'fhéadfadh moill a bheith ar an seachadadh cúlra.</string>
+    <string name="channel_apk_unavailable">Níl suiteáil ceangaltán APK ar fáil san eagrán Play seo. Is féidir leat an comhad a shábháil in Íoslódálacha fós.</string>
+</resources>
