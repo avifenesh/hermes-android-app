@@ -420,7 +420,7 @@ class WakeBootReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         Wake.schedule(c)
         // Android 14+ forbids starting microphone services from boot. Resume only when the user opens Hermes.
-        if (Prefs.wakeWord) WakeListen.state.value = "error:Open Hermes to resume wake word listening"
+        if (Prefs.wakeWord) WakeListen.state.value = "error:Open $APP_NAME to resume wake word listening"
         if (Prefs.paired) {
             // Network I/O can outlive a broadcast's deadline. Let WorkManager refresh cached alarm state.
             androidx.work.WorkManager.getInstance(c).enqueueUniqueWork("wake_rearm", androidx.work.ExistingWorkPolicy.KEEP,

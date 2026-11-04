@@ -154,7 +154,7 @@ class ActionReceiver : BroadcastReceiver() {
                         if (text.isNotEmpty()) {
                             val r = runCatching { Fleet.send(id, text) }
                             val msg = r.fold({ it.str("line").ifBlank { "Sent to " + i.getStringExtra("name") } },
-                                { if ((it as? ApiError)?.code == 403) "Needs your fingerprint: open the session in Hermes" else "Not sent: ${it.message}" })
+                                { if ((it as? ApiError)?.code == 403) "Needs your fingerprint: open the session in $APP_NAME" else "Not sent: ${it.message}" })
                             withContext(Dispatchers.Main) { Toast.makeText(c, msg, Toast.LENGTH_LONG).show() }
                         }
                         Fleet.cancel(c, id)
@@ -164,7 +164,7 @@ class ActionReceiver : BroadcastReceiver() {
                 throw e
             } catch (e: Exception) {
                 Log.w("hermes", "action ${i.action} failed: ${e.message}")
-                withContext(Dispatchers.Main) { Toast.makeText(c, "Hermes: ${e.message}", Toast.LENGTH_LONG).show() }
+                withContext(Dispatchers.Main) { Toast.makeText(c, "$APP_NAME: ${e.message}", Toast.LENGTH_LONG).show() }
             } finally { pr.finish() }
         }
     }

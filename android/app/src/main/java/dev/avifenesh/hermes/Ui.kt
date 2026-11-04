@@ -378,7 +378,7 @@ fun PairScreen(link: Uri?) {
         Spacer(Modifier.height(54.dp))
         MarkBox(58.dp)
         Spacer(Modifier.height(26.dp))
-        Text("Hermes", style = serif(64f, p.tx, italic = true))
+        Text(APP_NAME, style = serif(64f, p.tx, italic = true))
         Text("${agentName()}, in your pocket. Chats, approvals, runs and cron, straight from your machine.", style = sans(16f, 400, p.tx2, 24f))
         Spacer(Modifier.height(34.dp))
         Text("1  On your machine", style = mono(12f, 600, p.mu))

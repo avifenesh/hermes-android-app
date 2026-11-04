@@ -521,7 +521,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     fun settings(i: Intent) {
         runCatching { ctx.startActivity(i) }.onFailure {
             runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.packageName))) }
-                .onFailure { Ui.say("Open Android Settings > Apps > Hermes to change this permission.") }
+                .onFailure { Ui.say("Open Android Settings > Apps > $APP_NAME to change this permission.") }
         }
     }
     LaunchedEffect(Unit) {
@@ -550,7 +550,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             }
             if (!access[1]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow("Alarm notifications need attention", "Allow Hermes notifications and set the Wake alarm channel to high importance so the proof screen is reachable.") {
+                    SettingRow("Alarm notifications need attention", "Allow $APP_NAME notifications and set the Wake alarm channel to high importance so the proof screen is reachable.") {
                         Btn("Settings", primary = false) {
                             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
                             settings(if (!nm.areNotificationsEnabled()) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)

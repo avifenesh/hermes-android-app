@@ -80,6 +80,14 @@ internal object SupportPayload {
     }
 }
 
+/** Report copy naming this edition's publisher and app. */
+internal object SupportCopy {
+    const val INTRO = "Voluntary report to $EDITION_PUBLISHER, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received."
+    const val RECEIPT = "Received by $EDITION_PUBLISHER. This is a receipt, not a moderation decision or a promise of action or response."
+    const val ROW = "Review a voluntary report to $EDITION_PUBLISHER, or use email. Nothing sends automatically."
+    const val SUBJECT = "$APP_NAME issue report"
+}
+
 /** Lives only in this process. Never save the selected message or clipboard callback in a Bundle. */
 internal data class SupportRequest(
     val generation: Long,
@@ -123,7 +131,7 @@ internal object Support {
         val email = ctx.getString(R.string.report_email)
         return Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(email)))
             .putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
-            .putExtra(Intent.EXTRA_SUBJECT, ctx.getString(R.string.report_subject))
+            .putExtra(Intent.EXTRA_SUBJECT, SupportCopy.SUBJECT)
             .putExtra(Intent.EXTRA_TEXT, body)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
@@ -208,7 +216,7 @@ internal fun SupportDialog(
     val draft = remember(body, draftId) { PublisherReportDraft(body, draftId) }
     var received by rememberSaveable(draftId) { mutableStateOf(false) }
     HDialog(if (stage == "preview") "Review report" else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
-        Text("Voluntary report to Tiyuvta, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received.", style = sans(13.5f, 400, p.tx2, 19f))
+        Text(SupportCopy.INTRO, style = sans(13.5f, 400, p.tx2, 19f))
         Spacer(Modifier.height(12.dp))
         Btn("Privacy policy", Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
             Support.act(request) { Ui.push(Route.PrivacyR) }
@@ -222,11 +230,11 @@ internal fun SupportDialog(
             }
             Text("Keep this ID for retry or deletion requests.", style = sans(12.5f, 400, p.tx2, 18f))
             Text("Email alternative: " + stringResource(R.string.report_email), style = sans(14f, 600, p.tx))
-            Text("Mail subject: " + stringResource(R.string.report_subject), style = sans(14f, 600, p.tx))
+            Text("Mail subject: " + SupportCopy.SUBJECT, style = sans(14f, 600, p.tx))
             Spacer(Modifier.height(12.dp))
             // No ellipsis or collapsed section: both destinations get exactly this text.
             Text(body, style = sans(13.5f, 400, p.tx, 19f))
-            if (received) Text("Received by Tiyuvta. This is a receipt, not a moderation decision or a promise of action or response.", style = sans(13.5f, 600, p.tx2, 19f))
+            if (received) Text(SupportCopy.RECEIPT, style = sans(13.5f, 600, p.tx2, 19f))
             if (sendError) Text("No confirmed receipt. Your draft is still here. Tap Send report to retry the same report ID, or use email. A failed or cancelled connection may still have delivered it; nothing retries automatically.", style = sans(13.5f, 600, p.tx2, 19f))
             if (mailError) {
                 Spacer(Modifier.height(12.dp))
@@ -285,7 +293,7 @@ internal fun SupportDialog(
 /** General support never looks through the user's loaded chats for a quote. */
 @Composable
 fun ReportProblemRow() {
-    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), "Review a voluntary report to Tiyuvta, or use email. Nothing sends automatically.") { Support.open() } }
+    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), SupportCopy.ROW) { Support.open() } }
 }
 
 /** Long-press only opens the themed action chooser. Clipboard writes require a separate Copy tap. */

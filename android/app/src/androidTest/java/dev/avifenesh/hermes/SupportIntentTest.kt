@@ -17,7 +17,7 @@ class SupportIntentTest {
         assertEquals(Intent.ACTION_SENDTO, intent.action)
         assertEquals("hello@tiyuvta.ai", mail.to)
         assertArrayEquals(arrayOf("hello@tiyuvta.ai"), intent.getStringArrayExtra(Intent.EXTRA_EMAIL))
-        assertEquals(ctx.getString(R.string.report_subject), intent.getStringExtra(Intent.EXTRA_SUBJECT))
+        assertEquals(SupportCopy.SUBJECT, intent.getStringExtra(Intent.EXTRA_SUBJECT))
         assertEquals(body, intent.getStringExtra(Intent.EXTRA_TEXT))
         assertNull(mail.cc)
         assertNull(mail.body)

@@ -53,7 +53,7 @@ class WakeListenService : Service() {
             ServiceCompat.startForeground(this, 11, note(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: RuntimeException) {
             Log.w(TAG, "foreground start rejected", e)
-            WakeListen.state.value = "error:Open Hermes to resume wake word listening"
+            WakeListen.state.value = "error:Open $APP_NAME to resume wake word listening"
             stopSelf(); return START_NOT_STICKY
         }
         // Debug builds: feed a 16 kHz WAV through the live detector instead of the mic (emulators have no mic input).
@@ -124,7 +124,7 @@ class WakeListenService : Service() {
                 while (got < buf.size && run) {
                     val n = rec.read(buf, got, buf.size - got)
                     if (!run) break
-                    check(n > 0) { "Microphone stopped ($n). Reopen Hermes to try again." }
+                    check(n > 0) { "Microphone stopped ($n). Reopen $APP_NAME to try again." }
                     got += n
                 }
                 if (!run) break
@@ -255,9 +255,9 @@ object WakeListen {
             else -> null
         }
         if (error != null) { state.value = "error:$error"; c.stopService(i); return }
-        if (!Hub.foreground) { state.value = "error:Open Hermes to resume wake word listening"; return }
+        if (!Hub.foreground) { state.value = "error:Open $APP_NAME to resume wake word listening"; return }
         runCatching { ContextCompat.startForegroundService(c, i) }
-            .onFailure { state.value = "error:Android blocked listening. Open Hermes and try again." }
+            .onFailure { state.value = "error:Android blocked listening. Open $APP_NAME and try again." }
     }
 
     /** Talk tells the detector when it holds the mic. */

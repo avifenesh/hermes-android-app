@@ -45,7 +45,7 @@ object Widget {
             rv.setTextViewText(R.id.w_appr, appr.toString())
             val top = agents.firstOrNull { it.str("group") == "waiting" }
             rv.setTextViewText(R.id.w_top, when {
-                !Prefs.paired -> "Open Hermes to pair"
+                !Prefs.paired -> "Open $APP_NAME to pair"
                 top != null -> top.str("name").ifBlank { top.str("kind") } + ": " + top.str("detail")
                 agents.any { it.str("group") == "working" } -> agents.first { it.str("group") == "working" }.let { it.str("name") + ": " + it.str("detail") }
                 else -> "All quiet."

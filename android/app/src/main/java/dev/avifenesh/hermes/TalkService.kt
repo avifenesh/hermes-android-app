@@ -38,7 +38,7 @@ class TalkService : Service() {
             ServiceCompat.startForeground(this, 8, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: RuntimeException) {
             android.util.Log.w("hermes", "Talk foreground start rejected", e)
-            Ui.say("Android couldn't keep Talk active. Open Talk again while Hermes is on screen.")
+            Ui.say("Android couldn't keep Talk active. Open Talk again while $APP_NAME is on screen.")
             stopSelf(); return START_NOT_STICKY
         }
         if (wl == null) wl = getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "hermes:talk").apply { acquire(30 * 60 * 1000L) }
