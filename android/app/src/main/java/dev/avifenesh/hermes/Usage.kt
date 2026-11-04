@@ -30,12 +30,7 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 // ---------------------------------------------------------------- formatting
-fun tok(n: Long): String = when {
-    n < 1000 -> "$n"
-    n < 100_000 -> "%.1fk".format(n / 1000.0)
-    n < 1_000_000 -> "${n / 1000}k"
-    else -> "%.1fM".format(n / 1_000_000.0)
-}
+fun tok(n: Long): String = Fmt.compact(n)
 
 /** "claude-opus-5-5" -> "opus-5.5", "anthropic/claude-sonnet-4-20250514" -> "sonnet-4". */
 fun shortModel(m: String): String {

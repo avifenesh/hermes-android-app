@@ -237,7 +237,7 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill(f.str("type_label").ifBlank { f.str("type") }, p.ink, p.acc)
                 Spacer(Modifier.width(8.dp))
-                Text("conf ${"%.0f".format(f.optDouble("confidence", 0.0) * 100)}% · ${f.str("actionability")}", style = mono(11.5f, 500, p.mu))
+                Text("conf ${Fmt.percent(f.optDouble("confidence", 0.0))} · ${f.str("actionability")}", style = mono(11.5f, 500, p.mu))
                 Spacer(Modifier.weight(1f))
                 if (state == "saved") Pill("saved", p.acct, p.accd)
                 if (state == "dismissed") Pill("dismissed", p.mu, p.s3)

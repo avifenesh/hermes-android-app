@@ -161,6 +161,8 @@ object Ui {
     /** Process-local selection, scoped to the originating machine epoch and route. */
     internal val supportRequest = mutableStateOf<SupportRequest?>(null)
     fun say(s: String?) { if (!s.isNullOrBlank()) toast.tryEmit(s) }
+    /** Toast a resource string in the app language (for click handlers and coroutines, outside composition). */
+    fun say(@androidx.annotation.StringRes id: Int, vararg args: Any?) = say(str(id, *args))
     fun push(r: Route) {
         supportRequest.value = null
         if (!r.available(Hub.features.value)) {

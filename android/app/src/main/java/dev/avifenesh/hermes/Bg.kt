@@ -230,6 +230,8 @@ object Approvals {
 }
 
 class ApproveActivity : FragmentActivity() {
+    override fun attachBaseContext(newBase: Context) { super.attachBaseContext(Locales.wrap(newBase)) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true); setTurnScreenOn(true)

@@ -53,7 +53,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
@@ -774,6 +773,7 @@ fun PhoneSettingsScreen() {
                         }
                     }
                 }
+                languageSettings()
                 }
                 "voice" -> {
                 item { Section("Talk voice", null) }
@@ -902,7 +902,7 @@ fun WakeWordPanel() {
             Line()
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("microWakeWord v2 · offline", style = sans(15f, 600, p.tx))
-                Text("Window cutoff: ${String.format(java.util.Locale.US, "%.2f", thr)} · 5 inferences", style = mono(12f, 500, p.mu))
+                Text("Window cutoff: ${Fmt.decimal(thr.toDouble(), 2)} · 5 inferences", style = mono(12f, 500, p.mu))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Manual native-cutoff adjustment, not invented calibrated sensitivity presets.
                     Btn("Lower", primary = false, enabled = thr > 0.01f) {
@@ -956,9 +956,8 @@ fun DayStrip(runs: List<Double>) {
         }
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth()) {
-            val fmt = java.text.SimpleDateFormat("HH:mm", LocalConfiguration.current.locales[0])
             listOf(0.0, 0.25, 0.5, 0.75, 1.0).forEachIndexed { i, f ->
-                Text(if (i == 0) "now" else fmt.format(java.util.Date(((now + f * 86400) * 1000).toLong())), style = mono(10f, 500, p.mu),
+                Text(if (i == 0) "now" else Fmt.time(((now + f * 86400) * 1000).toLong()), style = mono(10f, 500, p.mu),
                     modifier = Modifier.weight(1f), textAlign = when (i) { 0 -> androidx.compose.ui.text.style.TextAlign.Start; 4 -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Center })
             }
         }

@@ -47,10 +47,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 /**
  * Momentum: the agent system's own report (momentum report v1), shown above the scout on the radar page.
@@ -207,12 +204,11 @@ fun momentumStamp(ts: Double): String {
     val then = Calendar.getInstance().apply { timeInMillis = (ts * 1000).toLong() }
     val now = Calendar.getInstance()
     val sameDay = then.get(Calendar.YEAR) == now.get(Calendar.YEAR) && then.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
-    val pattern = when {
-        sameDay -> "HH:mm"
-        nowS() - ts < 6 * 86400 -> "EEE HH:mm"
-        else -> "d MMM HH:mm"
+    return when {
+        sameDay -> Fmt.time(then.timeInMillis)
+        nowS() - ts < 6 * 86400 -> Fmt.weekdayTime(then.timeInMillis)
+        else -> Fmt.dayMonthTime(then.timeInMillis)
     }
-    return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(then.timeInMillis))
 }
 
 /** Right side of the Momentum heading, and whether it reads as stale (the machine's refresh or this phone's failed). */

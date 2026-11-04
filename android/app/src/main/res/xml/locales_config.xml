@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages offered in system Settings (Android 13+) and in This phone > Look > App language.
+     English (res/values) is the fallback. Resource folders: he -> values-iw, zh-Hans -> values-zh-rCN,
+     zh-Hant -> values-zh-rTW, the rest values-<tag>. LocalesConfigTest pins this list to the folders;
+     see docs/translations.md before adding a language. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="af" />
+    <locale android:name="ar" />
+    <locale android:name="de" />
+    <locale android:name="es" />
+    <locale android:name="fr" />
+    <locale android:name="ga" />
+    <locale android:name="he" />
+    <locale android:name="hu" />
+    <locale android:name="it" />
+    <locale android:name="ja" />
+    <locale android:name="ko" />
+    <locale android:name="pt" />
+    <locale android:name="ru" />
+    <locale android:name="tr" />
+    <locale android:name="uk" />
+    <locale android:name="zh-Hans" />
+    <locale android:name="zh-Hant" />
+</locale-config>

@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        L10n.install(this)
+        Locales.init(this)
         Prefs.init(this)
         PhoneService.controlState.value = Prefs.phoneArmed
         Hub.app = this
@@ -125,6 +127,8 @@ class MainActivity : FragmentActivity() {
     private var resumed = false
     private var pendingVoiceStart = false
     private var pendingVoiceTicket: VoiceTicket? = null
+
+    override fun attachBaseContext(newBase: Context) { super.attachBaseContext(Locales.wrap(newBase)) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -81,14 +81,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 /** Full-screen alarm surface over the lock screen. Nothing here stops the alarm except a proof the server accepts. */
 class WakeActivity : FragmentActivity() {
     var mode = "home"
+
+    override fun attachBaseContext(newBase: android.content.Context) { super.attachBaseContext(Locales.wrap(newBase)) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,7 +117,7 @@ class WakeActivity : FragmentActivity() {
     }
 }
 
-private fun hhmm(ts: Double): String = if (ts <= 0) "–" else SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date((ts * 1000).toLong()))
+private fun hhmm(ts: Double): String = if (ts <= 0) "–" else Fmt.time((ts * 1000).toLong())
 
 private fun shrink(f: File): String {
     val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -208,7 +208,7 @@ fun WakeScreen(act: WakeActivity) {
             // Give proofs and safety actions the space when landscape + IME leaves little height.
             if (showClock) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(SimpleDateFormat("HH:mm", LocalConfiguration.current.locales[0]).format(Date(tick)), style = serif(if (compact) 24f else if (mode == "home") 64f else 36f, p.tx))
+                Text(Fmt.time(tick), style = serif(if (compact) 24f else if (mode == "home") 64f else 36f, p.tx))
                 val tag = when (phase) { "ring" -> "ALARM"; "checkin" -> "CHECK-IN"; "wait" -> "UP"; "done" -> "DONE"; "offline" -> "OFFLINE"; else -> "" }
                 if (tag.isNotEmpty()) Pill(tag, if (phase == "ring" || phase == "offline") p.att else p.acct, if (phase == "ring" || phase == "offline") p.attd else p.accd)
             }
@@ -486,7 +486,6 @@ private val DAYS = listOf(6 to "Sunday", 0 to "Monday", 1 to "Tuesday", 2 to "We
 fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Boolean = false) {
     val ticket = remember { Api.epoch.capture() }
     val p = P
-    val locale = LocalConfiguration.current.locales[0]
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val ov by Wake.overview.collectAsState()
@@ -539,7 +538,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     }
     val next = ov?.optJSONObject("next")
     Column(modifier.imePadding()) {
-        if (!embedded) TopBar("Alarm clock", next?.let { "next " + SimpleDateFormat("EEE HH:mm", locale).format(Date((it.getDouble("ts") * 1000).toLong())) + " · " + until(it.getDouble("ts")) } ?: "no alarm set")
+        if (!embedded) TopBar("Alarm clock", next?.let { "next " + Fmt.weekdayTime((it.getDouble("ts") * 1000).toLong()) + " · " + until(it.getDouble("ts")) } ?: "no alarm set")
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
@@ -585,7 +584,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(a.str("time"), style = mono(34f, 600, if (a.optBoolean("on", true)) p.tx else p.dim), modifier = Modifier.clickable {
                                     val (h, m) = a.str("time").split(":").map { it.toInt() }
-                                    TimePickerDialog(ctx, { _, hh, mm -> save { c -> c.getJSONArray("alarms").getJSONObject(i).put("time", "%02d:%02d".format(Locale.US, hh, mm)) } }, h, m, true).show()
+                                    TimePickerDialog(ctx, { _, hh, mm -> save { c -> c.getJSONArray("alarms").getJSONObject(i).put("time", "%02d:%02d".format(Locale.US, hh, mm)) } }, h, m, android.text.format.DateFormat.is24HourFormat(ctx)).show()
                                 })
                                 Spacer(Modifier.weight(1f))
                                 Toggle(a.optBoolean("on", true), { v -> save { c -> c.getJSONArray("alarms").getJSONObject(i).put("on", v) } })
@@ -614,7 +613,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                         val now = Calendar.getInstance()
                         TimePickerDialog(ctx, { _, hh, mm ->
                             save { c -> c.getJSONArray("alarms").put(JSONObject().put("time", "%02d:%02d".format(Locale.US, hh, mm)).put("on", true).put("days", JSONArray())) }
-                        }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), true).show()
+                        }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), android.text.format.DateFormat.is24HourFormat(ctx)).show()
                     }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icn(Ic.plus, p.acct, 20.dp); Spacer(Modifier.width(10.dp)); Text("Add alarm", style = sans(15f, 600, p.acct))
                     }
@@ -643,7 +642,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                         IconBtn(Ic.chevR, p.tx, 40.dp, p.s2, enabled = lv < lmax) { save { c -> c.put("level_base", lv + 1) } }
                     }
                     Line()
-                    SettingRow("Harder every 2 weeks", if (auto && nextLv > 0) "Next step " + SimpleDateFormat("EEE d MMM", locale).format(Date((nextLv * 1000).toLong()))
+                    SettingRow("Harder every 2 weeks", if (auto && nextLv > 0) "Next step " + Fmt.weekdayDayMonth((nextLv * 1000).toLong())
                         else if (auto) "At the top step" else "Off: stays on step $lv") {
                         Toggle(auto, { v -> save { c -> c.put("level_auto", v) } })
                     }

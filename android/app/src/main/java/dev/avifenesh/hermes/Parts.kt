@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -107,12 +108,10 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Date
-import java.util.Locale
 
 // ---------------------------------------------------------------- slash commands
 /** Ranked matches for a leading "/token": name prefix, then alias prefix, then substring. */
@@ -175,33 +174,33 @@ fun rel(ts: Double): String {
     val d = nowS() - ts
     val date = Date((ts * 1000).toLong())
     return when {
-        d < 45 -> "now"
-        d < 3600 -> "${(d / 60).toInt().coerceAtLeast(1)}m"
-        d < 86400 -> "${(d / 3600).toInt()}h"
-        d < 6 * 86400 -> SimpleDateFormat("EEE", Locale.getDefault()).format(date)
-        else -> SimpleDateFormat("d MMM", Locale.getDefault()).format(date)
+        d < 45 -> str(R.string.time_now)
+        d < 3600 -> Fmt.minutes((d / 60).toLong().coerceAtLeast(1))
+        d < 86400 -> Fmt.hours((d / 3600).toLong())
+        d < 6 * 86400 -> Fmt.weekday(date.time)
+        else -> Fmt.dayMonth(date.time)
     }
 }
 
-fun clock(ts: Double): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date((ts * 1000).toLong()))
+fun clock(ts: Double): String = Fmt.time((ts * 1000).toLong())
 
-/** Elapsed time that cannot be mistaken for a clock: 0:42 is fine, but "25:25" looks like a time of day, so from 10 min on it reads "25m", "1h 05m". */
+/** Elapsed time that cannot be mistaken for a clock: 0:42 is fine, but "25:25" looks like a time of day, so from 10 min on it reads "25m", "1h 5m". */
 fun span(sec: Long): String {
     val s = sec.coerceAtLeast(0)
     return when {
-        s < 600 -> "%d:%02d".format(s / 60, s % 60)
-        s < 3600 -> "${s / 60}m"
-        else -> "%dh %02dm".format(s / 3600, (s / 60) % 60)
+        s < 600 -> Fmt.stopwatch(s)
+        s < 3600 -> Fmt.minutes(s / 60)
+        else -> Fmt.hoursMinutes(s / 3600, (s / 60) % 60)
     }
 }
 
 fun until(ts: Double): String {
     val d = ts - nowS()
-    if (d <= 0) return "due"
+    if (d <= 0) return str(R.string.time_due)
     return when {
-        d < 3600 -> "in ${(d / 60).toInt().coerceAtLeast(1)}m"
-        d < 86400 -> "in ${(d / 3600).toInt()}h ${((d % 3600) / 60).toInt()}m"
-        else -> SimpleDateFormat("EEE HH:mm", Locale.getDefault()).format(Date((ts * 1000).toLong()))
+        d < 3600 -> str(R.string.time_in, Fmt.minutes((d / 60).toLong().coerceAtLeast(1)))
+        d < 86400 -> str(R.string.time_in, Fmt.hoursMinutes((d / 3600).toLong(), ((d % 3600) / 60).toLong()))
+        else -> Fmt.weekdayTime((ts * 1000).toLong())
     }
 }
 
@@ -216,13 +215,9 @@ fun parseTime(v: Any?): Double? {
     return null
 }
 
-fun money(x: Double): String = if (x > 0 && x < 0.01) "$%.3f".format(x) else "$%.2f".format(x)
+fun money(x: Double): String = Fmt.money(x)
 
-fun sizeStr(n: Long): String = when {
-    n < 1024 -> "$n B"
-    n < 1024 * 1024 -> "${n / 1024} KB"
-    else -> "%.1f MB".format(n / 1048576.0)
-}
+fun sizeStr(n: Long): String = Fmt.size(n)
 
 @Composable
 fun rememberTick(ms: Long = 1000): Long {
@@ -846,7 +841,7 @@ fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, right: @C
 @Composable
 fun Section(title: String, right: String? = null, color: Color = P.mu, rightColor: Color = P.mu) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), style = mono(11.5f, 600, color).copy(letterSpacing = 1.2.em * 0.1f), modifier = Modifier.weight(1f))
+        Text(title.uppercase(LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT), style = mono(11.5f, 600, color).copy(letterSpacing = 1.2.em * 0.1f), modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         if (right != null) Text(right, style = mono(11.5f, 500, rightColor))
     }
@@ -870,8 +865,8 @@ fun Chip(text: String, selected: Boolean, count: Int? = null, onClick: () -> Uni
     }
 }
 
-/** Human day label for chat separators (e.g. "Thu 8 Oct"). */
-fun dayLabel(ts: Double): String = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date((ts * 1000).toLong()))
+/** Human day label for chat separators (e.g. "Thu 8 Oct", "Thu, Oct 8"). */
+fun dayLabel(ts: Double): String = Fmt.weekdayDayMonth((ts * 1000).toLong())
 
 @Composable
 fun Pill(text: String, fg: Color, bg: Color) {
