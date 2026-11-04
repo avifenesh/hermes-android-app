@@ -262,3 +262,32 @@ object Focus {
         else -> FocusAct.NONE
     }
 }
+
+// ---------------------------------------------------------------- taps before the clip is here
+/** Where a bubble's clip stands. */
+enum class VoiceFetch {
+    /** On the phone. */ READY,
+    /** Downloading on its own; a tap turns it into [WAITING]. */ FETCHING,
+    /** Downloading after a tap; plays the moment it lands. */ WAITING,
+    /** Not downloaded on its own (large, metered, not a voice note, or failed before); a tap loads and plays it. */ MANUAL,
+    /** The download failed; a tap retries. */ FAILED,
+}
+
+/** A tap on a bubble whose clip is not on the phone yet: the next state, and whether to start a download. */
+data class FetchTap(val state: VoiceFetch, val startDownload: Boolean)
+
+object VoiceTaps {
+    /**
+     * A tap during a download never restarts it: it asks to play when the clip lands, and a second
+     * tap takes that back. Only a clip that waits for a tap, or whose download failed, starts one.
+     */
+    fun tap(state: VoiceFetch): FetchTap = when (state) {
+        VoiceFetch.FETCHING -> FetchTap(VoiceFetch.WAITING, startDownload = false)
+        VoiceFetch.WAITING -> FetchTap(VoiceFetch.FETCHING, startDownload = false)
+        VoiceFetch.MANUAL, VoiceFetch.FAILED -> FetchTap(VoiceFetch.WAITING, startDownload = true)
+        VoiceFetch.READY -> FetchTap(VoiceFetch.READY, startDownload = false)
+    }
+
+    /** The download finished: play now only if a tap asked for it. */
+    fun landed(state: VoiceFetch): Boolean = state == VoiceFetch.WAITING
+}

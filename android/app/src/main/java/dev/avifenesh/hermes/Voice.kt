@@ -357,15 +357,6 @@ fun VoicePlaybackScope() {
 }
 
 // ---------------------------------------------------------------- fetching
-/** Where a bubble's clip stands. */
-enum class VoiceFetch {
-    /** On the phone. */ READY,
-    /** Downloading on its own; a tap turns it into [WAITING]. */ FETCHING,
-    /** Downloading after a tap; plays the moment it lands. */ WAITING,
-    /** Not downloaded on its own (large, metered, not a voice note, or failed before); a tap loads and plays it. */ MANUAL,
-    /** The download failed; a tap retries. */ FAILED,
-}
-
 object VoiceMedia {
     /** Media ids whose download failed in this process: scrolling back does not refetch them on its own. */
     private val failed = java.util.Collections.synchronizedSet(HashSet<String>())
@@ -423,7 +414,7 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
             if (got == null) { VoiceMedia.noteFailure(id); state = VoiceFetch.FAILED; return@LaunchedEffect }
             VoiceMedia.noteSuccess(id)
             file = got
-            val wanted = state == VoiceFetch.WAITING
+            val wanted = VoiceTaps.landed(state)
             state = VoiceFetch.READY
             if (wanted) play(got)
         } else {
@@ -448,9 +439,7 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
             val f = file
             when {
                 f != null -> runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say("Can't play this voice message") }
-                state == VoiceFetch.FETCHING -> state = VoiceFetch.WAITING
-                state == VoiceFetch.WAITING -> state = VoiceFetch.FETCHING  // a second tap takes the request back
-                else -> { state = VoiceFetch.WAITING; attempt++ }  // load on demand, or retry a failure
+                else -> VoiceTaps.tap(state).let { t -> state = t.state; if (t.startDownload) attempt++ }
             }
         },
         onSeek = { ms ->

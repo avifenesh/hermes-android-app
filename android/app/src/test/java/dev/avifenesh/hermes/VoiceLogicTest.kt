@@ -229,6 +229,18 @@ class VoiceLogicTest {
         assertFalse(VoiceFetchRules.auto(voiceKind = false, size = 240_000, metered = false, failedBefore = false))
     }
 
+    @Test fun aTapDuringADownloadWaitsForItInsteadOfRestartingIt() {
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = false), VoiceTaps.tap(VoiceFetch.FETCHING))
+        assertTrue(VoiceTaps.landed(VoiceFetch.WAITING))
+        // A second tap takes the request back; the download carries on and the note stays quiet.
+        assertEquals(FetchTap(VoiceFetch.FETCHING, startDownload = false), VoiceTaps.tap(VoiceFetch.WAITING))
+        assertFalse(VoiceTaps.landed(VoiceFetch.FETCHING))
+        // Tap-to-load and retry start a download and play when it lands.
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.MANUAL))
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.FAILED))
+        assertEquals(FetchTap(VoiceFetch.READY, startDownload = false), VoiceTaps.tap(VoiceFetch.READY))
+    }
+
     @Test fun mediaDownloadsNeverTakeTheApiAndEventStreamSlots() {
         assertTrue(Api.media.dispatcher !== Api.http.dispatcher)
         assertTrue(Api.media.dispatcher !== Api.sse.dispatcher)
