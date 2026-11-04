@@ -78,6 +78,10 @@ object Prefs {
     var momentumRead: String? get() = g("moread"); set(v) = s("moread", v)
     var agentName: String get() = g("agent")?.takeIf { it.isNotBlank() } ?: "Hermes"; set(v) = s("agent", v)
     var noLock: Boolean get() = sp.getBoolean("nolock", false); set(v) { sp.edit().putBoolean("nolock", v).apply() }
+    /** Pairing links this phone redeemed, as PairGate.key hashes (server + code), never the codes. One per pairing. */
+    var pairRedeemed: List<String>
+        get() = g("pairdone")?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+        set(v) = s("pairdone", v.joinToString(",").ifBlank { null })
     var serverVoice: Boolean get() = sp.getBoolean("servervoice", true); set(v) { sp.edit().putBoolean("servervoice", v).apply() }
     var wakeWord: Boolean get() = sp.getBoolean("wakeword", false); set(v) { sp.edit().putBoolean("wakeword", v).apply() }
     var wakePhrase: String get() = g("wakephrase")?.takeIf { p -> WakeWord.PHRASES.any { it.first == p } } ?: WakeWord.PHRASES.first().first; set(v) = s("wakephrase", v)
@@ -425,10 +429,16 @@ object Api {
         val cfSecret = link.getQueryParameter("s")
         Keys.ensure()  // device keys are per phone, not per machine
         val body = JSONObject().put("code", c).put("device_name", "${Build.MANUFACTURER} ${Build.MODEL}")
-            .put("pub", Keys.pub(Keys.REQ)).put("apub", Keys.pub(Keys.APR)).put("lock", !Prefs.noLock)
+            .put("pub", Keys.pub(Keys.REQ)).put("apub", Keys.pub(Keys.APR)).put("lock", !Prefs.noLock).toString().toByteArray()
         // Pair with isolated credentials; failure/cancellation leaves the active machine untouched.
-        val req = Request.Builder().url(u.trimEnd('/') + "/v1/pair").post(body.toString().toRequestBody(JSON))
+        val unsigned = Request.Builder().url(u.trimEnd('/') + "/v1/pair").post(body.toRequestBody(JSON))
             .apply { if (cfId != null) { header("CF-Access-Client-Id", cfId); header("CF-Access-Client-Secret", cfSecret ?: "") } }.build()
+        // Prove the request key, the same canonical signature as every request: if the first response was lost, the
+        // server gives this phone its device back on a retry of the same code. Older servers ignore the headers.
+        val ts = (System.currentTimeMillis() / 1000).toString()
+        val q = unsigned.url.encodedQuery
+        val canon = "POST\n${unsigned.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n${sha256(body)}"
+        val req = unsigned.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", Keys.sign(canon.toByteArray())).build()
         val o = exec(req, plain)
         val token = o.getString("token").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing pairing token")
         val device = o.getString("device_id").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing device ID")

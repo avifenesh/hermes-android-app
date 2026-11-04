@@ -62,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -330,41 +331,34 @@ fun NavItem(key: String, label: String, icon: ImageVector, badge: String?, hot: 
 fun PairScreen(link: Uri?) {
     val p = P
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val act = LocalAct.current
     val cb = LocalClipboardManager.current
-    var busy by remember { mutableStateOf(false) }
+    // The redemption belongs to the process (Pairing), not to this composition: rotating or switching theme mid-pair
+    // recreates the screen, and the new one must neither cancel nor repeat it.
+    val busy by Pairing.busy
+    val failure by Pairing.error
     var err by remember { mutableStateOf<String?>(null) }
     var paste by rememberSaveable { mutableStateOf("") }
     val scannerAvailable = remember(ctx) { Push.available(ctx) }
-    fun go(u: Uri, confirmed: Boolean = false) {
+    fun go(u: Uri, confirmed: Boolean = false, auto: Boolean = false) {
         if (busy) return
         // Never drop a live pairing on a link alone: only the explicit "Pair with this machine" tap passes confirmed.
         if (Ui.paired.value && !confirmed) { err = "Tap Pair with this machine to switch"; return }
         if (u.scheme != "hermes" || u.host != "pair") { err = "That isn't a Hermes pairing link"; return }
-        busy = true; err = null
-        scope.launch {
-            try {
-                PhoneService.disarm(ctx)
-                Machines.park()
-                // pair commits credentials atomically only after a valid response. Nothing to roll back on failure.
-                Api.pair(u)
-                Prefs.seq = 0; Prefs.nseq = 0; Prefs.live = true
-                Machines.park()
-                Ui.stack.clear(); Ui.tab.value = "inbox"
-                Ui.pairLink.value = null; Ui.paired.value = true
-                // Main owns sync / metadata / push bootstrap after this screen leaves composition.
-                Ui.say("Paired with " + (Prefs.server ?: "Hermes"))
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                err = when (e) { is ApiError -> if (e.code == 403) "That code is used or expired. Run hermes mobile pair again." else e.message; else -> e.message ?: e.toString() }
-            } finally { busy = false }
-        }
+        err = null
+        Pairing.redeem(ctx, u, auto)
     }
     // A link that arrives from outside (deep link / QR) while already paired never pairs by itself: switching the
-    // phone to another server is a deliberate tap, so a malicious link can't silently redirect it.
-    var pendingLink by remember(link) { mutableStateOf(if (Ui.paired.value && link?.getQueryParameter("c") != null) link else null) }
-    LaunchedEffect(link) { if (link != null && link.getQueryParameter("c") != null && !Ui.paired.value) go(link) }
+    // phone to another server is a deliberate tap, so a malicious link can't silently redirect it. A link this phone
+    // already redeemed is not offered again: it can only fail.
+    var pendingLink by remember(link) {
+        mutableStateOf(if (Ui.paired.value && link?.getQueryParameter("c") != null && !Pairing.redeemed(link)) link else null)
+    }
+    LaunchedEffect(link) {
+        if (link == null || link.getQueryParameter("c") == null) return@LaunchedEffect
+        if (Pairing.redeemed(link)) Pairing.alreadyPaired(link) else if (!Ui.paired.value) go(link, auto = true)
+    }
+    DisposableEffect(act) { onDispose { if (!act.isChangingConfigurations) Pairing.error.value = null } }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 26.dp)) {
         Spacer(Modifier.height(54.dp))
         MarkBox(58.dp)
@@ -397,7 +391,7 @@ fun PairScreen(link: Uri?) {
                 if (t.isNotBlank()) go(Uri.parse(t), confirmed = true)
             }
         }
-        val e = err
+        val e = err ?: failure
         if (e != null) {
             Spacer(Modifier.height(16.dp))
             Text(e, style = sans(14f, 500, p.bad))
