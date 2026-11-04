@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import importlib.util
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -51,7 +52,7 @@ def metadata():
 
 
 class Backend:
-    def __init__(self, home, public_url):
+    def __init__(self, home, public_url, client_header=None):
         self.home = state_root(home)
         parsed = urlsplit(public_url)
         if parsed.scheme != 'https' and not (parsed.scheme == 'http' and parsed.hostname in ('127.0.0.1', 'localhost')):
@@ -63,6 +64,8 @@ class Backend:
         self.replay = SG.Replay()
         self.stores = {}
         self.hits = []
+        # Set only behind a TLS proxy that writes this header; never trust a client-supplied value.
+        self.client_header = client_header
         invitation = self.home / 'invitation.txt'
         if not invitation.exists():
             fd = os.open(invitation, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -70,12 +73,30 @@ class Backend:
                 f.write(secrets.token_urlsafe(32))
         self.invitation = invitation.read_text().strip()
 
-    def limited(self):
+    # Per-client budget so one script cannot lock reviewers out; the global ceiling bounds total work.
+    CLIENT_LIMIT, GLOBAL_LIMIT, WINDOW = 20, 400, 300
+
+    def client(self, r):
+        """Client key: IPv4 address or IPv6 /64, from the proxy's own hop when a proxy header is configured."""
+        if self.client_header:
+            # The proxy appends the peer it saw; earlier entries are client-controlled.
+            raw = r.headers.get(self.client_header, '').split(',')[-1].strip()
+        else:
+            raw = r.remote or ''
+        try:
+            ip = ipaddress.ip_address(raw.split('%')[0])
+        except ValueError:
+            return 'unknown'
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        return str(ipaddress.ip_network(f'{ip}/64', strict=False)) if ip.version == 6 else str(ip)
+
+    def limited(self, key):
         now = time.monotonic()
-        self.hits = [t for t in self.hits if now - t < 300]
-        if len(self.hits) >= 40:
+        self.hits = [(t, k) for t, k in self.hits if now - t < self.WINDOW]
+        if len(self.hits) >= self.GLOBAL_LIMIT or sum(1 for _, k in self.hits if k == key) >= self.CLIENT_LIMIT:
             return True
-        self.hits.append(now)
+        self.hits.append((now, key))
         return False
 
     def tenant(self, did):
@@ -155,7 +176,7 @@ class Backend:
 <h1>Hermes synthetic review sandbox</h1><p>No live agent, personal data or command execution. Each enrollment creates a separate sandbox. Do not enter personal data.</p>
 <form id="f"><label>Reviewer invitation <input id="i" type="password" required autocomplete="off"></label><button>Get fresh pairing link</button></form><p id="out"></p>
 <script>document.getElementById('f').onsubmit=async(e)=>{e.preventDefault();let o=document.getElementById('out');o.textContent='';let r=await fetch('/review/enroll',{method:'POST',headers:{Authorization:'Bearer '+document.getElementById('i').value}});let d=await r.json();if(d.link){let a=document.createElement('a');a.href=d.link;a.textContent='Open Hermes / copy this pairing link';o.appendChild(a)}else{o.textContent=d.error}};</script>''', content_type='text/html', headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff'})
-        if self.limited():
+        if self.limited(self.client(r)):
             return web.json_response({'error': 'too many attempts'}, status=429)
         if r.path == '/review/enroll':
             if not hmac.compare_digest(r.headers.get('Authorization', ''), 'Bearer ' + self.invitation):
@@ -352,8 +373,10 @@ def main():
     parser.add_argument('--state', default=str(BASE / 'review-backend'))
     parser.add_argument('--port', type=int, default=47941)
     parser.add_argument('--public-url', default='http://127.0.0.1:47941')
+    parser.add_argument('--client-ip-header', default=None,
+                        help='Header the TLS proxy sets to the client IP (for example X-Forwarded-For); per-client limits key on it')
     args = parser.parse_args()
-    backend = Backend(args.state, args.public_url)
+    backend = Backend(args.state, args.public_url, client_header=args.client_ip_header)
     print('Synthetic sandbox only; invitation file:', backend.home / 'invitation.txt', flush=True)
     web.run_app(backend.app(), host='127.0.0.1', port=args.port, access_log=None)
 

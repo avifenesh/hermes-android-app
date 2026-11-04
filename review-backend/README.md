@@ -53,9 +53,12 @@ cleartext or reach the host. The signed local Play candidate and its bundle-gene
 
 The reusable invitation authorizes *issuing new isolated enrollments*, not reading
 any existing tenant. It is not an API bearer token and cannot sign device requests.
-No shared pre-enrolled device key/token is shipped. Public enrollment/pairing has a
-single-process global limit of 40 attempts per five minutes (no trusted client IP
-headers). Do not run multiple workers. The invitation page does not transmit it
+No shared pre-enrolled device key/token is shipped. Public enrollment/pairing allows
+20 attempts per client (IPv4 address or IPv6 /64) and 400 in total per five minutes,
+in one process. Behind the TLS proxy, pass `--client-ip-header X-Forwarded-For` (or the
+header your proxy writes) so limits key on the real client; only the proxy's own last
+hop is used, never a client-supplied value. Without it every request looks like the
+proxy and shares one budget. Do not run multiple workers. The invitation page does not transmit it
 in URLs and has no analytics/external assets; API responses and page use no-store.
 
 Both keys must be P-256 SPKI/canonical Base64. Request signing uses the production

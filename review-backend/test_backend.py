@@ -252,5 +252,25 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
             server.state_root(Path.home() / '.hermes/mobile')
 
 
+    async def test_one_client_cannot_lock_out_other_reviewers(self):
+        """A flood from one proxied client hits its own limit; another reviewer still reaches enrollment."""
+        await self.runner.cleanup()
+        self.backend = server.Backend(self.home, 'http://127.0.0.1:47941', client_header='X-Forwarded-For')
+        self.runner = web.AppRunner(self.backend.app(), access_log=None, shutdown_timeout=1)
+        await self.runner.setup()
+        site = web.TCPSite(self.runner, '127.0.0.1', 0)
+        await site.start()
+        self.url = 'http://127.0.0.1:' + str(site._server.sockets[0].getsockname()[1])
+        flood = {'X-Forwarded-For': '198.51.100.9'}
+        statuses = [(await self.raw('POST', '/review/enroll', headers=flood))[0] for _ in range(60)]
+        self.assertIn(429, statuses)
+        self.assertEqual((await self.raw('POST', '/review/enroll', headers={'X-Forwarded-For': '2001:db8:5:6::1'}))[0], 401)
+        # Addresses inside one IPv6 /64 share a budget, so rotating them does not escape the limit.
+        v6 = [(await self.raw('POST', '/review/enroll', headers={'X-Forwarded-For': f'2001:db8:9:9::{i:x}'}))[0] for i in range(1, 60)]
+        self.assertIn(429, v6)
+        # The proxy's own appended hop is the one trusted: a client-forged first entry is ignored.
+        forged = {'X-Forwarded-For': '203.0.113.50, 198.51.100.9'}
+        self.assertEqual((await self.raw('POST', '/review/enroll', headers=forged))[0], 429)
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
