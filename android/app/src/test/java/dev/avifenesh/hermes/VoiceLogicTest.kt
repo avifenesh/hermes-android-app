@@ -6,10 +6,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import kotlinx.coroutines.async
 
 class VoiceLogicTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     // ------------------------------------------------------------ peaks
     @Test fun peakPerWindowNormalizedToTheLoudest() {
         // 1 kHz, 10 ms windows = 10 frames. Raw peaks 0.125, 0.25 (a negative sample), 0.5, 0.0625.

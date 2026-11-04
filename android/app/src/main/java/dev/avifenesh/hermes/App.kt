@@ -51,6 +51,11 @@ class App : Application() {
         if (Prefs.paired) schedule(this)
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Locales.configurationChanged(this, newConfig)
+    }
+
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         Img.trimMemory(level)
@@ -245,7 +250,7 @@ class MainActivity : FragmentActivity() {
                 Ui.composeOpen.value = true
             } catch (e: Exception) {
                 Ui.share.value = null
-                Ui.say("Cannot attach shared file: ${e.message ?: "invalid share"}")
+                Ui.say(e.message?.let { str(R.string.share_attach_failed, it) } ?: str(R.string.share_attach_invalid))
             }
         }
     }

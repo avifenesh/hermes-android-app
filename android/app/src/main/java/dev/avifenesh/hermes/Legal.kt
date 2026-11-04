@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
@@ -54,7 +55,7 @@ private fun privacyBlocks(source: String): List<PrivacyBlock> = parseMd(source).
             block.rows.drop(1).flatMap { row ->
                 row.mapIndexed { index, cell ->
                     if (index == 0) PrivacyBlock(privacyText(cell), 3)
-                    else PrivacyBlock(privacyText("${labels.getOrElse(index) { "Details" }}: $cell"))
+                    else PrivacyBlock(privacyText("${labels.getOrElse(index) { str(R.string.privacy_table_details) }}: $cell"))
                 }
             }
         }
@@ -70,7 +71,7 @@ fun PrivacyScreen() {
     var retry by remember { mutableStateOf(0) }
     val appContext = remember(context) {
         val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-        "$EDITION_NAME $version\nPackage: ${context.packageName}"
+        "$EDITION_NAME $version\n" + str(R.string.privacy_package, context.packageName)
     }
     LaunchedEffect(context, retry) {
         failed = false
@@ -86,16 +87,16 @@ fun PrivacyScreen() {
             failed = true
         }
     }
-    Column(Modifier.fillMaxSize().semantics { paneTitle = "Privacy policy" }) {
-        TopBar("Privacy policy")
+    Column(Modifier.fillMaxSize().semantics { paneTitle = str(R.string.privacy_title) }) {
+        TopBar(stringResource(R.string.privacy_title))
         val content = blocks
         when {
-            failed -> ErrorPanel("Couldn't read the packaged privacy policy.") { retry++ }
+            failed -> ErrorPanel(stringResource(R.string.privacy_read_failed)) { retry++ }
             content == null -> Skeleton(2)
             else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp)) {
                 item {
-                    Text("Bundled with this app · available offline. No account or pairing required.",
+                    Text(stringResource(R.string.privacy_bundled),
                         style = sans(14f, 500, P.tx2, 21f), modifier = Modifier.padding(bottom = 12.dp))
                     SelectionContainer {
                         Text(appContext, style = sans(13f, 400, P.tx2, 20f), modifier = Modifier.padding(bottom = 20.dp))
@@ -159,16 +160,16 @@ fun LicensesScreen(document: String? = null) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar(if (document == null) "Licenses" else "License text", "Packaged on this phone · available offline")
+        TopBar(if (document == null) stringResource(R.string.licenses_title) else stringResource(R.string.licenses_text_title), stringResource(R.string.licenses_subtitle))
         val current = page
         when {
-            failed -> ErrorPanel("Couldn't read the packaged license text.") { retry++ }
+            failed -> ErrorPanel(stringResource(R.string.licenses_read_failed)) { retry++ }
             current == null -> Skeleton(2)
             current.selected == null -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
                 item {
-                    Text("The microWakeWord Hey Jarvis weights and manifest have an explicit Apache-2.0 grant. Training provenance remains unresolved; this is not certification that all training inputs are permissive. Read the notice and model provenance before redistribution.",
+                    Text(stringResource(R.string.licenses_wake_model),
                         style = sans(15f, 500, P.tx, 23f), modifier = Modifier.padding(20.dp))
-                    Text("These notices are not an exhaustive dependency SBOM or legal clearance. Google ML Kit has separate terms.",
+                    Text(stringResource(R.string.licenses_not_sbom),
                         style = sans(14f, 400, P.tx2, 21f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
                 }
                 items(current.documents, key = { it.file }) { entry ->
@@ -186,8 +187,8 @@ fun LicensesScreen(document: String? = null) {
                     SelectionContainer {
                         Column {
                             Text(current.selected.title, style = sans(19f, 600, P.tx), modifier = Modifier.padding(bottom = 12.dp))
-                            if (current.selected.source.isNotBlank()) Text("Source: ${current.selected.source}", style = sans(13f, 400, P.tx2))
-                            Text("SHA-256: ${current.selected.hash}", style = sans(12f, 400, P.tx2), modifier = Modifier.padding(vertical = 12.dp))
+                            if (current.selected.source.isNotBlank()) Text(stringResource(R.string.licenses_source, current.selected.source), style = sans(13f, 400, P.tx2))
+                            Text(stringResource(R.string.licenses_sha256, current.selected.hash), style = sans(12f, 400, P.tx2), modifier = Modifier.padding(vertical = 12.dp))
                         }
                     }
                 }

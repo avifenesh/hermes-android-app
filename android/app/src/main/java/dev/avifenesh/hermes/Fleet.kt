@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
@@ -120,7 +122,7 @@ object Fleet {
             // 401 is pairing/request authentication failure, not consent to weaken auth.
             if (e.code != 403) throw e
         }
-        val h = fleetSignature(act, id, name, serialized, "fleet-input", "Control $name")
+        val h = fleetSignature(act, id, name, serialized, "fleet-input", str(R.string.fleet_control_title, name))
             ?: throw CancellationException("Authentication cancelled")
         currentCoroutineContext().ensureActive()
         Api.epoch.commit(ticket) { Hub.capabilityEpoch.commit(gate) {
@@ -131,7 +133,7 @@ object Fleet {
 
     fun checked(o: JSONObject): JSONObject {
         if (o.str("error").isNotBlank() || o.has("ok") && !o.optBoolean("ok"))
-            throw ApiError(0, o.str("error").ifBlank { "Gateway refused the operation" })
+            throw ApiError(0, o.str("error").ifBlank { str(R.string.fleet_refused) })
         return o
     }
     suspend fun stop(id: String): JSONObject = Api.post("/v1/fleet/${enc(id)}/stop")
@@ -160,35 +162,36 @@ object Fleet {
     fun onEvent(c: Context, ev: JSONObject) = synchronized(Api.epoch) {
         if (!Hub.features.value.fleet || ev.optDouble("at") <= Prefs.fleetSeen) return@synchronized
         Prefs.fleetSeen = ev.optDouble("at")
-        if (Hub.foreground) { Ui.say("${ev.str("name").ifBlank { ev.str("tool") }} is waiting on you"); return@synchronized }
+        if (Hub.foreground) { Ui.say(R.string.fleet_waiting_on_you, ev.str("name").ifBlank { ev.str("tool") }); return@synchronized }
         waiting(c, ev, agents().firstOrNull { it.str("id") == ev.str("id") })
     }
 
     private fun waiting(c: Context, ev: JSONObject, a: JSONObject?) {
         if (!Hub.features.value.fleet) return
         val id = ev.str("id")
-        val name = ev.str("name").ifBlank { a?.str("name") ?: "" }.ifBlank { ev.str("tool").ifBlank { "Agent" } }
+        val name = ev.str("name").ifBlank { a?.str("name") ?: "" }.ifBlank { ev.str("tool").ifBlank { str(R.string.fleet_agent_fallback) } }
         val pi = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val open = PendingIntent.getActivity(c, ("fo$id").hashCode(),
             Intent(c, MainActivity::class.java).putExtra("agent", id).putExtra("agent_name", name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), pi)
         val b = NotificationCompat.Builder(c, Notify.CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
-            .setContentTitle("$name needs you").setContentText(ev.str("status"))
+            .setContentTitle(str(R.string.fleet_needs_you, name)).setContentText(ev.str("status"))
             .setStyle(NotificationCompat.BigTextStyle().bigText(listOf(ev.str("status"), a?.str("project")?.let { if (it.isBlank()) "" else "· $it" } ?: "")
                 .filter { it.isNotBlank() }.joinToString("\n")))
             .setSubText(ev.str("tool")).setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(open)
         if ((a == null || a.optBoolean("can_reply", true)) && a?.optBoolean("unguarded") != true) {
-            val reply = RemoteInput.Builder("reply").setLabel("Reply to $name").build()
+            val reply = RemoteInput.Builder("reply").setLabel(str(R.string.fleet_reply_to, name)).build()
             val rpi = PendingIntent.getBroadcast(c, ("fr$id").hashCode(),
                 Intent(c, ActionReceiver::class.java).setAction("fleet_reply").putExtra("base", Prefs.base).putExtra("agent", id).putExtra("name", name),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
-            b.addAction(NotificationCompat.Action.Builder(0, "Reply", rpi).addRemoteInput(reply)
+            b.addAction(NotificationCompat.Action.Builder(0, str(R.string.fleet_reply), rpi).addRemoteInput(reply)
                 .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setShowsUserInterface(false).build())
-            for ((label, text) in listOf("Go ahead" to "go ahead", "Continue" to "continue")) {
-                val qpi = PendingIntent.getBroadcast(c, ("fq$id$label").hashCode(),
+            // The label is shown; the text is what the agent receives. Request codes key on the text, not the language.
+            for ((label, text) in listOf(R.string.fleet_go_ahead to "go ahead", R.string.fleet_continue to "continue")) {
+                val qpi = PendingIntent.getBroadcast(c, ("fq$id$text").hashCode(),
                     Intent(c, ActionReceiver::class.java).setAction("fleet_reply").putExtra("base", Prefs.base).putExtra("agent", id).putExtra("name", name).putExtra("text", text), pi)
-                b.addAction(0, label, qpi)
+                b.addAction(0, str(label), qpi)
             }
         }
         Notify.post(c, ("f$id").hashCode(), b.build())
@@ -198,7 +201,7 @@ object Fleet {
 }
 
 suspend fun fleetSignature(act: androidx.fragment.app.FragmentActivity, id: String, name: String, text: String,
-                           domain: String = "fleet", title: String = "Send to $name"): Map<String, String>? =
+                           domain: String = "fleet", title: String = str(R.string.fleet_send_to_title, name)): Map<String, String>? =
     kotlinx.coroutines.suspendCancellableCoroutine { k ->
         val ts = (System.currentTimeMillis() / 1000).toString()
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -216,8 +219,8 @@ suspend fun fleetSignature(act: androidx.fragment.app.FragmentActivity, id: Stri
         })
         k.invokeOnCancellation { prompt.cancelAuthentication() }
         prompt.authenticate(androidx.biometric.BiometricPrompt.PromptInfo.Builder().setTitle(title)
-            .setSubtitle(if (domain == "fleet") "Runs without permission prompts: \"" + text.take(80) + "\""
-                else "Authorize this terminal input · " + text.take(90))
+            .setSubtitle(if (domain == "fleet") str(R.string.fleet_sig_unguarded, text.take(80))
+                else str(R.string.fleet_sig_input, text.take(90)))
             .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL).build(),
             androidx.biometric.BiometricPrompt.CryptoObject(sig))
     }
@@ -242,12 +245,16 @@ fun FleetSection() {
     }
     val list = snap?.optJSONArray("agents").objs().filter { showAll || it.str("group") != "recent" }
     val waiting = list.count { it.str("group") == "waiting" }
-    Section("Fleet", if (list.isEmpty()) "idle" else "$waiting waiting · ${list.count { it.str("group") == "working" }} working", if (waiting > 0) p.att else p.mu)
+    val working = list.count { it.str("group") == "working" }
+    Section(stringResource(R.string.fleet_title), if (list.isEmpty()) stringResource(R.string.fleet_idle)
+        else pluralStringResource(R.plurals.fleet_waiting_count, waiting, waiting) + " · " + pluralStringResource(R.plurals.fleet_working_count, working, working),
+        if (waiting > 0) p.att else p.mu)
     // ctrl missing while feature is on (e.g. status file present, binary gone): muted note, not a red error.
-    if (err != null) Text("Agent view: $err", style = sans(13f, 400, if (err!!.contains("not installed")) p.mu else p.bad), modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
-    if (list.isEmpty() && snap != null) Text("No agents running.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp))
+    // "not installed" matches the gateway's own error text, which stays English.
+    if (err != null) Text(stringResource(R.string.fleet_agent_view_error, err.orEmpty()), style = sans(13f, 400, if (err!!.contains("not installed")) p.mu else p.bad), modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
+    if (list.isEmpty() && snap != null) Text(stringResource(R.string.fleet_no_agents), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp))
     for (a in list) AgentRow(a)
-    Text(if (showAll) "Hide ended sessions" else "Show ended sessions", style = sans(13.5f, 600, p.tx2),
+    Text(if (showAll) stringResource(R.string.fleet_hide_ended) else stringResource(R.string.fleet_show_ended), style = sans(13.5f, 600, p.tx2),
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp).clickable { showAll = !showAll })
 }
 
@@ -260,7 +267,7 @@ fun AgentRow(a: JSONObject) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(a.str("name").ifBlank { "Untitled" }, style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(a.str("name").ifBlank { stringResource(R.string.fleet_untitled) }, style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(6.dp))
                 Pill(a.str("kind") + (a.str("via").takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""), p.tx2, p.s2)
             }
@@ -272,6 +279,15 @@ fun AgentRow(a: JSONObject) {
         Spacer(Modifier.width(8.dp))
         Text(rel(a.optDouble("last", 0.0)), style = mono(11.5f, 500, p.mu))
     }
+}
+
+/** The server's agent groups read in the app language; anything else shows as sent. */
+private fun groupLabel(g: String): String = when (g) {
+    "waiting" -> str(R.string.fleet_group_waiting)
+    "working" -> str(R.string.fleet_group_working)
+    "done" -> str(R.string.fleet_group_done)
+    "recent" -> str(R.string.fleet_group_recent)
+    else -> g
 }
 
 fun openAgent(a: JSONObject) {
@@ -341,7 +357,7 @@ fun AgentScreen(id: String, name: String) {
         val gate = Hub.capabilityEpoch.capture()
         val origin = screenIdentity
         if (origin != null && (origin.first != ticket || origin.second != gate)) {
-            feedback = "Connection changed; wait for the screen to refresh before sending."
+            feedback = str(R.string.agent_connection_changed)
             return
         }
         try { check(ticket, gate) } catch (_: CancellationException) { return }
@@ -357,13 +373,15 @@ fun AgentScreen(id: String, name: String) {
                 Fleet.checked(response)
                 // Key presses and failed sends never clear a draft; edits during auth survive too.
                 if (draft != null && text == draft) text = ""
-                feedback = response.str("line").ifBlank { if (interrupt) "Sent Esc" else if (input == null) "Sent" else "Input sent" }
+                feedback = response.str("line").ifBlank {
+                    when { interrupt -> str(R.string.agent_sent_esc); input == null -> str(R.string.agent_sent); else -> str(R.string.agent_input_sent) }
+                }
                 try { refresh() } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                    err = "Input accepted; screen refresh failed: ${e.message}"
+                    err = str(R.string.agent_refresh_failed, e.message)
                 }
             } catch (e: CancellationException) { throw e }
               catch (e: Exception) {
-                feedback = "Not sent: ${e.message}"
+                feedback = str(R.string.agent_not_sent, e.message)
                 try { check(ticket, gate); refresh() } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { /* Preserve the action error and last readable screen. */ }
             }
@@ -378,28 +396,28 @@ fun AgentScreen(id: String, name: String) {
     if (!feat.fleet) {
         Column(Modifier.fillMaxSize()) {
             TopBar(name, null)
-            Text("Fleet isn't available on this machine.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp))
+            Text(stringResource(R.string.agent_fleet_unavailable), style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp))
         }
         return
     }
     val g = a?.str("group") ?: ""
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(title, if (imeVisible) null else listOf(g, a?.str("kind") ?: "", a?.str("host") ?: "", a?.str("project") ?: "").filter { it.isNotBlank() }.joinToString(" · "), stateColor(g)) {
+        TopBar(title, if (imeVisible) null else listOf(groupLabel(g), a?.str("kind") ?: "", a?.str("host") ?: "", a?.str("project") ?: "").filter { it.isNotBlank() }.joinToString(" · "), stateColor(g)) {
             LegacyAgentInterrupt(a?.optBoolean("can_stop") == true, terminal != null, busy) { perform(interrupt = true) }
         }
         if (err != null) Text(err!!, style = sans(12f, 500, p.bad), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-        if (busy) Text("Cancel input", style = sans(13f, 600, p.att), modifier = Modifier
-            .clickable { operation?.cancel(); feedback = "Cancelled locally; accepted input cannot be recalled." }
+        if (busy) Text(stringResource(R.string.agent_cancel_input), style = sans(13f, 600, p.att), modifier = Modifier
+            .clickable { operation?.cancel(); feedback = str(R.string.agent_cancelled_locally) }
             .padding(horizontal = 12.dp, vertical = 8.dp))
         if (feedback != null) Text(feedback!!, style = sans(12f, 500, p.tx2), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-        if (terminal == null) Text(if (screen == null) "Loading screen…" else "Read-only screen · update the gateway for terminal controls. Reply below still works.",
+        if (terminal == null) Text(if (screen == null) stringResource(R.string.agent_loading_screen) else stringResource(R.string.agent_read_only),
             style = sans(12f, 500, p.mu), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-        else if (!imeVisible) Text(if (terminal.optBoolean("mouse")) "Drag to pan locally · try mouse, or use arrows + Enter" else "Keyboard-only: use arrows + Enter · drag to pan locally",
+        else if (!imeVisible) Text(if (terminal.optBoolean("mouse")) stringResource(R.string.agent_hint_mouse) else stringResource(R.string.agent_hint_keyboard),
             style = sans(12f, 500, p.mu), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
         val view = terminal ?: JSONObject().put("lines", screen?.optJSONArray("lines"))
         TerminalViewport(view, { row, col ->
             if (terminal != null && !busy) {
-                if (!terminal.optBoolean("mouse")) feedback = "Keyboard-only: use arrows + Enter"
+                if (!terminal.optBoolean("mouse")) feedback = str(R.string.agent_keyboard_only)
                 else perform(input = JSONObject().put("action", "click").put("row", row).put("col", col).put("frame", terminal.str("frame")))
             }
         }, Modifier.weight(1f).fillMaxWidth())
@@ -407,8 +425,8 @@ fun AgentScreen(id: String, name: String) {
             if (!imeVisible && a?.optBoolean("can_reply", true) != false) FleetQuickReplies(busy) { perform(draft = it) }
             if (terminal != null) TerminalControls(::input, busy, compact = imeVisible)
             if (a?.optBoolean("can_reply", true) != false) {
-                FleetComposer(text, { text = it }, { perform(draft = text) }, busy, "Reply to $title", compact = imeVisible)
-            } else Text(if (a?.str("via") == "desktop") "This session lives in the Claude desktop app; reply there." else "This terminal has no remote control; reply from there.", style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(8.dp))
+                FleetComposer(text, { text = it }, { perform(draft = text) }, busy, stringResource(R.string.fleet_reply_to, title), compact = imeVisible)
+            } else Text(if (a?.str("via") == "desktop") stringResource(R.string.agent_reply_in_desktop) else stringResource(R.string.agent_reply_in_terminal), style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(8.dp))
         }
     }
 }

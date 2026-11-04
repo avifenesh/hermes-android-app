@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Edition-specific settings and files ================= -->
+    <!-- Widget name in the launcher's widget list; keep "Herms" as is. -->
+    <string name="widget_label">Herms fleet</string>
+    <!-- ===== This phone settings (Play edition) ===== -->
+    <string name="channel_control_unavailable_title">Unavailable in this edition</string>
+    <string name="channel_control_unavailable_body">This Play edition cannot read or operate other apps. Remote commands cannot enable this capability.</string>
+    <string name="channel_background_title">Background delivery</string>
+    <string name="channel_background_body">Android battery optimization stays enabled. Push (when configured) and periodic sync remain available; background delivery can be delayed.</string>
+
+    <!-- ===== Opening attachments (Play edition) ===== -->
+    <string name="channel_apk_unavailable">Installing APK attachments is unavailable in this Play edition. You can still save the file to Downloads.</string>
+</resources>

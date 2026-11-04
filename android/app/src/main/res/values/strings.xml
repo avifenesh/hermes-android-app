@@ -25,7 +25,6 @@
     <string name="common_copy">Copy</string>
     <string name="common_copied">Copied</string>
     <string name="common_back">Back</string>
-    <string name="common_next">Next</string>
     <string name="common_send">Send</string>
     <string name="common_edit">Edit</string>
     <string name="common_add">Add</string>
@@ -39,17 +38,11 @@
     <string name="common_install">Install</string>
     <string name="common_update">Update</string>
     <string name="common_run">Run</string>
-    <string name="common_stop">Stop</string>
-    <string name="common_retry">Retry</string>
     <string name="common_try_again">Try again</string>
     <string name="common_loading">Loading…</string>
     <string name="common_checking">Checking…</string>
     <string name="common_failed">Failed</string>
     <string name="common_connection_failed">Connection failed</string>
-    <string name="common_on">On</string>
-    <string name="common_off">Off</string>
-    <!-- %1$s: an error message from the app or the server, shown as is. -->
-    <string name="common_error_detail">Failed: %1$s</string>
 
     <!-- Relative times and durations. Units come from the platform (5m, 2h); these wrap them. -->
     <string name="time_now">now</string>
@@ -62,4 +55,2563 @@
     <string name="language_title">App language</string>
     <string name="language_system_default">System default</string>
     <string name="language_change">Change</string>
+
+    <!-- ================= Inbox, chat, compose, pairing and shared components ================= -->
+    <!-- ===== App shell: tab bar ===== -->
+    <!-- Toast when the sync after opening the app fails. %1$s: error message, shown as is. -->
+    <string name="nav_sync_failed">Sync failed: %1$s</string>
+    <!-- Tab bar label (spoken by screen readers): the list of chats. -->
+    <string name="nav_inbox">Inbox</string>
+    <!-- Tab bar label: live overview of what the agent is doing and what waits on the user. -->
+    <string name="nav_pulse">Pulse</string>
+    <!-- Tab bar label: scheduled jobs. "Cron" may stay untranslated. -->
+    <string name="nav_cron">Cron</string>
+    <!-- Tab bar label: the user's own settings and account area. -->
+    <string name="nav_me">Me</string>
+    <!-- Screen reader label of the round pen button that starts a new chat. -->
+    <string name="nav_new_chat_desc">New chat</string>
+
+    <!-- ===== Pairing screen ===== -->
+    <!-- Error when a pairing link arrives while already paired. Quotes the button label pair_with_this_machine. -->
+    <string name="pair_tap_to_switch">Tap Pair with this machine to switch</string>
+    <!-- %1$s: product name of the agent software that prints the link ("Hermes"). -->
+    <string name="pair_not_a_link">That isn\'t a %1$s pairing link</string>
+    <!-- Subtitle under the app name. %1$s: the user's agent name. -->
+    <string name="pair_tagline">%1$s, in your pocket. Chats, approvals, runs and cron, straight from your machine.</string>
+    <!-- Step heading. Keep the step number, then two spaces (the double quotes keep both spaces). -->
+    <string name="pair_step_machine">"1  On your machine"</string>
+    <!-- Step heading. Keep the step number, then two spaces (the double quotes keep both spaces). -->
+    <string name="pair_step_scan_or_paste">"2  Scan the code, or paste the link"</string>
+    <!-- Step heading when the phone has no QR scanner. Keep the step number, then two spaces. -->
+    <string name="pair_step_paste">"2  Paste the pairing link"</string>
+    <!-- Button and status while the pairing request runs. -->
+    <string name="pair_pairing">Pairing…</string>
+    <!-- Button. -->
+    <string name="pair_scan_qr">Scan QR code</string>
+    <string name="pair_qr_empty">Empty QR code</string>
+    <string name="pair_qr_unavailable">QR scanner unavailable. Paste the pairing link instead.</string>
+    <string name="pair_qr_needs_play">QR scanning needs Google Play services. You can still pair with a link.</string>
+    <!-- Button next to the link field when it is empty: paste from the clipboard (verb). -->
+    <string name="pair_paste">Paste</string>
+    <!-- Button next to the link field when it holds a link: pair with it (verb). -->
+    <string name="pair_submit">Pair</string>
+    <!-- %1$s: host name of the other machine, e.g. "box.example.com". -->
+    <string name="pair_confirm_switch">Pair with %1$s? Your current machines stay paired.</string>
+    <!-- Button. pair_tap_to_switch quotes this label. -->
+    <string name="pair_with_this_machine">Pair with this machine</string>
+    <string name="pair_security_note">The link carries a one-time code. Your phone creates its own signing keys. Approvals require biometric or screen-lock authentication.</string>
+    <!-- Button that opens the privacy policy. -->
+    <string name="pair_privacy_policy">Privacy policy</string>
+    <!-- Button that opens the open-source licenses. -->
+    <string name="pair_licenses">Licenses</string>
+
+    <!-- ===== New work sheet (compose) ===== -->
+    <!-- Toast. %1$s: error message, shown as is. -->
+    <string name="attach_upload_failed">Upload failed: %1$s</string>
+    <!-- Toast. %1$s: error message, shown as is. -->
+    <string name="record_start_failed">Could not start recording: %1$s</string>
+    <string name="record_mic_denied">Microphone permission denied. You can still type a message.</string>
+    <string name="attach_no_camera_app">No camera app is available. Attach a photo instead.</string>
+    <string name="attach_camera_denied">Camera permission denied. You can still attach a photo.</string>
+    <!-- Toast when picking a model for the new chat fails. %1$s: error message from the machine. -->
+    <string name="compose_model_not_switched">Model not switched: %1$s</string>
+    <!-- Toast when the new chat cannot be created. %1$s: error message, shown as is. -->
+    <string name="compose_start_failed">Couldn\'t start: %1$s</string>
+    <!-- Title of the bottom sheet that starts a new chat. -->
+    <string name="compose_title">New work</string>
+    <!-- Row that reopens the chat with the latest agent reply. -->
+    <string name="compose_continue_last_reply">Continue last reply</string>
+    <!-- Small label above the profile chips: "start the new chat in this profile". -->
+    <string name="compose_new_chat_in">New chat in</string>
+    <!-- Chip that turns on the mixture-of-agents mode (several models answer together). -->
+    <string name="compose_mixture_of_agents">Mixture of agents</string>
+    <!-- %1$s: profile name, e.g. "work". -->
+    <string name="compose_profile_note">Runs in the %1$s profile with its own model, memory and keys.</string>
+    <!-- Placeholder of the message field. %1$s: the user's agent name. Keep the slash: it starts a command. -->
+    <string name="compose_placeholder">Ask %1$s anything, or type / for commands</string>
+    <!-- Attachment source buttons and menu items (short, under a 42dp icon). Record a voice note. -->
+    <string name="attach_voice">Voice</string>
+    <!-- Attachment source: take a picture with the camera. -->
+    <string name="attach_camera">Camera</string>
+    <!-- Attachment source: pick a photo from the gallery. -->
+    <string name="attach_photo">Photo</string>
+    <!-- Attachment source: pick any file. -->
+    <string name="attach_file">File</string>
+    <!-- Dialog title when another app shares a file into this app. -->
+    <string name="attach_share_title">Upload shared file?</string>
+    <!-- %1$s: address of the paired machine, e.g. "https://box.example.com". -->
+    <string name="attach_share_body">This uploads the shared file to %1$s. Nothing is uploaded until you confirm.</string>
+    <string name="attach_share_body_default">This uploads the shared file to your paired machine. Nothing is uploaded until you confirm.</string>
+    <!-- Dialog button (verb). -->
+    <string name="attach_upload">Upload</string>
+    <string name="attach_share_machine_changed">Machine changed. Share the file again.</string>
+    <!-- "Send" is the send button's label. -->
+    <string name="attach_privacy_notice">Files and photos upload to your paired gateway when selected, before Send. Removing a draft does not delete its server copy.</string>
+    <!-- Status in the voice recording bar, next to a running timer. -->
+    <string name="record_recording">Recording</string>
+
+    <!-- ===== Inbox ===== -->
+    <!-- Big screen title. -->
+    <string name="inbox_title">Inbox</string>
+    <string name="inbox_offline">Offline · showing what\'s on the phone</string>
+    <!-- Placeholder of the inbox search field. -->
+    <string name="inbox_search_placeholder">Search messages</string>
+    <!-- Link under the search field. The arrow points to the end of the line; RTL languages may use ←. -->
+    <string name="inbox_search_everywhere">Search every session on the machine →</string>
+    <plurals name="inbox_agent_busy">
+        <!-- %1$d: number of running tasks; %2$s: the user's agent name. -->
+        <item quantity="one">%2$s is on %1$d thing</item>
+        <item quantity="other">%2$s is on %1$d things</item>
+    </plurals>
+    <!-- Filter chip: one-to-one chats. -->
+    <string name="inbox_filter_chats">Chats</string>
+    <!-- Filter chip: group chats with several agents. -->
+    <string name="inbox_filter_rooms">Rooms</string>
+    <!-- Filter chip: scheduled summary chats (digests). -->
+    <string name="inbox_filter_digests">Digests</string>
+    <!-- Filter chip: archived chats (adjective). -->
+    <string name="inbox_filter_archived">Archived</string>
+    <!-- Chip that opens sessions from other platforms (Telegram, Discord, CLI). -->
+    <string name="inbox_filter_elsewhere">Elsewhere</string>
+    <string name="inbox_search_empty_title">Nothing found</string>
+    <!-- %1$s: the search text the user typed. -->
+    <string name="inbox_search_empty_body">No chat mentions \"%1$s\".</string>
+    <string name="inbox_rooms_empty_title">No group chats yet</string>
+    <!-- %1$s: product name "Hermes Desktop". "Bots" are the user's agents. -->
+    <string name="inbox_rooms_empty_body">Start one with two or more Bots, or open one from %1$s.</string>
+    <string name="inbox_empty_title">All quiet</string>
+    <!-- %1$s: the user's agent name. "the pen" is the round new-chat button with a pen icon. -->
+    <string name="inbox_empty_body">Start new work with the pen, or wait for %1$s and cron to report in.</string>
+    <!-- Chat row subtitle. -->
+    <string name="inbox_row_waiting_approval">Waiting for your approval</string>
+    <!-- Chat row subtitle. %1$s: the user's agent name. -->
+    <string name="inbox_row_working">%1$s is working…</string>
+    <!-- Chat row subtitle when the user wrote the last message. %1$s: that message's preview text. -->
+    <string name="inbox_row_you">You: %1$s</string>
+    <!-- Long-press menu items on a chat (verbs). -->
+    <string name="inbox_menu_pin">Pin</string>
+    <string name="inbox_menu_unpin">Unpin</string>
+    <string name="inbox_menu_archive">Archive</string>
+    <string name="inbox_menu_unarchive">Unarchive</string>
+    <string name="inbox_menu_mark_read">Mark read</string>
+
+    <!-- ===== Chat screen ===== -->
+    <!-- Toast. %1$s: error message, shown as is. -->
+    <string name="chat_not_sent">Not sent: %1$s</string>
+    <!-- Lowercase status under the chat title while the agent works (may be followed by " · model · cost"). -->
+    <string name="chat_status_working">working</string>
+    <!-- Lowercase status under the title of a digest chat (scheduled summary). -->
+    <string name="chat_status_digest">digest</string>
+    <!-- Chat title when the chat has none. -->
+    <string name="chat_title_fallback">Chat</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="chat_load_failed">Could not load chat: %1$s</string>
+    <!-- Title shown in an empty chat. -->
+    <string name="chat_empty_title">New chat</string>
+    <!-- %1$s: the user's agent name. -->
+    <string name="chat_empty_body">Say something to %1$s.</string>
+    <!-- Floating button when new messages arrived below. The arrow points down. -->
+    <string name="chat_new_messages">New messages ↓</string>
+    <!-- Floating button that scrolls to the newest message. -->
+    <string name="chat_jump_to_latest">Jump to latest</string>
+    <!-- Segment while the agent works: send the message as a steer (redirect the run now). Verb. -->
+    <string name="chat_mode_steer">Steer</string>
+    <!-- Segment while the agent works: queue the message for after the run. Verb. -->
+    <string name="chat_mode_queue">Queue</string>
+    <!-- Lowercase hint next to the Steer segment. -->
+    <string name="chat_mode_steer_hint">redirects before the next step</string>
+    <!-- Lowercase hint next to the Queue segment. -->
+    <string name="chat_mode_queue_hint">runs after this one finishes</string>
+    <!-- Message field placeholder in Steer mode. %1$s: the user's agent name. -->
+    <string name="chat_placeholder_steer">Steer %1$s…</string>
+    <!-- Message field placeholder in Queue mode. -->
+    <string name="chat_placeholder_queue">Queue a follow-up…</string>
+    <!-- Message field placeholder. %1$s: the user's agent name. -->
+    <string name="chat_placeholder_message">Message %1$s</string>
+    <!-- Row at the end of the chat while the agent works, next to a timer. %1$s: the user's agent name. -->
+    <string name="chat_agent_working">%1$s is working</string>
+    <plurals name="chat_notice_count">
+        <!-- %1$d: number of folded gateway notices in one row. -->
+        <item quantity="one">%1$d notice</item>
+        <item quantity="other">%1$d notices</item>
+    </plurals>
+    <!-- Inbox preview of an approval request. %1$s: the shell command waiting for approval. -->
+    <string name="chat_preview_approval">Needs approval: %1$s</string>
+    <!-- Inbox preview of a photo message (may be followed by " · caption"). -->
+    <string name="chat_preview_photo">Photo</string>
+    <!-- Inbox preview of a file message. %1$s: file name. -->
+    <string name="chat_preview_file">File: %1$s</string>
+    <!-- Inbox preview of a voice note without a transcript. -->
+    <string name="chat_preview_voice">Voice message</string>
+
+    <!-- ===== Chat messages ===== -->
+    <!-- Label of the folded reasoning above an agent reply (the model was thinking). -->
+    <string name="msg_thinking">Thinking</string>
+    <!-- Uppercase tag above a message the user sent to redirect a running task. -->
+    <string name="msg_tag_steer">STEER</string>
+    <!-- Uppercase tag above a message the user queued for after the running task. -->
+    <string name="msg_tag_queued">QUEUED</string>
+    <plurals name="msg_trace_steps">
+        <!-- %1$d: number of tool steps; followed by " · " and tool names. -->
+        <item quantity="one">%1$d step</item>
+        <item quantity="other">%1$d steps</item>
+    </plurals>
+
+    <!-- ===== Approval card ===== -->
+    <!-- Uppercase heading of the fold that shows what the agent was doing. -->
+    <string name="approval_context">CONTEXT</string>
+    <plurals name="approval_context_files">
+        <!-- %1$d: number of files the agent touched. -->
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <plurals name="approval_context_recent_steps">
+        <!-- %1$d: number of recent agent steps. The English one form repeats the original copy; use the correct singular. -->
+        <item quantity="one">%1$d recent steps</item>
+        <item quantity="other">%1$d recent steps</item>
+    </plurals>
+    <!-- Lowercase: the fold includes the latest file diff. -->
+    <string name="approval_context_last_diff">last diff</string>
+    <!-- Card heading, pending state. -->
+    <string name="approval_needs_you">Needs your approval</string>
+    <!-- Card heading after approval (may be followed by " · session" or " · always"). -->
+    <string name="approval_approved">Approved</string>
+    <!-- Card heading after denial. -->
+    <string name="approval_denied">Denied</string>
+    <!-- Card heading when the request timed out. -->
+    <string name="approval_expired">Expired</string>
+    <!-- Lowercase label above the shell command on the card. -->
+    <string name="approval_command_label">command</string>
+    <!-- %1$s: product name of the agent software ("Hermes"); its safety check runs on the user's machine. -->
+    <string name="approval_smart_denied">%1$s\' safety check flagged this one. Read it before approving.</string>
+    <string name="approval_no_lock">No screen lock on this phone, so approving doesn\'t ask for your fingerprint. Set a screen lock and re-pair to fix.</string>
+
+    <!-- ===== Run screen ===== -->
+    <!-- Toast after tapping Stop. -->
+    <string name="run_stopping">Stopping…</string>
+    <!-- Screen title: the agent's current run (noun). -->
+    <string name="run_title">Run</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="run_load_failed">Could not load run: %1$s</string>
+    <!-- Big state label: the agent is working. -->
+    <string name="run_state_working">Working</string>
+    <!-- Big state label: the agent is idle. -->
+    <string name="run_state_idle">Idle</string>
+    <!-- Section heading: the run's tool steps (noun). -->
+    <string name="run_steps">Steps</string>
+    <string name="run_waiting_first_call">Waiting for the first tool call…</string>
+    <string name="run_no_calls">No tool calls in the latest turn.</string>
+    <!-- Placeholder of the steer field. -->
+    <string name="run_steer_placeholder">Steer before the next step…</string>
+    <!-- Toast after a steer message was sent. -->
+    <string name="run_steer_sent">Steer sent</string>
+    <!-- Button that stops the running task. -->
+    <string name="run_stop">Stop run</string>
+    <!-- Screen reader label of the red stop button in the composer. -->
+    <string name="run_stop_desc">Stop run</string>
+
+    <!-- ===== Tool activity (card in chat and detail screen) ===== -->
+    <!-- Less than one second. %1$s: one second in the short unit form, e.g. "1s". -->
+    <string name="activity_duration_under">&lt;%1$s</string>
+    <!-- Title of a card or screen listing the agent's tool calls. -->
+    <string name="activity_tool_activity">Tool activity</string>
+    <plurals name="activity_tools">
+        <!-- %1$d: number of tool calls. -->
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <plurals name="activity_failed">
+        <!-- %1$d: number of tool calls that failed. -->
+        <item quantity="one">%1$d failed</item>
+        <item quantity="other">%1$d failed</item>
+    </plurals>
+    <!-- Tab label. %1$d: number of tool calls. -->
+    <string name="activity_tab_calls">Calls · %1$d</string>
+    <!-- Tab label. %1$d: number of changed files. -->
+    <string name="activity_tab_files">Files · %1$d</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="activity_load_failed">Could not load tool activity: %1$s</string>
+    <string name="activity_empty_title">No tool activity</string>
+    <string name="activity_empty_body">Tool calls and changed files will appear here.</string>
+    <!-- Lowercase label above a terminal command (noun). -->
+    <string name="activity_pane_command">command</string>
+    <!-- Lowercase label above a tool's input (noun). -->
+    <string name="activity_pane_input">input</string>
+    <!-- Lowercase label above a tool's output (noun). -->
+    <string name="activity_pane_output">output</string>
+    <string name="diff_none_captured">No diff captured for this file.</string>
+
+    <!-- ===== Shared parts: code blocks, images, files ===== -->
+    <!-- Lowercase label of a code block that names no language. -->
+    <string name="parts_code_label">code</string>
+    <!-- Lowercase action at the corner of a code block: copy it (verb). -->
+    <string name="parts_code_copy">copy</string>
+    <!-- Placeholder where an image failed to load. -->
+    <string name="image_unavailable">Image unavailable</string>
+    <!-- %1$s: host name of the outside website, e.g. "example.com". -->
+    <string name="image_tap_to_load">Image from %1$s · tap to load</string>
+    <!-- Same as image_tap_to_load when the host name is unknown. -->
+    <string name="image_tap_to_load_link">Image from link · tap to load</string>
+    <!-- Error shown after "Upload failed: ". -->
+    <string name="attach_open_failed">Couldn\'t open attachment</string>
+    <!-- Error shown after "Download failed: ". -->
+    <string name="file_downloads_unavailable">Downloads unavailable</string>
+    <!-- Toast. %1$s: error message, shown as is. -->
+    <string name="file_download_failed">Download failed: %1$s</string>
+    <!-- %1$s: progress percentage, e.g. "45%". -->
+    <string name="file_downloading">Downloading… %1$s</string>
+    <!-- %1$s: progress percentage, e.g. "45%"; %2$s: file size, e.g. "12 MB". -->
+    <string name="file_downloading_of">Downloading… %1$s of %2$s</string>
+    <!-- Lowercase hint on an app package (APK) attachment. -->
+    <string name="file_tap_to_install">tap to install</string>
+    <!-- Lowercase hint on a file attachment. -->
+    <string name="file_tap_to_open">tap to open</string>
+    <!-- Toast. %1$s: file name. -->
+    <string name="file_saved_to_downloads">Saved to Downloads: %1$s</string>
+
+    <!-- ===== Icon buttons: screen reader labels ===== -->
+    <string name="icon_back_desc">Back</string>
+    <string name="icon_close_desc">Close</string>
+    <string name="icon_add_desc">Add</string>
+    <string name="icon_send_desc">Send</string>
+    <string name="icon_stop_desc">Stop</string>
+    <!-- Play icon: run or start something (verb). -->
+    <string name="icon_run_desc">Run</string>
+    <string name="icon_pause_desc">Pause</string>
+    <string name="icon_microphone_desc">Microphone</string>
+    <string name="icon_camera_desc">Camera</string>
+    <string name="icon_search_desc">Search</string>
+    <string name="icon_refresh_desc">Refresh</string>
+    <string name="icon_more_desc">More options</string>
+    <string name="icon_delete_desc">Delete</string>
+    <string name="icon_edit_desc">Edit</string>
+    <!-- Pin to the top of a list (verb). -->
+    <string name="icon_pin_desc">Pin</string>
+    <string name="icon_download_desc">Download</string>
+    <!-- Forward chevron: go to the next item or open details. -->
+    <string name="icon_next_desc">Next</string>
+    <!-- Show more of a folded section (verb). -->
+    <string name="icon_expand_desc">Expand</string>
+    <!-- Fold a section (verb). -->
+    <string name="icon_collapse_desc">Collapse</string>
+    <string name="icon_new_chat_desc">New chat</string>
+    <string name="icon_settings_desc">Settings</string>
+    <!-- Link icon (noun). -->
+    <string name="icon_link_desc">Link</string>
+    <!-- File icon (noun). -->
+    <string name="icon_file_desc">File</string>
+    <string name="icon_confirm_desc">Confirm</string>
+    <!-- Power icon (turn on or off). -->
+    <string name="icon_power_desc">Power</string>
+    <!-- Group members (noun). -->
+    <string name="icon_members_desc">Members</string>
+    <!-- Default label of an icon button that opens something (verb). -->
+    <string name="icon_open_desc">Open</string>
+
+    <!-- ================= Group rooms, connection, pairing and app entry ================= -->
+    <!-- ===== Chat list sync: read-only mirrored chats (shown instead of the composer) ===== -->
+    <!-- %1$s: the app the conversation lives in, such as Telegram or Discord -->
+    <string name="sync_readonly_group_in">Group chat · read-only. Reply in %1$s.</string>
+    <string name="sync_readonly_group">Group chat · read-only. Reply where it started.</string>
+    <!-- "Channel" is a broadcast channel (as in Telegram). %1$s: the app the conversation lives in, such as Telegram -->
+    <string name="sync_readonly_channel_in">Channel · read-only. Reply in %1$s.</string>
+    <string name="sync_readonly_channel">Channel · read-only. Reply where it started.</string>
+    <!-- %1$s: the app the conversation lives in, such as Telegram or Discord -->
+    <string name="sync_readonly_shared_in">Shared chat · read-only. Reply in %1$s.</string>
+    <string name="sync_readonly_shared">Shared chat · read-only. Reply where it started.</string>
+    <!-- Title of a chat the server sent without a title -->
+    <string name="sync_chat_untitled">Chat</string>
+
+    <!-- ===== Network and storage errors (shown in toasts and error panels) ===== -->
+    <string name="net_machines_save_failed">Couldn\'t save paired machines</string>
+    <string name="net_machines_legacy_failed">Couldn\'t remove legacy paired machines</string>
+    <string name="net_request_signing_failed">Request signing failed</string>
+    <!-- A request failed because the phone switched machines, or the machine turned the feature off, while it was in flight -->
+    <string name="net_connection_changed">Connection or capability changed</string>
+    <!-- This phone is not connected to any machine yet -->
+    <string name="net_not_paired">Not paired</string>
+    <string name="net_feature_unavailable">This feature isn\'t available on this machine</string>
+    <string name="net_not_authorized">Not authorized (HTTP 401)</string>
+    <plurals name="net_download_cut_off">
+        <!-- %1$d: bytes received; %2$d: bytes the server announced (the count) -->
+        <item quantity="one">Download cut off at %1$d of %2$d byte</item>
+        <item quantity="other">Download cut off at %1$d of %2$d bytes</item>
+    </plurals>
+    <string name="net_download_save_failed">Couldn\'t save download</string>
+
+    <!-- ===== Pairing with a machine ===== -->
+    <!-- %1$s: the machine's host name -->
+    <string name="pairing_already_paired_with">Already paired with %1$s</string>
+    <string name="pairing_already_paired_this_machine">Already paired with this machine</string>
+    <!-- %1$s: the command to run on the computer ("hermes mobile pair"); keep it as is -->
+    <string name="pairing_link_used">That pairing link was already used. Run %1$s again.</string>
+    <!-- %1$s: "Hermes", the agent software on the computer that makes pairing links -->
+    <string name="pairing_not_a_pairing_link">That isn\'t a %1$s pairing link</string>
+    <string name="pairing_link_no_server">That link has no server address</string>
+    <string name="pairing_link_no_code">That link has no pairing code</string>
+    <!-- %1$s: the paired machine's name -->
+    <string name="pairing_paired_with">Paired with %1$s</string>
+    <!-- %1$s: the command to run on the computer ("hermes mobile pair"); keep it as is -->
+    <string name="pairing_code_expired">That code is used or expired. Run %1$s again.</string>
+    <string name="pairing_request_replayed">This phone already sent that pairing request. Open the link again to retry.</string>
+    <string name="pairing_signature_failed">Pairing signature failed</string>
+    <string name="pairing_missing_token">Missing pairing token</string>
+    <string name="pairing_missing_device_id">Missing device ID</string>
+
+    <!-- ===== Files shared into the app from another app ===== -->
+    <string name="share_not_content">Share a file from another app, or use the file picker.</string>
+    <string name="share_no_provider">The shared file has no provider.</string>
+    <!-- %1$s: the app's own name. Files that belong to this app itself -->
+    <string name="share_private_file">%1$s-private files cannot be shared into the app.</string>
+    <string name="share_provider_unavailable">The shared file provider is unavailable.</string>
+    <string name="share_no_grant">The sending app did not grant access. Share the file again, or use the file picker.</string>
+    <!-- %1$s: why the file could not be attached -->
+    <string name="share_attach_failed">Cannot attach shared file: %1$s</string>
+    <string name="share_attach_invalid">Cannot attach shared file: invalid share</string>
+
+    <!-- ===== Group chats: names, status lines and timeline notices ===== -->
+    <!-- Name of a group chat that has none; also the title while the group loads -->
+    <string name="room_default_name">Group chat</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_answering_one">%1$s is answering</string>
+    <!-- %1$s and %2$s: two members' names -->
+    <string name="room_answering_two">%1$s and %2$s are answering</string>
+    <!-- Three or more members. %1$s: all names but the last, joined with ", "; %2$s: the last name -->
+    <string name="room_answering_many">%1$s and %2$s are answering</string>
+    <!-- Used as %1$s in the notices below when the gateway sent no name (sentence subject, in place of a name) -->
+    <string name="room_notice_someone">A member</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_notice_failed">%1$s hit an error</string>
+    <!-- %1$s: a member's name; %2$s: the error message -->
+    <string name="room_notice_failed_detail">%1$s hit an error: %2$s</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_notice_superseded">%1$s moved on to your newer message</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_notice_cancelled">%1$s\'s turn was cancelled</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_notice_deferred">%1$s is unavailable; the turn waits</string>
+    <!-- %1$s: a member's name -->
+    <string name="room_notice_unavailable">%1$s is unavailable</string>
+    <string name="room_notice_stopped">You stopped the group</string>
+    <string name="room_notice_deleted">This group was deleted</string>
+    <!-- %1$s: the group's new name -->
+    <string name="room_notice_renamed_to">Renamed to %1$s</string>
+    <string name="room_notice_renamed">Group renamed</string>
+    <string name="room_notice_authority_lost">Another gateway took over this group</string>
+    <string name="room_notice_round_limit">Round limit reached; @mention a Bot to continue</string>
+    <plurals name="rooms_member_count">
+        <!-- Group row subtitle before any message. %1$d: number of members -->
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
+
+    <!-- ===== Inbox: group chat rows ===== -->
+    <string name="rooms_waiting_approval">Waiting for your approval</string>
+    <!-- Long-press menu item on a group row -->
+    <string name="rooms_mark_read">Mark read</string>
+    <!-- Row label and sheet title -->
+    <string name="rooms_new_group">New group chat</string>
+    <string name="rooms_new_group_hint">Two to six Bots in one room</string>
+
+    <!-- ===== Group chat screen ===== -->
+    <!-- %1$s: the error message -->
+    <string name="room_upload_failed">Upload failed: %1$s</string>
+    <!-- %1$s: the error message -->
+    <string name="room_not_sent">Not sent: %1$s</string>
+    <string name="room_stopping">Stopping the group…</string>
+    <string name="room_delete_title">Delete this group?</string>
+    <!-- %1$s: "Hermes Desktop", the desktop app -->
+    <string name="room_delete_body">The group and its history go away for every device and for %1$s. Each Bot keeps its own chats.</string>
+    <string name="room_deleted">Group deleted</string>
+    <!-- Dialog title. %1$s: a member's name -->
+    <string name="room_discard_title">Discard %1$s\'s turn?</string>
+    <!-- Dialog title. %1$s: a member's name -->
+    <string name="room_rerun_title">Run %1$s\'s turn again?</string>
+    <!-- %1$s: "Hermes", the agent software that runs the group; %2$s: a member's name -->
+    <string name="room_discard_body">%1$s can\'t tell whether this turn finished. Discarding lets the group move on; it does not undo anything %2$s already did.</string>
+    <!-- %1$s: a member's name (used twice) -->
+    <string name="room_rerun_body">%1$s\'s turn could not start. Running it again sends the same message to %1$s.</string>
+    <!-- Button (verb): discard a member's turn -->
+    <string name="room_discard">Discard</string>
+    <!-- Button: run a member's turn again -->
+    <string name="room_run_again">Run again</string>
+    <!-- Button label, menu item and sheet title: the group's members -->
+    <string name="room_members">Members</string>
+    <!-- Menu item: stop every member that is answering -->
+    <string name="room_stop">Stop the group</string>
+    <string name="room_delete">Delete group</string>
+    <!-- %1$s: the error message -->
+    <string name="room_load_failed">Could not load the group: %1$s</string>
+    <string name="room_empty_hint">Say something to the group. @mention a Bot to ask just that one.</string>
+    <!-- Tap to load older messages -->
+    <string name="room_earlier">Earlier messages</string>
+    <string name="room_worker_down">The gateway\'s group chat worker is not running. Messages wait until it is back.</string>
+    <!-- Attachment menu item -->
+    <string name="room_attach_photo">Photo</string>
+    <!-- Attachment menu item -->
+    <string name="room_attach_file">File</string>
+    <!-- Composer placeholder -->
+    <string name="room_composer_hint">Message the group</string>
+    <!-- Who answers after the current members. %1$s: names joined with ", " -->
+    <string name="room_next_up">Next: %1$s</string>
+    <plurals name="room_notice_count">
+        <!-- Folded run of timeline notices. %1$d: number of notices -->
+        <item quantity="one">%1$d notice</item>
+        <item quantity="other">%1$d notices</item>
+    </plurals>
+    <!-- %1$s: the error message -->
+    <string name="room_download_failed">Download failed: %1$s</string>
+    <!-- %1$s: progress as a percentage, such as 45% -->
+    <string name="room_downloading">Downloading… %1$s</string>
+    <!-- Hint under a file attachment, after its size -->
+    <string name="room_tap_to_open">tap to open</string>
+    <!-- %1$s: file name -->
+    <string name="room_saved_to_downloads">Saved to Downloads: %1$s</string>
+    <!-- Action card title. %1$s: a member's name -->
+    <string name="room_action_approval">%1$s needs your approval</string>
+    <!-- Action card title. %1$s: a member's name -->
+    <string name="room_action_discard">%1$s\'s last turn has an unknown outcome</string>
+    <!-- Action card title. %1$s: a member's name -->
+    <string name="room_action_retry">%1$s\'s turn is waiting to run</string>
+    <!-- Small lowercase label above a shell command, in the place of a code language tag -->
+    <string name="room_command_label">command</string>
+    <string name="room_action_loading">Loading the full command before you can answer…</string>
+    <string name="room_no_lock">No screen lock on this phone, so approving doesn\'t ask for your fingerprint.</string>
+    <!-- Button (verb) -->
+    <string name="room_discard_turn">Discard turn</string>
+
+    <!-- ===== Group members sheet ===== -->
+    <plurals name="room_members_summary">
+        <!-- %1$d: number of Bots in the group; %2$s: the group's name -->
+        <item quantity="one">%1$d Bot in %2$s. Tap one to @mention it.</item>
+        <item quantity="other">%1$d Bots in %2$s. Tap one to @mention it.</item>
+    </plurals>
+    <!-- Status pill after a member's name: this member answers next -->
+    <string name="room_member_next">Next</string>
+    <!-- Status after a member's name -->
+    <string name="room_member_answering">Answering</string>
+    <string name="room_members_fixed">Members are fixed for this group. To change who is in it, start a new group.</string>
+
+    <!-- ===== Rename group dialog ===== -->
+    <string name="room_rename_title">Rename group</string>
+    <!-- Text field placeholder -->
+    <string name="room_name_hint">Group name</string>
+
+    <!-- ===== New group chat sheet ===== -->
+    <!-- %1$s: the error message -->
+    <string name="rooms_create_failed">Couldn\'t start the group: %1$s</string>
+    <!-- %1$s: "Hermes Desktop", the desktop app -->
+    <string name="rooms_new_group_desc">The group lives on this gateway, so %1$s sees it too.</string>
+    <!-- Section header, shown in capitals -->
+    <string name="rooms_bots_header">BOTS</string>
+    <!-- How many Bots are picked out of the allowed range. %1$d: picked; %2$d: minimum; %3$d: maximum -->
+    <string name="rooms_picked_count">%1$d of %2$d–%3$d</string>
+    <!-- %1$s: a terminal command ("hermes profile create"); keep it as is -->
+    <string name="rooms_too_few_bots">This gateway serves fewer than two Bots. Create another profile (%1$s) to start a group.</string>
+    <!-- Button while the group is being created -->
+    <string name="rooms_starting">Starting…</string>
+    <!-- Button -->
+    <string name="rooms_start">Start group</string>
+
+    <!-- ===== This phone settings: tabs (both editions) ===== -->
+    <!-- Tab: appearance and language -->
+    <string name="channel_tab_look">Look</string>
+    <!-- Tab: talk voice and wake word -->
+    <string name="channel_tab_voice">Voice</string>
+    <!-- Tab: notifications -->
+    <string name="channel_tab_alerts">Alerts</string>
+    <!-- Tab: connection to the machine -->
+    <string name="channel_tab_connection">Connection</string>
+
+    <!-- ===== Opening attachments (both editions) ===== -->
+    <!-- %1$s: file name -->
+    <string name="channel_no_app_to_open">No app can open %1$s. Use the save button to put it in Downloads.</string>
+
+    <!-- ================= Pulse, cron, sessions, Me, This phone, support and legal ================= -->
+    <!-- ===== Pulse screen ===== -->
+    <!-- Screen title (bottom tab name). -->
+    <string name="pulse_title">Pulse</string>
+    <string name="pulse_subtitle">What needs you, what\'s running, what\'s done</string>
+    <!-- %1$s: "Hermes", the agent software on the machine; %2$s: error message, shown as is. -->
+    <string name="pulse_unreachable">Can\'t reach %1$s: %2$s</string>
+    <!-- Stat tile label under today's spend; lowercase, small tile. -->
+    <string name="pulse_stat_spent_today">spent today</string>
+    <!-- Stat tile label under today's number of agent runs. -->
+    <string name="pulse_stat_runs_today">runs today</string>
+    <!-- Stat tile label under today's number of failed cron jobs. -->
+    <string name="pulse_stat_cron_fails">cron fails</string>
+    <!-- Section heading: approvals waiting for the user. -->
+    <string name="pulse_needs_you">Needs you</string>
+    <!-- Right side of the "Needs you" heading when nothing waits. -->
+    <string name="pulse_needs_you_nothing">nothing</string>
+    <string name="pulse_no_approvals">No approvals waiting.</string>
+    <!-- Fallback title of a chat that has no title. -->
+    <string name="pulse_chat_fallback">Chat</string>
+    <!-- Section heading. %1$s: "Hermes", the agent software on the machine. -->
+    <string name="pulse_hermes_runs">%1$s runs</string>
+    <!-- Right side of the runs heading when nothing runs. -->
+    <string name="pulse_runs_idle">idle</string>
+    <!-- Fallback title of a run (noun). -->
+    <string name="pulse_run_fallback">Run</string>
+    <!-- Subtitle of a run started from this phone. -->
+    <string name="pulse_run_from_phone">from this phone</string>
+    <string name="pulse_untitled_session">Untitled session</string>
+    <!-- Section heading: finished chats from the last day. -->
+    <string name="pulse_recently_done">Recently done</string>
+    <string name="pulse_nothing_last_day">Nothing in the last day.</string>
+
+    <!-- ===== Pulse: spend chart ===== -->
+    <plurals name="spend_days">
+        <!-- Chart caption. %1$d: number of days the chart covers (7). -->
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <!-- Link to the Usage screen. Keep the › character: it mirrors by itself in right-to-left text. -->
+    <string name="spend_usage_link">Usage ›</string>
+
+    <!-- ===== Cron screen ===== -->
+    <!-- Screen title. "Cron" is the job scheduler; keep it untranslated. -->
+    <string name="cron_title">Cron</string>
+    <!-- Screen title and tab label: the alarm clock part of the Cron screen. -->
+    <string name="cron_alarm_clock">Alarm clock</string>
+    <!-- Header subtitle. %1$s: time of the next alarm; %2$s: relative time such as "in 5h 2m". -->
+    <string name="cron_alarm_next">next %1$s · %2$s</string>
+    <string name="cron_no_alarm">no alarm set</string>
+    <plurals name="cron_active_count">
+        <!-- Header subtitle part, shown as "3 active · 1 paused". %1$d: enabled cron jobs. -->
+        <item quantity="one">%1$d active</item>
+        <item quantity="other">%1$d active</item>
+    </plurals>
+    <plurals name="cron_paused_count">
+        <!-- Header subtitle part, shown as "3 active · 1 paused". %1$d: paused cron jobs. -->
+        <item quantity="one">%1$d paused</item>
+        <item quantity="other">%1$d paused</item>
+    </plurals>
+    <!-- Tab label. -->
+    <string name="cron_tab_jobs">Cron jobs</string>
+    <!-- %1$s: "Hermes", the agent software on the machine; %2$s: error message, shown as is. -->
+    <string name="cron_unreachable">Can\'t reach %1$s: %2$s</string>
+    <string name="cron_empty_title">No cron jobs</string>
+    <string name="cron_empty_sub">Tap + to schedule one.</string>
+    <!-- Label above the next job to run; all caps. -->
+    <string name="cron_next_up">NEXT UP</string>
+    <!-- Section heading: enabled jobs. -->
+    <string name="cron_section_active">Active</string>
+    <!-- Section heading: paused jobs. -->
+    <string name="cron_section_paused">Paused</string>
+    <!-- Right side of the Paused heading: tap to hide the paused jobs. -->
+    <string name="cron_paused_hide">hide</string>
+    <!-- Right side of the Paused heading: tap to show them. %1$d: number of paused jobs. -->
+    <string name="cron_paused_show">show %1$d</string>
+    <!-- Job row subtitle part. %1$s: relative time of the last run ("5m", "Tue"). -->
+    <string name="cron_job_ran">ran %1$s</string>
+    <!-- Job row subtitle part when the last run failed. %1$s: relative time of the last run. -->
+    <string name="cron_job_ran_failed">ran %1$s · failed</string>
+    <!-- Dialog title: run the job right away? -->
+    <string name="cron_run_now_title">Run now?</string>
+    <!-- %1$s: job name. -->
+    <string name="cron_run_now_body">%1$s will run on the next scheduler tick.</string>
+    <!-- Toast after a job run was requested. -->
+    <string name="cron_queued">Queued</string>
+
+    <!-- ===== Cron job detail ===== -->
+    <string name="job_no_output">No output saved yet</string>
+    <!-- Detail row label (lowercase, a narrow 76dp column). -->
+    <string name="job_kv_status">status</string>
+    <!-- Job status value. -->
+    <string name="job_status_active">active</string>
+    <!-- Job status value. -->
+    <string name="job_status_paused">paused</string>
+    <!-- Job status value. %1$s: why the job is paused, from the server. -->
+    <string name="job_status_paused_reason">paused · %1$s</string>
+    <!-- Detail row label: next run. -->
+    <string name="job_kv_next">next</string>
+    <!-- Detail row label: last run. -->
+    <string name="job_kv_last">last</string>
+    <!-- %1$s: relative time ("5m", "Tue"); %2$s: last run status from the server ("ok", "error"). -->
+    <string name="job_last_value">%1$s ago · %2$s</string>
+    <!-- Detail row label. -->
+    <string name="job_kv_model">model</string>
+    <!-- Detail row label: where the job sends its result. -->
+    <string name="job_kv_deliver">deliver</string>
+    <string name="job_empty_output">Empty output</string>
+    <!-- Section heading: the prompt the job runs. -->
+    <string name="job_prompt">Prompt</string>
+
+    <!-- ===== Elsewhere (sessions from other apps) ===== -->
+    <!-- Screen title: sessions started outside this app. -->
+    <string name="elsewhere_title">Elsewhere</string>
+    <string name="elsewhere_subtitle">Sessions from the CLI, Telegram and other apps</string>
+    <string name="elsewhere_empty_title">Nothing else</string>
+    <string name="elsewhere_empty_sub">Sessions started outside the app show up here.</string>
+    <!-- Fallback session title in the next screen's top bar. -->
+    <string name="elsewhere_untitled">Untitled</string>
+    <string name="elsewhere_untitled_session">Untitled session</string>
+
+    <!-- ===== Live session from elsewhere ===== -->
+    <string name="session_load_failed">Couldn\'t load this session</string>
+    <!-- Top bar subtitle. %1$s: where the session runs ("cli", "telegram"), shown as is. -->
+    <string name="session_sub_read_only">%1$s · superseded · read only</string>
+    <!-- Top bar subtitle. %1$s: where the session runs ("cli", "telegram"), shown as is. -->
+    <string name="session_sub_working">%1$s · live · working</string>
+    <!-- Top bar subtitle. %1$s: where the session runs ("cli", "telegram"), shown as is. -->
+    <string name="session_sub_live">%1$s · live</string>
+    <string name="session_loading_older">Loading earlier messages…</string>
+    <string name="session_empty_title">No messages yet</string>
+    <string name="session_empty_sub">Send a message to continue this session.</string>
+    <string name="session_working">Working — your message will steer or queue in the session</string>
+    <string name="session_superseded">This session was superseded. Open its continuation to send messages.</string>
+    <!-- Message box placeholder while the agent works. -->
+    <string name="session_input_steer">Steer or queue a follow-up…</string>
+    <!-- Message box placeholder. -->
+    <string name="session_input_message">Message this session…</string>
+    <!-- Prompt card title. -->
+    <string name="session_approval_needed">Approval needed</string>
+    <!-- Prompt card title. %1$s: "Hermes", the agent asking the user a question. -->
+    <string name="session_agent_asking">%1$s is asking</string>
+    <string name="session_response_sent">Response sent</string>
+    <!-- Approval button: allow this command one time. -->
+    <string name="session_allow_once">Allow once</string>
+    <!-- Approval button: allow for the rest of this session. -->
+    <string name="session_allow_session">This session</string>
+    <!-- Approval button: always allow. -->
+    <string name="session_allow_always">Always</string>
+    <!-- Fallback title of a question with no text. -->
+    <string name="session_your_answer">Your answer</string>
+    <string name="session_answer_sent">Answer sent</string>
+    <!-- Button: send the chosen options. -->
+    <string name="session_send_selection">Send selection</string>
+    <string name="session_type_answer">Type your answer…</string>
+    <!-- Placeholder when the question offers options: another answer or more detail. -->
+    <string name="session_other_detail">Other / more detail…</string>
+    <string name="session_send_answer">Send answer</string>
+
+    <!-- ===== Me screen ===== -->
+    <!-- Screen title (bottom tab name): the user's own area. -->
+    <string name="me_title">Me</string>
+    <!-- %1$s: profile name on the machine; %2$s: model id. -->
+    <string name="me_profile_model">profile %1$s · %2$s</string>
+    <!-- Connection state next to the machine name. -->
+    <string name="me_status_live">live</string>
+    <!-- Connection state next to the machine name. -->
+    <string name="me_status_offline">offline</string>
+    <string name="me_server_problems">Server problems</string>
+    <plurals name="me_server_problems_count">
+        <!-- %1$d: number of problems the server's self-check found. -->
+        <item quantity="one">%1$d problem found by the self-check</item>
+        <item quantity="other">%1$d problems found by the self-check</item>
+    </plurals>
+    <!-- Row title: the agent's settings. -->
+    <string name="me_agent">Agent</string>
+    <string name="me_agent_sub">Model, reasoning, approvals, memory, subagents, tools</string>
+    <!-- Row title: this phone's settings. -->
+    <string name="me_this_phone">This phone</string>
+    <string name="me_this_phone_sub">Voice, look, notifications, connection</string>
+    <!-- Section heading. -->
+    <string name="me_workspace">Workspace</string>
+    <!-- Row title: the extension store. -->
+    <string name="me_hub">Hub</string>
+    <string name="me_hub_sub">Install skills, plugins and MCP servers</string>
+    <!-- Radar row subtitle when the machine has no momentum report. -->
+    <string name="me_radar_sub_scout">Every 3h: the 5 most useful things the scout found</string>
+    <!-- Radar row subtitle without the scout. "Momentum" is the report's name. -->
+    <string name="me_radar_sub_momentum">Momentum: what needs you, runs and shipped</string>
+    <string name="me_radar_sub_both">Momentum and the scout\'s findings</string>
+    <!-- Row title: the Radar page (momentum report and scout findings). -->
+    <string name="me_radar">Radar</string>
+    <plurals name="me_radar_decisions_desc">
+        <!-- Spoken badge label. %1$d: decisions waiting for the user. -->
+        <item quantity="one">%1$d decision needs you</item>
+        <item quantity="other">%1$d decisions need you</item>
+    </plurals>
+    <plurals name="me_radar_decisions_new_desc">
+        <!-- Spoken badge label; the quantity follows %1$d. %1$d: decisions waiting for the user; %2$d: how many of them are new. -->
+        <item quantity="one">%1$d decision needs you, %2$d new</item>
+        <item quantity="other">%1$d decisions need you, %2$d new</item>
+    </plurals>
+    <string name="me_skills">Skills &amp; plugins</string>
+    <string name="me_skills_sub">Turn skills, plugins and MCP servers on or off</string>
+    <string name="me_memory">Memory</string>
+    <!-- %1$s: the user's agent name. -->
+    <string name="me_memory_sub">What %1$s remembers about you</string>
+    <string name="me_usage">Usage</string>
+    <string name="me_usage_sub">Spend and tokens by day, model and surface</string>
+    <string name="me_projects">Projects</string>
+    <string name="me_projects_sub">Repos on the machine: changes, diffs, commit, push, PRs</string>
+    <string name="me_search">Search everything</string>
+    <string name="me_search_sub">Full-text over every session on the machine</string>
+    <!-- %1$s: "Hermes", the agent software on the machine. -->
+    <string name="me_restart">Restart %1$s</string>
+    <string name="me_restart_sub">Reload config and plugins on the machine</string>
+    <string name="me_privacy">Privacy policy</string>
+    <string name="me_privacy_sub">Offline policy: data, permissions, retention and support</string>
+    <string name="me_licenses">Licenses</string>
+    <string name="me_licenses_sub">Offline notices, model restrictions and full license texts</string>
+
+    <!-- ===== This phone settings ===== -->
+    <string name="phone_settings_title">This phone</string>
+    <string name="phone_settings_subtitle">How the app looks, speaks and stays connected</string>
+    <!-- Section heading: light or dark look. -->
+    <string name="phone_settings_theme">Theme</string>
+    <!-- Theme choice: follow the system setting. -->
+    <string name="phone_settings_theme_system">System</string>
+    <!-- Theme choice: always dark. -->
+    <string name="phone_settings_theme_night">Night</string>
+    <!-- Theme choice: always light. -->
+    <string name="phone_settings_theme_day">Day</string>
+    <!-- Accessibility label of an accent color swatch. %1$s: color name ("Lime"). -->
+    <string name="phone_settings_accent_desc">%1$s accent</string>
+    <!-- Section heading: the voice Talk mode speaks with. -->
+    <string name="phone_settings_talk_voice">Talk voice</string>
+    <!-- Section heading. -->
+    <string name="phone_settings_wake_word">Wake word</string>
+    <string name="phone_settings_notifications">Notifications</string>
+    <string name="phone_settings_push">Push wake-ups</string>
+    <!-- %1$s: "Hermes", the agent software on the machine. -->
+    <string name="phone_settings_push_on">On. Google wakes the phone, content comes straight from %1$s.</string>
+    <string name="phone_settings_push_off">Not set up on the server. The app falls back to its own connection.</string>
+    <string name="phone_settings_stay_connected">Stay connected in background</string>
+    <string name="phone_settings_stay_connected_sub">Keeps a live connection and shows run progress. Uses a bit more battery.</string>
+    <!-- Row title: Android notification channels. -->
+    <string name="phone_settings_channels">Channels</string>
+    <string name="phone_settings_channels_sub">Approvals, replies, cron &amp; digests, live runs. Mute each one separately.</string>
+    <!-- Section heading: paired phones. -->
+    <string name="phone_settings_devices">Devices</string>
+    <!-- %1$s: device name. -->
+    <string name="phone_settings_device_this">%1$s (this phone)</string>
+    <!-- Device state: its access was revoked. -->
+    <string name="phone_settings_device_revoked">revoked</string>
+    <!-- %1$s: relative time of the device's last contact ("5m", "now", "Tue"). -->
+    <string name="phone_settings_device_seen">seen %1$s</string>
+    <!-- Button: revoke the device's access (verb). -->
+    <string name="phone_settings_revoke">Revoke</string>
+    <!-- Section heading. -->
+    <string name="phone_settings_connection">Connection</string>
+    <!-- Detail row label (lowercase, a narrow 76dp column): the machine's address. -->
+    <string name="phone_settings_kv_server">server</string>
+    <!-- Detail row label (lowercase, a narrow 76dp column). -->
+    <string name="phone_settings_kv_security">security</string>
+    <string name="phone_settings_security_access">Cloudflare Access + signed requests</string>
+    <string name="phone_settings_security_signed">signed requests</string>
+    <!-- Detail row label (lowercase, a narrow 76dp column): how approvals are confirmed. -->
+    <string name="phone_settings_kv_approval">approval</string>
+    <string name="phone_settings_approval_no_lock">no screen lock set</string>
+    <string name="phone_settings_approval_biometric">fingerprint or PIN</string>
+    <!-- Button. -->
+    <string name="phone_settings_unpair_button">Unpair this phone</string>
+    <!-- Dialog title. -->
+    <string name="phone_settings_unpair_title">Unpair?</string>
+    <string name="phone_settings_unpair_body">This phone forgets the machine and its keys. You\'ll need a new pairing code.</string>
+    <!-- Dialog button (verb). -->
+    <string name="phone_settings_unpair">Unpair</string>
+    <!-- Toast when the microphone permission was refused. -->
+    <string name="phone_settings_wake_needs_mic">Wake word needs the microphone</string>
+    <!-- Wake word row title. %1$s: the wake phrase ("Hey Jarvis"). -->
+    <string name="phone_settings_wake_say">Say “%1$s”</string>
+    <string name="phone_settings_wake_off_sub">Continuously uses the microphone in the background while enabled. Wake detection stays on-device; after a hit, Talk may send audio to the system recognizer and text to your gateway/providers.</string>
+    <string name="phone_settings_wake_paused">Paused while Talk has the mic</string>
+    <!-- Wake word state: listening for the phrase. -->
+    <string name="phone_settings_wake_listening">Listening</string>
+    <plurals name="phone_settings_wake_listening_hits">
+        <!-- %1$d: times the wake phrase was heard since the app started; × means "times". -->
+        <item quantity="one">Listening · heard %1$d× this session</item>
+        <item quantity="other">Listening · heard %1$d× this session</item>
+    </plurals>
+    <string name="phone_settings_wake_starting">Starting…</string>
+    <!-- %1$s: wake word engine name and version ("microWakeWord v2"). -->
+    <string name="phone_settings_wake_engine">%1$s · offline</string>
+    <plurals name="phone_settings_wake_cutoff">
+        <!-- The quantity follows %2$d. %1$s: detection cutoff ("0.97"); %2$d: model outputs averaged per decision (5). -->
+        <item quantity="one">Window cutoff: %1$s · %2$d inferences</item>
+        <item quantity="other">Window cutoff: %1$s · %2$d inferences</item>
+    </plurals>
+    <!-- Button: lower the detection cutoff (verb or comparative). -->
+    <string name="phone_settings_wake_lower">Lower</string>
+    <!-- Button: raise the detection cutoff. -->
+    <string name="phone_settings_wake_higher">Higher</string>
+    <!-- Button. %1$s: the recommended cutoff ("0.97"). -->
+    <string name="phone_settings_wake_use_recommended">Use recommended %1$s</string>
+    <string name="phone_settings_wake_warming_up">Warming up / rearming</string>
+    <!-- %1$d: current activation of the wake model; %2$d: its maximum (255). -->
+    <string name="phone_settings_wake_activation">Activation window: %1$d / %2$d</string>
+    <string name="phone_settings_wake_explainer">Higher is stricter; lower may trigger on other speech. The bar is the native model\'s five-output activation mean, not confidence. Changing cutoff restarts warm-up. The old engine\'s sensitivity was reset to the model recommendation.</string>
+    <!-- Day strip label above the next 24 hours of cron runs; all caps. -->
+    <string name="phone_settings_daystrip_next_24h">NEXT 24H</string>
+    <plurals name="phone_settings_daystrip_runs">
+        <!-- %1$d: scheduled cron runs in the next 24 hours. -->
+        <item quantity="one">%1$d run</item>
+        <item quantity="other">%1$d runs</item>
+    </plurals>
+    <string name="phone_settings_server_voice">Server voice</string>
+    <!-- %1$s: "Hermes", the agent software on the machine. "Agent → Voice" is a settings path; use ← in right-to-left languages. -->
+    <string name="phone_settings_server_voice_on">%1$s\' own voice (set under Agent → Voice). About a second before each reply.</string>
+    <string name="phone_settings_server_voice_off">The phone\'s text-to-speech engine. Instant, robotic.</string>
+
+    <!-- ===== Me: machines ===== -->
+    <!-- Section heading: paired machines. -->
+    <string name="machines_title">Machines</string>
+    <!-- Right side of the Machines heading when the saved list can't be read. -->
+    <string name="machines_unavailable">unavailable</string>
+    <string name="machines_read_failed">Saved machines couldn\'t be read. Existing pairings have not been changed.</string>
+    <!-- Toast. %1$s: machine name. -->
+    <string name="machines_switched_to">Switched to %1$s</string>
+    <!-- Fallback name of a machine that has no name. -->
+    <string name="machines_fallback_name">machine</string>
+    <string name="machines_switch_failed">Couldn\'t switch machines. Existing pairings have been kept.</string>
+    <!-- %1$d: round-trip time to the machine in milliseconds. -->
+    <string name="machines_latency">%1$d ms</string>
+    <!-- State of the machine in use. -->
+    <string name="machines_active">active</string>
+    <!-- Action and button: remove a saved machine from this phone (verb). -->
+    <string name="machines_forget">Forget</string>
+    <string name="machines_pair_another">Pair another machine</string>
+    <!-- Dialog title. %1$s: machine name. -->
+    <string name="machines_forget_title">Forget %1$s?</string>
+    <!-- "Me → Devices" is a path in the app on that machine; use ← in right-to-left languages. -->
+    <string name="machines_forget_body">The phone drops its token for that machine. Revoke the device there too (Me → Devices on that machine).</string>
+    <string name="machines_update_failed">Couldn\'t update saved machines. Existing pairings have been kept.</string>
+
+    <!-- ===== This phone > Alerts: cron delivery ===== -->
+    <string name="cron_delivery_title">Cron delivery</string>
+    <string name="cron_delivery_loading">Where scheduled jobs send their results</string>
+    <string name="cron_delivery_none">No cron jobs yet. New ones deliver to the app.</string>
+    <plurals name="cron_delivery_all_to_app">
+        <!-- %1$d: cron jobs that notify; all of them deliver to this app. -->
+        <item quantity="one">All %1$d notifying jobs deliver to the app</item>
+        <item quantity="other">All %1$d notifying jobs deliver to the app</item>
+    </plurals>
+    <plurals name="cron_delivery_some_elsewhere">
+        <!-- The quantity follows %2$d. %1$d: jobs delivering to the app; %2$d: all jobs; %3$d: jobs delivering elsewhere. -->
+        <item quantity="one">%1$d of %2$d jobs deliver to the app; %3$d still go to Telegram or elsewhere</item>
+        <item quantity="other">%1$d of %2$d jobs deliver to the app; %3$d still go to Telegram or elsewhere</item>
+    </plurals>
+    <!-- Button: move the jobs' delivery to the app (verb). -->
+    <string name="cron_delivery_move">Move</string>
+    <string name="cron_delivery_dialog_title">Deliver cron to the app?</string>
+    <plurals name="cron_delivery_dialog_body">
+        <!-- %1$d: jobs that switch; %2$s: product name of the delivery target ("Hermes Mobile"). -->
+        <item quantity="one">%1$d jobs switch their delivery to %2$s. Local-only jobs stay local. You can change any job back in its editor.</item>
+        <item quantity="other">%1$d jobs switch their delivery to %2$s. Local-only jobs stay local. You can change any job back in its editor.</item>
+    </plurals>
+    <plurals name="cron_delivery_moved">
+        <!-- Toast. %1$d: jobs whose delivery moved to the app. -->
+        <item quantity="one">Moved %1$d jobs</item>
+        <item quantity="other">Moved %1$d jobs</item>
+    </plurals>
+
+    <!-- ===== Support report ===== -->
+    <!-- Dialog title and long-press action label: what to do with a chat message. -->
+    <string name="support_message_actions">Message actions</string>
+    <string name="support_actions_body">Copy the message, or review a voluntary report. Nothing is sent until you choose Send report or send from your mail app.</string>
+    <!-- Button: start a report about this message (verb). -->
+    <string name="support_report">Report</string>
+    <!-- Dialog title while previewing the report. -->
+    <string name="support_review_title">Review report</string>
+    <!-- %1$s: publisher name ("Tiyuvta"). -->
+    <string name="support_disclosure">Voluntary report to %1$s, the app publisher, via Cloudflare (not your self-hosted chat gateway). No reporter account is required. Only the exact preview text and a random report ID are submitted when you tap Send report. Cloudflare receives the connection, including your IP address. No automatic telemetry. Leaving the app cancels waiting; it cannot undo a report already received.</string>
+    <!-- Button: open the privacy policy. -->
+    <string name="support_privacy_policy">Privacy policy</string>
+    <string name="support_policy_closes_draft">Opening the policy closes this unsent draft.</string>
+    <!-- %1$s: the publisher's report URL. -->
+    <string name="support_endpoint">Publisher endpoint: %1$s</string>
+    <!-- %1$s: random report ID. -->
+    <string name="support_report_id">Report ID: %1$s</string>
+    <string name="support_keep_id">Keep this ID for retry or deletion requests.</string>
+    <!-- %1$s: support email address. -->
+    <string name="support_email_alternative">Email alternative: %1$s</string>
+    <!-- %1$s: publisher name ("Tiyuvta"). -->
+    <string name="support_received">Received by %1$s. This is a receipt, not a moderation decision or a promise of action or response.</string>
+    <string name="support_send_failed">No confirmed receipt. Your draft is still here. Tap Send report to retry the same report ID, or use email. A failed or cancelled connection may still have delivered it; nothing retries automatically.</string>
+    <!-- %1$s: support email address. -->
+    <string name="support_mail_failed">Could not open a mail app. Your draft is still here. You can email %1$s yourself.</string>
+    <!-- Text box placeholder. -->
+    <string name="support_note_hint">What went wrong? (optional)</string>
+    <string name="support_note_too_long">That edit exceeds the 8 KiB draft limit. Shorten it; the previous note is unchanged.</string>
+    <string name="support_included">App version, package, Android version and device model are included in the preview. Review for secrets before sending. No gateway address or tokens are added automatically; no attachments or other chat history are included. Long reports are shortened in the preview to the 8 KiB limit. Email shares the same draft with your mail app; you choose whether to send it there.</string>
+    <string name="support_include_detail">Only this selected message\'s text, including any reasoning. No attachments or other messages. Review it for secrets and personal information.</string>
+    <string name="support_no_messages">No chat messages or attachments are included.</string>
+    <!-- Button. -->
+    <string name="support_open_mail">Open mail app</string>
+    <!-- Send button while sending. -->
+    <string name="support_sending">Sending…</string>
+    <!-- Send button after the publisher confirmed receipt. -->
+    <string name="support_received_button">Received</string>
+    <!-- Button. -->
+    <string name="support_send">Send report</string>
+    <!-- Button: go on to the preview of the report (verb). -->
+    <string name="support_review_button">Review report</string>
+    <!-- Me row subtitle. %1$s: publisher name ("Tiyuvta"). -->
+    <string name="support_row_sub">Review a voluntary report to %1$s, or use email. Nothing sends automatically.</string>
+
+    <!-- ===== Privacy policy screen ===== -->
+    <!-- Label of a policy table cell whose column has no heading. -->
+    <string name="privacy_table_details">Details</string>
+    <!-- %1$s: the app's package name. -->
+    <string name="privacy_package">Package: %1$s</string>
+    <string name="privacy_title">Privacy policy</string>
+    <string name="privacy_read_failed">Couldn\'t read the packaged privacy policy.</string>
+    <string name="privacy_bundled">Bundled with this app · available offline. No account or pairing required.</string>
+
+    <!-- ===== Licenses screen ===== -->
+    <string name="licenses_title">Licenses</string>
+    <!-- Top bar title while one license document is open. -->
+    <string name="licenses_text_title">License text</string>
+    <string name="licenses_subtitle">Packaged on this phone · available offline</string>
+    <string name="licenses_read_failed">Couldn\'t read the packaged license text.</string>
+    <string name="licenses_wake_model">The microWakeWord Hey Jarvis weights and manifest have an explicit Apache-2.0 grant. Training provenance remains unresolved; this is not certification that all training inputs are permissive. Read the notice and model provenance before redistribution.</string>
+    <string name="licenses_not_sbom">These notices are not an exhaustive dependency SBOM or legal clearance. Google ML Kit has separate terms.</string>
+    <!-- %1$s: source URL of the license document. -->
+    <string name="licenses_source">Source: %1$s</string>
+    <!-- %1$s: SHA-256 checksum of the document; keep "SHA-256" as is. -->
+    <string name="licenses_sha256">SHA-256: %1$s</string>
+
+    <!-- ===== Digest actions (chips under a cron or digest thread) ===== -->
+    <!-- Link chip. %1$s: repository name; %2$s: pull request number. -->
+    <string name="digest_link_pr">%1$s PR #%2$s</string>
+    <!-- Link chip label when the URL has no host. -->
+    <string name="digest_link_fallback">link</string>
+    <!-- Chip that asks the agent for a short summary ("too long; didn't read"). -->
+    <string name="digest_tldr">TL;DR</string>
+    <!-- Chip that asks the agent to research the main item further. -->
+    <string name="digest_dig_deeper">Dig deeper</string>
+    <!-- Chip that asks the agent to do what the report suggests. -->
+    <string name="digest_act_on_it">Act on it</string>
+    <string name="digest_run_again">Run again</string>
+    <string name="digest_pause_job">Pause job</string>
+    <!-- Chip: open the cron job (noun). -->
+    <string name="digest_job">Job</string>
+    <!-- Toast after a job run was requested. -->
+    <string name="digest_queued">Queued</string>
+    <!-- Toast after the job was paused. -->
+    <string name="digest_paused">Paused</string>
+
+    <!-- ===== Usage meters (reply footer, run screen, chat header) ===== -->
+    <!-- Cost of a reply covered by a subscription plan. -->
+    <string name="meter_cost_included">included</string>
+    <!-- %1$s: input (prompt) token count ("92.5K"). -->
+    <string name="meter_tokens_in">%1$s in</string>
+    <!-- %1$s: output token count ("1K"). -->
+    <string name="meter_tokens_out">%1$s out</string>
+    <!-- %1$s: share of the prompt served from cache ("90%"). -->
+    <string name="meter_cache_pct">%1$s cache</string>
+    <!-- %1$d: generation speed in tokens per second. -->
+    <string name="meter_tok_per_s">%1$d tok/s</string>
+    <!-- Chip. %1$s: input token count. -->
+    <string name="meter_chip_in">in %1$s</string>
+    <!-- Chip. %1$s: tokens read from the prompt cache. -->
+    <string name="meter_chip_cache_read">cache read %1$s</string>
+    <!-- Chip. %1$s: tokens written to the prompt cache. -->
+    <string name="meter_chip_cache_write">cache write %1$s</string>
+    <!-- Chip. %1$s: output token count. -->
+    <string name="meter_chip_out">out %1$s</string>
+    <!-- Chip. %1$s: reasoning token count. -->
+    <string name="meter_chip_reasoning">reasoning %1$s</string>
+    <plurals name="meter_calls">
+        <!-- Chip. %1$d: model calls for this reply. -->
+        <item quantity="one">%1$d call</item>
+        <item quantity="other">%1$d calls</item>
+    </plurals>
+    <plurals name="meter_calls_sub">
+        <!-- Chip; the quantity follows %1$d. %1$d: model calls for this reply; %2$d: how many of them subagents made. -->
+        <item quantity="one">%1$d call (%2$d sub)</item>
+        <item quantity="other">%1$d calls (%2$d sub)</item>
+    </plurals>
+    <string name="meter_cost_na">cost n/a</string>
+    <!-- %1$s: share of the context window in use ("42%"); %2$s: window size in tokens ("200K"). -->
+    <string name="meter_context">context %1$s of %2$s</string>
+    <!-- %1$s: token count ("48.2K"). -->
+    <string name="meter_tokens">%1$s tok</string>
+    <!-- Block heading; all caps. -->
+    <string name="meter_this_turn">THIS TURN</string>
+    <!-- Stat tile label: input tokens. -->
+    <string name="meter_stat_in">in</string>
+    <!-- Stat tile label: output tokens. -->
+    <string name="meter_stat_out">out</string>
+    <!-- Stat tile label: prompt cache hit rate. -->
+    <string name="meter_stat_cache_hit">cache hit</string>
+    <!-- Stat tile label: tokens per second. -->
+    <string name="meter_stat_tok_s">tok/s</string>
+    <!-- Stat tile label: model calls (noun). -->
+    <string name="meter_stat_calls">calls</string>
+    <!-- Stat tile label. -->
+    <string name="meter_stat_cost">cost</string>
+    <!-- Cost not available. -->
+    <string name="meter_na">n/a</string>
+    <!-- Block heading; all caps. -->
+    <string name="meter_session">SESSION</string>
+    <plurals name="meter_session_calls">
+        <!-- %1$d: model calls in the session. -->
+        <item quantity="one">%1$d calls</item>
+        <item quantity="other">%1$d calls</item>
+    </plurals>
+
+    <!-- ===== Momentum report (Radar page) ===== -->
+    <!-- Section heading: decisions only the user can make. -->
+    <string name="momentum_section_needs_you">Needs you</string>
+    <!-- Section heading: what broke. -->
+    <string name="momentum_section_problems">Problems</string>
+    <!-- Section heading: work in progress right now. -->
+    <string name="momentum_section_running">Running</string>
+    <!-- Section heading: work that was finished and released. -->
+    <string name="momentum_section_shipped">Shipped</string>
+    <!-- Section heading: decisions made for the user. -->
+    <string name="momentum_section_decided">Decided</string>
+    <!-- Reason after "Couldn't refresh:" when the phone got no error text. -->
+    <string name="momentum_unreachable">unreachable</string>
+    <!-- Right side of the Momentum heading: the report is out of date. -->
+    <string name="momentum_stale">stale</string>
+    <!-- %1$s: when the report was made (a time, weekday and time, or date and time). -->
+    <string name="momentum_stale_at">stale · %1$s</string>
+    <string name="momentum_no_report">No report yet</string>
+    <!-- "momentum" is the name of the tool that writes the report; keep it as is. -->
+    <string name="momentum_no_report_detail">momentum has not produced a report</string>
+    <!-- %1$s: why the refresh failed (error text, shown as is). -->
+    <string name="momentum_refresh_failed">Couldn\'t refresh: %1$s</string>
+    <string name="momentum_no_reason">no reason given</string>
+    <!-- Accessibility action of an open section heading. -->
+    <string name="momentum_show_count_desc">Show only the count</string>
+    <!-- Accessibility action of a closed section heading. -->
+    <string name="momentum_show_items_desc">Show items</string>
+    <!-- Accessibility state of a section. -->
+    <string name="momentum_expanded_desc">Expanded</string>
+    <!-- Accessibility state of a section. -->
+    <string name="momentum_collapsed_desc">Collapsed</string>
+    <plurals name="momentum_more">
+        <!-- %1$d: rows in the section beyond the ones shown. -->
+        <item quantity="one">and %1$d more</item>
+        <item quantity="other">and %1$d more</item>
+    </plurals>
+    <!-- Accessibility action of an expanded row. -->
+    <string name="momentum_show_less_desc">Show less</string>
+    <!-- Accessibility action of a collapsed row. -->
+    <string name="momentum_show_all_desc">Show all</string>
+    <!-- Accessibility state of an unread row. -->
+    <string name="momentum_new_desc">New</string>
+    <!-- Accessibility action of a link chip. -->
+    <string name="momentum_open_in_browser_desc">Open in browser</string>
+    <string name="momentum_no_app_for_link">No app can open this link</string>
+
+    <!-- ===== Accent colors (This phone > Look) ===== -->
+    <!-- Accent color name, shown next to the swatches and read as "Lime accent". -->
+    <string name="accent_lime">Lime</string>
+    <!-- Accent color name. -->
+    <string name="accent_coral">Coral</string>
+    <!-- Accent color name (sky blue). -->
+    <string name="accent_sky">Sky</string>
+    <!-- Accent color name. -->
+    <string name="accent_violet">Violet</string>
+    <!-- Accent color name. -->
+    <string name="accent_mint">Mint</string>
+
+    <!-- ================= Agent settings, model, memory, search, usage, fleet, widget and notifications ================= -->
+    <!-- ===== Model chip and model sheet (chat composer, agent settings, cron editor) ===== -->
+    <!-- Shown in the model chip when the model name is unknown. Lowercase. -->
+    <string name="model_chip_fallback">model</string>
+    <!-- Toggle chip next to the model chip. ϟ is a lightning symbol; keep it. -->
+    <string name="model_fast_chip_on">ϟ Fast on</string>
+    <string name="model_fast_chip_off">ϟ Fast off</string>
+    <!-- Small status at the top of the model sheet while providers load. Lowercase. -->
+    <string name="model_loading">loading…</string>
+    <!-- Current pick. "now" = in use right now. %1$s: model name, %2$s: provider name -->
+    <string name="model_now">now %1$s · %2$s</string>
+    <!-- Segmented choice: apply the model to this chat only. -->
+    <string name="model_scope_chat">This chat</string>
+    <!-- Segmented choice: make the model the default for every chat. -->
+    <string name="model_scope_global">Default for all</string>
+    <string name="model_scope_global_hint">Saved to config. New chats start here too.</string>
+    <string name="model_scope_chat_hint">Only this conversation. Your default stays.</string>
+    <!-- Header above the reasoning effort levels. Written in capitals. -->
+    <string name="model_reasoning_header">REASONING</string>
+    <string name="model_fast_title">Fast mode</string>
+    <string name="model_fast_summary">Priority processing, billed at a premium</string>
+    <!-- Switch label in the sheet, also the toast after turning it on or off. -->
+    <string name="model_fast_on">Fast mode on</string>
+    <string name="model_fast_off">Fast mode off</string>
+    <string name="model_search_hint">Search models or providers</string>
+    <string name="model_fetching">Fetching providers…</string>
+    <!-- %1$s: the search text the user typed -->
+    <string name="model_no_match">No model matches \"%1$s\".</string>
+    <!-- Section header: recently used models -->
+    <string name="model_recent">Recent</string>
+    <!-- Section header: the model providers on the machine -->
+    <string name="model_providers">Providers</string>
+    <!-- Title of the model sheet in a chat -->
+    <string name="model_title">Model</string>
+    <!-- Toasts after the fast chip changes one chat -->
+    <string name="model_fast_on_chat">Fast mode on for this chat</string>
+    <string name="model_fast_off_chat">Fast mode off for this chat</string>
+    <!-- Toast. %1$s: model name -->
+    <string name="model_switched_to">Switched to %1$s</string>
+    <!-- Toast. %1$s: reasoning effort level as the machine names it (low, high, …) -->
+    <string name="model_reasoning_set">Reasoning: %1$s</string>
+    <string name="model_switch_title">Switch model?</string>
+    <!-- Button: keep the current model -->
+    <string name="model_keep_current">Keep current</string>
+    <!-- Button: confirm the model switch -->
+    <string name="model_switch">Switch</string>
+    <!-- Toast after the switch was confirmed -->
+    <string name="model_switched">Switched</string>
+
+    <!-- ===== Restart (gateway restart toast, dialog and banner) ===== -->
+    <plurals name="restart_draining">
+        <!-- %1$d: running tasks that finish first; %2$s: the agent software name (Hermes) -->
+        <item quantity="one">%2$s restarts after %1$d running task finishes</item>
+        <item quantity="other">%2$s restarts after %1$d running tasks finish</item>
+    </plurals>
+    <!-- %1$s: the agent software name (Hermes) -->
+    <string name="restart_restarting">Restarting %1$s…</string>
+    <string name="restart_in_progress">A restart is already under way</string>
+    <!-- Dialog title. %1$s: the agent software name (Hermes) -->
+    <string name="restart_title">Restart %1$s?</string>
+    <string name="restart_body">Running work drains first, then the gateway reloads config and plugins. The app reconnects on its own.</string>
+    <!-- Button: restart the gateway -->
+    <string name="restart_action">Restart</string>
+    <string name="restart_banner_title">Restart to apply</string>
+    <!-- %1$s: the agent software name (Hermes) -->
+    <string name="restart_banner_body">Some changes load when %1$s restarts.</string>
+
+    <!-- ===== Agent settings (SettingField, OptionSheet, EditDialog, SettingsScreen, AllSettingsScreen) ===== -->
+    <!-- A setting's value when it is unset, also the empty option in a list. Lowercase. -->
+    <string name="settings_value_default">default</string>
+    <!-- Fingerprint prompt title. %1$s: setting name -->
+    <string name="settings_change_title">Change %1$s</string>
+    <!-- Small pill on a setting that needs a restart. Lowercase. -->
+    <string name="settings_restart_pill">restart</string>
+    <!-- Sheet title: pick the default model -->
+    <string name="settings_default_model">Default model</string>
+    <!-- Placeholder in the edit dialog for a numeric setting. Lowercase. -->
+    <string name="settings_edit_number_hint">number</string>
+    <!-- Placeholder in the edit dialog for a text setting. Lowercase. -->
+    <string name="settings_edit_value_hint">value</string>
+    <string name="settings_not_a_number">Not a number</string>
+    <!-- Screen title: the agent's own settings -->
+    <string name="settings_title">Agent</string>
+    <!-- Subtitle. %1$s: machine or agent name, %2$s: profile name -->
+    <string name="settings_subtitle">%1$s · profile %2$s</string>
+    <!-- Tab for settings groups the machine puts in no tab -->
+    <string name="settings_tab_other">Other</string>
+    <string name="settings_all_title">All settings</string>
+    <string name="settings_all_sub">Every key in config.yaml, searchable</string>
+    <!-- %1$s: the CLI command (hermes config set); keep it as is -->
+    <string name="settings_footer">Changes go through %1$s, the same path as the CLI. Secrets stay on the machine.</string>
+    <plurals name="settings_key_count">
+        <!-- %1$d: number of config keys -->
+        <item quantity="one">%1$d key</item>
+        <item quantity="other">%1$d keys</item>
+    </plurals>
+    <string name="settings_search_keys">Search keys</string>
+    <!-- %1$s: error message -->
+    <string name="settings_load_failed">Could not load settings: %1$s</string>
+    <string name="settings_nothing_matches">Nothing matches</string>
+    <string name="settings_try_another">Try another word or category.</string>
+
+    <!-- ===== Skills & plugins screen ===== -->
+    <string name="ext_title">Skills &amp; plugins</string>
+    <!-- %1$s: the agent's name -->
+    <string name="ext_subtitle">What %1$s can use</string>
+    <!-- Button that opens the Hub, the catalog to install skills and plugins from -->
+    <string name="ext_open_hub">Hub</string>
+    <!-- Tabs -->
+    <string name="ext_tab_skills">Skills</string>
+    <string name="ext_tab_plugins">Plugins</string>
+
+    <!-- ===== Skills tab and skill page ===== -->
+    <!-- Heading for skills without a category. Lowercase like the category names from the machine. -->
+    <string name="skills_category_general">general</string>
+    <string name="skills_search_hint">Search skills</string>
+    <!-- Filter chip. %1$d: number of skills -->
+    <string name="skills_filter_all">All %1$d</string>
+    <!-- Filter chip: skills that are turned off. %1$d: how many -->
+    <string name="skills_filter_off">Off %1$d</string>
+    <!-- Filter chip. %1$s: the agent's name -->
+    <string name="skills_filter_agent">Made by %1$s</string>
+    <!-- Filter chip: skills installed from the Hub -->
+    <string name="skills_filter_hub">Hub</string>
+    <!-- Filter chip: skills that ship with the agent -->
+    <string name="skills_filter_bundled">Bundled</string>
+    <string name="skills_toggle_note">Toggles apply to new chats. Running chats keep their skill list so the prompt cache holds.</string>
+    <string name="skills_empty_title">No skills installed</string>
+    <string name="skills_empty_sub">Browse the Hub to add skills.</string>
+    <string name="skills_no_match">No matching skills</string>
+    <string name="skills_no_match_sub">Try another word or filter.</string>
+    <!-- Shown instead of a switch on a skill a plugin provides. Lowercase. -->
+    <string name="skills_locked_plugin">plugin</string>
+    <!-- Shown instead of a switch on a skill that cannot be turned off. Lowercase. -->
+    <string name="skills_always_on">always on</string>
+    <!-- Toast. %1$s: skill name -->
+    <string name="skills_cant_turn_off">%1$s can\'t be turned off</string>
+    <!-- %1$s: comma-separated environment variables or commands the skill still needs -->
+    <string name="skills_needs_setup">Needs setup: %1$s</string>
+
+    <!-- ===== Plugins tab ===== -->
+    <!-- Section header -->
+    <string name="plugins_section">Plugins</string>
+    <plurals name="plugins_on_count">
+        <!-- Section counter. %1$d: plugins turned on -->
+        <item quantity="one">%1$d on</item>
+        <item quantity="other">%1$d on</item>
+    </plurals>
+    <!-- Fingerprint prompt title. %1$s: plugin name -->
+    <string name="plugins_enable_title">Enable %1$s</string>
+    <!-- Fingerprint prompt title. %1$s: plugin name -->
+    <string name="plugins_disable_title">Disable %1$s</string>
+    <!-- Section header: plugins that load on their own -->
+    <string name="plugins_builtin">Built in</string>
+    <!-- Tap target on the section header. Lowercase. -->
+    <string name="plugins_hide">hide</string>
+    <!-- Tap target on the section header. %1$d: number of hidden plugins. Lowercase. -->
+    <string name="plugins_show_count">show %1$d</string>
+    <string name="plugins_builtin_note">Backends and platform adapters load on their own. Pick between them in Settings.</string>
+    <plurals name="plugins_tools">
+        <!-- %1$d: tools the plugin adds -->
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <plurals name="plugins_hooks">
+        <!-- %1$d: hooks the plugin adds -->
+        <item quantity="one">%1$d hook</item>
+        <item quantity="other">%1$d hooks</item>
+    </plurals>
+    <plurals name="plugins_commands">
+        <!-- %1$d: commands the plugin adds -->
+        <item quantity="one">%1$d command</item>
+        <item quantity="other">%1$d commands</item>
+    </plurals>
+    <!-- Status on a plugin whose change waits for a restart. Lowercase. -->
+    <string name="plugins_restart_to_apply">restart to apply</string>
+    <!-- Status shown instead of a switch. Lowercase. -->
+    <string name="plugins_loaded">loaded</string>
+    <!-- Status shown instead of a switch. Lowercase. -->
+    <string name="plugins_off">off</string>
+    <!-- Status shown instead of a switch: the plugin cannot be turned off. Lowercase. -->
+    <string name="plugins_required">required</string>
+
+    <!-- ===== MCP tab ===== -->
+    <string name="mcp_empty_title">No MCP servers</string>
+    <!-- %1$s: the CLI command (hermes mcp add); keep it as is -->
+    <string name="mcp_empty_sub">Add one on the machine with %1$s.</string>
+    <!-- Section header -->
+    <string name="mcp_servers">Servers</string>
+    <plurals name="mcp_tools">
+        <!-- %1$d: tools the MCP server offers -->
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <!-- MCP server states. Lowercase. -->
+    <string name="mcp_status_connected">connected</string>
+    <string name="mcp_status_connecting">connecting</string>
+    <string name="mcp_status_failed">failed</string>
+    <string name="mcp_status_disabled">disabled</string>
+    <string name="mcp_footer">Tool counts show for servers this gateway has connected. Lazy servers start on first use.</string>
+
+    <!-- ===== Memory screen ===== -->
+    <string name="memory_title">Memory</string>
+    <string name="memory_subtitle">Loaded into every new session</string>
+    <!-- Section: what the agent remembers about the user -->
+    <string name="memory_about_you">About you</string>
+    <!-- Section. %1$s: the agent's name -->
+    <string name="memory_agent_notes">%1$s\'s notes</string>
+    <plurals name="memory_chars">
+        <!-- %1$d: characters used -->
+        <item quantity="one">%1$d char</item>
+        <item quantity="other">%1$d chars</item>
+    </plurals>
+    <string name="memory_turned_off">Turned off in settings</string>
+    <!-- Shown in a memory list without entries -->
+    <string name="memory_empty">Empty</string>
+    <!-- %1$s: the agent's name -->
+    <string name="memory_footer">Tap an entry to edit or forget it. Edits pass the same size limits and safety scan as %1$s\'s own writes.</string>
+
+    <!-- ===== Chat menu (session commands) ===== -->
+    <string name="chatmenu_undone">Undone. Your message is back in the box.</string>
+    <string name="chatmenu_exported">Exported. The file is in this chat.</string>
+    <string name="chatmenu_retry">Retry last message</string>
+    <string name="chatmenu_undo">Undo last turn</string>
+    <string name="chatmenu_compress">Compress context</string>
+    <string name="chatmenu_new_session">New session</string>
+    <string name="chatmenu_export">Export as markdown</string>
+    <string name="chatmenu_context">Context window</string>
+    <string name="chatmenu_status">Session status</string>
+    <string name="chatmenu_new_title">New session?</string>
+    <string name="chatmenu_undo_title">Undo last turn?</string>
+    <!-- %1$s: the agent's name -->
+    <string name="chatmenu_new_body">%1$s starts fresh in this chat. Old messages stay visible here but leave the model\'s context.</string>
+    <!-- %1$s: the agent's name -->
+    <string name="chatmenu_undo_body">Your last message and %1$s\'s answer leave the context. The message comes back to the box so you can edit and resend.</string>
+    <!-- Button: start a new session -->
+    <string name="chatmenu_start_fresh">Start fresh</string>
+    <!-- Button: undo the last turn -->
+    <string name="chatmenu_undo_action">Undo</string>
+    <!-- Placeholder for the chat title in the rename dialog -->
+    <string name="chatmenu_title_hint">Title</string>
+
+    <!-- ===== Search across all sessions ===== -->
+    <!-- Screen title -->
+    <string name="search_title">Search</string>
+    <string name="search_subtitle">Every session on the machine: app, Telegram, CLI</string>
+    <!-- Search box placeholder that shows the query syntax; keep the quotes and the * -->
+    <string name="search_hint">Words, \"a phrase\", prefix*</string>
+    <!-- AND, OR and NOT are search operators: keep them in English. -->
+    <string name="search_intro">Full-text search over saved sessions. Supports AND, OR, NOT and \"exact phrases\".</string>
+    <string name="search_searching">Searching…</string>
+    <string name="search_nothing_found">Nothing found</string>
+    <!-- %1$s: the search text -->
+    <string name="search_no_mentions">No session mentions \"%1$s\".</string>
+    <string name="search_untitled">Untitled session</string>
+    <!-- A matching message the user wrote. %1$s: the message excerpt -->
+    <string name="search_you_said">You: %1$s</string>
+
+    <!-- ===== Usage ===== -->
+    <string name="usage_title">Usage</string>
+    <string name="usage_subtitle">Spend and tokens from every surface</string>
+    <plurals name="usage_days">
+        <!-- Period choice. %1$d: number of days -->
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <!-- %1$s: error message -->
+    <string name="usage_load_failed">Could not load usage: %1$s</string>
+    <!-- Stat tile labels under a number. Lowercase. -->
+    <string name="usage_stat_spent">spent</string>
+    <string name="usage_stat_sessions">sessions</string>
+    <string name="usage_stat_per_day">per day</string>
+    <plurals name="usage_suspect_note">
+        <!-- %1$d: sessions left out of the total; %2$s: their price. English keeps "session(s)" in both forms. -->
+        <item quantity="one">Left out %1$d session(s) priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
+        <item quantity="other">Left out %1$d session(s) priced at %2$s: over $2,000 per 1M tokens is a unit error, not real spend.</item>
+    </plurals>
+    <plurals name="usage_included_note">
+        <!-- %1$d: sessions on subscriptions. English keeps "session(s)" in both forms. -->
+        <item quantity="one">%1$d session(s) ran on subscriptions (no per-token price).</item>
+        <item quantity="other">%1$d session(s) ran on subscriptions (no per-token price).</item>
+    </plurals>
+    <plurals name="usage_unpriced_note">
+        <!-- %1$d: sessions without a known price. English keeps "session(s)" in both forms. -->
+        <item quantity="one">%1$d session(s) on models with no known price, so the total reads low.</item>
+        <item quantity="other">%1$d session(s) on models with no known price, so the total reads low.</item>
+    </plurals>
+    <!-- Section header -->
+    <string name="usage_by_model">By model</string>
+    <!-- Cost column for a model a subscription covers. Lowercase. -->
+    <string name="usage_included">included</string>
+    <!-- Cost column when the price is unknown -->
+    <string name="usage_na">n/a</string>
+    <plurals name="usage_sessions">
+        <!-- %1$d: sessions on this model -->
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
+    </plurals>
+    <plurals name="usage_calls">
+        <!-- %1$d: model calls -->
+        <item quantity="one">%1$d call</item>
+        <item quantity="other">%1$d calls</item>
+    </plurals>
+    <!-- %1$s: token count such as 12K. "tok" is short for tokens. -->
+    <string name="usage_tokens">%1$s tok</string>
+    <!-- Prompt cache hit rate. %1$s: a percentage such as 85% -->
+    <string name="usage_cache_hit">%1$s cache</string>
+    <!-- Section header: spend by app, Telegram, CLI… -->
+    <string name="usage_by_surface">By surface</string>
+    <!-- Chart label. %1$s: the highest daily spend -->
+    <string name="usage_max">max %1$s</string>
+    <!-- Chart label at the last bar -->
+    <string name="usage_today">today</string>
+
+    <!-- ===== Memory editor ===== -->
+    <!-- Dialog title: add to the "About you" section -->
+    <string name="memory_add_to_about">Add to About you</string>
+    <!-- Dialog title. %1$s: the agent's name -->
+    <string name="memory_add_to_notes">Add to %1$s\'s notes</string>
+    <string name="memory_edit_entry">Edit entry</string>
+    <string name="memory_entry_hint">One fact per entry</string>
+    <string name="memory_editor_note">Loaded into every new session\'s prompt. Running chats keep the version they started with.</string>
+    <string name="memory_delete_entry">Delete entry</string>
+    <!-- Save button while saving -->
+    <string name="memory_saving">Saving…</string>
+    <string name="memory_forget_title">Forget this?</string>
+    <!-- Button: keep the memory entry -->
+    <string name="memory_keep">Keep</string>
+    <!-- Button: remove the memory entry -->
+    <string name="memory_forget">Forget</string>
+
+    <!-- ===== Cron job editor ===== -->
+    <!-- Toast after a new job was created -->
+    <string name="cronedit_scheduled">Scheduled</string>
+    <string name="cronedit_new_title">New job</string>
+    <string name="cronedit_edit_title">Edit job</string>
+    <string name="cronedit_new_sub">Runs in a fresh session; the final answer is delivered</string>
+    <!-- %1$s: error message -->
+    <string name="cronedit_load_failed">Could not load job: %1$s</string>
+    <!-- Field label, shown in capitals -->
+    <string name="cronedit_name">Name</string>
+    <!-- Example job name in the empty field -->
+    <string name="cronedit_name_hint">Morning brief</string>
+    <!-- Field label, shown in capitals -->
+    <string name="cronedit_schedule">Schedule</string>
+    <!-- Field label, shown in capitals: the instructions the job runs -->
+    <string name="cronedit_prompt">Prompt</string>
+    <string name="cronedit_prompt_note">Self-contained: the job has no chat context.</string>
+    <!-- %1$s: the agent's name -->
+    <string name="cronedit_prompt_hint">What should %1$s do each run?</string>
+    <!-- Field label (shown in capitals) and sheet title: where the job's answer goes -->
+    <string name="cronedit_deliver_to">Deliver to</string>
+    <!-- Field label, shown in capitals -->
+    <string name="cronedit_model">Model</string>
+    <string name="cronedit_model_note">Blank follows your default model, also when you change it later.</string>
+    <!-- Value when the job follows the default model -->
+    <string name="cronedit_model_default">Default</string>
+    <!-- Button: clear the job's model -->
+    <string name="cronedit_clear">Clear</string>
+    <!-- Chip: use the default reasoning effort. Lowercase. -->
+    <string name="cronedit_default_effort">default effort</string>
+    <!-- Field label, shown in capitals -->
+    <string name="cronedit_skills">Skills</string>
+    <string name="cronedit_skills_note">Comma separated; loaded into each run.</string>
+    <!-- Placeholder. %1$s: example skill names, kept as is -->
+    <string name="cronedit_skills_hint">e.g. %1$s</string>
+    <!-- Save button while saving -->
+    <string name="cronedit_saving">Saving…</string>
+    <string name="cronedit_schedule_job">Schedule job</string>
+    <string name="cronedit_save_changes">Save changes</string>
+    <!-- Sheet title: pick the job's model -->
+    <string name="cronedit_job_model">Job model</string>
+    <string name="cronedit_delete_title">Delete job?</string>
+    <!-- %1$s: job name -->
+    <string name="cronedit_delete_body">%1$s stops running. Past outputs stay on the machine.</string>
+    <!-- Toast after deleting the job -->
+    <string name="cronedit_deleted">Deleted</string>
+    <!-- Delivery targets -->
+    <string name="cronedit_deliver_app">This app</string>
+    <string name="cronedit_deliver_telegram_app">Telegram + this app</string>
+    <string name="cronedit_deliver_local">Nowhere (saved on the machine)</string>
+
+    <!-- ===== Fleet (coding agents on the machine) ===== -->
+    <string name="fleet_refused">Gateway refused the operation</string>
+    <!-- Toast. %1$s: agent or tool name -->
+    <string name="fleet_waiting_on_you">%1$s is waiting on you</string>
+    <!-- Name for an agent that has none -->
+    <string name="fleet_agent_fallback">Agent</string>
+    <!-- Notification title. %1$s: agent name -->
+    <string name="fleet_needs_you">%1$s needs you</string>
+    <!-- Reply field label and placeholder. %1$s: agent name -->
+    <string name="fleet_reply_to">Reply to %1$s</string>
+    <!-- Notification action -->
+    <string name="fleet_reply">Reply</string>
+    <!-- Quick reply buttons in the notification -->
+    <string name="fleet_go_ahead">Go ahead</string>
+    <string name="fleet_continue">Continue</string>
+    <!-- Fingerprint prompt title. %1$s: agent name -->
+    <string name="fleet_send_to_title">Send to %1$s</string>
+    <!-- Fingerprint prompt title for terminal keys. %1$s: agent name -->
+    <string name="fleet_control_title">Control %1$s</string>
+    <!-- Fingerprint prompt subtitle. %1$s: start of the message -->
+    <string name="fleet_sig_unguarded">Runs without permission prompts: \"%1$s\"</string>
+    <!-- Fingerprint prompt subtitle. %1$s: the terminal input -->
+    <string name="fleet_sig_input">Authorize this terminal input · %1$s</string>
+    <!-- Section header on Pulse -->
+    <string name="fleet_title">Fleet</string>
+    <!-- Section counter when no agent runs. Lowercase. -->
+    <string name="fleet_idle">idle</string>
+    <plurals name="fleet_waiting_count">
+        <!-- %1$d: agents waiting on the user -->
+        <item quantity="one">%1$d waiting</item>
+        <item quantity="other">%1$d waiting</item>
+    </plurals>
+    <plurals name="fleet_working_count">
+        <!-- %1$d: agents working -->
+        <item quantity="one">%1$d working</item>
+        <item quantity="other">%1$d working</item>
+    </plurals>
+    <!-- %1$s: error from the agent view on the machine -->
+    <string name="fleet_agent_view_error">Agent view: %1$s</string>
+    <string name="fleet_no_agents">No agents running.</string>
+    <string name="fleet_hide_ended">Hide ended sessions</string>
+    <string name="fleet_show_ended">Show ended sessions</string>
+    <!-- Name of an agent session without a title -->
+    <string name="fleet_untitled">Untitled</string>
+    <!-- Agent states in the agent screen subtitle. Lowercase. -->
+    <string name="fleet_group_waiting">waiting</string>
+    <string name="fleet_group_working">working</string>
+    <string name="fleet_group_done">done</string>
+    <string name="fleet_group_recent">recent</string>
+
+    <!-- ===== Agent screen (one coding agent's terminal) ===== -->
+    <string name="agent_connection_changed">Connection changed; wait for the screen to refresh before sending.</string>
+    <!-- Feedback after sending the Escape key. Esc is the key name. -->
+    <string name="agent_sent_esc">Sent Esc</string>
+    <!-- Feedback after sending a message -->
+    <string name="agent_sent">Sent</string>
+    <string name="agent_input_sent">Input sent</string>
+    <!-- %1$s: error message -->
+    <string name="agent_refresh_failed">Input accepted; screen refresh failed: %1$s</string>
+    <!-- %1$s: error message -->
+    <string name="agent_not_sent">Not sent: %1$s</string>
+    <string name="agent_fleet_unavailable">Fleet isn\'t available on this machine.</string>
+    <string name="agent_cancel_input">Cancel input</string>
+    <string name="agent_cancelled_locally">Cancelled locally; accepted input cannot be recalled.</string>
+    <string name="agent_loading_screen">Loading screen…</string>
+    <string name="agent_read_only">Read-only screen · update the gateway for terminal controls. Reply below still works.</string>
+    <!-- Enter is the keyboard key -->
+    <string name="agent_hint_mouse">Drag to pan locally · try mouse, or use arrows + Enter</string>
+    <!-- Enter is the keyboard key -->
+    <string name="agent_hint_keyboard">Keyboard-only: use arrows + Enter · drag to pan locally</string>
+    <!-- Enter is the keyboard key -->
+    <string name="agent_keyboard_only">Keyboard-only: use arrows + Enter</string>
+    <string name="agent_reply_in_desktop">This session lives in the Claude desktop app; reply there.</string>
+    <string name="agent_reply_in_terminal">This terminal has no remote control; reply from there.</string>
+
+    <!-- ===== Home-screen widget and Quick Settings tile ===== -->
+    <!-- Widget labels under the counts. Lowercase. -->
+    <string name="widget_waiting">waiting</string>
+    <string name="widget_working">working</string>
+    <string name="widget_approvals">approvals</string>
+    <!-- Widget button: start talking by voice -->
+    <string name="widget_talk">Talk</string>
+    <!-- Widget button: new chat -->
+    <string name="widget_new">New</string>
+    <!-- Widget button: open the fleet -->
+    <string name="widget_fleet">Fleet</string>
+    <!-- Name of the home-screen widget in the launcher's widget list. Manifest labels cannot take arguments:
+         keep "Hermes" as is (the Play edition overrides this string with its own name). -->
+    <string name="widget_label">Hermes fleet</string>
+    <!-- %1$s: the app's name -->
+    <string name="widget_open_to_pair">Open %1$s to pair</string>
+    <string name="widget_all_quiet">All quiet.</string>
+    <!-- Quick Settings tile label. %1$s: the agent's name -->
+    <string name="tile_talk_to">Talk to %1$s</string>
+    <plurals name="tile_waiting">
+        <!-- Quick Settings tile subtitle. %1$d: agents waiting on the user -->
+        <item quantity="one">%1$d waiting</item>
+        <item quantity="other">%1$d waiting</item>
+    </plurals>
+    <!-- Quick Settings tile subtitle when nobody waits -->
+    <string name="tile_hands_free">Hands-free</string>
+
+    <!-- ===== Notifications ===== -->
+    <!-- Notification channel names and descriptions (Android settings > Notifications) -->
+    <string name="notify_channel_approvals">Approvals</string>
+    <string name="notify_channel_approvals_info">Commands waiting for your OK</string>
+    <string name="notify_channel_replies">Replies</string>
+    <string name="notify_channel_replies_info">Agent replies and finished runs</string>
+    <string name="notify_channel_digests">Cron &amp; digests</string>
+    <string name="notify_channel_digests_info">Results from scheduled jobs</string>
+    <string name="notify_channel_live">Live runs &amp; connection</string>
+    <string name="notify_channel_live_info">Run progress and the background connection</string>
+    <!-- Inline reply field. %1$s: agent name -->
+    <string name="notify_reply_to">Reply to %1$s</string>
+    <!-- Notification action -->
+    <string name="notify_reply">Reply</string>
+    <!-- Notification action -->
+    <string name="notify_mark_read">Mark read</string>
+    <!-- %1$s: file names the command touched -->
+    <string name="notify_touched">Touched: %1$s</string>
+    <!-- %1$s: the agent software name (Hermes) -->
+    <string name="notify_flagged">⚠ flagged by %1$s\' safety check</string>
+    <!-- Notification title. %1$s: chat or group chat name -->
+    <string name="notify_approve_title">Approve? · %1$s</string>
+    <string name="notify_approval_needed">Approval needed</string>
+    <!-- Notification action: approve for the rest of this session -->
+    <string name="notify_this_session">This session</string>
+    <!-- %1$s: group chat member; the command follows on the next line -->
+    <string name="notify_asks_to_run">%1$s asks to run:</string>
+    <!-- Background connection notification -->
+    <string name="notify_connected">Connected</string>
+    <string name="notify_reconnecting">Reconnecting…</string>
+    <!-- %1$s: agent name -->
+    <string name="notify_agent_working">%1$s is working</string>
+    <!-- Text for a run whose chat has no title -->
+    <string name="notify_a_run">A run</string>
+    <plurals name="notify_runs">
+        <!-- %1$d: runs in progress -->
+        <item quantity="one">%1$d run</item>
+        <item quantity="other">%1$d runs</item>
+    </plurals>
+    <!-- Toasts after a notification action -->
+    <string name="notify_unlock_to_send">Unlock the phone to send</string>
+    <!-- %1$s: agent name -->
+    <string name="notify_sent_to">Sent to %1$s</string>
+    <!-- %1$s: the app's name -->
+    <string name="notify_needs_fingerprint">Needs your fingerprint: open the session in %1$s</string>
+
+    <!-- ===== Approvals (fingerprint prompt and errors) ===== -->
+    <string name="approvals_expired">That approval already expired</string>
+    <!-- %1$s: error message -->
+    <string name="approvals_key_unavailable">Approval key unavailable: %1$s</string>
+    <string name="approvals_signing_failed">Signing failed</string>
+    <string name="approvals_no_signature">No signature</string>
+    <!-- Fingerprint prompt titles -->
+    <string name="approvals_prompt_once">Approve command</string>
+    <string name="approvals_prompt_session">Approve for session</string>
+    <string name="approvals_prompt_always">Approve for always</string>
+    <!-- Fingerprint prompt title for another scope. %1$s: the scope word the machine sent -->
+    <string name="approvals_prompt_scope">Approve for %1$s</string>
+    <!-- Toast after approving from the notification -->
+    <string name="approvals_approved">Approved</string>
+
+    <!-- ================= Skill, plugin and MCP hub, projects, radar and terminal ================= -->
+    <!-- ===== Hub: skills, plugins and MCP servers (Market.kt) ===== -->
+    <!-- Shown as a failed install job's error. %1$s: the network error message, shown as is. -->
+    <string name="hub_job_lost">Lost track of the job: %1$s</string>
+    <!-- Screen title of the skill/plugin/MCP marketplace. -->
+    <string name="hub_title">Hub</string>
+    <!-- Screen subtitle. %1$s: "Hermes", the agent software on the user's machine (not translated). -->
+    <string name="hub_subtitle">Skills, plugins and MCP servers from %1$s\' catalogs</string>
+    <!-- Tab label in a segmented control. -->
+    <string name="hub_tab_skills">Skills</string>
+    <!-- Tab label in a segmented control. -->
+    <string name="hub_tab_plugins">Plugins</string>
+    <!-- Title of a sheet that lists agent profiles to install skills into. -->
+    <string name="hub_install_skills_into">Install skills into</string>
+    <!-- Search field placeholder. -->
+    <string name="hub_search_installed_skills">Search installed skills</string>
+    <!-- Search field placeholder. -->
+    <string name="hub_search_all_registries">Search every skill registry</string>
+    <!-- Filter chip: do not filter by source. -->
+    <string name="hub_all_sources">All sources</string>
+    <!-- Filter chip: do not filter by category. -->
+    <string name="hub_all_categories">All categories</string>
+    <!-- %1$s: agent profile name. -->
+    <string name="hub_discover_hint">Only skills not installed in %1$s. Search to explore more registries.</string>
+    <!-- %1$s: agent profile name. -->
+    <string name="hub_installed_hint">Skills in %1$s. Source and category filters apply to this list.</string>
+    <!-- Section title. -->
+    <string name="hub_search_results">Search results</string>
+    <!-- Section title. -->
+    <string name="hub_installed_skills">Installed skills</string>
+    <!-- Section title. -->
+    <string name="hub_browse_skills">Browse skills</string>
+    <!-- Shown at the end of a section title while a search runs, in place of the result count. -->
+    <string name="hub_searching">searching…</string>
+    <!-- Button. -->
+    <string name="hub_check_updates">Check for updates</string>
+    <plurals name="hub_updates_available">
+        <!-- %1$d: number of installed skills with an update in the Hub. -->
+        <item quantity="one">%1$d Hub updates available</item>
+        <item quantity="other">%1$d Hub updates available</item>
+    </plurals>
+    <!-- %1$s: comma-separated names of skill registries that did not answer in time. -->
+    <string name="hub_timed_out">Timed out: %1$s</string>
+    <!-- Empty list title. -->
+    <string name="hub_no_matching_skills">No matching skills</string>
+    <!-- Empty list text in the Discover view. "Installed" is the name of the view chip (hub_scope_installed). -->
+    <string name="hub_no_matching_skills_discover">Try another category, source or search. Installed skills are in Installed.</string>
+    <!-- Empty list text. -->
+    <string name="hub_no_matching_skills_body">Try another category or search word.</string>
+    <!-- Row subtitle for a skill installed by hand on the machine. "Extensions" is the name of another screen. -->
+    <string name="hub_installed_locally">Installed locally · manage in Extensions</string>
+    <!-- View chip: items not installed yet. -->
+    <string name="hub_scope_discover">Discover</string>
+    <!-- View chip: items already installed. -->
+    <string name="hub_scope_installed">Installed</string>
+    <!-- Small lowercase status pill next to an item name. -->
+    <string name="hub_status_installed">installed</string>
+    <!-- Job status while it runs. %1$s: agent profile name. -->
+    <string name="hub_job_installing">Installing on %1$s…</string>
+    <!-- Job status while it runs. %1$s: agent profile name. -->
+    <string name="hub_job_updating">Updating on %1$s…</string>
+    <!-- Job status while it runs. %1$s: agent profile name. -->
+    <string name="hub_job_removing">Removing on %1$s…</string>
+    <!-- Job status: the install waits for the user's consent. -->
+    <string name="hub_job_needs_ok">Needs your OK</string>
+    <!-- %1$s: comma-separated environment variable names the user must set on the machine. -->
+    <string name="hub_set_on_machine">Set on the machine: %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: skill name. -->
+    <string name="hub_sign_install">Install %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: skill name. -->
+    <string name="hub_sign_update">Update %1$s</string>
+    <!-- Toast. %1$s: skill name. -->
+    <string name="hub_installed_toast">Installed %1$s</string>
+    <!-- Toast. %1$s: skill name. -->
+    <string name="hub_updated_toast">Updated %1$s</string>
+    <!-- Toast. %1$s: skill name. -->
+    <string name="hub_removed_toast">Removed %1$s</string>
+    <!-- Job error when no error message is known. Lowercase. -->
+    <string name="hub_job_failed">failed</string>
+    <!-- Status pill. %1$s: agent profile name. -->
+    <string name="hub_installed_in">installed in %1$s</string>
+    <!-- Short lowercase label in a key/value list: where the item comes from. -->
+    <string name="hub_kv_source">source</string>
+    <!-- Short lowercase label in a key/value list: source repository. -->
+    <string name="hub_kv_repo">repo</string>
+    <!-- Short lowercase label in a key/value list: when or which version was installed. -->
+    <string name="hub_kv_installed">installed</string>
+    <!-- Short lowercase label in a key/value list: the security scan verdict at install time. -->
+    <string name="hub_kv_scan_then">scan then</string>
+    <!-- Link that opens the skill's source repository. -->
+    <string name="hub_open_source">Open source</string>
+    <!-- Security scan status. -->
+    <string name="hub_scan_running">Security scan running on the machine…</string>
+    <!-- Security scan status. -->
+    <string name="hub_scan_failed">Security scan failed</string>
+    <!-- %1$s: scan verdict from the machine (for example "safe"), shown as is. -->
+    <string name="hub_scan_allowed">Scan: %1$s · install allowed</string>
+    <!-- %1$s: scan verdict from the machine, shown as is. %2$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_scan_refused">Scan: %1$s · %2$s won\'t install this</string>
+    <!-- Link that collapses the list of scan findings. -->
+    <string name="hub_hide_findings">Hide findings</string>
+    <plurals name="hub_show_findings">
+        <!-- Link that expands the list of scan findings. %1$d: number of findings. -->
+        <item quantity="one">Show %1$d finding</item>
+        <item quantity="other">Show %1$d findings</item>
+    </plurals>
+    <!-- Button. -->
+    <string name="hub_uninstall">Uninstall</string>
+    <!-- Button. "Extensions" is the name of another screen. -->
+    <string name="hub_manage_in_extensions">Manage in Extensions</string>
+    <!-- %1$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_scan_policy_refuses">%1$s\' scan policy refuses this skill. There is no override from the phone; review it on the machine if you must.</string>
+    <!-- Section title: files in the skill. -->
+    <string name="hub_files">Files</string>
+    <!-- Dialog title. %1$s: item name. -->
+    <string name="hub_confirm_install">Install %1$s?</string>
+    <!-- %1$s: agent profile name. %2$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_skill_install_body">Into profile %1$s. %2$s downloads it, scans it again and installs it on the machine.</string>
+    <!-- %1$s: scan verdict, shown as is. %2$s: findings summary such as "1 critical · 3 low". -->
+    <string name="hub_scan_summary">Scan: %1$s · %2$s</string>
+    <!-- %1$s: source name. %2$s: trust level such as "official" or "community". -->
+    <string name="hub_source_trust">Source: %1$s (%2$s)</string>
+    <!-- Dialog title. %1$s: item name. -->
+    <string name="hub_confirm_update">Update %1$s?</string>
+    <!-- %1$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_skill_update_body">%1$s scans the new version first and refuses it unless the scan allows it. Skills you edited locally are skipped.</string>
+    <!-- Dialog title. %1$s: skill name. -->
+    <string name="hub_confirm_uninstall">Uninstall %1$s?</string>
+    <!-- %1$s: agent profile name. -->
+    <string name="hub_skill_uninstall_body">Removes it from profile %1$s. New chats stop seeing it.</string>
+
+    <!-- ===== Hub: plugins ===== -->
+    <plurals name="hub_search_catalog_plugins">
+        <!-- Search field placeholder. %1$d: number of plugins in the catalog. -->
+        <item quantity="one">Search %1$d catalog plugins</item>
+        <item quantity="other">Search %1$d catalog plugins</item>
+    </plurals>
+    <!-- Section title. -->
+    <string name="hub_available_plugins">Available plugins</string>
+    <!-- Section title. -->
+    <string name="hub_installed_plugins">Installed plugins</string>
+    <!-- Section title. -->
+    <string name="hub_all_plugins">All plugins</string>
+    <!-- Empty list title. -->
+    <string name="hub_nothing_here">Nothing here</string>
+    <!-- Empty list text. "Shelf" means one of the view chips (Discover, Installed, All). -->
+    <string name="hub_try_another_shelf">Try another shelf or word.</string>
+    <!-- Small lowercase status pill: an update is available. -->
+    <string name="hub_status_update">update</string>
+    <!-- Section title: plugins removed from the catalog. -->
+    <string name="hub_pulled_from_catalog">Pulled from the catalog</string>
+    <!-- Error panel text. -->
+    <string name="hub_plugin_gone">This plugin is no longer in the catalog.</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="hub_plugin_load_failed">Could not load plugin details: %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: plugin name. -->
+    <string name="hub_sign_plugin_install">Install plugin %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: plugin name. -->
+    <string name="hub_sign_plugin_update">Update plugin %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: plugin name. -->
+    <string name="hub_sign_plugin_remove">Remove plugin %1$s</string>
+    <!-- Screen subtitle. %1$s: plugin name. -->
+    <string name="hub_plugin_subtitle">plugin · %1$s</string>
+    <!-- Short lowercase label in a key/value list. -->
+    <string name="hub_kv_maintainer">maintainer</string>
+    <!-- Short lowercase label in a key/value list. -->
+    <string name="hub_kv_version">version</string>
+    <!-- Short lowercase label in a key/value list: the commit the catalog pins. -->
+    <string name="hub_kv_pinned">pinned</string>
+    <!-- Short lowercase label in a key/value list: the minimum agent software version. -->
+    <string name="hub_kv_needs">needs</string>
+    <!-- Short lowercase label in a key/value list. -->
+    <string name="hub_kv_platforms">platforms</string>
+    <!-- Short lowercase label in a key/value list: what the plugin adds. -->
+    <string name="hub_kv_adds">adds</string>
+    <!-- Short lowercase label in a key/value list: tools the plugin provides. -->
+    <string name="hub_kv_tools">tools</string>
+    <!-- Short lowercase label in a key/value list: hooks the plugin provides. -->
+    <string name="hub_kv_hooks">hooks</string>
+    <!-- Short lowercase label in a key/value list: middleware the plugin provides. -->
+    <string name="hub_kv_middleware">middleware</string>
+    <!-- Short lowercase label in a key/value list: environment variables it needs. -->
+    <string name="hub_kv_env">env</string>
+    <!-- Link to the plugin's code repository. -->
+    <string name="hub_repository">Repository</string>
+    <!-- Link to the plugin's documentation. -->
+    <string name="hub_docs">Docs</string>
+    <!-- %1$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_plugin_note">Plugins run inside %1$s with its permissions. Catalog entries are reviewed and pinned to one commit; installs refuse anything on the kill list.</string>
+    <!-- %1$s: short commit hash. %2$s: agent profile name. -->
+    <string name="hub_plugin_install_body">Installs at the pinned commit %1$s into %2$s and turns it on.</string>
+    <!-- %1$s: summary of the tools and hooks the plugin adds, shown as is. -->
+    <string name="hub_adds">Adds: %1$s</string>
+    <string name="hub_plugin_update_body">Moves it to the catalog\'s current pin. If that adds tools or hooks, you\'ll be asked again.</string>
+    <!-- Dialog title: an update asks for more capabilities. %1$s: plugin name. -->
+    <string name="hub_update_widens">The update widens %1$s</string>
+    <string name="hub_accept_and_update">Accept and update?</string>
+    <!-- Dialog button. -->
+    <string name="hub_accept">Accept</string>
+    <!-- Dialog title. %1$s: item name. -->
+    <string name="hub_confirm_remove">Remove %1$s?</string>
+    <!-- %1$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_plugin_remove_body">Deletes the plugin from the machine. %1$s refuses this while the gateway is running; then remove it from the CLI.</string>
+
+    <!-- ===== Hub: MCP servers ===== -->
+    <plurals name="hub_search_mcp_servers">
+        <!-- Search field placeholder. %1$d: number of MCP servers in the catalog. -->
+        <item quantity="one">Search %1$d MCP servers</item>
+        <item quantity="other">Search %1$d MCP servers</item>
+    </plurals>
+    <!-- "Nous" is a company name (Nous Research); keep it as is. -->
+    <string name="hub_mcp_intro">The Nous-approved MCP catalog. Each entry shows exactly what it runs before you install it.</string>
+    <!-- Section title. -->
+    <string name="hub_available_servers">Available servers</string>
+    <!-- Section title. -->
+    <string name="hub_installed_servers">Installed servers</string>
+    <!-- Section title. -->
+    <string name="hub_all_servers">All servers</string>
+    <!-- Empty list title. -->
+    <string name="hub_no_mcp_servers">No MCP servers</string>
+    <!-- Empty list title. -->
+    <string name="hub_no_matching_mcp_servers">No matching MCP servers</string>
+    <!-- Empty list text. -->
+    <string name="hub_no_mcp_servers_body">The catalog has no servers available.</string>
+    <!-- Empty list text. -->
+    <string name="hub_try_another_word">Try another search word.</string>
+    <!-- Small lowercase status pill: installed but turned off. -->
+    <string name="hub_status_off">off</string>
+    <!-- Error panel text. -->
+    <string name="hub_mcp_gone">This MCP server is no longer in the catalog.</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="hub_mcp_load_failed">Could not load MCP server details: %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: MCP server name. -->
+    <string name="hub_sign_mcp_install">Install MCP %1$s</string>
+    <!-- Fingerprint/PIN prompt title. %1$s: MCP server name. -->
+    <string name="hub_sign_mcp_remove">Remove MCP %1$s</string>
+    <!-- Screen subtitle. %1$s: transport such as "stdio" or "http" (may be empty). -->
+    <string name="hub_mcp_subtitle">MCP server · %1$s</string>
+    <!-- Short lowercase label in a key/value list: authentication type. -->
+    <string name="hub_kv_auth">auth</string>
+    <!-- Short lowercase label in a key/value list: server address. -->
+    <string name="hub_kv_url">url</string>
+    <!-- Short lowercase label in a key/value list: the command it runs. -->
+    <string name="hub_kv_runs">runs</string>
+    <!-- Short lowercase label in a key/value list: the repository it clones. -->
+    <string name="hub_kv_clones">clones</string>
+    <string name="hub_build_steps">Build steps that run on the machine:</string>
+    <string name="hub_oauth_note">Uses OAuth. Finish sign-in on the machine after installing.</string>
+    <!-- Section title: secrets the MCP server needs. -->
+    <string name="hub_credentials">Credentials</string>
+    <!-- Shown next to the Credentials section title. ".env" is a file name; keep it. -->
+    <string name="hub_credentials_saved">saved to the machine\'s .env</string>
+    <!-- %1$s: environment variable name. -->
+    <string name="hub_env_optional">%1$s (optional)</string>
+    <!-- %1$s: comma-separated environment variable names still empty. -->
+    <string name="hub_fill_in_first">Fill in %1$s first.</string>
+    <!-- %1$s: agent profile name. %2$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_mcp_install_body">Adds it to %1$s\'s config. Restart %2$s to connect it.</string>
+    <!-- %1$s: agent profile name. %2$s: "Hermes", the agent software (not translated). -->
+    <string name="hub_mcp_install_build_body">Adds it to %1$s\'s config, clones it and runs its build steps on the machine. Restart %2$s to connect it.</string>
+    <string name="hub_mcp_remove_body">Takes it out of the config and deletes its clone, if any.</string>
+
+    <!-- ===== Hub: scan findings and trust levels (HubLogic.kt) ===== -->
+    <!-- Security scan summary when nothing was found. Lowercase. -->
+    <string name="hub_no_findings">no findings</string>
+    <plurals name="hub_findings_critical">
+        <!-- Part of a scan summary such as "1 critical · 3 low". %1$d: number of critical-severity findings. -->
+        <item quantity="one">%1$d critical</item>
+        <item quantity="other">%1$d critical</item>
+    </plurals>
+    <plurals name="hub_findings_high">
+        <!-- Part of a scan summary such as "2 high · 1 medium". %1$d: number of high-severity findings. -->
+        <item quantity="one">%1$d high</item>
+        <item quantity="other">%1$d high</item>
+    </plurals>
+    <plurals name="hub_findings_medium">
+        <!-- Part of a scan summary such as "2 high · 1 medium". %1$d: number of medium-severity findings. -->
+        <item quantity="one">%1$d medium</item>
+        <item quantity="other">%1$d medium</item>
+    </plurals>
+    <plurals name="hub_findings_low">
+        <!-- Part of a scan summary such as "1 critical · 3 low". %1$d: number of low-severity findings. -->
+        <item quantity="one">%1$d low</item>
+        <item quantity="other">%1$d low</item>
+    </plurals>
+    <!-- Trust level pill (lowercase): shipped by the agent's makers. -->
+    <string name="hub_trust_official">official</string>
+    <!-- Trust level pill (lowercase): from a trusted source. -->
+    <string name="hub_trust_trusted">trusted</string>
+    <!-- Trust level pill (lowercase): contributed by the community. -->
+    <string name="hub_trust_community">community</string>
+
+    <!-- ===== Projects list (Projects.kt) ===== -->
+    <!-- Fingerprint/PIN prompt title for a git push. %1$s: repository name. -->
+    <string name="repo_sign_push">Push · %1$s</string>
+    <!-- Fingerprint/PIN prompt title for opening a pull request. %1$s: repository name. -->
+    <string name="repo_sign_create_pr">Create pr · %1$s</string>
+    <!-- Fingerprint/PIN prompt subtitle: the action sends code off the machine. -->
+    <string name="repo_sign_subtitle">Leaves this machine</string>
+    <string name="projects_load_failed">Could not load projects.</string>
+    <!-- Screen title: git repositories on the machine. -->
+    <string name="projects_title">Projects</string>
+    <plurals name="projects_repo_count">
+        <!-- Screen subtitle. %1$d: number of git repositories. -->
+        <item quantity="one">%1$d repos · most recent first</item>
+        <item quantity="other">%1$d repos · most recent first</item>
+    </plurals>
+    <!-- Filter chip: only repositories with uncommitted or unpushed changes. -->
+    <string name="projects_has_changes">Has changes</string>
+    <!-- Empty list title. -->
+    <string name="projects_no_changes_title">No projects with changes</string>
+    <!-- Empty list text. "All" is the filter chip label. -->
+    <string name="projects_no_changes_body">Choose All to see clean repositories.</string>
+    <!-- Empty list title. -->
+    <string name="projects_empty_title">No projects yet</string>
+    <!-- Empty list text. -->
+    <string name="projects_empty_body">Repositories on your machine will appear here.</string>
+    <!-- Git state shown in place of a branch name (detached HEAD). Lowercase. -->
+    <string name="projects_detached">detached</string>
+    <!-- Small lowercase status pill: the repository has merge conflicts. -->
+    <string name="projects_conflict">conflict</string>
+
+    <!-- ===== Repository screen (Projects.kt) ===== -->
+    <string name="repo_diff_failed">Could not load diff.</string>
+    <!-- %1$s: error message, shown as is. -->
+    <string name="repo_diff_failed_detail">Could not load diff: %1$s</string>
+    <!-- Empty state title. -->
+    <string name="repo_no_diff_title">No diff available</string>
+    <!-- Empty state text. -->
+    <string name="repo_no_diff_body">This file has no text changes to show.</string>
+    <!-- Toast after a git commit. -->
+    <string name="repo_committed">Committed</string>
+    <!-- Toast after a git commit and push. -->
+    <string name="repo_committed_pushed">Committed and pushed</string>
+    <!-- Toast after a git push. -->
+    <string name="repo_pushed">Pushed</string>
+    <!-- Toast after a pull request was opened. -->
+    <string name="repo_pr_opened">PR opened</string>
+    <plurals name="repo_changed_count">
+        <!-- Part of the screen subtitle "main · 3 changed · +10 −2". %1$d: number of changed files. -->
+        <item quantity="one">%1$d changed</item>
+        <item quantity="other">%1$d changed</item>
+    </plurals>
+    <!-- Commits ahead of and behind the remote. %1$d: commits ahead. %2$d: commits behind. %3$s: the remote name "origin" (not translated), or empty. -->
+    <string name="repo_ahead_behind">↑%1$d ahead · ↓%2$d behind %3$s</string>
+    <!-- Pull request line. %1$d: PR number. %2$s: PR state from GitHub such as "open", shown as is. %3$s: PR title. -->
+    <string name="repo_pr_line">PR #%1$d · %2$s · %3$s</string>
+    <!-- Section title: changed files. -->
+    <string name="repo_changes">Changes</string>
+    <string name="repo_clean">Working tree clean.</string>
+    <!-- Lowercase link next to a file: add it to the git staging area. -->
+    <string name="repo_stage">stage</string>
+    <!-- Lowercase link next to a file: remove it from the git staging area. -->
+    <string name="repo_unstage">unstage</string>
+    <!-- Chip: stage every changed file. -->
+    <string name="repo_stage_all">Stage all</string>
+    <!-- Chip that asks the agent to write a commit message. %1$s: the agent's name. -->
+    <string name="repo_ask_agent">Ask %1$s for a message</string>
+    <!-- Input placeholder. -->
+    <string name="repo_commit_hint">Commit message</string>
+    <!-- Button (verb): make a git commit. -->
+    <string name="repo_commit">Commit</string>
+    <!-- Button (verb): git push. -->
+    <string name="repo_push">Push</string>
+    <!-- Button: open a pull request. -->
+    <string name="repo_open_pr">Open PR</string>
+
+    <!-- ===== Radar (Radar.kt) ===== -->
+    <!-- Screen title. -->
+    <string name="radar_title">Radar</string>
+    <!-- Screen subtitle. %1$s: when the latest batch of findings ran ("now", "5m", a weekday or a date). %2$s: the interval, such as "3h". -->
+    <string name="radar_batch">Batch %1$s · every %2$s</string>
+    <!-- Screen subtitle when the scout has not run yet. -->
+    <string name="radar_no_batch">No batch yet</string>
+    <!-- Section title: the momentum report on recent work. -->
+    <string name="radar_momentum">Momentum</string>
+    <!-- Section title. -->
+    <string name="radar_scout_findings">Scout findings</string>
+    <!-- Tab label: the latest batch. -->
+    <string name="radar_view_latest">Latest</string>
+    <!-- Tab label: saved findings. -->
+    <string name="radar_view_saved">Saved</string>
+    <!-- Tab label: past findings. -->
+    <string name="radar_view_history">History</string>
+    <string name="radar_tap_skill_diff">Tap to see the skill diff</string>
+    <!-- Empty list title in the Saved tab. -->
+    <string name="radar_nothing_saved">Nothing saved</string>
+    <!-- Empty list title. -->
+    <string name="radar_nothing_yet">Nothing yet</string>
+    <string name="radar_empty_current">The scout runs every 3 hours. Pull to refresh.</string>
+    <string name="radar_empty_saved">Findings you save show up here.</string>
+    <string name="radar_empty_history">Past scout findings show up here.</string>
+    <!-- Screen subtitle for a note from the skill curator. -->
+    <string name="radar_curator_note">Curator note</string>
+    <!-- Shown in place of an empty diff. -->
+    <string name="radar_no_diff">(no diff)</string>
+    <!-- Button that acknowledges a note. -->
+    <string name="radar_got_it">Got it</string>
+    <!-- Toast. -->
+    <string name="radar_feedback_saved">Feedback saved</string>
+    <!-- Toast. -->
+    <string name="radar_note_saved">Note saved</string>
+    <!-- Toast after dismissing a finding. -->
+    <string name="radar_dismissed_toast">Dismissed</string>
+    <!-- Toast after saving a finding. -->
+    <string name="radar_saved_for_later">Saved for later</string>
+    <!-- Toast. %1$s: background task id. -->
+    <string name="radar_agent_queued">Background agent queued: %1$s</string>
+    <!-- Short confidence label on a finding card ("conf" abbreviates confidence). %1$s: a percentage such as "80%". -->
+    <string name="radar_confidence">conf %1$s</string>
+    <!-- Small lowercase status pill. -->
+    <string name="radar_status_saved">saved</string>
+    <!-- Small lowercase status pill. -->
+    <string name="radar_status_dismissed">dismissed</string>
+    <!-- Small lowercase status pill: a chat or agent was started from this finding. -->
+    <string name="radar_status_spawned">spawned</string>
+    <!-- Freshness check result. %1$s: what was checked, from the server, shown as is. -->
+    <string name="radar_fresh">✓ fresh: %1$s</string>
+    <!-- Freshness check result. %1$s: what was checked, from the server, shown as is. -->
+    <string name="radar_downgraded">↓ downgraded: %1$s</string>
+    <!-- Why a finding came back. %1$s: reason from the server, shown as is. -->
+    <string name="radar_resurfaced">resurfaced: %1$s</string>
+    <!-- Lowercase label of a history entry on a finding: a saved note. -->
+    <string name="radar_feedback_note">note</string>
+    <!-- Lowercase label of a history entry on a finding: the user's feedback. -->
+    <string name="radar_feedback_you_said">you said</string>
+    <!-- Lowercase label of a history entry on a finding. -->
+    <string name="radar_feedback_spawned_chat">spawned chat</string>
+    <!-- Lowercase label of a history entry on a finding. -->
+    <string name="radar_feedback_spawned_agent">spawned agent</string>
+    <!-- Chip (verb): write a reaction to a finding. -->
+    <string name="radar_react">React</string>
+    <!-- Chip (verb): bring back a dismissed finding. -->
+    <string name="radar_restore">Restore</string>
+    <!-- Chip (verb): hide a finding. -->
+    <string name="radar_dismiss">Dismiss</string>
+    <!-- Chip: start a new chat from a finding. -->
+    <string name="radar_spawn_chat">Spawn chat</string>
+    <!-- Chip: start a background agent from a finding. -->
+    <string name="radar_spawn_agent">Spawn agent</string>
+    <!-- Input placeholder. -->
+    <string name="radar_reaction_hint">Your reaction, in your own words…</string>
+    <!-- Button. -->
+    <string name="radar_send_feedback">Send feedback</string>
+    <!-- Button. -->
+    <string name="radar_save_as_note">Save as note</string>
+    <string name="radar_spawn_chat_label">New chat with this prompt</string>
+    <!-- "kanban task" is the agent's task board entry. -->
+    <string name="radar_spawn_agent_label">Background agent (kanban task) with this prompt</string>
+    <!-- Input placeholder: the prompt for the new chat or agent. -->
+    <string name="radar_prompt_hint">Prompt</string>
+    <!-- Button. -->
+    <string name="radar_start_chat">Start chat</string>
+    <!-- Button. -->
+    <string name="radar_start_agent">Start agent</string>
+
+    <!-- ===== Terminal controls (Terminal.kt) ===== -->
+    <!-- Notice when the terminal app does not accept taps. -->
+    <string name="terminal_keyboard_only">Keyboard-only: use arrows + Enter</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_shift">Shift</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_ctrl">Ctrl</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_alt">Alt</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_space">Space</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_home">Home</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_end">End</string>
+    <!-- Terminal key button (Escape). Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_esc">Esc</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_enter">Enter</string>
+    <!-- Terminal key button. Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_tab">Tab</string>
+    <!-- Terminal key button (Page Up). Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_page_up">PgUp</string>
+    <!-- Terminal key button (Page Down). Use the usual label of this key on keyboards in your language (often unchanged). -->
+    <string name="terminal_key_page_down">PgDn</string>
+    <!-- Button: scroll the terminal back. -->
+    <string name="terminal_scroll_up">Scroll up</string>
+    <!-- Button: scroll the terminal forward. -->
+    <string name="terminal_scroll_down">Scroll down</string>
+    <!-- Quick reply chip label. The agent receives the English text regardless. -->
+    <string name="terminal_reply_go_ahead">go ahead</string>
+    <!-- Quick reply chip label. The agent receives the English text regardless. -->
+    <string name="terminal_reply_continue">continue</string>
+    <!-- Quick reply chip label. The agent receives the English text regardless. -->
+    <string name="terminal_reply_yes">yes</string>
+    <!-- Quick reply chip label. The agent receives the English text regardless. -->
+    <string name="terminal_reply_no">no</string>
+    <!-- Quick reply chip label asking for a status update. The agent receives the English text regardless. -->
+    <string name="terminal_reply_status">status?</string>
+    <!-- Quick reply chip label. The agent receives the English text regardless. -->
+    <string name="terminal_reply_commit_pr">commit and open a PR</string>
+    <!-- Reply input placeholder. -->
+    <string name="terminal_reply_to_agent">Reply to agent</string>
+    <!-- Send button label while a reply is being sent. -->
+    <string name="terminal_sending">Sending…</string>
+
+    <!-- ================= Wake alarm, wake word, Talk and voice messages ================= -->
+    <!-- ===== Talk: voice engine (speech recognizer and text-to-speech) ===== -->
+    <!-- Notice under the Talk orb when the phone's text-to-speech engine cannot speak. -->
+    <string name="talk_tts_off">Voice output unavailable — replies shown as text</string>
+    <!-- Status under the Talk orb. -->
+    <string name="talk_no_recognizer">No speech recognizer on this phone</string>
+    <!-- Hint under the Talk orb when nothing was recognized. -->
+    <string name="talk_didnt_catch">Didn\'t catch that, tap to retry</string>
+    <!-- %1$d: numeric SpeechRecognizer error code. -->
+    <string name="talk_recognizer_error">Recognizer error %1$d</string>
+    <!-- Spoken aloud by the phone when the agent's reply has nothing worth reading out (only code or tables). -->
+    <string name="talk_spoken_done">Done.</string>
+    <!-- Notice under the Talk orb when the gateway's voice failed and the phone's own voice reads the reply. -->
+    <string name="talk_server_voice_off">Server voice unavailable — using the phone voice</string>
+    <!-- Spoken aloud in place of a web address when a reply is read out. -->
+    <string name="talk_spoken_link">a link</string>
+
+    <!-- ===== Talk: ongoing notification ===== -->
+    <!-- Notification text while Talk listens. -->
+    <string name="talk_notif_listening">Listening</string>
+    <!-- Notification text while the reply is spoken. -->
+    <string name="talk_notif_speaking">Speaking</string>
+    <!-- Notification text while waiting for the agent. -->
+    <string name="talk_notif_thinking">Thinking</string>
+    <!-- %1$s: the user's agent name. Notification title. -->
+    <string name="talk_notif_title">Talking with %1$s</string>
+    <!-- Notification action: ends the voice conversation. -->
+    <string name="talk_notif_end">End</string>
+    <string name="talk_mic_off">Microphone permission is off. Allow it in Android app settings to use Talk.</string>
+    <!-- %1$s: the app name. -->
+    <string name="talk_keep_active_failed">Android couldn\'t keep Talk active. Open Talk again while %1$s is on screen.</string>
+    <string name="talk_start_failed">Android couldn\'t start Talk in the background. Open Talk and try again.</string>
+
+    <!-- ===== Talk screen ===== -->
+    <string name="talk_mic_denied">Microphone permission denied</string>
+    <!-- Fallback error when sending the transcript fails without a message; lowercase as shown. -->
+    <string name="talk_send_failed">send failed</string>
+    <!-- Screen title; also the fallback name of the Talk conversation. -->
+    <string name="talk_title">Talk</string>
+    <!-- Screen subtitle (noun, the voice mode), lowercase; may be followed by " · " and the chat title. -->
+    <string name="talk_subtitle_voice">voice</string>
+    <!-- Mode chip in the top bar: Talk listens again after each reply. -->
+    <string name="talk_hands_free">Hands-free</string>
+    <!-- Mode chip in the top bar: tap the orb for each turn. -->
+    <string name="talk_push_to_talk">Push to talk</string>
+    <!-- Small uppercase label above what the user said. -->
+    <string name="talk_you_label">YOU</string>
+    <!-- %1$s: the user's agent name. -->
+    <string name="talk_empty_hint">Tap the orb and talk. %1$s answers out loud, then listens again.</string>
+    <!-- Status under the orb. -->
+    <string name="talk_state_listening">Listening…</string>
+    <!-- Status under the orb after the user stopped speaking. -->
+    <string name="talk_state_got_it">Got it…</string>
+    <!-- %1$s: the user's agent name. Status under the orb. -->
+    <string name="talk_state_working">%1$s is working…</string>
+    <string name="talk_state_waiting">Waiting for the reply…</string>
+    <string name="talk_state_speaking">Speaking · tap to interrupt</string>
+    <string name="talk_state_idle">Tap to talk</string>
+    <string name="talk_privacy_note">Talk may send audio to your system speech provider. Transcripts go to your paired gateway; spoken replies may use its voice provider or your phone\'s TTS service.</string>
+    <string name="talk_new_conversation">New conversation</string>
+    <string name="talk_open_as_chat">Open as chat</string>
+
+    <!-- ===== Wake word listener (service, notifications, errors) ===== -->
+    <string name="wakeword_mic_needed">Microphone permission needed</string>
+    <string name="wakeword_no_mic">This device has no microphone</string>
+    <!-- "Wake word" is the notification channel name (wakeword_channel); "Turn off" is the notification action (wakeword_turn_off). Use the same translations. -->
+    <string name="wakeword_allow_notifications">Allow Wake word notifications in Android settings so Turn off stays available</string>
+    <!-- %1$s: the app name. -->
+    <string name="wakeword_open_to_resume">Open %1$s to resume wake word listening</string>
+    <!-- %1$s: the wake phrase, e.g. Hey Jarvis (always English). Ongoing notification title. -->
+    <string name="wakeword_notif_title">Listening for “%1$s”</string>
+    <string name="wakeword_notif_text">On-device. Nothing leaves the phone until you say it.</string>
+    <!-- Notification action: turns the wake word off. -->
+    <string name="wakeword_turn_off">Turn off</string>
+    <string name="wakeword_model_failed">Wake model failed to load</string>
+    <string name="wakeword_mic_unavailable">Microphone unavailable. Close other recording apps and try again.</string>
+    <string name="wakeword_mic_start_failed">Microphone could not start</string>
+    <!-- %1$d: numeric AudioRecord error code. %2$s: the app name. -->
+    <string name="wakeword_mic_stopped">Microphone stopped (%1$d). Reopen %2$s to try again.</string>
+    <!-- Fallback error without details; lowercase as shown. -->
+    <string name="wakeword_listening_failed">listening failed</string>
+    <!-- Notification title after a detection; also the name of its notification channel. -->
+    <string name="wakeword_heard">Wake word heard</string>
+    <!-- %1$s: the user's agent name. -->
+    <string name="wakeword_heard_text">Tap to talk with %1$s</string>
+    <!-- Notification channel name in Android settings. -->
+    <string name="wakeword_channel">Wake word</string>
+    <string name="wakeword_channel_desc">Shown while listening for the wake word</string>
+    <string name="wakeword_heard_channel_desc">Opens Talk when you say the wake word</string>
+    <string name="wakeword_mic_needed_settings">Microphone permission needed. Allow it in Android app settings.</string>
+    <!-- %1$s: the app name. -->
+    <string name="wakeword_blocked">Android blocked listening. Open %1$s and try again.</string>
+
+    <!-- ===== Wake alarm: notification channel and ringing notification ===== -->
+    <!-- Notification channel name in Android settings. -->
+    <string name="wake_channel">Wake alarm</string>
+    <string name="wake_channel_desc">The wake alarm and its check-ins</string>
+    <!-- Alarm notification text and the heading of the alarm screen. -->
+    <string name="wake_prove_awake">Prove you\'re awake</string>
+    <string name="wake_notif_checkin">Check-in: one quick puzzle</string>
+    <!-- Alarm notification title: the name of the Wake alarm feature. -->
+    <string name="wake_notif_title">Wake</string>
+
+    <!-- ===== Wake alarm screen ===== -->
+    <string name="wake_photo_unreadable">Could not read the photo</string>
+    <string name="wake_network_error">Network error</string>
+    <!-- %1$s: error detail from the system, shown as is. -->
+    <string name="wake_photo_read_failed">Couldn\'t read the photo: %1$s</string>
+    <string name="wake_no_photo">No photo taken.</string>
+    <!-- %1$s: error detail from the system, shown as is. -->
+    <string name="wake_camera_failed">Camera didn\'t open: %1$s</string>
+    <string name="wake_camera_permission_off">Camera permission is off. Use another proof, or allow Camera in Android app settings.</string>
+    <string name="wake_activity_permission_off">Physical activity permission is off. Use another proof, or allow it in Android app settings.</string>
+    <!-- Uppercase status pill beside the clock: the alarm is ringing. -->
+    <string name="wake_tag_alarm">ALARM</string>
+    <!-- Uppercase status pill: a check-in puzzle is due. -->
+    <string name="wake_tag_checkin">CHECK-IN</string>
+    <!-- Uppercase status pill: the user proved they are up. -->
+    <string name="wake_tag_up">UP</string>
+    <!-- Uppercase status pill: the morning routine is finished. -->
+    <string name="wake_tag_done">DONE</string>
+    <!-- Uppercase status pill: no connection to the server. -->
+    <string name="wake_tag_offline">OFFLINE</string>
+    <!-- Heading of the check-in puzzle (noun). -->
+    <string name="wake_checkin">Check-in</string>
+    <string name="wake_loading_puzzle">Loading the puzzle…</string>
+    <!-- Button: sends the answers. -->
+    <string name="wake_submit">Submit</string>
+    <plurals name="wake_checkins_missed">
+        <!-- %1$d: number of missed check-ins. %2$s: time of day when contacts are alerted. -->
+        <item quantity="one">Missed %1$d check-in. Escalation at %2$s.</item>
+        <item quantity="other">Missed %1$d check-ins. Escalation at %2$s.</item>
+    </plurals>
+    <!-- Button that opens the password-protected emergency stop. -->
+    <string name="wake_emergency_stop">Emergency stop</string>
+    <string name="wake_youre_up">You\'re up.</string>
+    <!-- %1$s: time of the next check-in. -->
+    <string name="wake_checkin_at_stay_up">Check-in at %1$s. Stay out of bed: if you miss it, the alarm comes back.</string>
+    <string name="wake_good_morning">Good morning.</string>
+    <!-- "Wake" is the name of the chat the server writes to. -->
+    <string name="wake_all_done">All done. The summary and corrections are in the Wake chat.</string>
+    <!-- %1$s: a short countdown such as "45s". Button label while the reading timer runs. -->
+    <string name="wake_questions_in">Questions in %1$s</string>
+    <string name="wake_scroll_to_end">Scroll to the end</string>
+    <!-- Button: opens the questions about the reading. -->
+    <string name="wake_questions">Questions</string>
+    <string name="wake_answer_own_words">Answer in your own words. Being right isn\'t required, being awake is.</string>
+    <!-- Placeholder in an answer field. -->
+    <string name="wake_your_answer">Your answer</string>
+    <string name="wake_back_to_text">Back to text</string>
+    <!-- %1$s: time of day when contacts are alerted. -->
+    <string name="wake_rerings">Re-rings until one proof passes. Escalation to your contacts at %1$s.</string>
+    <!-- %1$s: time of day when the escalation is sent; a test alarm only alerts the user. -->
+    <string name="wake_rerings_test">Re-rings until one proof passes. Escalation to your contacts at %1$s. (Test: escalation goes to you only.)</string>
+    <!-- Proof card title: read a text for about two minutes. -->
+    <string name="wake_proof_read">Read · 2 min</string>
+    <string name="wake_preparing_reading">Preparing today\'s reading…</string>
+    <!-- Proof card title. -->
+    <string name="wake_proof_photo">Bathroom photo</string>
+    <string name="wake_proof_photo_sub">Take a fresh photo of the sink or mirror. The photo uploads to your gateway and its vision provider for checking.</string>
+    <string name="wake_proof_no_camera">This device has no camera. Use another proof.</string>
+    <plurals name="wake_proof_walk">
+        <!-- %1$d: number of steps to walk. Proof card title. -->
+        <item quantity="one">Walk %1$d step</item>
+        <item quantity="other">Walk %1$d steps</item>
+    </plurals>
+    <string name="wake_proof_steps_sub">The phone counts your steps and sends their timestamps to your gateway to check the proof.</string>
+    <string name="wake_proof_no_step_sensor">This phone has no step sensor.</string>
+    <plurals name="wake_alarm_rang">
+        <!-- %1$s: alarm time. %2$d: how many times it has rung ("×" = times). -->
+        <item quantity="one">Alarm %1$s · rang %2$d×</item>
+        <item quantity="other">Alarm %1$s · rang %2$d×</item>
+    </plurals>
+
+    <!-- ===== Wake alarm: emergency stop ===== -->
+    <!-- Screen heading. -->
+    <string name="wake_override_title">Emergency stop</string>
+    <string name="wake_override_body">Only for when you really can\'t do a proof. It ends this alarm with no check-in, and nobody is messaged.</string>
+    <!-- Label above the password field. -->
+    <string name="wake_override_password">Password</string>
+    <string name="wake_override_password_desc">Emergency stop password</string>
+    <!-- Button: goes on to the confirmation. -->
+    <string name="wake_override_continue">Continue</string>
+    <string name="wake_override_sure">Are you sure?</string>
+    <string name="wake_override_sure_body">The alarm stops now and today\'s wake-up won\'t count.</string>
+    <string name="wake_override_keep">No, keep it</string>
+    <string name="wake_override_yes_stop">Yes, stop</string>
+
+    <!-- ===== Wake alarm: step proof ===== -->
+    <string name="wake_steps_unavailable">Step counting is unavailable or permission was revoked. Go back and choose another proof.</string>
+    <plurals name="wake_steps_of">
+        <!-- %1$d: steps needed. Shown under the large count of steps walked so far. -->
+        <item quantity="one">of %1$d step</item>
+        <item quantity="other">of %1$d steps</item>
+    </plurals>
+    <string name="wake_steps_keep_walking">Keep walking. The alarm stays quiet while you move and comes back 30 s after you stop.</string>
+
+    <!-- ===== Wake alarm: proof result ===== -->
+    <string name="wake_result_accepted">Accepted.</string>
+    <string name="wake_result_not_yet">Not yet.</string>
+    <!-- %1$s: time of the next check-in. -->
+    <string name="wake_result_checkin_at">Check-in at %1$s.</string>
+    <!-- Verdict pill on one answer, lowercase as shown: the answer was right. -->
+    <string name="wake_verdict_correct">correct</string>
+    <!-- Verdict pill: the answer was partly right. -->
+    <string name="wake_verdict_partial">partial</string>
+    <!-- Verdict pill: the answer was wrong. -->
+    <string name="wake_verdict_wrong">wrong</string>
+    <!-- Verdict pill: the answer was left empty. -->
+    <string name="wake_verdict_blank">blank</string>
+    <!-- Verdict pill: the answer could not be checked. -->
+    <string name="wake_verdict_unchecked">unchecked</string>
+
+    <!-- ===== Wake alarm: offline fallback puzzle ===== -->
+    <!-- %1$s: the agent software on the user's machine (Hermes). -->
+    <string name="wake_offline_title">No connection to %1$s.</string>
+    <string name="wake_offline_body">Solve this to quiet the alarm here. The server still expects a real proof once you\'re back online.</string>
+    <!-- Placeholder in the answer field (noun). -->
+    <string name="wake_offline_answer">Answer</string>
+    <!-- Button: checks the answer (verb). -->
+    <string name="wake_offline_check">Check</string>
+    <!-- Toast: the answer was wrong and a new puzzle is shown. -->
+    <string name="wake_offline_wrong">Wrong, new one</string>
+
+    <!-- ===== Alarm clock settings ===== -->
+    <string name="alarm_proof_permissions_denied">You can use reading proof without these permissions. Enable camera or activity in Android app settings to use those proofs.</string>
+    <!-- %1$s: the app name as listed in Android Settings. -->
+    <string name="alarm_open_app_settings">Open Android Settings &gt; Apps &gt; %1$s to change this permission.</string>
+    <!-- Screen title. -->
+    <string name="alarm_title">Alarm clock</string>
+    <!-- %1$s: weekday and time of the next alarm. %2$s: how long until then, e.g. "in 7h". Screen subtitle, lowercase. -->
+    <string name="alarm_next">next %1$s · %2$s</string>
+    <!-- Screen subtitle, lowercase. -->
+    <string name="alarm_none_set">no alarm set</string>
+    <string name="alarm_exact_off">Exact alarms are off</string>
+    <!-- "Wake" is the name of the alarm feature. -->
+    <string name="alarm_exact_off_sub">Local alarms are not scheduled. Allow exact alarms before relying on Wake.</string>
+    <string name="alarm_notifications_attention">Alarm notifications need attention</string>
+    <!-- %1$s: the app name. "Wake alarm" is the notification channel name (wake_channel); use the same translation. -->
+    <string name="alarm_notifications_attention_sub">Allow %1$s notifications and set the Wake alarm channel to high importance so the proof screen is reachable.</string>
+    <string name="alarm_fullscreen_off">Full-screen alarms are off</string>
+    <!-- "Wake" is the name of the alarm feature. -->
+    <string name="alarm_fullscreen_off_sub">Wake can ring, but Android may only show a notification. Allow full-screen alarms to show proofs over the lock screen.</string>
+    <string name="alarm_battery_on">Battery optimization is on</string>
+    <string name="alarm_battery_on_sub">Exact alarms can still fire. Background syncing may be delayed; review battery settings if reminders arrive late.</string>
+    <!-- Button: opens the battery optimization settings (verb). -->
+    <string name="alarm_battery_review">Review</string>
+    <!-- Section header; the number of alarms is shown beside it. -->
+    <string name="alarm_section_alarms">Alarms</string>
+    <!-- Shown under an alarm with no repeat days: it rings one time. -->
+    <string name="alarm_once">Once</string>
+    <string name="alarm_add">Add alarm</string>
+    <!-- %1$d: minutes until the alarm rings again without a proof. %2$d: minutes until the check-in. -->
+    <string name="alarm_timing">Re-ring at +%1$d min with no proof · check-in at +%2$d</string>
+    <!-- %1$d: minutes until the alarm rings again without a proof. %2$d: minutes until the check-in. %3$d: minutes until contacts get a WhatsApp message. -->
+    <string name="alarm_timing_whatsapp">Re-ring at +%1$d min with no proof · check-in at +%2$d · WhatsApp at +%3$d</string>
+    <string name="alarm_section_reading_level">Reading level</string>
+    <!-- %1$d: current reading level. %2$d: highest level. -->
+    <string name="alarm_level_step">Step %1$d of %2$d</string>
+    <string name="alarm_level_beginner">Beginner: short, plain words, easy questions</string>
+    <string name="alarm_level_intermediate">Intermediate: one mechanism, why-questions</string>
+    <string name="alarm_level_advanced">Advanced: dense, reasoning questions</string>
+    <!-- Setting title: the reading level rises automatically. -->
+    <string name="alarm_level_auto">Harder every 2 weeks</string>
+    <!-- %1$s: date of the next level-up. -->
+    <string name="alarm_level_next">Next step %1$s</string>
+    <string name="alarm_level_top">At the top step</string>
+    <!-- %1$d: the reading level that stays fixed. -->
+    <string name="alarm_level_fixed">Off: stays on step %1$d</string>
+    <!-- Section header: who is alerted when the user does not get up. -->
+    <string name="alarm_section_escalation">Escalation</string>
+    <!-- %1$s: WhatsApp connection status from the server, e.g. connected (shown as is). Lowercase section-header detail. -->
+    <string name="alarm_whatsapp_status">whatsapp %1$s</string>
+    <!-- Fallback name of an escalation contact without a name. -->
+    <string name="alarm_contact_fallback">Contact</string>
+    <!-- Placeholder in the contact name field. -->
+    <string name="alarm_contact_name">Name</string>
+    <!-- Placeholder in the phone number field; the example number may be replaced by a local example. -->
+    <string name="alarm_contact_phone">Phone, e.g. 050-1234567</string>
+    <string name="alarm_contact_add">Add contact</string>
+    <!-- Section header. -->
+    <string name="alarm_section_emergency_stop">Emergency stop</string>
+    <string name="alarm_password_note">The alarm screen has an emergency stop behind a password and an are-you-sure. Change the password here.</string>
+    <string name="alarm_password_current">Current password</string>
+    <string name="alarm_password_new">New password (8+ characters)</string>
+    <string name="alarm_password_change">Change password</string>
+    <string name="alarm_password_changed">Password changed</string>
+    <string name="alarm_section_proof_permissions">Optional proof permissions</string>
+    <string name="alarm_proof_permissions">Photo and step proofs</string>
+    <string name="alarm_proof_permissions_sub">Only supported hardware needs permission. Reading proof works without camera or activity access.</string>
+    <string name="alarm_previously_denied">Previously denied?</string>
+    <string name="alarm_previously_denied_sub">Android may stop showing permission prompts. You can change them in app settings.</string>
+    <!-- Section header (noun). -->
+    <string name="alarm_section_testing">Testing</string>
+    <string name="alarm_own_number_note">Your own number. Test escalations go here instead of your contacts.</string>
+    <!-- Placeholder in the user's own phone number field. -->
+    <string name="alarm_own_number">Your number</string>
+    <string name="alarm_save_number">Save number</string>
+    <string name="alarm_whatsapp_test">Send WhatsApp test to me</string>
+    <!-- Toast after the test message was sent. -->
+    <string name="alarm_whatsapp_sent">Sent</string>
+    <string name="alarm_test_now">Test the alarm now</string>
+    <string name="alarm_test_cancel">Cancel a running test</string>
+
+    <!-- ===== Voice messages in chat ===== -->
+    <string name="voice_audio_busy">Audio is busy. Try again in a moment.</string>
+    <string name="voice_cant_play">Can\'t play this voice message</string>
+    <!-- Under a voice message whose download failed. -->
+    <string name="voice_load_failed">Couldn\'t load · tap to retry</string>
+    <!-- Under a voice message that downloads on a tap; joined with its length and size by " · ". Lowercase. -->
+    <string name="voice_tap_to_load">tap to load</string>
+    <!-- Under a voice message whose length is unknown. -->
+    <string name="voice_message">Voice message</string>
+    <!-- Accessibility action on the Transcript toggle. -->
+    <string name="voice_transcript_hide">Hide transcript</string>
+    <!-- Accessibility action on the Transcript toggle. -->
+    <string name="voice_transcript_show">Show transcript</string>
+    <!-- Accessibility state of the Transcript toggle. -->
+    <string name="voice_transcript_expanded">Expanded</string>
+    <!-- Accessibility state of the Transcript toggle. -->
+    <string name="voice_transcript_collapsed">Collapsed</string>
+    <!-- Toggle that shows the text of a voice message (noun). -->
+    <string name="voice_transcript">Transcript</string>
+    <string name="voice_retry_desc">Retry voice message</string>
+    <string name="voice_loading_cancel_desc">Loading voice message, tap to cancel the download</string>
+    <string name="voice_loading_autoplay_desc">Loading voice message, plays when it arrives. Tap to not play it</string>
+    <!-- %1$s: spoken length, e.g. "1 minute 5 seconds". -->
+    <string name="voice_load_play_length_desc">Load and play voice message, %1$s</string>
+    <string name="voice_load_play_desc">Load and play voice message</string>
+    <string name="voice_pause_desc">Pause voice message</string>
+    <!-- %1$s: spoken length, e.g. "1 minute 5 seconds". -->
+    <string name="voice_play_length_desc">Play voice message, %1$s</string>
+    <string name="voice_play_desc">Play voice message</string>
+    <!-- %1$s: current speed, e.g. "1.5x". -->
+    <string name="voice_speed_desc">Playback speed %1$s</string>
+    <string name="voice_speed_change">Change playback speed</string>
+    <!-- Accessibility name of the waveform seek control. -->
+    <string name="voice_position_desc">Voice message position</string>
+    <!-- %1$s: spoken position. %2$s: spoken length. Both like "1 minute 5 seconds". -->
+    <string name="voice_position_state">%1$s of %2$s</string>
+    <string name="voice_length_unknown">Length unknown</string>
+    <!-- Accessibility action label on the waveform (verb). -->
+    <string name="voice_seek">Seek</string>
+    <!-- Accessibility action: jump back 5 seconds. -->
+    <string name="voice_seek_back">Back 5 seconds</string>
+    <!-- Accessibility action: jump forward 5 seconds. -->
+    <string name="voice_seek_forward">Forward 5 seconds</string>
+    <!-- Spoken durations for accessibility. %1$s: the larger unit (e.g. "1 minute"). %2$s: the smaller unit (e.g. "5 seconds"). -->
+    <string name="voice_spoken_pair">%1$s %2$s</string>
+    <plurals name="voice_spoken_hours">
+        <!-- %1$d: number of hours. -->
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="voice_spoken_minutes">
+        <!-- %1$d: number of minutes. -->
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="voice_spoken_seconds">
+        <!-- %1$d: number of seconds. -->
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
 </resources>

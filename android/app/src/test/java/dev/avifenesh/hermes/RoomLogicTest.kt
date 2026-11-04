@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Test
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -15,6 +16,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 class RoomLogicTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     private fun ev(seq: Long, role: String, member: String = "", ts: Double = 1000.0 + seq, kind: String = "message",
                    notice: String = "", detail: String = "") =
         RoomEvent(seq, "e$seq", kind, role, member, member.replaceFirstChar { it.uppercase() }, "text $seq", ts, "t", notice, detail, emptyList())

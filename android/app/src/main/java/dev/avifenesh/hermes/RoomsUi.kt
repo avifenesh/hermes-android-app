@@ -58,6 +58,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -137,7 +139,7 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(r.name, style = sans(15.5f, if (r.unread > 0) 650 else 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     Spacer(Modifier.width(6.dp))
-                    Pill("${r.members.size}", p.tx2, p.s2)
+                    Pill(Fmt.int(r.members.size), p.tx2, p.s2)
                     Spacer(Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
                     Text(rel(r.updated), style = mono(11.5f, 500, if (r.unread > 0) p.acct else p.mu))
@@ -145,7 +147,7 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val sub = when {
-                        needs -> "Waiting for your approval"
+                        needs -> stringResource(R.string.rooms_waiting_approval)
                         answering.isNotEmpty() -> RoomLogic.workingLine(answering) + "…"
                         else -> RoomLogic.previewLine(r)
                     }
@@ -153,14 +155,14 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (r.unread > 0) {
                         Spacer(Modifier.width(8.dp))
-                        Text(r.unread.coerceAtMost(99).toString(), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
+                        Text(Fmt.int(r.unread.coerceAtMost(99)), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
                     }
                 }
             }
         }
         DropdownMenu(menu, { menu = false }, containerColor = p.s2) {
-            DropdownMenuItem({ Text("Open", style = sans(15f, 500, p.tx)) }, { menu = false; onOpen() })
-            if (r.unread > 0) DropdownMenuItem({ Text("Mark read", style = sans(15f, 500, p.tx)) }, { menu = false; onMarkRead() })
+            DropdownMenuItem({ Text(stringResource(R.string.common_open), style = sans(15f, 500, p.tx)) }, { menu = false; onOpen() })
+            if (r.unread > 0) DropdownMenuItem({ Text(stringResource(R.string.rooms_mark_read), style = sans(15f, 500, p.tx)) }, { menu = false; onMarkRead() })
         }
     }
 }
@@ -174,8 +176,8 @@ fun NewRoomRow(onClick: () -> Unit) {
         Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(p.accd), contentAlignment = Alignment.Center) { Icn(Ic.plus, p.acct, 21.dp) }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text("New group chat", style = sans(15.5f, 600, p.tx))
-            Text("Two to six Bots in one room", style = sans(13.5f, 400, p.mu), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.rooms_new_group), style = sans(15.5f, 600, p.tx))
+            Text(stringResource(R.string.rooms_new_group_hint), style = sans(13.5f, 400, p.mu), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -214,7 +216,7 @@ fun RoomScreen(rid: String) {
     VisibleEffect(rid, latest, retry) {
         try { Rooms.refresh(rid); err = null }
         catch (e: CancellationException) { throw e }
-        catch (e: Exception) { if (events.isEmpty()) err = e.message ?: "Connection failed" }
+        catch (e: Exception) { if (events.isEmpty()) err = e.message ?: str(R.string.common_connection_failed) }
         finally { loading = false }
     }
     val working = driver?.working == true || room?.working?.isNotEmpty() == true
@@ -245,7 +247,7 @@ fun RoomScreen(rid: String) {
         RoomLogic.readTarget(room, nearEnd, landed)?.let { Rooms.markRead(rid, it) }
     }
     fun add(u: android.net.Uri, kind: String? = null) {
-        scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say("Upload failed: " + it.message) }; busy = false }
+        scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say(R.string.room_upload_failed, it.message) }; busy = false }
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let { u -> add(u, "image") } }
     val doc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> add(u) } }
@@ -265,7 +267,7 @@ fun RoomScreen(rid: String) {
                 held = null
             }
             catch (e: CancellationException) { throw e }
-            catch (e: Exception) { Ui.say("Not sent: " + e.message) }
+            catch (e: Exception) { Ui.say(R.string.room_not_sent, e.message) }
             finally { busy = false }
         }
     }
@@ -299,7 +301,7 @@ fun RoomScreen(rid: String) {
         },
         mention = { m -> draft = RoomLogic.mention(draft, m.handle) },
         members = { sheet = true },
-        stop = { run("stop") { Rooms.stop(rid); Ui.say("Stopping the group…") } },
+        stop = { run("stop") { Rooms.stop(rid); Ui.say(R.string.room_stopping) } },
         rename = { renaming = true },
         delete = { deleting = true },
     )
@@ -309,15 +311,15 @@ fun RoomScreen(rid: String) {
     if (renaming && room != null) RenameRoomDialog(room.name, onDismiss = { renaming = false }) { name ->
         renaming = false; run("rename") { Rooms.rename(rid, name) }
     }
-    if (deleting) HDialog("Delete this group?", { deleting = false }, {
-        Text("The group and its history go away for every device and for Hermes Desktop. Each Bot keeps its own chats.",
+    if (deleting) HDialog(stringResource(R.string.room_delete_title), { deleting = false }, {
+        Text(stringResource(R.string.room_delete_body, HERMES_DESKTOP),
             style = sans(14.5f, 400, P.tx2, 21f))
     }) {
-        Btn("Cancel", primary = false) { deleting = false }
-        Btn("Delete", danger = true) {
+        Btn(stringResource(R.string.common_cancel), primary = false) { deleting = false }
+        Btn(stringResource(R.string.common_delete), danger = true) {
             deleting = false
             scope.launch {
-                try { Rooms.delete(rid); Ui.pop(); Ui.say("Group deleted") }
+                try { Rooms.delete(rid); Ui.pop(); Ui.say(R.string.room_deleted) }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { Ui.say(e.message) }
             }
@@ -326,12 +328,12 @@ fun RoomScreen(rid: String) {
     confirm?.let { a ->
         val who = room?.members?.firstOrNull { it.id == a.member }?.name ?: a.member
         val discard = a.kind == "discard"
-        HDialog(if (discard) "Discard $who's turn?" else "Run $who's turn again?", { confirm = null }, {
-            Text(if (discard) "Hermes can't tell whether this turn finished. Discarding lets the group move on; it does not undo anything $who already did."
-                else "$who's turn could not start. Running it again sends the same message to $who.", style = sans(14.5f, 400, P.tx2, 21f))
+        HDialog(if (discard) stringResource(R.string.room_discard_title, who) else stringResource(R.string.room_rerun_title, who), { confirm = null }, {
+            Text(if (discard) stringResource(R.string.room_discard_body, HERMES, who)
+                else stringResource(R.string.room_rerun_body, who), style = sans(14.5f, 400, P.tx2, 21f))
         }) {
-            Btn("Cancel", primary = false) { confirm = null }
-            Btn(if (discard) "Discard" else "Run again", danger = discard) { confirm = null; cb.act(a, "confirmed") }
+            Btn(stringResource(R.string.common_cancel), primary = false) { confirm = null }
+            Btn(if (discard) stringResource(R.string.room_discard) else stringResource(R.string.room_run_again), danger = discard) { confirm = null; cb.act(a, "confirmed") }
         }
     }
 }
@@ -350,28 +352,28 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
     Column(Modifier.fillMaxSize().imePadding()) {
         val sub = when {
             answering.isNotEmpty() -> RoomLogic.workingLine(answering)
-            else -> members.joinToString(", ") { it.name }.ifBlank { "Group chat" }
+            else -> members.joinToString(", ") { it.name }.ifBlank { str(R.string.room_default_name) }
         }
-        TopBar(room?.name ?: "Group chat", sub, if (answering.isNotEmpty()) p.acct else p.mu) {
-            IconBtn(Ic.users, p.tx2, label = "Members") { cb.members() }
+        TopBar(room?.name ?: stringResource(R.string.room_default_name), sub, if (answering.isNotEmpty()) p.acct else p.mu) {
+            IconBtn(Ic.users, p.tx2, label = stringResource(R.string.room_members)) { cb.members() }
             Box {
                 IconBtn(Ic.more, p.tx2) { menu = true }
                 DropdownMenu(menu, { menu = false }, containerColor = p.s2) {
-                    DropdownMenuItem({ Text("Members", style = sans(15f, 500, p.tx)) }, { menu = false; cb.members() })
-                    DropdownMenuItem({ Text("Rename", style = sans(15f, 500, p.tx)) }, { menu = false; cb.rename() })
-                    if (answering.isNotEmpty() || queued.isNotEmpty()) DropdownMenuItem({ Text("Stop the group", style = sans(15f, 500, p.tx)) }, { menu = false; cb.stop() })
-                    DropdownMenuItem({ Text("Delete group", style = sans(15f, 500, p.bad)) }, { menu = false; cb.delete() })
+                    DropdownMenuItem({ Text(stringResource(R.string.room_members), style = sans(15f, 500, p.tx)) }, { menu = false; cb.members() })
+                    DropdownMenuItem({ Text(stringResource(R.string.common_rename), style = sans(15f, 500, p.tx)) }, { menu = false; cb.rename() })
+                    if (answering.isNotEmpty() || queued.isNotEmpty()) DropdownMenuItem({ Text(stringResource(R.string.room_stop), style = sans(15f, 500, p.tx)) }, { menu = false; cb.stop() })
+                    DropdownMenuItem({ Text(stringResource(R.string.room_delete), style = sans(15f, 500, p.bad)) }, { menu = false; cb.delete() })
                 }
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
-                if (error != null) item { ErrorPanel("Could not load the group: $error", cb.retry) }
+                if (error != null) item { ErrorPanel(stringResource(R.string.room_load_failed, error), cb.retry) }
                 else if (events.isEmpty() && !hasOlder) item {
-                    if (loading) Skeleton() else Empty(room?.name ?: "Group chat", "Say something to the group. @mention a Bot to ask just that one.")
+                    if (loading) Skeleton() else Empty(room?.name ?: stringResource(R.string.room_default_name), stringResource(R.string.room_empty_hint))
                 }
                 if (RoomLogic.olderControl(hasOlder, error)) item(key = "older") {
-                    Text("Earlier messages", style = sans(13.5f, 600, p.acct), textAlign = TextAlign.Center,
+                    Text(stringResource(R.string.room_earlier), style = sans(13.5f, 600, p.acct), textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = cb.older).heightIn(min = 48.dp).padding(vertical = 14.dp))
                 }
                 items(rows, key = { it.event.seq }) { row ->
@@ -393,7 +395,7 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
         }
         // ---- composer
         Column(Modifier.fillMaxWidth().background(p.bg).navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
-            if (!driverUp || (driver != null && !driver.running && room != null)) Text("The gateway's group chat worker is not running. Messages wait until it is back.",
+            if (!driverUp || (driver != null && !driver.running && room != null)) Text(stringResource(R.string.room_worker_down),
                 style = sans(13f, 500, p.attt), modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 8.dp))
             if (atts.isNotEmpty()) AttRow(atts)
             Row(verticalAlignment = Alignment.Bottom) {
@@ -403,13 +405,13 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
                         IconBtn(Ic.plus, p.tx2, 46.dp, p.s2) { plus = true }
                         DropdownMenu(plus, { plus = false }, containerColor = p.s2) {
                             AttachmentPrivacyNotice(Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 10.dp))
-                            cb.attachPhoto?.let { f -> DropdownMenuItem({ Text("Photo", style = sans(15f, 500, p.tx)) }, { plus = false; f() }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) }) }
-                            cb.attachFile?.let { f -> DropdownMenuItem({ Text("File", style = sans(15f, 500, p.tx)) }, { plus = false; f() }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) }) }
+                            cb.attachPhoto?.let { f -> DropdownMenuItem({ Text(stringResource(R.string.room_attach_photo), style = sans(15f, 500, p.tx)) }, { plus = false; f() }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) }) }
+                            cb.attachFile?.let { f -> DropdownMenuItem({ Text(stringResource(R.string.room_attach_file), style = sans(15f, 500, p.tx)) }, { plus = false; f() }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) }) }
                         }
                     }
                     Spacer(Modifier.width(8.dp))
                 }
-                InputBox(draft, onDraft, "Message the group", Modifier.weight(1f))
+                InputBox(draft, onDraft, stringResource(R.string.room_composer_hint), Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
                 if (draft.isBlank() && atts.isEmpty() && (answering.isNotEmpty() || queued.isNotEmpty())) StopCircle(cb.stop)
                 else IconBtn(Ic.send, p.ink, 46.dp, p.acc, enabled = !busy && driverUp && (draft.isNotBlank() || atts.isNotEmpty()), onClick = cb.send)
@@ -427,7 +429,7 @@ fun RoomWorkingRow(answering: List<String>, queued: List<String>) {
         Spacer(Modifier.width(10.dp))
         Column {
             if (answering.isNotEmpty()) Text(RoomLogic.workingLine(answering), style = sans(14f, 600, p.acct))
-            if (queued.isNotEmpty()) Text("Next: " + queued.joinToString(", "), style = sans(13f, 500, p.tx2))
+            if (queued.isNotEmpty()) Text(stringResource(R.string.room_next_up, queued.joinToString(", ")), style = sans(13f, 500, p.tx2))
         }
     }
 }
@@ -437,11 +439,12 @@ fun RoomNoticeRow(run: List<RoomEvent>) {
     val p = P
     var open by remember(run.first().seq) { mutableStateOf(false) }
     val last = RoomLogic.noticeText(run.last())
+    val count = pluralStringResource(R.plurals.room_notice_count, run.size, run.size)
     Column(Modifier.fillMaxWidth().clickable(enabled = run.size > 1) { open = !open }.padding(horizontal = 20.dp, vertical = 3.dp).animateContentSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(5.dp).clip(CircleShape).background(if (run.any { it.notice == "turn.failed" }) p.bad else p.dim))
             Spacer(Modifier.width(8.dp))
-            Text(if (run.size == 1) last else if (open) "${run.size} notices" else "${run.size} notices · $last", style = mono(11.5f, 500, p.dim),
+            Text(if (run.size == 1) last else if (open) count else "$count · $last", style = mono(11.5f, 500, p.dim),
                 maxLines = if (open) 6 else 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (run.size > 1) Icn(if (open) Ic.chevU else Ic.chevD, p.dim, 13.dp)
             Text(clock(run.last().ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(start = 6.dp))
@@ -519,7 +522,7 @@ fun RoomAttachment(rid: String, e: RoomEvent, a: JSONObject, mine: Boolean) {
                     val f = File(mediaDir(ctx), "room_" + aid + "_" + name.replace('/', '_'))
                     if (!f.exists() || (size != null && f.length() != size)) Api.download(url, f, size) { prog = it }
                     then(f)
-                }.onFailure { if (it !is CancellationException) Ui.say("Download failed: " + it.message) }
+                }.onFailure { if (it !is CancellationException) Ui.say(R.string.room_download_failed, it.message) }
                 prog = null
             }
         }
@@ -531,11 +534,12 @@ fun RoomAttachment(rid: String, e: RoomEvent, a: JSONObject, mine: Boolean) {
         Column(Modifier.weight(1f, fill = false)) {
             Text(name, style = sans(14f, 500, P.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val pr = prog
-            Text(if (pr != null) "Downloading… ${(pr * 100).toInt()}%" else listOfNotNull(size?.let { sizeStr(it) }, "tap to open").joinToString(" · "),
+            Text(if (pr != null) stringResource(R.string.room_downloading, Fmt.percent((pr * 100).toInt() / 100.0))
+                else listOfNotNull(size?.let { sizeStr(it) }, stringResource(R.string.room_tap_to_open)).joinToString(" · "),
                 style = mono(11f, 500, if (pr != null) P.acct else P.mu))
         }
         Spacer(Modifier.width(4.dp))
-        IconBtn(Ic.download, P.tx2, 40.dp) { get { saveToDownloads(ctx, it, name, mime); Ui.say("Saved to Downloads: $name") } }
+        IconBtn(Ic.download, P.tx2, 40.dp) { get { saveToDownloads(ctx, it, name, mime); Ui.say(R.string.room_saved_to_downloads, name) } }
     }
 }
 
@@ -550,26 +554,26 @@ fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAc
             Icn(if (approval) Ic.shield else Ic.refresh, if (approval) p.att else p.mu, 18.dp)
             Spacer(Modifier.width(8.dp))
             Text(when (a.kind) {
-                "approval" -> "$who needs your approval"
-                "discard" -> "$who's last turn has an unknown outcome"
-                else -> "$who's turn is waiting to run"
+                "approval" -> stringResource(R.string.room_action_approval, who)
+                "discard" -> stringResource(R.string.room_action_discard, who)
+                else -> stringResource(R.string.room_action_retry, who)
             }, style = sans(14.5f, 650, if (approval) p.attt else p.tx), modifier = Modifier.weight(1f))
         }
         if (a.description.isNotBlank()) Text(a.description, style = sans(14f, 400, p.tx, 20f), modifier = Modifier.padding(top = 8.dp))
-        if (a.command.isNotBlank()) { Spacer(Modifier.height(8.dp)); CodeBlock(a.command, "command") }
-        if (!ready) Text("Loading the full command before you can answer…", style = sans(13f, 500, p.tx2),
+        if (a.command.isNotBlank()) { Spacer(Modifier.height(8.dp)); CodeBlock(a.command, stringResource(R.string.room_command_label)) }
+        if (!ready) Text(stringResource(R.string.room_action_loading), style = sans(13f, 500, p.tx2),
             modifier = Modifier.padding(top = 8.dp))
-        if (approval && Prefs.noLock) Text("No screen lock on this phone, so approving doesn't ask for your fingerprint.",
+        if (approval && Prefs.noLock) Text(stringResource(R.string.room_no_lock),
             style = sans(13f, 600, p.bad), modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (a.kind) {
                 "approval" -> {
-                    Btn(if (busy) "…" else "Approve", Modifier.weight(1f), enabled = ready && !busy) { onAct(a, "once") }
-                    Btn("Deny", Modifier.weight(1f), danger = true, enabled = ready && !busy) { onAct(a, "deny") }
+                    Btn(if (busy) "…" else stringResource(R.string.common_approve), Modifier.weight(1f), enabled = ready && !busy) { onAct(a, "once") }
+                    Btn(stringResource(R.string.common_deny), Modifier.weight(1f), danger = true, enabled = ready && !busy) { onAct(a, "deny") }
                 }
-                "discard" -> Btn(if (busy) "…" else "Discard turn", Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }
-                else -> Btn(if (busy) "…" else "Run again", Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }
+                "discard" -> Btn(if (busy) "…" else stringResource(R.string.room_discard_turn), Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }
+                else -> Btn(if (busy) "…" else stringResource(R.string.room_run_again), Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }
             }
         }
     }
@@ -594,23 +598,23 @@ fun RoomMembersSheet(room: Room, driver: RoomDriver?, onDismiss: () -> Unit, onM
 fun RoomMembersContent(room: Room, driver: RoomDriver?, onMention: (RoomMember) -> Unit) {
     val p = P
     Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-        Text("Members", style = serif(34f, p.tx), modifier = Modifier.padding(horizontal = 20.dp))
-        Text("${room.members.size} Bots in ${room.name}. Tap one to @mention it.", style = sans(13.5f, 400, p.mu),
+        Text(stringResource(R.string.room_members), style = serif(34f, p.tx), modifier = Modifier.padding(horizontal = 20.dp))
+        Text(pluralStringResource(R.plurals.room_members_summary, room.members.size, room.members.size, room.name), style = sans(13.5f, 400, p.mu),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         Spacer(Modifier.height(6.dp))
         for (m in room.members) {
             val status = driver?.members?.get(m.id) ?: if (m.id in room.working) "running" else ""
             val trail: (@Composable () -> Unit)? = if (status.isBlank()) null else {
                 {
-                    if (status == "queued") Pill("Next", p.tx2, p.s2) else Row(verticalAlignment = Alignment.CenterVertically) {
-                        LiveDot(7.dp); Spacer(Modifier.width(6.dp)); Text("Answering", style = mono(11f, 600, p.acct))
+                    if (status == "queued") Pill(stringResource(R.string.room_member_next), p.tx2, p.s2) else Row(verticalAlignment = Alignment.CenterVertically) {
+                        LiveDot(7.dp); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.room_member_answering), style = mono(11f, 600, p.acct))
                     }
                 }
             }
             ListRow({ MemberAvatar(m.name, RoomLogic.colorIndex(room.members, m.id, Accents.size), 40.dp) }, m.name,
                 listOfNotNull("@" + m.handle, m.profile.takeIf { it != m.handle }).joinToString(" · "), trail, { onMention(m) })
         }
-        Text("Members are fixed for this group. To change who is in it, start a new group.", style = sans(12.5f, 400, p.mu),
+        Text(stringResource(R.string.room_members_fixed), style = sans(12.5f, 400, p.mu),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
     }
 }
@@ -618,11 +622,11 @@ fun RoomMembersContent(room: Room, driver: RoomDriver?, onMention: (RoomMember) 
 @Composable
 fun RenameRoomDialog(current: String, onDismiss: () -> Unit, onRename: (String) -> Unit) {
     var name by remember { mutableStateOf(current) }
-    HDialog("Rename group", onDismiss, {
-        InputBox(name, { name = it.take(200) }, "Group name", Modifier.fillMaxWidth(), maxLines = 2)
+    HDialog(stringResource(R.string.room_rename_title), onDismiss, {
+        InputBox(name, { name = it.take(200) }, stringResource(R.string.room_name_hint), Modifier.fillMaxWidth(), maxLines = 2)
     }) {
-        Btn("Cancel", primary = false, onClick = onDismiss)
-        Btn("Rename", enabled = name.isNotBlank() && name.trim() != current) { onRename(name.trim()) }
+        Btn(stringResource(R.string.common_cancel), primary = false, onClick = onDismiss)
+        Btn(stringResource(R.string.common_rename), enabled = name.isNotBlank() && name.trim() != current) { onRename(name.trim()) }
     }
 }
 
@@ -642,7 +646,7 @@ fun NewRoomSheet(onDismiss: () -> Unit) {
                     onDismiss()
                     if (r != null) Ui.openRoom(r.id)
                 } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { Ui.say("Couldn't start the group: " + e.message) }
+                catch (e: Exception) { Ui.say(R.string.rooms_create_failed, e.message) }
                 finally { busy = false }
             }
         }
@@ -656,14 +660,14 @@ fun NewRoomContent(bots: List<RoomBot>, busy: Boolean, initialName: String = "",
     var name by rememberSaveable { mutableStateOf(initialName) }
     var picked by rememberSaveable { mutableStateOf(initialPicked.toList()) }
     Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Text("New group chat", style = serif(34f, p.tx))
-        Text("The group lives on this gateway, so Hermes Desktop sees it too.", style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-        InputBox(name, { name = it.take(200) }, "Group name", Modifier.fillMaxWidth(), maxLines = 2)
+        Text(stringResource(R.string.rooms_new_group), style = serif(34f, p.tx))
+        Text(stringResource(R.string.rooms_new_group_desc, HERMES_DESKTOP), style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        InputBox(name, { name = it.take(200) }, stringResource(R.string.room_name_hint), Modifier.fillMaxWidth(), maxLines = 2)
         Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("BOTS", style = mono(11.5f, 600, p.mu), modifier = Modifier.weight(1f))
-            Text("${picked.size} of 2–6", style = mono(11.5f, 500, if (picked.size in 2..6) p.acct else p.mu))
+            Text(stringResource(R.string.rooms_bots_header), style = mono(11.5f, 600, p.mu), modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.rooms_picked_count, picked.size, 2, 6), style = mono(11.5f, 500, if (picked.size in 2..6) p.acct else p.mu))
         }
-        if (bots.size < 2) Text("This gateway serves fewer than two Bots. Create another profile (hermes profile create) to start a group.",
+        if (bots.size < 2) Text(stringResource(R.string.rooms_too_few_bots, "hermes profile create"),
             style = sans(14f, 400, p.tx2, 20f), modifier = Modifier.padding(vertical = 8.dp))
         for ((i, b) in bots.withIndex()) {
             val on = b.profile in picked
@@ -683,7 +687,7 @@ fun NewRoomContent(bots: List<RoomBot>, busy: Boolean, initialName: String = "",
             }
         }
         Spacer(Modifier.height(14.dp))
-        Btn(if (busy) "Starting…" else "Start group", Modifier.fillMaxWidth(), enabled = !busy && name.isNotBlank() && picked.size in 2..6) {
+        Btn(if (busy) stringResource(R.string.rooms_starting) else stringResource(R.string.rooms_start), Modifier.fillMaxWidth(), enabled = !busy && name.isNotBlank() && picked.size in 2..6) {
             onCreate(name.trim(), picked)
         }
         Spacer(Modifier.height(16.dp))

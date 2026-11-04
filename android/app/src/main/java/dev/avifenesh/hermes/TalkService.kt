@@ -26,19 +26,19 @@ class TalkService : Service() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 47, Intent(this, TalkService::class.java).setAction("stop"), PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(this, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt())
-            .setContentTitle("Talking with " + Hub.agent.value).setContentText(intent?.getStringExtra("state") ?: "Listening")
-            .setOngoing(true).setSilent(true).setContentIntent(open).addAction(0, "End", stop)
+            .setContentTitle(str(R.string.talk_notif_title, Hub.agent.value)).setContentText(intent?.getStringExtra("state") ?: str(R.string.talk_notif_listening))
+            .setOngoing(true).setSilent(true).setContentIntent(open).addAction(0, str(R.string.talk_notif_end), stop)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).build()
         // Android 14+ checks while-in-use microphone permission again inside the service.
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            Ui.say("Microphone permission is off. Allow it in Android app settings to use Talk.")
+            Ui.say(R.string.talk_mic_off)
             stopSelf(); return START_NOT_STICKY
         }
         try {
             ServiceCompat.startForeground(this, 8, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: RuntimeException) {
             android.util.Log.w("hermes", "Talk foreground start rejected", e)
-            Ui.say("Android couldn't keep Talk active. Open Talk again while $APP_NAME is on screen.")
+            Ui.say(R.string.talk_keep_active_failed, APP_NAME)
             stopSelf(); return START_NOT_STICKY
         }
         active = true
@@ -64,7 +64,7 @@ class TalkService : Service() {
         }.onFailure {
             android.util.Log.w("hermes", "Talk service start rejected", it)
             TalkBus.ended.tryEmit(Unit)
-            Ui.say("Android couldn't start Talk in the background. Open Talk and try again.")
+            Ui.say(R.string.talk_start_failed)
         }
         fun stop(c: Context) { c.stopService(Intent(c, TalkService::class.java)) }
     }

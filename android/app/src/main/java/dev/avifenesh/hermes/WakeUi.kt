@@ -66,6 +66,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -124,7 +126,7 @@ private fun shrink(f: File): String {
     BitmapFactory.decodeFile(f.path, o)
     var s = 1
     while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= 1280) s *= 2
-    val b = BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = s }) ?: error("Could not read the photo")
+    val b = BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = s }) ?: error(str(R.string.wake_photo_unreadable))
     val k = 1280f / maxOf(b.width, b.height)
     val sc = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt(), (b.height * k).toInt(), true) else b
     val out = ByteArrayOutputStream()
@@ -171,7 +173,7 @@ fun WakeScreen(act: WakeActivity) {
                 result = o; mode = "result"
                 o.optJSONObject("session").let { Wake.session.value = it }
                 if (o.optBoolean("ok")) { Wake.quietUntil = 0; WakeService.start(ctx, "check") }
-            }.onFailure { result = JSONObject().put("ok", false).put("reason", it.message ?: "Network error"); mode = "result" }
+            }.onFailure { result = JSONObject().put("ok", false).put("reason", it.message ?: str(R.string.wake_network_error)); mode = "result" }
         }
     }
 
@@ -180,23 +182,23 @@ fun WakeScreen(act: WakeActivity) {
         if (ok && photoFile.length() > 0) {
             busy = true
             scope.launch {
-                val b64 = runCatching { withContext(Dispatchers.Default) { shrink(photoFile) } }.getOrElse { busy = false; err = "Couldn't read the photo: ${it.message}"; return@launch }
+                val b64 = runCatching { withContext(Dispatchers.Default) { shrink(photoFile) } }.getOrElse { busy = false; err = str(R.string.wake_photo_read_failed, it.message); return@launch }
                 photoFile.delete()
                 submit(JSONObject().put("kind", "photo").put("image", b64))
             }
-        } else { mode = "home"; err = "No photo taken." }
+        } else { mode = "home"; err = str(R.string.wake_no_photo) }
     }
     fun openCamera() {
         act.unlockThen {
             val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".files", photoFile)
-            runCatching { camera.launch(uri) }.onFailure { err = "Camera didn't open: ${it.message}" }
+            runCatching { camera.launch(uri) }.onFailure { err = str(R.string.wake_camera_failed, it.message) }
         }
     }
     // Full asks for its declared CAMERA grant first; Play declares none and opens the camera app directly.
     val cameraStart = rememberCameraStart(open = ::openCamera,
-        denied = { err = "Camera permission is off. Use another proof, or allow Camera in Android app settings." })
+        denied = { err = str(R.string.wake_camera_permission_off) })
     val stepPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) { err = null; mode = "steps" } else err = "Physical activity permission is off. Use another proof, or allow it in Android app settings."
+        if (ok) { err = null; mode = "steps" } else err = str(R.string.wake_activity_permission_off)
     }
     val hasCamera = remember { ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
     val hasStepSensor = remember { ctx.getSystemService(SensorManager::class.java)?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR) != null }
@@ -209,8 +211,8 @@ fun WakeScreen(act: WakeActivity) {
             if (showClock) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(Fmt.time(tick), style = serif(if (compact) 24f else if (mode == "home") 64f else 36f, p.tx))
-                val tag = when (phase) { "ring" -> "ALARM"; "checkin" -> "CHECK-IN"; "wait" -> "UP"; "done" -> "DONE"; "offline" -> "OFFLINE"; else -> "" }
-                if (tag.isNotEmpty()) Pill(tag, if (phase == "ring" || phase == "offline") p.att else p.acct, if (phase == "ring" || phase == "offline") p.attd else p.accd)
+                val tag = when (phase) { "ring" -> R.string.wake_tag_alarm; "checkin" -> R.string.wake_tag_checkin; "wait" -> R.string.wake_tag_up; "done" -> R.string.wake_tag_done; "offline" -> R.string.wake_tag_offline; else -> 0 }
+                if (tag != 0) Pill(stringResource(tag), if (phase == "ring" || phase == "offline") p.att else p.acct, if (phase == "ring" || phase == "offline") p.attd else p.accd)
             }
             val content = s?.optJSONObject("content")
             Box(Modifier.weight(1f)) {
@@ -222,32 +224,32 @@ fun WakeScreen(act: WakeActivity) {
                         submit(JSONObject().put("kind", "steps").put("steps", JSONArray(ts)))
                     }
                     phase == "checkin" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-                        Text("Check-in", style = sans(15f, 600, p.mu))
+                        Text(stringResource(R.string.wake_checkin), style = sans(15f, 600, p.mu))
                         Spacer(Modifier.height(8.dp))
-                        Text(s?.str("logic").orEmpty().ifBlank { "Loading the puzzle…" }, style = sans(20f, 500, p.tx, 27f))
+                        Text(s?.str("logic").orEmpty().ifBlank { stringResource(R.string.wake_loading_puzzle) }, style = sans(20f, 500, p.tx, 27f))
                         Spacer(Modifier.height(16.dp))
                         val go = { if (!busy && logicAns.isNotBlank()) submit(JSONObject().put("kind", "logic").put("answer", logicAns)) }
                         AnswerBox(logicAns, { logicAns = it; Wake.touch() }, Modifier.fillMaxWidth(), onDone = go)
                         Spacer(Modifier.height(10.dp))
-                        Btn(if (busy) "…" else "Submit", Modifier.fillMaxWidth(), enabled = !busy && logicAns.isNotBlank(), onClick = go)
+                        Btn(if (busy) "…" else stringResource(R.string.wake_submit), Modifier.fillMaxWidth(), enabled = !busy && logicAns.isNotBlank(), onClick = go)
                         val misses = s?.optInt("checkin_misses") ?: 0
-                        if (misses > 0) { Spacer(Modifier.height(12.dp)); Text("Missed $misses check-in${if (misses > 1) "s" else ""}. Escalation at ${hhmm(s?.optDouble("escalate_at") ?: 0.0)}.", style = sans(13.5f, 500, p.att)) }
+                        if (misses > 0) { Spacer(Modifier.height(12.dp)); Text(pluralStringResource(R.plurals.wake_checkins_missed, misses, misses, hhmm(s?.optDouble("escalate_at") ?: 0.0)), style = sans(13.5f, 500, p.att)) }
                         Spacer(Modifier.height(30.dp))
-                        Btn("Emergency stop", Modifier.fillMaxWidth(), primary = false, danger = true) { mode = "override" }
+                        Btn(stringResource(R.string.wake_emergency_stop), Modifier.fillMaxWidth(), primary = false, danger = true) { mode = "override" }
                     }
                     phase == "wait" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-                        Text("You're up.", style = serif(40f, p.tx))
+                        Text(stringResource(R.string.wake_youre_up), style = serif(40f, p.tx))
                         Spacer(Modifier.height(8.dp))
-                        Text("Check-in at ${hhmm(s?.optDouble("checkin_due") ?: 0.0)}. Stay out of bed: if you miss it, the alarm comes back.", style = sans(16f, 400, p.tx2, 23f))
+                        Text(stringResource(R.string.wake_checkin_at_stay_up, hhmm(s?.optDouble("checkin_due") ?: 0.0)), style = sans(16f, 400, p.tx2, 23f))
                         Spacer(Modifier.height(22.dp))
-                        Btn("Close", Modifier.fillMaxWidth(), primary = false) { act.finish() }
+                        Btn(stringResource(R.string.common_close), Modifier.fillMaxWidth(), primary = false) { act.finish() }
                     }
                     phase == "done" || phase == "idle" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-                        Text("Good morning.", style = serif(40f, p.tx))
+                        Text(stringResource(R.string.wake_good_morning), style = serif(40f, p.tx))
                         Spacer(Modifier.height(8.dp))
-                        Text("All done. The summary and corrections are in the Wake chat.", style = sans(16f, 400, p.tx2, 23f))
+                        Text(stringResource(R.string.wake_all_done), style = sans(16f, 400, p.tx2, 23f))
                         Spacer(Modifier.height(22.dp))
-                        Btn("Close", Modifier.fillMaxWidth()) { act.finish() }
+                        Btn(stringResource(R.string.common_close), Modifier.fillMaxWidth()) { act.finish() }
                     }
                     mode == "read" && content != null -> {
                         val sc = rememberScrollState()
@@ -261,25 +263,25 @@ fun WakeScreen(act: WakeActivity) {
                                 Spacer(Modifier.height(30.dp))
                             }
                             Box(Modifier.padding(16.dp)) {
-                                Btn(when { left > 0 -> "Questions in ${left}s"; !atEnd -> "Scroll to the end"; else -> "Questions" }, Modifier.fillMaxWidth(), enabled = left <= 0 && atEnd) { mode = "questions" }
+                                Btn(when { left > 0 -> stringResource(R.string.wake_questions_in, Fmt.seconds(left.toLong())); !atEnd -> stringResource(R.string.wake_scroll_to_end); else -> stringResource(R.string.wake_questions) }, Modifier.fillMaxWidth(), enabled = left <= 0 && atEnd) { mode = "questions" }
                             }
                         }
                     }
                     mode == "questions" && content != null -> {
                         val qs = content.optJSONArray("questions").strs()
                         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-                            item { Text("Answer in your own words. Being right isn't required, being awake is.", style = sans(14f, 500, p.mu, 20f), modifier = Modifier.padding(vertical = 10.dp)) }
+                            item { Text(stringResource(R.string.wake_answer_own_words), style = sans(14f, 500, p.mu, 20f), modifier = Modifier.padding(vertical = 10.dp)) }
                             qs.forEachIndexed { i, q ->
                                 item {
                                     Text("${i + 1}. $q", style = sans(16f, 600, p.tx, 22f), modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
-                                    InputBox(answers[i], { answers[i] = it }, "Your answer", Modifier.fillMaxWidth(), minLines = 2)
+                                    InputBox(answers[i], { answers[i] = it }, stringResource(R.string.wake_your_answer), Modifier.fillMaxWidth(), minLines = 2)
                                 }
                             }
                             item {
                                 Row(Modifier.padding(vertical = 18.dp)) {
-                                    Btn("Back to text", Modifier.weight(1f), primary = false) { mode = "read" }
+                                    Btn(stringResource(R.string.wake_back_to_text), Modifier.weight(1f), primary = false) { mode = "read" }
                                     Spacer(Modifier.width(10.dp))
-                                    Btn(if (busy) "Checking…" else "Submit", Modifier.weight(1f), enabled = !busy && answers.count { it.isNotBlank() } >= 4) {
+                                    Btn(if (busy) stringResource(R.string.common_checking) else stringResource(R.string.wake_submit), Modifier.weight(1f), enabled = !busy && answers.count { it.isNotBlank() } >= 4) {
                                         submit(JSONObject().put("kind", "read").put("answers", JSONArray(answers.toList())))
                                     }
                                 }
@@ -287,28 +289,27 @@ fun WakeScreen(act: WakeActivity) {
                         }
                     }
                     else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp)) {
-                        Text("Prove you're awake", style = sans(20f, 600, p.tx), modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp))
+                        Text(stringResource(R.string.wake_prove_awake), style = sans(20f, 600, p.tx), modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp))
                         val fire = s?.optDouble("fire") ?: 0.0
-                        Text("Re-rings until one proof passes. Escalation to your contacts at ${hhmm(s?.optDouble("escalate_at") ?: 0.0)}."
-                            + if (s?.optBoolean("test") == true) " (Test: escalation goes to you only.)" else "",
+                        Text(stringResource(if (s?.optBoolean("test") == true) R.string.wake_rerings_test else R.string.wake_rerings, hhmm(s?.optDouble("escalate_at") ?: 0.0)),
                             style = sans(14f, 400, p.mu, 20f), modifier = Modifier.padding(start = 4.dp, bottom = 16.dp))
-                        ProofCard("Read · 2 min", if (content != null) content.str("title") else "Preparing today's reading…", content != null) {
+                        ProofCard(stringResource(R.string.wake_proof_read), if (content != null) content.str("title") else stringResource(R.string.wake_preparing_reading), content != null) {
                             readStart = System.currentTimeMillis(); Wake.touch(); mode = "read"
                         }
-                        ProofCard("Bathroom photo", if (hasCamera) "Take a fresh photo of the sink or mirror. The photo uploads to your gateway and its vision provider for checking." else "This device has no camera. Use another proof.", hasCamera) {
+                        ProofCard(stringResource(R.string.wake_proof_photo), if (hasCamera) stringResource(R.string.wake_proof_photo_sub) else stringResource(R.string.wake_proof_no_camera), hasCamera) {
                             Wake.touch(150_000); err = null
                             act.unlockThen { cameraStart() }
                         }
-                        ProofCard("Walk ${s?.optInt("steps_needed", 120) ?: 120} steps", if (hasStepSensor) "The phone counts your steps and sends their timestamps to your gateway to check the proof." else "This phone has no step sensor.", hasStepSensor) {
+                        ProofCard((s?.optInt("steps_needed", 120) ?: 120).let { pluralStringResource(R.plurals.wake_proof_walk, it, it) }, if (hasStepSensor) stringResource(R.string.wake_proof_steps_sub) else stringResource(R.string.wake_proof_no_step_sensor), hasStepSensor) {
                             err = null
                             if (ctx.checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) mode = "steps"
                             else act.unlockThen { stepPerm.launch(Manifest.permission.ACTIVITY_RECOGNITION) }
                         }
-                        if (busy) Text("Checking…", style = sans(14f, 500, p.mu), modifier = Modifier.padding(16.dp))
+                        if (busy) Text(stringResource(R.string.common_checking), style = sans(14f, 500, p.mu), modifier = Modifier.padding(16.dp))
                         err?.let { Text(it, style = sans(14f, 500, p.att, 20f), modifier = Modifier.padding(16.dp)) }
-                        if (fire > 0) Text("Alarm ${hhmm(fire)} · rang ${s?.optInt("rings") ?: 1}×", style = mono(12f, 500, p.dim), modifier = Modifier.padding(16.dp))
+                        if (fire > 0) Text((s?.optInt("rings") ?: 1).let { pluralStringResource(R.plurals.wake_alarm_rang, it, hhmm(fire), it) }, style = mono(12f, 500, p.dim), modifier = Modifier.padding(16.dp))
                         Spacer(Modifier.height(16.dp))
-                        Btn("Emergency stop", Modifier.fillMaxWidth(), primary = false, danger = true) { mode = "override" }
+                        Btn(stringResource(R.string.wake_emergency_stop), Modifier.fillMaxWidth(), primary = false, danger = true) { mode = "override" }
                     }
                 }
             }
@@ -327,14 +328,14 @@ fun OverrideView(act: WakeActivity, onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-        Text("Emergency stop", style = serif(36f, p.att))
+        Text(stringResource(R.string.wake_override_title), style = serif(36f, p.att))
         Spacer(Modifier.height(6.dp))
-        Text("Only for when you really can't do a proof. It ends this alarm with no check-in, and nobody is messaged.", style = sans(15f, 400, p.tx2, 21f))
+        Text(stringResource(R.string.wake_override_body), style = sans(15f, 400, p.tx2, 21f))
         Spacer(Modifier.height(18.dp))
         if (!sure) {
-            Text("Password", style = sans(14f, 600, p.mu))
+            Text(stringResource(R.string.wake_override_password), style = sans(14f, 600, p.mu))
             Spacer(Modifier.height(6.dp))
-            androidx.compose.foundation.text.BasicTextField(pw, { pw = it; err = null }, singleLine = true, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Emergency stop password" },
+            androidx.compose.foundation.text.BasicTextField(pw, { pw = it; err = null }, singleLine = true, modifier = Modifier.fillMaxWidth().semantics { contentDescription = str(R.string.wake_override_password_desc) },
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                 textStyle = mono(18f, 500, p.tx), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
@@ -342,18 +343,18 @@ fun OverrideView(act: WakeActivity, onBack: () -> Unit) {
             err?.let { Spacer(Modifier.height(8.dp)); Text(it, style = sans(14f, 500, p.att)) }
             Spacer(Modifier.height(14.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Btn("Back", Modifier.fillMaxWidth(), primary = false, onClick = onBack)
-                Btn("Continue", Modifier.fillMaxWidth(), danger = true, enabled = pw.isNotEmpty()) { sure = true }
+                Btn(stringResource(R.string.common_back), Modifier.fillMaxWidth(), primary = false, onClick = onBack)
+                Btn(stringResource(R.string.wake_override_continue), Modifier.fillMaxWidth(), danger = true, enabled = pw.isNotEmpty()) { sure = true }
             }
         } else {
-            Text("Are you sure?", style = sans(22f, 650, p.tx))
+            Text(stringResource(R.string.wake_override_sure), style = sans(22f, 650, p.tx))
             Spacer(Modifier.height(6.dp))
-            Text("The alarm stops now and today's wake-up won't count.", style = sans(15f, 400, p.tx2, 21f))
+            Text(stringResource(R.string.wake_override_sure_body), style = sans(15f, 400, p.tx2, 21f))
             err?.let { Spacer(Modifier.height(8.dp)); Text(it, style = sans(14f, 500, p.att)) }
             Spacer(Modifier.height(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Btn("No, keep it", Modifier.fillMaxWidth(), primary = true, enabled = !busy) { sure = false; pw = ""; onBack() }
-                Btn(if (busy) "…" else "Yes, stop", Modifier.fillMaxWidth(), danger = true, enabled = !busy) {
+                Btn(stringResource(R.string.wake_override_keep), Modifier.fillMaxWidth(), primary = true, enabled = !busy) { sure = false; pw = ""; onBack() }
+                Btn(if (busy) "…" else stringResource(R.string.wake_override_yes_stop), Modifier.fillMaxWidth(), danger = true, enabled = !busy) {
                     busy = true
                     scope.launch {
                         val r = runCatching { Wake.request(ticket, "/v1/wake/override", "POST", JSONObject().put("password", pw)) }
@@ -392,22 +393,22 @@ fun StepsView(need: Int, busy: Boolean, onBack: () -> Unit, onDone: (List<Double
             sm?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)?.let { sm.registerListener(l, it, SensorManager.SENSOR_DELAY_NORMAL) } == true
         }.getOrDefault(false)
         if (registered) Wake.touch(30_000)
-        else sensorError = "Step counting is unavailable or permission was revoked. Go back and choose another proof."
+        else sensorError = str(R.string.wake_steps_unavailable)
         onDispose { sm?.unregisterListener(l) }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(30.dp))
-        Text("${steps.size}", style = serif(120f, p.tx))
-        Text("of $need steps", style = sans(18f, 500, p.mu))
+        Text(Fmt.int(steps.size), style = serif(120f, p.tx))
+        Text(pluralStringResource(R.plurals.wake_steps_of, need, need), style = sans(18f, 500, p.mu))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(p.s2)) {
             Box(Modifier.fillMaxWidth((steps.size.toFloat() / need).coerceIn(0f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp)).background(p.acc))
         }
         Spacer(Modifier.height(20.dp))
-        Text(sensorError ?: if (busy || sent) "Checking…" else "Keep walking. The alarm stays quiet while you move and comes back 30 s after you stop.",
+        Text(sensorError ?: if (busy || sent) stringResource(R.string.common_checking) else stringResource(R.string.wake_steps_keep_walking),
             style = sans(15f, 400, p.tx2, 21f))
         Spacer(Modifier.height(24.dp))
-        Btn("Back", Modifier.fillMaxWidth(), primary = false, onClick = onBack)
+        Btn(stringResource(R.string.common_back), Modifier.fillMaxWidth(), primary = false, onClick = onBack)
     }
 }
 
@@ -428,7 +429,7 @@ fun ResultView(r: JSONObject, s: JSONObject?, onBack: () -> Unit) {
     val ok = r.optBoolean("ok")
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
         item {
-            Text(if (ok) "Accepted." else "Not yet.", style = serif(40f, if (ok) p.tx else p.att), modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(if (ok) R.string.wake_result_accepted else R.string.wake_result_not_yet), style = serif(40f, if (ok) p.tx else p.att), modifier = Modifier.padding(top = 8.dp))
             Spacer(Modifier.height(6.dp))
             Text(r.str("reason"), style = sans(15f, 400, p.tx2, 21f))
             if (r.has("note")) { Spacer(Modifier.height(10.dp)); Text(r.str("note"), style = sans(15f, 500, p.tx, 21f)) }
@@ -440,7 +441,7 @@ fun ResultView(r: JSONObject, s: JSONObject?, onBack: () -> Unit) {
                 Column(Modifier.padding(top = 16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val v = f.str("verdict")
-                        Pill(v.ifBlank { "–" }, if (v == "correct") p.good else if (v == "partial") p.acct else p.att, if (v == "correct") p.s2 else if (v == "partial") p.accd else p.attd)
+                        Pill(verdictLabel(v), if (v == "correct") p.good else if (v == "partial") p.acct else p.att, if (v == "correct") p.s2 else if (v == "partial") p.accd else p.attd)
                         Spacer(Modifier.width(8.dp))
                         Text(qs.getOrNull(i).orEmpty(), style = sans(14f, 600, p.tx, 19f), modifier = Modifier.weight(1f))
                     }
@@ -452,9 +453,9 @@ fun ResultView(r: JSONObject, s: JSONObject?, onBack: () -> Unit) {
         item {
             Spacer(Modifier.height(18.dp))
             val ph = Wake.phase(r.optJSONObject("session"))
-            if (ok && ph == "wait") Text("Check-in at ${hhmm(r.optJSONObject("session")?.optDouble("checkin_due") ?: 0.0)}.", style = sans(15f, 600, p.acct))
+            if (ok && ph == "wait") Text(stringResource(R.string.wake_result_checkin_at, hhmm(r.optJSONObject("session")?.optDouble("checkin_due") ?: 0.0)), style = sans(15f, 600, p.acct))
             Spacer(Modifier.height(12.dp))
-            Btn(if (ok) "OK" else "Try again", Modifier.fillMaxWidth(), primary = ok, onClick = onBack)
+            Btn(stringResource(if (ok) R.string.common_ok else R.string.common_try_again), Modifier.fillMaxWidth(), primary = ok, onClick = onBack)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -466,21 +467,43 @@ fun OfflineView() {
     var pz by remember { mutableStateOf(Wake.localPuzzle()) }
     var a by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-        Text("No connection to Hermes.", style = sans(18f, 600, p.tx))
-        Text("Solve this to quiet the alarm here. The server still expects a real proof once you're back online.", style = sans(14f, 400, p.mu, 20f))
+        Text(stringResource(R.string.wake_offline_title, HERMES), style = sans(18f, 600, p.tx))
+        Text(stringResource(R.string.wake_offline_body), style = sans(14f, 400, p.mu, 20f))
         Spacer(Modifier.height(18.dp))
         Text(pz.first, style = mono(30f, 600, p.tx))
         Spacer(Modifier.height(12.dp))
-        InputBox(a, { a = it.filter(Char::isDigit) }, "Answer", Modifier.fillMaxWidth())
+        InputBox(a, { a = it.filter(Char::isDigit) }, stringResource(R.string.wake_offline_answer), Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        Btn("Check", Modifier.fillMaxWidth(), enabled = a.isNotBlank()) {
-            if (a.toIntOrNull() == pz.second) { Wake.markLocalFire(ok = true); Wake.quietUntil = 0 } else { Ui.say("Wrong, new one"); pz = Wake.localPuzzle(); a = "" }
+        Btn(stringResource(R.string.wake_offline_check), Modifier.fillMaxWidth(), enabled = a.isNotBlank()) {
+            if (a.toIntOrNull() == pz.second) { Wake.markLocalFire(ok = true); Wake.quietUntil = 0 } else { Ui.say(R.string.wake_offline_wrong); pz = Wake.localPuzzle(); a = "" }
         }
     }
 }
 
 // ---------------------------------------------------------------- settings
-private val DAYS = listOf(6 to "Sunday", 0 to "Monday", 1 to "Tuesday", 2 to "Wednesday", 3 to "Thursday", 4 to "Friday", 5 to "Saturday")
+// Server day index (0 = Monday) to the Calendar weekday whose name the chip shows in the app language.
+private val DAYS = listOf(6 to Calendar.SUNDAY, 0 to Calendar.MONDAY, 1 to Calendar.TUESDAY, 2 to Calendar.WEDNESDAY,
+    3 to Calendar.THURSDAY, 4 to Calendar.FRIDAY, 5 to Calendar.SATURDAY)
+
+private fun dayName(calendarDay: Int): String = android.icu.text.DateFormatSymbols.getInstance(Fmt.locale())
+    .getWeekdays(android.icu.text.DateFormatSymbols.STANDALONE, android.icu.text.DateFormatSymbols.WIDE)[calendarDay]
+
+/** A stored "HH:mm" alarm time in the phone's 12/24-hour format; unparsable values show as stored. */
+private fun alarmTime(t: String): String {
+    val parts = t.split(":").map { it.toIntOrNull() }
+    val h = parts.getOrNull(0); val m = parts.getOrNull(1)
+    return if (parts.size == 2 && h != null && m != null) Fmt.time(h, m) else t
+}
+
+private fun verdictLabel(v: String): String = when (v) {
+    "" -> "–"
+    "correct" -> str(R.string.wake_verdict_correct)
+    "partial" -> str(R.string.wake_verdict_partial)
+    "wrong" -> str(R.string.wake_verdict_wrong)
+    "blank" -> str(R.string.wake_verdict_blank)
+    "unchecked" -> str(R.string.wake_verdict_unchecked)
+    else -> v
+}
 
 @Composable
 fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Boolean = false) {
@@ -515,12 +538,12 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     val askProofs = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         permissionRevision++
         if (r.values.any { !it }) Ui.say(if (CAMERA_PERMISSIONS.isEmpty()) "You can use reading or photo proof without this permission. Enable physical activity in Android app settings to use step proof."
-            else "You can use reading proof without these permissions. Enable camera or activity in Android app settings to use those proofs.")
+            else str(R.string.alarm_proof_permissions_denied))
     }
     fun settings(i: Intent) {
         runCatching { ctx.startActivity(i) }.onFailure {
             runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.packageName))) }
-                .onFailure { Ui.say("Open Android Settings > Apps > $APP_NAME to change this permission.") }
+                .onFailure { Ui.say(R.string.alarm_open_app_settings, APP_NAME) }
         }
     }
     LaunchedEffect(Unit) {
@@ -538,19 +561,19 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     }
     val next = ov?.optJSONObject("next")
     Column(modifier.imePadding()) {
-        if (!embedded) TopBar("Alarm clock", next?.let { "next " + Fmt.weekdayTime((it.getDouble("ts") * 1000).toLong()) + " · " + until(it.getDouble("ts")) } ?: "no alarm set")
+        if (!embedded) TopBar(stringResource(R.string.alarm_title), next?.let { stringResource(R.string.alarm_next, Fmt.weekdayTime((it.getDouble("ts") * 1000).toLong()), until(it.getDouble("ts"))) } ?: stringResource(R.string.alarm_none_set))
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow("Exact alarms are off", WAKE_EXACT_OFF) {
-                        Btn("Allow", primary = false) { settings(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))) }
+                    SettingRow(stringResource(R.string.alarm_exact_off), WAKE_EXACT_OFF) {
+                        Btn(stringResource(R.string.common_allow), primary = false) { settings(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))) }
                     }
                 }
             }
             if (!access[1]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow("Alarm notifications need attention", "Allow $APP_NAME notifications and set the Wake alarm channel to high importance so the proof screen is reachable.") {
-                        Btn("Settings", primary = false) {
+                    SettingRow(stringResource(R.string.alarm_notifications_attention), stringResource(R.string.alarm_notifications_attention_sub, APP_NAME)) {
+                        Btn(stringResource(R.string.common_settings), primary = false) {
                             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
                             settings(if (!nm.areNotificationsEnabled()) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                                 .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
@@ -563,26 +586,26 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             }
             if (!access[2] && android.os.Build.VERSION.SDK_INT >= 34) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow("Full-screen alarms are off", "Wake can ring, but Android may only show a notification. Allow full-screen alarms to show proofs over the lock screen.") {
-                        Btn("Allow", primary = false) { settings(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + ctx.packageName))) }
+                    SettingRow(stringResource(R.string.alarm_fullscreen_off), stringResource(R.string.alarm_fullscreen_off_sub)) {
+                        Btn(stringResource(R.string.common_allow), primary = false) { settings(Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + ctx.packageName))) }
                     }
                 }
             }
             if (!access[3]) item {
                 Panel(Modifier.padding(top = 12.dp)) {
-                    SettingRow("Battery optimization is on", "Exact alarms can still fire. Background syncing may be delayed; review battery settings if reminders arrive late.") {
-                        Btn("Review", primary = false) { settings(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                    SettingRow(stringResource(R.string.alarm_battery_on), stringResource(R.string.alarm_battery_on_sub)) {
+                        Btn(stringResource(R.string.alarm_battery_review), primary = false) { settings(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
                     }
                 }
             }
-            item { Section("Alarms", alarms.size.toString()) }
+            item { Section(stringResource(R.string.alarm_section_alarms), Fmt.int(alarms.size)) }
             item {
                 Panel {
                     alarms.forEachIndexed { i, a ->
                         if (i > 0) Line()
                         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(a.str("time"), style = mono(34f, 600, if (a.optBoolean("on", true)) p.tx else p.dim), modifier = Modifier.clickable {
+                                Text(alarmTime(a.str("time")), style = mono(34f, 600, if (a.optBoolean("on", true)) p.tx else p.dim), modifier = Modifier.clickable {
                                     val (h, m) = a.str("time").split(":").map { it.toInt() }
                                     TimePickerDialog(ctx, { _, hh, mm -> save { c -> c.getJSONArray("alarms").getJSONObject(i).put("time", "%02d:%02d".format(Locale.US, hh, mm)) } }, h, m, android.text.format.DateFormat.is24HourFormat(ctx)).show()
                                 })
@@ -601,11 +624,11 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                                             val nd = if (on) days - d else days + d
                                             save { c -> c.getJSONArray("alarms").getJSONObject(i).put("days", JSONArray(nd.sorted())) }
                                         }).padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-                                        Text(day, style = sans(13.5f, 650, if (on) p.ink else p.tx2))
+                                        Text(dayName(day), style = sans(13.5f, 650, if (on) p.ink else p.tx2))
                                     }
                                 }
                             }
-                            if (days.isEmpty()) Text("Once", style = mono(12f, 500, p.mu), modifier = Modifier.padding(top = 6.dp))
+                            if (days.isEmpty()) Text(stringResource(R.string.alarm_once), style = mono(12f, 500, p.mu), modifier = Modifier.padding(top = 6.dp))
                         }
                     }
                     if (alarms.isNotEmpty()) Line()
@@ -615,16 +638,16 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                             save { c -> c.getJSONArray("alarms").put(JSONObject().put("time", "%02d:%02d".format(Locale.US, hh, mm)).put("on", true).put("days", JSONArray())) }
                         }, now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), android.text.format.DateFormat.is24HourFormat(ctx)).show()
                     }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icn(Ic.plus, p.acct, 20.dp); Spacer(Modifier.width(10.dp)); Text("Add alarm", style = sans(15f, 600, p.acct))
+                        Icn(Ic.plus, p.acct, 20.dp); Spacer(Modifier.width(10.dp)); Text(stringResource(R.string.alarm_add), style = sans(15f, 600, p.acct))
                     }
                 }
             }
             item {
-                Text("Re-ring at +${cfg.optInt("recheck_min", 10)} min with no proof · check-in at +${cfg.optInt("checkin_min", 15)}" +
-                    (if (feat.wakeWa) " · WhatsApp at +${cfg.optInt("escalate_min", 30)}" else ""),
+                Text(if (feat.wakeWa) stringResource(R.string.alarm_timing_whatsapp, cfg.optInt("recheck_min", 10), cfg.optInt("checkin_min", 15), cfg.optInt("escalate_min", 30))
+                    else stringResource(R.string.alarm_timing, cfg.optInt("recheck_min", 10), cfg.optInt("checkin_min", 15)),
                     style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp))
             }
-            item { Section("Reading level", null) }
+            item { Section(stringResource(R.string.alarm_section_reading_level), null) }
             item {
                 val lv = ov?.optInt("level", 1) ?: 1
                 val lmax = ov?.optInt("level_max", 8) ?: 8
@@ -633,8 +656,8 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                 Panel {
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Step $lv of $lmax", style = sans(17f, 650, p.tx))
-                            Text(when { lv <= 3 -> "Beginner: short, plain words, easy questions"; lv <= 6 -> "Intermediate: one mechanism, why-questions"; else -> "Advanced: dense, reasoning questions" },
+                            Text(stringResource(R.string.alarm_level_step, lv, lmax), style = sans(17f, 650, p.tx))
+                            Text(stringResource(when { lv <= 3 -> R.string.alarm_level_beginner; lv <= 6 -> R.string.alarm_level_intermediate; else -> R.string.alarm_level_advanced }),
                                 style = sans(13f, 400, p.mu, 18f))
                         }
                         IconBtn(Ic.back, p.tx, 40.dp, p.s2, enabled = lv > 1) { save { c -> c.put("level_base", lv - 1) } }
@@ -642,21 +665,21 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                         IconBtn(Ic.chevR, p.tx, 40.dp, p.s2, enabled = lv < lmax) { save { c -> c.put("level_base", lv + 1) } }
                     }
                     Line()
-                    SettingRow("Harder every 2 weeks", if (auto && nextLv > 0) "Next step " + Fmt.weekdayDayMonth((nextLv * 1000).toLong())
-                        else if (auto) "At the top step" else "Off: stays on step $lv") {
+                    SettingRow(stringResource(R.string.alarm_level_auto), if (auto && nextLv > 0) stringResource(R.string.alarm_level_next, Fmt.weekdayDayMonth((nextLv * 1000).toLong()))
+                        else if (auto) stringResource(R.string.alarm_level_top) else stringResource(R.string.alarm_level_fixed, lv)) {
                         Toggle(auto, { v -> save { c -> c.put("level_auto", v) } })
                     }
                 }
             }
             if (feat.wakeWa) {
-            item { Section("Escalation", if (wa.isBlank()) null else "whatsapp $wa", if (wa == "connected") p.good else p.mu) }
+            item { Section(stringResource(R.string.alarm_section_escalation), if (wa.isBlank()) null else stringResource(R.string.alarm_whatsapp_status, wa), if (wa == "connected") p.good else p.mu) }
             item {
                 Panel {
                     contacts.forEachIndexed { i, c ->
                         if (i > 0) Line()
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(c.str("name").ifBlank { "Contact" }, style = sans(15f, 600, p.tx))
+                                Text(c.str("name").ifBlank { stringResource(R.string.alarm_contact_fallback) }, style = sans(15f, 600, p.tx))
                                 Text(c.str("phone"), style = mono(12f, 500, p.mu))
                             }
                             IconBtn(Ic.x, p.mu, 40.dp) { save { o -> o.getJSONArray("contacts").remove(i) } }
@@ -664,9 +687,9 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                     }
                     if (contacts.isNotEmpty()) Line()
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InputBox(addName, { addName = it }, "Name", Modifier.fillMaxWidth())
-                        BasicPhone(addPhone, { addPhone = it }, "Phone, e.g. 050-1234567")
-                        Btn("Add contact", Modifier.fillMaxWidth(), primary = false, enabled = addPhone.count(Char::isDigit) >= 9) {
+                        InputBox(addName, { addName = it }, stringResource(R.string.alarm_contact_name), Modifier.fillMaxWidth())
+                        BasicPhone(addPhone, { addPhone = it }, stringResource(R.string.alarm_contact_phone))
+                        Btn(stringResource(R.string.alarm_contact_add), Modifier.fillMaxWidth(), primary = false, enabled = addPhone.count(Char::isDigit) >= 9) {
                             save { o -> o.getJSONArray("contacts").put(JSONObject().put("name", addName.trim()).put("phone", addPhone.trim())) }
                             addName = ""; addPhone = ""
                         }
@@ -674,19 +697,19 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                 }
             }
             }
-            item { Section("Emergency stop", null) }
+            item { Section(stringResource(R.string.alarm_section_emergency_stop), null) }
             item {
                 var oldPw by remember { mutableStateOf("") }
                 var newPw by remember { mutableStateOf("") }
                 Panel {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("The alarm screen has an emergency stop behind a password and an are-you-sure. Change the password here.", style = sans(13f, 400, p.mu, 18f))
-                        PwField(oldPw, { oldPw = it }, "Current password")
-                        PwField(newPw, { newPw = it }, "New password (8+ characters)")
-                        Btn("Change password", Modifier.fillMaxWidth(), primary = false, enabled = oldPw.isNotEmpty() && newPw.length >= 8) {
+                        Text(stringResource(R.string.alarm_password_note), style = sans(13f, 400, p.mu, 18f))
+                        PwField(oldPw, { oldPw = it }, stringResource(R.string.alarm_password_current))
+                        PwField(newPw, { newPw = it }, stringResource(R.string.alarm_password_new))
+                        Btn(stringResource(R.string.alarm_password_change), Modifier.fillMaxWidth(), primary = false, enabled = oldPw.isNotEmpty() && newPw.length >= 8) {
                             scope.launch {
                                 runCatching { Wake.request(ticket, "/v1/wake/password", "POST", JSONObject().put("old", oldPw).put("new", newPw)) }
-                                    .onSuccess { Ui.say(if (it.optBoolean("ok")) "Password changed" else it.str("reason")); if (it.optBoolean("ok")) { oldPw = ""; newPw = "" } }
+                                    .onSuccess { Ui.say(if (it.optBoolean("ok")) str(R.string.alarm_password_changed) else it.str("reason")); if (it.optBoolean("ok")) { oldPw = ""; newPw = "" } }
                                     .onFailure { Ui.say(it.message) }
                             }
                         }
@@ -694,38 +717,38 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                 }
             }
             if (!proofsGranted) item {
-                Section("Optional proof permissions", null)
+                Section(stringResource(R.string.alarm_section_proof_permissions), null)
                 Panel {
-                    SettingRow(if (CAMERA_PERMISSIONS.isEmpty()) "Step proof" else "Photo and step proofs",
+                    SettingRow(if (CAMERA_PERMISSIONS.isEmpty()) "Step proof" else stringResource(R.string.alarm_proof_permissions),
                         if (CAMERA_PERMISSIONS.isEmpty()) "Step proof needs physical activity access. Photo proof uses your camera app and needs no permission. Reading proof needs neither."
-                        else "Only supported hardware needs permission. Reading proof works without camera or activity access.") {
-                        Btn("Allow", primary = false) { askProofs.launch(proofPermissions.filter { ctx.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }.toTypedArray()) }
+                        else stringResource(R.string.alarm_proof_permissions_sub)) {
+                        Btn(stringResource(R.string.common_allow), primary = false) { askProofs.launch(proofPermissions.filter { ctx.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }.toTypedArray()) }
                     }
                     Line()
-                    SettingRow("Previously denied?", "Android may stop showing permission prompts. You can change them in app settings.") {
-                        Btn("Settings", primary = false) { settings(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.packageName))) }
+                    SettingRow(stringResource(R.string.alarm_previously_denied), stringResource(R.string.alarm_previously_denied_sub)) {
+                        Btn(stringResource(R.string.common_settings), primary = false) { settings(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + ctx.packageName))) }
                     }
                 }
             }
-            item { Section("Testing", null) }
+            item { Section(stringResource(R.string.alarm_section_testing), null) }
             item {
                 Panel {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (feat.wakeWa) {
-                            Text("Your own number. Test escalations go here instead of your contacts.", style = sans(13f, 400, p.mu, 18f))
-                            BasicPhone(owner, { owner = it }, "Your number")
-                            Btn("Save number", Modifier.fillMaxWidth(), primary = false, enabled = owner.count(Char::isDigit) >= 9) { save { } }
-                            Btn("Send WhatsApp test to me", Modifier.fillMaxWidth(), primary = false) {
-                                scope.launch { runCatching { Wake.request(ticket, "/v1/wake/whatsapp-test", "POST") }.onSuccess { Ui.say(if (it.optBoolean("ok")) "Sent" else it.str("error")) }.onFailure { Ui.say(it.message) } }
+                            Text(stringResource(R.string.alarm_own_number_note), style = sans(13f, 400, p.mu, 18f))
+                            BasicPhone(owner, { owner = it }, stringResource(R.string.alarm_own_number))
+                            Btn(stringResource(R.string.alarm_save_number), Modifier.fillMaxWidth(), primary = false, enabled = owner.count(Char::isDigit) >= 9) { save { } }
+                            Btn(stringResource(R.string.alarm_whatsapp_test), Modifier.fillMaxWidth(), primary = false) {
+                                scope.launch { runCatching { Wake.request(ticket, "/v1/wake/whatsapp-test", "POST") }.onSuccess { Ui.say(if (it.optBoolean("ok")) str(R.string.alarm_whatsapp_sent) else it.str("error")) }.onFailure { Ui.say(it.message) } }
                             }
                         }
-                        Btn("Test the alarm now", Modifier.fillMaxWidth()) {
+                        Btn(stringResource(R.string.alarm_test_now), Modifier.fillMaxWidth()) {
                             if (!Wake.canRing(ctx)) { Ui.say("Allow exact alarms first. Wake can't ring without them."); return@Btn }
                             scope.launch {
                                 runCatching { Wake.request(ticket, "/v1/wake/test", "POST") }.onSuccess { Wake.session.value = it.optJSONObject("session"); WakeService.start(ctx, "check") }.onFailure { Ui.say(it.message) }
                             }
                         }
-                        Btn("Cancel a running test", Modifier.fillMaxWidth(), danger = true) {
+                        Btn(stringResource(R.string.alarm_test_cancel), Modifier.fillMaxWidth(), danger = true) {
                             scope.launch { runCatching { Wake.request(ticket, "/v1/wake/cancel", "POST") }.onSuccess { WakeService.start(ctx, "check") }.onFailure { Ui.say(it.message) } }
                         }
                     }
@@ -758,7 +781,7 @@ private fun AnswerBox(v: String, on: (String) -> Unit, modifier: Modifier, onDon
         textStyle = sans(17f, 500, p.tx), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
         decorationBox = { inner ->
             Box(Modifier.clip(RoundedCornerShape(16.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
-                if (v.isEmpty()) Text("Your answer", style = sans(17f, 400, p.dim)); inner()
+                if (v.isEmpty()) Text(stringResource(R.string.wake_your_answer), style = sans(17f, 400, p.dim)); inner()
             }
         })
 }

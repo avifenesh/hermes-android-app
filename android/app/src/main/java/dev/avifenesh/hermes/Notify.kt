@@ -26,10 +26,10 @@ object Notify {
     fun channels(c: Context) {
         val nm = c.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannels(listOf(
-            NotificationChannel(CH_APPR, "Approvals", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Commands waiting for your OK"; enableVibration(true); lockscreenVisibility = Notification.VISIBILITY_PRIVATE },
-            NotificationChannel(CH_MSG, "Replies", NotificationManager.IMPORTANCE_HIGH).apply { description = "Agent replies and finished runs" },
-            NotificationChannel(CH_DIG, "Cron & digests", NotificationManager.IMPORTANCE_DEFAULT).apply { description = "Results from scheduled jobs" },
+            NotificationChannel(CH_APPR, str(R.string.notify_channel_approvals), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = str(R.string.notify_channel_approvals_info); enableVibration(true); lockscreenVisibility = Notification.VISIBILITY_PRIVATE },
+            NotificationChannel(CH_MSG, str(R.string.notify_channel_replies), NotificationManager.IMPORTANCE_HIGH).apply { description = str(R.string.notify_channel_replies_info) },
+            NotificationChannel(CH_DIG, str(R.string.notify_channel_digests), NotificationManager.IMPORTANCE_DEFAULT).apply { description = str(R.string.notify_channel_digests_info) },
             NotificationChannel(CH_LIVE, LiveService.CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
                 description = LiveService.CHANNEL_DESCRIPTION; setShowBadge(false) },
         ))
@@ -66,13 +66,13 @@ object Notify {
         val chat = Hub.chats.value[m.chatId]
         val digest = chat?.kind == "digest" || m.chatId.startsWith("cron-")
         val zl = Person.Builder().setName(Hub.agent.value).setKey("agent").build()
-        val me = Person.Builder().setName("You").setKey("me").build()
+        val me = Person.Builder().setName(str(R.string.common_you)).setKey("me").build()
         val n = (chat?.unread ?: 1).coerceIn(1, 5)
         val recent = Hub.msgs.value[m.chatId].orEmpty().filter { it.role != "user" && it.kind !in setOf("trace", "activity", "status", "deleted", "approval") }.takeLast(n)
             .ifEmpty { listOf(m) }
-        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(chat?.title ?: "Hermes").setGroupConversation(false)
+        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(chat?.title ?: HERMES).setGroupConversation(false)
         recent.forEach { style.addMessage(Hub.plain(if (it.kind == "text") it.content else Hub.previewOf(it)).take(900), (it.ts * 1000).toLong(), zl) }
-        val reply = RemoteInput.Builder("reply").setLabel("Reply to " + Hub.agent.value).build()
+        val reply = RemoteInput.Builder("reply").setLabel(str(R.string.notify_reply_to, Hub.agent.value)).build()
         val replyPi = PendingIntent.getBroadcast(c, nid("r${m.chatId}"),
             Intent(c, ActionReceiver::class.java).setAction("reply").putExtra("chat", m.chatId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
@@ -83,9 +83,9 @@ object Notify {
             .setContentIntent(openIntent(c, m.chatId)).setAutoCancel(true).setOnlyAlertOnce(false)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             // A read-only mirror (group chat elsewhere) takes no replies from the phone; the server refuses them.
-            .apply { if (chat?.readonly.isNullOrBlank()) addAction(NotificationCompat.Action.Builder(0, "Reply", replyPi).addRemoteInput(reply)
+            .apply { if (chat?.readonly.isNullOrBlank()) addAction(NotificationCompat.Action.Builder(0, str(R.string.notify_reply), replyPi).addRemoteInput(reply)
                 .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setShowsUserInterface(false).build()) }
-            .addAction(NotificationCompat.Action.Builder(0, "Mark read", readPi)
+            .addAction(NotificationCompat.Action.Builder(0, str(R.string.notify_mark_read), readPi)
                 .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ).setShowsUserInterface(false).build())
         post(c, nid("c${m.chatId}"), b.build())
     }
@@ -105,19 +105,19 @@ object Notify {
         val ctxMeta = Hub.msgs.value[a.chatId].orEmpty().lastOrNull { it.kind == "approval" && it.meta.str("approval_id") == a.id }?.meta
         val files = ctxMeta?.optJSONArray("files").strs()
         val body = listOf(a.description, "$ " + a.command,
-            if (files.isNotEmpty()) "Touched: " + files.take(4).joinToString(", ") { it.substringAfterLast('/') } + if (files.size > 4) " +${files.size - 4}" else "" else "",
-            if (ctxMeta?.optBoolean("smart_denied") == true) "⚠ flagged by Hermes' safety check" else "")
+            if (files.isNotEmpty()) str(R.string.notify_touched, files.take(4).joinToString(", ") { it.substringAfterLast('/') } + if (files.size > 4) " +${files.size - 4}" else "") else "",
+            if (ctxMeta?.optBoolean("smart_denied") == true) str(R.string.notify_flagged, HERMES) else "")
             .filter { it.isNotBlank() && it != "$ " }.joinToString("\n")
         val n = NotificationCompat.Builder(c, CH_APPR)
             .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-            .setContentTitle("Approve? · " + (chat?.title ?: "Hermes")).setContentText(a.command)
+            .setContentTitle(str(R.string.notify_approve_title, chat?.title ?: HERMES)).setContentText(a.command)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true)
             .setContentIntent(openIntent(c, a.chatId))
-            .addAction(0, "Approve", approve).addAction(0, "This session", sess).addAction(0, "Deny", deny)
+            .addAction(0, str(R.string.common_approve), approve).addAction(0, str(R.string.notify_this_session), sess).addAction(0, str(R.string.common_deny), deny)
             .setPublicVersion(NotificationCompat.Builder(c, CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-                .setContentTitle("Approval needed").setContentText(chat?.title ?: "Hermes").build())
+                .setContentTitle(str(R.string.notify_approval_needed)).setContentText(chat?.title ?: HERMES).build())
             .build()
         post(c, nid("a${a.id}"), n)
     }
@@ -126,7 +126,7 @@ object Notify {
      *  carries the room's preview, not its history); opening it lands in the room. */
     fun room(c: Context, r: Room) {
         val p = r.preview ?: return
-        val me = Person.Builder().setName("You").setKey("me").build()
+        val me = Person.Builder().setName(str(R.string.common_you)).setKey("me").build()
         val bot = Person.Builder().setName(p.name.ifBlank { "Bot" }).setKey("room:${r.id}:${p.name}").build()
         val style = NotificationCompat.MessagingStyle(me).setConversationTitle(r.name).setGroupConversation(true)
             .addMessage(Hub.plain(p.text).take(900), (p.ts * 1000).toLong(), bot)
@@ -146,16 +146,16 @@ object Notify {
         val who = r.members.firstOrNull { it.id == a.member }?.name ?: a.member
         val open = PendingIntent.getActivity(c, nid("openroom${r.id}"),
             Intent(c, MainActivity::class.java).putExtra("room", r.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PI)
-        val body = listOf("$who asks to run:", "$ " + a.command.ifBlank { a.description }).joinToString("\n")
+        val body = listOf(str(R.string.notify_asks_to_run, who), "$ " + a.command.ifBlank { a.description }).joinToString("\n")
         val n = NotificationCompat.Builder(c, CH_APPR)
             .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-            .setContentTitle("Approve? · " + r.name).setContentText("$who: " + a.command.ifBlank { a.description })
+            .setContentTitle(str(R.string.notify_approve_title, r.name)).setContentText("$who: " + a.command.ifBlank { a.description })
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).setAutoCancel(true)
             .setContentIntent(open)
             .setPublicVersion(NotificationCompat.Builder(c, CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-                .setContentTitle("Approval needed").setContentText(r.name).build())
+                .setContentTitle(str(R.string.notify_approval_needed)).setContentText(r.name).build())
             .build()
         post(c, roomApprovalId(r.id, a), n)
     }

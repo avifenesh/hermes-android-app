@@ -53,6 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -129,7 +131,7 @@ fun ModelChip(model: String, reasoning: String, fast: Boolean, changed: Boolean 
         .clickable(enabled = !busy, onClick = onClick).padding(start = 9.dp, end = 7.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (busy) LiveDot(8.dp) else Icn(Ic.cpu, p.acct, 14.dp)
         Spacer(Modifier.width(6.dp))
-        Text(label(model).ifBlank { "model" }, style = mono(12.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
+        Text(label(model).ifBlank { stringResource(R.string.model_chip_fallback) }, style = mono(12.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
         if (reasoning.isNotBlank()) Text(" · $reasoning", style = mono(12.5f, 500, p.mu), maxLines = 1)
         if (fast) { Spacer(Modifier.width(4.dp)); Icn(Ic.zap, p.att, 13.dp) }
         Spacer(Modifier.width(2.dp))
@@ -140,7 +142,7 @@ fun ModelChip(model: String, reasoning: String, fast: Boolean, changed: Boolean 
 @Composable
 private fun FastChip(fast: Boolean, busy: Boolean = false, onFast: (Boolean) -> Unit) {
     val p = P
-    Text(if (fast) "ϟ Fast on" else "ϟ Fast off", style = mono(12.5f, 600, if (fast) p.acct else p.mu),
+    Text(if (fast) stringResource(R.string.model_fast_chip_on) else stringResource(R.string.model_fast_chip_off), style = mono(12.5f, 600, if (fast) p.acct else p.mu),
         modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (fast) p.accd else p.s2)
             .toggleable(value = fast, enabled = !busy, role = Role.Switch, onValueChange = onFast)
             .padding(horizontal = 10.dp, vertical = 14.dp))
@@ -172,21 +174,21 @@ fun ModelSheet(
             item {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 10.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = serif(34f, p.tx), modifier = Modifier.weight(1f))
-                    if (loading) Text("loading…", style = mono(11.5f, 500, p.mu))
+                    if (loading) Text(stringResource(R.string.model_loading), style = mono(11.5f, 500, p.mu))
                     IconBtn(Ic.refresh, p.tx2) { co.launch { err = null; runCatching { Ctl.loadModels(refresh = true) }.onFailure { err = it.message } } }
                 }
-                if (curModel.isNotBlank()) Text("now $curModel · ${Ctl.providerName(curProv)}", style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                if (curModel.isNotBlank()) Text(stringResource(R.string.model_now, curModel, Ctl.providerName(curProv)), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 20.dp))
             }
             if (showScope) item {
                 Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Seg(listOf("chat" to "This chat", "global" to "Default for all"), scope, onScope)
+                    Seg(listOf("chat" to stringResource(R.string.model_scope_chat), "global" to stringResource(R.string.model_scope_global)), scope, onScope)
                 }
-                Text(if (scope == "global") "Saved to config. New chats start here too." else "Only this conversation. Your default stays.",
+                Text(if (scope == "global") stringResource(R.string.model_scope_global_hint) else stringResource(R.string.model_scope_chat_hint),
                     style = sans(12.5f, 400, p.mu), modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp))
             }
             if (showReasoning && caps?.optBoolean("reasoning", true) != false) item {
-                Text("REASONING", style = mono(11f, 600, p.mu), modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
+                Text(stringResource(R.string.model_reasoning_header), style = mono(11f, 600, p.mu), modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (e in EFFORTS) Chip(e, e == cur?.str("reasoning")) { onReasoning(e) }
                 }
@@ -195,22 +197,22 @@ fun ModelSheet(
                 Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icn(Ic.zap, p.att, 16.dp); Spacer(Modifier.width(8.dp))
-                        Text("Fast mode", style = sans(15f, 600, p.tx))
+                        Text(stringResource(R.string.model_fast_title), style = sans(15f, 600, p.tx))
                     }
-                    Text("Priority processing, billed at a premium", style = sans(12.5f, 400, p.mu))
-                    Text(if (cur?.optBoolean("fast") == true) "Fast mode on" else "Fast mode off",
+                    Text(stringResource(R.string.model_fast_summary), style = sans(12.5f, 400, p.mu))
+                    Text(if (cur?.optBoolean("fast") == true) stringResource(R.string.model_fast_on) else stringResource(R.string.model_fast_off),
                         style = mono(12f, 600, p.acct),
                         modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(p.accd)
                             .toggleable(value = cur?.optBoolean("fast") == true, role = Role.Switch, onValueChange = onFast)
                             .padding(horizontal = 12.dp, vertical = 14.dp))
                 }
             }
-            item { InputBox(q, { q = it }, "Search models or providers", Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), maxLines = 1) }
+            item { InputBox(q, { q = it }, stringResource(R.string.model_search_hint), Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), maxLines = 1) }
             err?.let { e -> item { Text(e, style = sans(13.5f, 400, p.bad), modifier = Modifier.padding(20.dp)) } }
-            if (models == null && err == null) item { Text("Fetching providers…", style = mono(13f, 500, p.mu), modifier = Modifier.padding(20.dp)) }
+            if (models == null && err == null) item { Text(stringResource(R.string.model_fetching), style = mono(13f, 500, p.mu), modifier = Modifier.padding(20.dp)) }
             if (q.isNotBlank()) {
                 val hits = provs.flatMap { pr -> pr.optJSONArray("models").strs().filter { it.contains(q.trim(), true) || pr.str("name").contains(q.trim(), true) }.map { pr to it } }.take(120)
-                if (hits.isEmpty() && models != null) item { Text("No model matches \"$q\".", style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp)) }
+                if (hits.isEmpty() && models != null) item { Text(stringResource(R.string.model_no_match, q), style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp)) }
                 items(hits) { (pr, m) ->
                     ModelRow(m, pr.str("name"), m == curModel && pr.str("slug") == curProv, pr.optJSONObject("capabilities")?.optJSONObject(m)) { onModel(m, pr.str("slug")) }
                 }
@@ -222,10 +224,10 @@ fun ModelSheet(
                     hit?.let { Triple(m, it, r) }
                 }.filter { !(it.first == curModel && it.second.str("slug") == curProv) }.take(5)
                 if (recent.isNotEmpty()) {
-                    item { Section("Recent", null) }
+                    item { Section(stringResource(R.string.model_recent), null) }
                     items(recent) { (m, pr, _) -> ModelRow(m, pr.str("name"), false, pr.optJSONObject("capabilities")?.optJSONObject(m)) { onModel(m, pr.str("slug")) } }
                 }
-                if (provs.isNotEmpty()) item { Section("Providers", provs.size.toString()) }
+                if (provs.isNotEmpty()) item { Section(stringResource(R.string.model_providers), Fmt.int(provs.size)) }
                 provs.forEachIndexed { pi, pr ->
                     val slug = pr.str("slug")
                     val isOpen = open[slug] ?: (slug == curProv)
@@ -234,7 +236,7 @@ fun ModelSheet(
                             Text(pr.str("name").ifBlank { slug }, style = sans(15f, 600, if (slug == curProv) p.acct else p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false))
                             Spacer(Modifier.width(8.dp))
-                            Text(pr.optInt("total_models", pr.optJSONArray("models")?.length() ?: 0).toString(), style = mono(11.5f, 500, p.mu))
+                            Text(Fmt.int(pr.optInt("total_models", pr.optJSONArray("models")?.length() ?: 0)), style = mono(11.5f, 500, p.mu))
                             Spacer(Modifier.weight(1f))
                             Icn(if (isOpen) Ic.chevU else Ic.chevD, p.mu, 16.dp)
                         }
@@ -296,22 +298,22 @@ fun ChatModelControl(cid: String) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ModelChip(model, st?.str("reasoning").orEmpty(), st?.optBoolean("fast") == true, st?.str("scope") == "chat", busy) { open = true }
         if (st?.optJSONObject("caps")?.optBoolean("fast") == true) FastChip(st.optBoolean("fast"), busy) { f ->
-            run(JSONObject().put("fast", f).put("scope", "chat"), if (f) "Fast mode on for this chat" else "Fast mode off for this chat")
+            run(JSONObject().put("fast", f).put("scope", "chat"), if (f) str(R.string.model_fast_on_chat) else str(R.string.model_fast_off_chat))
         }
     }
-    if (open) ModelSheet("Model", st ?: JSONObject().put("model", model), true, true, scope, { scope = it },
-        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), "Switched to ${label(m)}") },
-        onReasoning = { e -> run(JSONObject().put("reasoning", e), "Reasoning: $e") },
-        onFast = { f -> run(JSONObject().put("fast", f), if (f) "Fast mode on" else "Fast mode off") },
+    if (open) ModelSheet(stringResource(R.string.model_title), st ?: JSONObject().put("model", model), true, true, scope, { scope = it },
+        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), str(R.string.model_switched_to, label(m))) },
+        onReasoning = { e -> run(JSONObject().put("reasoning", e), str(R.string.model_reasoning_set, e)) },
+        onFast = { f -> run(JSONObject().put("fast", f), if (f) str(R.string.model_fast_on) else str(R.string.model_fast_off)) },
         onDismiss = { open = false })
     confirm?.let { c ->
-        HDialog("Switch model?", onDismiss = { confirm = null }, body = {
+        HDialog(stringResource(R.string.model_switch_title), onDismiss = { confirm = null }, body = {
                 Text(Hub.plain(c.str("message")).substringBefore("Text fallback").trim().take(600), style = sans(14.5f, 400, p.tx2, 21f))
             }) {
-                Btn("Keep current", primary = false) { confirm = null; co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "cancel") } } }
-                Btn("Switch") {
+                Btn(stringResource(R.string.model_keep_current), primary = false) { confirm = null; co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "cancel") } } }
+                Btn(stringResource(R.string.model_switch)) {
                 confirm = null; busy = true
-                co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "once") }.onSuccess { Ui.say(if (it.optBoolean("ok")) "Switched" else Hub.plain(it.str("reply")).take(200)) }.onFailure { Ui.say(it.message) }; busy = false }
+                co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "once") }.onSuccess { Ui.say(if (it.optBoolean("ok")) str(R.string.model_switched) else Hub.plain(it.str("reply")).take(200)) }.onFailure { Ui.say(it.message) }; busy = false }
             }
             }
     }
@@ -335,7 +337,7 @@ fun ComposeModelControl(pick: JSONObject?, onPick: (JSONObject?) -> Unit) {
         ModelChip(model, reasoning, fast, pick != null) { open = true }
         if (caps?.optBoolean("fast") == true) FastChip(fast) { f -> upd { it.put("fast", f) } }
     }
-    if (open) ModelSheet("Model", cur, true, true, pick?.str("scope")?.ifBlank { null } ?: "chat", { s -> upd { it.put("scope", s) } },
+    if (open) ModelSheet(stringResource(R.string.model_title), cur, true, true, pick?.str("scope")?.ifBlank { null } ?: "chat", { s -> upd { it.put("scope", s) } },
         onModel = { m, pr -> upd { it.put("model", m).put("provider", pr) }; open = false },
         onReasoning = { e -> upd { it.put("reasoning", e) } },
         onFast = { f -> upd { it.put("fast", f) } },
@@ -365,20 +367,20 @@ internal fun bootChanged(me: JSONObject, boot: String): Boolean {
 internal fun restartToast(res: JSONObject): String {
     val n = res.optInt("active")
     return when (res.optString("state")) {
-        "draining" -> if (n == 1) "Hermes restarts after 1 running task finishes" else if (n > 1) "Hermes restarts after $n running tasks finish" else "Restarting Hermes…"
-        "in_progress" -> "A restart is already under way"
-        else -> "Restarting Hermes…"
+        "draining" -> if (n >= 1) plural(R.plurals.restart_draining, n, n, HERMES) else str(R.string.restart_restarting, HERMES)
+        "in_progress" -> str(R.string.restart_in_progress)
+        else -> str(R.string.restart_restarting, HERMES)
     }
 }
 @Composable
 fun RestartDialog(onDismiss: () -> Unit) {
     val p = P
     val co = rememberCoroutineScope()
-    HDialog("Restart Hermes?", onDismiss = onDismiss, body = {
-            Text("Running work drains first, then the gateway reloads config and plugins. The app reconnects on its own.", style = sans(15f, 400, p.tx2, 21f))
+    HDialog(stringResource(R.string.restart_title, HERMES), onDismiss = onDismiss, body = {
+            Text(stringResource(R.string.restart_body), style = sans(15f, 400, p.tx2, 21f))
         }) {
-            Btn("Cancel", primary = false, onClick = onDismiss)
-            Btn("Restart") {
+            Btn(stringResource(R.string.common_cancel), primary = false, onClick = onDismiss)
+            Btn(stringResource(R.string.restart_action)) {
             onDismiss()
             co.launch { runCatching { Api.post("/v1/restart") }.onSuccess { Ctl.restartRequested(); Ui.say(restartToast(it)) }.onFailure { Ui.say(it.message) } }
         }
@@ -397,10 +399,10 @@ fun RestartBanner() {
             Icn(Ic.power, p.att, 18.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text("Restart to apply", style = sans(15f, 600, p.tx))
-                Text("Some changes load when Hermes restarts.", style = sans(12.5f, 400, p.tx2))
+                Text(stringResource(R.string.restart_banner_title), style = sans(15f, 600, p.tx))
+                Text(stringResource(R.string.restart_banner_body, HERMES), style = sans(12.5f, 400, p.tx2))
             }
-            Btn("Restart", primary = false) { ask = true }
+            Btn(stringResource(R.string.restart_action), primary = false) { ask = true }
         }
     }
     if (ask) RestartDialog { ask = false }
@@ -429,7 +431,7 @@ fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose
 private fun shown(f: JSONObject, v: Any?, label: (String) -> String): String {
     val key = f.str("key")
     return when {
-        v == null || v == JSONObject.NULL || v.toString().isEmpty() -> "default"
+        v == null || v == JSONObject.NULL || v.toString().isEmpty() -> str(R.string.settings_value_default)
         v == false && key.endsWith("reasoning_effort") -> "none"
         key == "model.default" -> label(v.toString())
         else -> v.toString() + f.str("unit").let { if (it.isNotBlank()) " $it" else "" }
@@ -458,11 +460,11 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
             try {
                 val b = JSONObject().put("key", key).put("value", nv ?: JSONObject.NULL)
                 if (provider != null) b.put("provider", provider)
-                val o = Guard.call(act, "config", key, nv, "Change ${labelOf(f)}") { h -> Api.put("/v1/settings", b, h) }
+                val o = Guard.call(act, "config", key, nv, str(R.string.settings_change_title, labelOf(f))) { h -> Api.put("/v1/settings", b, h) }
                 if (key == "model.default") { v = o.str("model"); prov = o.str("provider"); Ctl.chat.value = emptyMap(); runCatching { Hub.refreshMe() } }
                 else v = o.opt("value").takeIf { it != JSONObject.NULL }
                 if (f.optBoolean("restart")) Ctl.restartChanged()
-                Ui.say("Saved")
+                Ui.say(R.string.common_saved)
             } catch (e: Exception) { if (e.message != "Cancelled") Ui.say(e.message) } finally { busy = false }
         }
     }
@@ -471,7 +473,7 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(labelOf(f), style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                if (f.optBoolean("restart")) { Spacer(Modifier.width(6.dp)); Pill("restart", p.mu, p.s3) }
+                if (f.optBoolean("restart")) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.settings_restart_pill), p.mu, p.s3) }
             }
             if (showKey) Text(key, style = mono(11f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (help.isNotBlank()) Text(help, style = sans(12.5f, 400, p.mu, 17f), maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -487,7 +489,7 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
         }
     }
     if (edit) when (type) {
-        "model" -> ModelSheet("Default model", JSONObject().put("model", v?.toString().orEmpty()).put("provider", prov), false, false, "global", {},
+        "model" -> ModelSheet(stringResource(R.string.settings_default_model), JSONObject().put("model", v?.toString().orEmpty()).put("provider", prov), false, false, "global", {},
             onModel = { m, pr -> edit = false; save(m, pr) }, onReasoning = {}, onFast = null, onDismiss = { edit = false })
         "select" -> OptionSheet(labelOf(f), f.optJSONArray("options").strs(), if (v == false) "none" else v?.toString().orEmpty(),
             onPick = { edit = false; save(it) }, onDismiss = { edit = false })
@@ -505,12 +507,12 @@ fun OptionSheet(title: String, options: List<String>, current: String, onPick: (
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
         LazyColumn(Modifier.fillMaxWidth().imePadding().navigationBarsPadding()) {
             item { Text(title, style = serif(30f, p.tx), modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 8.dp)) }
-            if (options.size > 12) item { InputBox(q, { q = it }, "Search", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1) }
+            if (options.size > 12) item { InputBox(q, { q = it }, stringResource(R.string.common_search), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1) }
             items(list) { o ->
                 val sel = o == current
                 Row(Modifier.fillMaxWidth().clickable { onPick(o) }.background(if (sel) p.accd else androidx.compose.ui.graphics.Color.Transparent)
                     .padding(horizontal = 22.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(o.ifEmpty { "default" }, style = sans(15.5f, if (sel) 600 else 500, if (sel) p.acct else if (o.isEmpty()) p.mu else p.tx), modifier = Modifier.weight(1f))
+                    Text(o.ifEmpty { stringResource(R.string.settings_value_default) }, style = sans(15.5f, if (sel) 600 else 500, if (sel) p.acct else if (o.isEmpty()) p.mu else p.tx), modifier = Modifier.weight(1f))
                     if (sel) Icn(Ic.check, p.acct, 17.dp)
                 }
             }
@@ -524,12 +526,12 @@ fun EditDialog(title: String, initial: String, numeric: Boolean, onSave: (String
     val p = P
     var t by remember { mutableStateOf(initial) }
     HDialog(title, onDismiss = onDismiss, body = {
-            InputBox(t, { t = it }, if (numeric) "number" else "value", Modifier.fillMaxWidth(), maxLines = 3,
+            InputBox(t, { t = it }, if (numeric) stringResource(R.string.settings_edit_number_hint) else stringResource(R.string.settings_edit_value_hint), Modifier.fillMaxWidth(), maxLines = 3,
             kb = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default)
         }) {
-            Btn("Cancel", primary = false, onClick = onDismiss)
-            Btn("Save") {
-            if (numeric && t.isNotBlank() && t.trim().toDoubleOrNull() == null) Ui.say("Not a number") else onSave(t.trim())
+            Btn(stringResource(R.string.common_cancel), primary = false, onClick = onDismiss)
+            Btn(stringResource(R.string.common_save)) {
+            if (numeric && t.isNotBlank() && t.trim().toDoubleOrNull() == null) Ui.say(R.string.settings_not_a_number) else onSave(t.trim())
         }
         }
 }
@@ -545,10 +547,12 @@ fun SettingsScreen() {
     var tab by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { load() }
     val groups = data?.optJSONArray("groups").objs()
-    val tabs = groups.map { it.str("tab").ifBlank { "Other" } }.distinct()
+    val other = stringResource(R.string.settings_tab_other)
+    val tabs = groups.map { it.str("tab").ifBlank { other } }.distinct()
     val cur = tab.ifBlank { tabs.firstOrNull().orEmpty() }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Agent", (meta.str("name").ifBlank { Prefs.server ?: "Hermes" }) + " · profile " + meta.str("profile").ifBlank { Prefs.profile ?: "default" }) {
+        TopBar(stringResource(R.string.settings_title), stringResource(R.string.settings_subtitle,
+            meta.str("name").ifBlank { Prefs.server ?: HERMES }, meta.str("profile").ifBlank { Prefs.profile ?: "default" })) {
             IconBtn(Ic.search, p.tx2) { Ui.push(Route.AllSettingsR) }
             IconBtn(Ic.refresh, p.tx2) { co.launch { load() } }
         }
@@ -558,7 +562,7 @@ fun SettingsScreen() {
         LazyColumn(Modifier.weight(1f)) {
             item { RestartBanner() }
             if (data == null) item { if (err != null) ErrorPanel(err!!) { co.launch { load() } } else Skeleton(6) }
-            groups.filter { it.str("tab").ifBlank { "Other" } == cur }.forEach { g ->
+            groups.filter { it.str("tab").ifBlank { other } == cur }.forEach { g ->
                 item(key = "g" + g.str("title")) {
                     Section(g.str("title"), null)
                     Panel {
@@ -568,8 +572,8 @@ fun SettingsScreen() {
             }
             if (data != null) item {
                 Spacer(Modifier.height(18.dp))
-                Panel { NavRow(Ic.search, "All settings", "Every key in config.yaml, searchable") { Ui.push(Route.AllSettingsR) } }
-                Text("Changes go through hermes config set, the same path as the CLI. Secrets stay on the machine.",
+                Panel { NavRow(Ic.search, stringResource(R.string.settings_all_title), stringResource(R.string.settings_all_sub)) { Ui.push(Route.AllSettingsR) } }
+                Text(stringResource(R.string.settings_footer, "hermes config set"),
                     style = sans(12.5f, 400, p.dim, 18f), modifier = Modifier.padding(horizontal = 22.dp, vertical = 16.dp))
                 Spacer(Modifier.height(20.dp))
             }
@@ -587,23 +591,23 @@ fun AllSettingsScreen() {
     LaunchedEffect(retry) {
         err = null
         runCatching { fields = Api.get("/v1/settings/all").optJSONArray("fields").objs() }
-            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; err = it.message ?: "Connection failed" }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; err = it.message ?: str(R.string.common_connection_failed) }
     }
     val all = fields.orEmpty()
     val cats = all.groupingBy { it.str("category") }.eachCount().entries.sortedByDescending { it.value }.map { it.key }
     val list = all.filter { (cat.isBlank() || it.str("category") == cat) && (q.isBlank() || it.str("key").contains(q.trim(), true) || it.str("help").contains(q.trim(), true)) }
     Column(Modifier.fillMaxSize()) {
-        TopBar("All settings", fields?.let { "${it.size} keys" } ?: "Loading…")
-        InputBox(q, { q = it }, "Search keys", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), maxLines = 1)
+        TopBar(stringResource(R.string.settings_all_title), fields?.let { pluralStringResource(R.plurals.settings_key_count, it.size, it.size) } ?: stringResource(R.string.common_loading))
+        InputBox(q, { q = it }, stringResource(R.string.settings_search_keys), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), maxLines = 1)
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("All", cat.isBlank()) { cat = "" }
+            Chip(stringResource(R.string.common_all), cat.isBlank()) { cat = "" }
             for (c in cats) Chip(c, cat == c) { cat = c }
         }
         LazyColumn(Modifier.weight(1f)) {
-            if (err != null) item { ErrorPanel("Could not load settings: $err") { retry++ } }
+            if (err != null) item { ErrorPanel(stringResource(R.string.settings_load_failed, err.orEmpty())) { retry++ } }
             else if (fields == null) item { Skeleton() }
             itemsIndexed(list) { i, f -> if (i > 0) Line(); SettingField(f, showKey = true) }
-            if (fields != null && list.isEmpty()) item { Empty("Nothing matches", "Try another word or category.") }
+            if (fields != null && list.isEmpty()) item { Empty(stringResource(R.string.settings_nothing_matches), stringResource(R.string.settings_try_another)) }
             item { Spacer(Modifier.height(30.dp)) }
         }
     }
@@ -614,13 +618,13 @@ fun AllSettingsScreen() {
 fun ExtScreen() {
     var tab by remember { mutableStateOf("skills") }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Skills & plugins", "What ${agentName()} can use") {
-            Text("Hub", style = sans(14f, 600, P.acct), modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(P.accd)
+        TopBar(stringResource(R.string.ext_title), stringResource(R.string.ext_subtitle, agentName())) {
+            Text(stringResource(R.string.ext_open_hub), style = sans(14f, 600, P.acct), modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(P.accd)
                 .clickable { Mk.tab.value = tab; Ui.push(Route.HubR) }.padding(horizontal = 12.dp, vertical = 7.dp))
             Spacer(Modifier.width(8.dp))
         }
         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Seg(listOf("skills" to "Skills", "plugins" to "Plugins", "mcp" to "MCP"), tab) { tab = it }
+            Seg(listOf("skills" to stringResource(R.string.ext_tab_skills), "plugins" to stringResource(R.string.ext_tab_plugins), "mcp" to "MCP"), tab) { tab = it }
         }
         Box(Modifier.weight(1f)) {
             when (tab) {
@@ -649,27 +653,28 @@ fun SkillsTab() {
         (when (filter) { "off" -> !enabled(s); "agent" -> s.str("provenance") == "agent"; "hub" -> s.str("provenance") == "hub"; "bundled" -> s.str("provenance") == "bundled"; else -> true }) &&
             (q.isBlank() || s.str("name").contains(q.trim(), true) || s.str("description").contains(q.trim(), true))
     }
-    val groups = list.groupBy { it.str("category").ifBlank { "general" } }.toSortedMap()
+    val general = stringResource(R.string.skills_category_general)
+    val groups = list.groupBy { it.str("category").ifBlank { general } }.toSortedMap()
     LazyColumn(Modifier.fillMaxSize()) {
         item {
-            InputBox(q, { q = it }, "Search skills", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
+            InputBox(q, { q = it }, stringResource(R.string.skills_search_hint), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("All ${all.size}", filter == "all") { filter = "all" }
-                Chip("Off ${all.count { !enabled(it) }}", filter == "off") { filter = "off" }
-                Chip("Made by ${agentName()}", filter == "agent") { filter = "agent" }
-                Chip("Hub", filter == "hub") { filter = "hub" }
-                Chip("Bundled", filter == "bundled") { filter = "bundled" }
+                Chip(stringResource(R.string.skills_filter_all, all.size), filter == "all") { filter = "all" }
+                Chip(stringResource(R.string.skills_filter_off, all.count { !enabled(it) }), filter == "off") { filter = "off" }
+                Chip(stringResource(R.string.skills_filter_agent, agentName()), filter == "agent") { filter = "agent" }
+                Chip(stringResource(R.string.skills_filter_hub), filter == "hub") { filter = "hub" }
+                Chip(stringResource(R.string.skills_filter_bundled), filter == "bundled") { filter = "bundled" }
             }
-            Text("Toggles apply to new chats. Running chats keep their skill list so the prompt cache holds.", style = sans(12.5f, 400, p.dim, 17f),
+            Text(stringResource(R.string.skills_toggle_note), style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
         }
         if (skills == null) item { if (err != null) ErrorPanel(err!!) { err = null; rk++ } else Skeleton(6) }
         else if (list.isEmpty()) item {
-            Empty(if (all.isEmpty()) "No skills installed" else "No matching skills",
-                if (all.isEmpty()) "Browse the Hub to add skills." else "Try another word or filter.")
+            Empty(if (all.isEmpty()) stringResource(R.string.skills_empty_title) else stringResource(R.string.skills_no_match),
+                if (all.isEmpty()) stringResource(R.string.skills_empty_sub) else stringResource(R.string.skills_no_match_sub))
         }
         groups.forEach { (cat, l) ->
-            item { Section(cat, l.size.toString()) }
+            item { Section(cat, Fmt.int(l.size)) }
             items(l) { s ->
                 val name = s.str("name")
                 val en = enabled(s)
@@ -685,12 +690,12 @@ fun SkillsTab() {
                         Text(s.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.width(8.dp))
-                    if (s.optBoolean("locked")) Text(if (s.str("provenance") == "plugin") "plugin" else "always on", style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
+                    if (s.optBoolean("locked")) Text(if (s.str("provenance") == "plugin") stringResource(R.string.skills_locked_plugin) else stringResource(R.string.skills_always_on), style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
                     else Toggle(en, { v ->
                         on[name] = v
                         co.launch {
                             runCatching { Api.post("/v1/skills/toggle", JSONObject().put("name", name).put("enabled", v)) }
-                                .onSuccess { r -> on[name] = r.optBoolean("enabled", v); if (r.optBoolean("enabled", v) != v) Ui.say("$name can't be turned off") }
+                                .onSuccess { r -> on[name] = r.optBoolean("enabled", v); if (r.optBoolean("enabled", v) != v) Ui.say(R.string.skills_cant_turn_off, name) }
                                 .onFailure { on[name] = !v; Ui.say(it.message) }
                         }
                     })
@@ -717,17 +722,20 @@ fun PluginsTab() {
     LazyColumn(Modifier.fillMaxSize()) {
         item { RestartBanner() }
         if (plugins == null) item { if (err != null) ErrorPanel(err!!) { co.launch { load() } } else Skeleton(6) }
-        if (mine.isNotEmpty()) item { Section("Plugins", "${mine.count { it.optBoolean("configured") }} on") }
+        if (mine.isNotEmpty()) item {
+            val on = mine.count { it.optBoolean("configured") }
+            Section(stringResource(R.string.plugins_section), pluralStringResource(R.plurals.plugins_on_count, on, on))
+        }
         items(mine) { pl -> PluginRow(pl) { v ->
             co.launch {
                 val nm = pl.str("key").ifBlank { pl.str("name") }
-                runCatching { Guard.call(act, "plugin", nm, v, (if (v) "Enable " else "Disable ") + nm) { h -> Api.post("/v1/plugins/toggle", JSONObject().put("name", nm).put("enabled", v), h) } }
+                runCatching { Guard.call(act, "plugin", nm, v, if (v) str(R.string.plugins_enable_title, nm) else str(R.string.plugins_disable_title, nm)) { h -> Api.post("/v1/plugins/toggle", JSONObject().put("name", nm).put("enabled", v), h) } }
                     .onSuccess { Ctl.restartChanged(); load() }.onFailure { if (it.message != "Cancelled") Ui.say(it.message); load() }
             }
         } }
         if (auto.isNotEmpty()) item {
-            Row(Modifier.clickable { showAuto = !showAuto }) { Section("Built in", if (showAuto) "hide" else "show ${auto.size}") }
-            if (!showAuto) Text("Backends and platform adapters load on their own. Pick between them in Settings.", style = sans(12.5f, 400, p.dim, 17f),
+            Row(Modifier.clickable { showAuto = !showAuto }) { Section(stringResource(R.string.plugins_builtin), if (showAuto) stringResource(R.string.plugins_hide) else stringResource(R.string.plugins_show_count, auto.size)) }
+            if (!showAuto) Text(stringResource(R.string.plugins_builtin_note), style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(horizontal = 20.dp))
         }
         if (showAuto) items(auto) { pl -> PluginRow(pl) {} }
@@ -747,13 +755,14 @@ fun PluginRow(pl: JSONObject, onToggle: (Boolean) -> Unit) {
                 if (pl.str("version").isNotBlank()) { Spacer(Modifier.width(6.dp)); Text(pl.str("version"), style = mono(11f, 500, p.dim)) }
             }
             if (pl.str("description").isNotBlank()) Text(pl.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val stats = listOf("tools", "hooks", "commands").mapNotNull { k -> pl.optInt(k).takeIf { it > 0 }?.let { "$it ${if (it == 1) k.dropLast(1) else k}" } }
-            val line = (stats + listOfNotNull(if (pl.optBoolean("pending")) "restart to apply" else null)).joinToString(" · ")
+            val stats = listOf("tools" to R.plurals.plugins_tools, "hooks" to R.plurals.plugins_hooks, "commands" to R.plurals.plugins_commands)
+                .mapNotNull { (k, res) -> pl.optInt(k).takeIf { it > 0 }?.let { plural(res, it, it) } }
+            val line = (stats + listOfNotNull(if (pl.optBoolean("pending")) stringResource(R.string.plugins_restart_to_apply) else null)).joinToString(" · ")
             if (line.isNotBlank()) Text(line, style = mono(11.5f, 500, if (pl.optBoolean("pending")) p.att else p.dim))
             if (pl.str("error").isNotBlank() && pl.optBoolean("configured") && !pl.optBoolean("pending")) Text(pl.str("error"), style = mono(11.5f, 500, p.bad), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
-        if (pl.optBoolean("locked")) Text(if (pl.optBoolean("auto")) (if (pl.optBoolean("enabled")) "loaded" else "off") else "required", style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
+        if (pl.optBoolean("locked")) Text(if (pl.optBoolean("auto")) (if (pl.optBoolean("enabled")) stringResource(R.string.plugins_loaded) else stringResource(R.string.plugins_off)) else stringResource(R.string.plugins_required), style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
         else Toggle(on, { v -> on = v; onToggle(v) })
     }
 }
@@ -768,9 +777,9 @@ fun McpTab() {
     val l = servers
     LazyColumn(Modifier.fillMaxSize()) {
         if (l == null) item { if (err != null) ErrorPanel(err!!) { err = null; rk++ } else Skeleton() }
-        else if (l.isEmpty()) item { Empty("No MCP servers", "Add one on the machine with hermes mcp add.") }
+        else if (l.isEmpty()) item { Empty(stringResource(R.string.mcp_empty_title), stringResource(R.string.mcp_empty_sub, "hermes mcp add")) }
         else {
-            item { Section("Servers", l.size.toString()) }
+            item { Section(stringResource(R.string.mcp_servers), Fmt.int(l.size)) }
             items(l) { s ->
                 val st = s.str("status")
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -778,15 +787,24 @@ fun McpTab() {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(s.str("name"), style = sans(15f, 600, p.tx))
-                        Text(listOfNotNull(s.str("transport"), s.optInt("tools").takeIf { it > 0 }?.let { "$it tools" }, st).joinToString(" · "), style = mono(11.5f, 500, p.mu))
+                        Text(listOfNotNull(s.str("transport"), s.optInt("tools").takeIf { it > 0 }?.let { pluralStringResource(R.plurals.mcp_tools, it, it) }, mcpStatus(st)).joinToString(" · "), style = mono(11.5f, 500, p.mu))
                         if (s.str("error").isNotBlank()) Text(s.str("error"), style = mono(11.5f, 500, p.bad), maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
-            item { Text("Tool counts show for servers this gateway has connected. Lazy servers start on first use.", style = sans(12.5f, 400, p.dim, 17f),
+            item { Text(stringResource(R.string.mcp_footer), style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(20.dp)) }
         }
     }
+}
+
+/** Known MCP server states read in the app language; anything else shows as the server sent it. */
+private fun mcpStatus(st: String): String = when (st) {
+    "connected" -> str(R.string.mcp_status_connected)
+    "connecting" -> str(R.string.mcp_status_connecting)
+    "failed" -> str(R.string.mcp_status_failed)
+    "disabled" -> str(R.string.mcp_status_disabled)
+    else -> st
 }
 
 @Composable
@@ -807,7 +825,7 @@ fun SkillScreen(name: String) {
                 if (o.str("description").isNotBlank()) item { Text(o.str("description"), style = sans(15f, 400, p.tx2, 22f)); Spacer(Modifier.height(12.dp)) }
                 val missing = o.optJSONArray("missing_env").strs() + o.optJSONArray("missing_commands").strs()
                 if (missing.isNotEmpty()) item {
-                    Text("Needs setup: " + missing.joinToString(", "), style = mono(12f, 500, p.att), modifier = Modifier.padding(bottom = 12.dp))
+                    Text(stringResource(R.string.skills_needs_setup, missing.joinToString(", ")), style = mono(12f, 500, p.att), modifier = Modifier.padding(bottom = 12.dp))
                 }
                 val files = o.optJSONArray("files").strs()
                 if (files.isNotEmpty()) item {
@@ -830,39 +848,41 @@ fun MemoryScreen() {
     var tick by remember { mutableStateOf(0) }
     var editing by remember { mutableStateOf<Pair<String, String?>?>(null) }
     val an = agentName()
+    val aboutYou = stringResource(R.string.memory_about_you)
+    val notes = stringResource(R.string.memory_agent_notes, an)
     LaunchedEffect(tick) { runCatching { d = Api.get("/v1/memory") }.onFailure { err = it.message } }
     editing?.let { (t, e) -> MemoryEditor(t, e) { editing = null; tick++ } }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Memory", "Loaded into every new session")
+        TopBar(stringResource(R.string.memory_title), stringResource(R.string.memory_subtitle))
         LazyColumn(Modifier.weight(1f)) {
             val o = d
             if (o == null) item { if (err != null) ErrorPanel(err!!) { err = null; tick++ } else Skeleton(6) }
-            else for ((k, title) in listOf("user" to "About you", "memory" to "$an's notes")) {
+            else for ((k, title) in listOf("user" to aboutYou, "memory" to notes)) {
                 val m = o.optJSONObject(k) ?: continue
                 item(key = k) {
                     val used = m.optInt("chars"); val lim = m.optInt("limit")
-                    Section(title, if (lim > 0) "$used / $lim" else "$used chars", if (lim > 0 && used > lim * 0.9) p.att else p.mu)
+                    Section(title, if (lim > 0) "${Fmt.int(used)} / ${Fmt.int(lim)}" else pluralStringResource(R.plurals.memory_chars, used, used), if (lim > 0 && used > lim * 0.9) p.att else p.mu)
                     if (lim > 0) Box(Modifier.padding(horizontal = 20.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(p.s3)) {
                         Box(Modifier.fillMaxWidth((used.toFloat() / lim).coerceIn(0f, 1f)).height(4.dp).clip(RoundedCornerShape(2.dp)).background(if (used > lim * 0.9) p.att else p.acct))
                     }
-                    if (!m.optBoolean("enabled", true)) Text("Turned off in settings", style = sans(13f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+                    if (!m.optBoolean("enabled", true)) Text(stringResource(R.string.memory_turned_off), style = sans(13f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
                     Spacer(Modifier.height(8.dp))
                     Panel {
                         val es = m.optJSONArray("entries").strs()
-                        if (es.isEmpty()) Text("Empty", style = sans(14f, 400, p.mu), modifier = Modifier.padding(16.dp))
+                        if (es.isEmpty()) Text(stringResource(R.string.memory_empty), style = sans(14f, 400, p.mu), modifier = Modifier.padding(16.dp))
                         es.forEachIndexed { i, e ->
                             if (i > 0) Line()
                             Text(e, style = sans(14f, 400, p.tx, 20f), modifier = Modifier.fillMaxWidth().clickable { editing = k to e }.padding(horizontal = 16.dp, vertical = 11.dp))
                         }
                         Line()
                         Row(Modifier.fillMaxWidth().clickable { editing = k to null }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icn(Ic.plus, p.acct, 16.dp); Spacer(Modifier.width(8.dp)); Text("Add", style = sans(14.5f, 600, p.acct))
+                            Icn(Ic.plus, p.acct, 16.dp); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.common_add), style = sans(14.5f, 600, p.acct))
                         }
                     }
                 }
             }
             item {
-                Text("Tap an entry to edit or forget it. Edits pass the same size limits and safety scan as ${agentName()}'s own writes.", style = sans(12.5f, 400, p.dim, 18f),
+                Text(stringResource(R.string.memory_footer, agentName()), style = sans(12.5f, 400, p.dim, 18f),
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp))
             }
         }

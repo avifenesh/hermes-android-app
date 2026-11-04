@@ -116,7 +116,7 @@ object Prefs {
         val edit = sp.edit().remove(k)
         if (encrypted == null) edit.remove("e_$k") else edit.putString("e_$k", encrypted)
         // One transaction: never persist ciphertext and plaintext in separate writes.
-        if (k == "machines") check(edit.commit()) { "Couldn't save paired machines" } else edit.apply()
+        if (k == "machines") check(edit.commit()) { str(R.string.net_machines_save_failed) } else edit.apply()
     }
     @Synchronized private fun sec(k: String, strict: Boolean = false): String? {
         g("e_$k")?.let { e ->
@@ -130,7 +130,7 @@ object Prefs {
             val value = if (strict) decoded.getOrThrow() else decoded.getOrNull()
             if (strict && sp.contains(k)) {
                 // Recover a mixed legacy/encrypted state only after authenticating the ciphertext.
-                check(sp.edit().remove(k).commit()) { "Couldn't remove legacy paired machines" }
+                check(sp.edit().remove(k).commit()) { str(R.string.net_machines_legacy_failed) }
             }
             return value
         }
@@ -294,7 +294,7 @@ object Api {
             .followRedirects(false).followSslRedirects(false)
             .addInterceptor(Interceptor {
                 try { signer(it) } catch (e: IOException) { throw e }
-                catch (e: Exception) { throw IOException("Request signing failed", e) }
+                catch (e: Exception) { throw IOException(str(R.string.net_request_signing_failed), e) }
             }).build()
     }
     val sse: OkHttpClient by lazy { http.newBuilder().readTimeout(75, TimeUnit.SECONDS).build() }
@@ -320,7 +320,7 @@ object Api {
     private fun signer(chain: Interceptor.Chain): Response {
         val r = chain.request()
         val identity = r.tag(Identity::class.java) ?: throw IOException("Missing connection identity")
-        try { checkIdentity(identity) } catch (e: CancellationException) { throw IOException("Connection or capability changed", e) }
+        try { checkIdentity(identity) } catch (e: CancellationException) { throw IOException(str(R.string.net_connection_changed), e) }
         val b = r.newBuilder()
         identity.cfId?.let { b.header("CF-Access-Client-Id", it); b.header("CF-Access-Client-Secret", identity.cfSecret ?: "") }
         val tok = identity.token
@@ -340,13 +340,13 @@ object Api {
     }
 
     fun sha256(b: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }
-    fun url(p: String) = (Prefs.base ?: throw ApiError(0, "Not paired")).trimEnd('/') + p
+    fun url(p: String) = (Prefs.base ?: throw ApiError(0, str(R.string.net_not_paired))).trimEnd('/') + p
 
     internal fun request(p: String): Request.Builder = synchronized(epoch) {
-        if (!Hub.features.value.allows(p)) throw ApiError(0, "This feature isn't available on this machine")
+        if (!Hub.features.value.allows(p)) throw ApiError(0, str(R.string.net_feature_unavailable))
         val gate = Hub.epochFor(p)?.let { Gate(it, it.capture()) }
-        val identity = Identity(epoch.capture(), gate, Prefs.base ?: throw ApiError(0, "Not paired"),
-            Prefs.token ?: throw ApiError(0, "Not paired"), Prefs.cfId, Prefs.cfSecret)
+        val identity = Identity(epoch.capture(), gate, Prefs.base ?: throw ApiError(0, str(R.string.net_not_paired)),
+            Prefs.token ?: throw ApiError(0, str(R.string.net_not_paired)), Prefs.cfId, Prefs.cfSecret)
         Request.Builder().url(identity.base.trimEnd('/') + p).tag(Identity::class.java, identity)
     }
 
@@ -363,7 +363,7 @@ object Api {
         val t = resp.body.string()
         if (!resp.isSuccessful) {
             val m = runCatching { JSONObject(t).str("error") }.getOrNull().orEmpty()
-            throw ApiError(resp.code, m.ifBlank { if (resp.code == 401) "Not authorized (HTTP 401)" else "HTTP ${resp.code}" })
+            throw ApiError(resp.code, m.ifBlank { if (resp.code == 401) str(R.string.net_not_authorized) else "HTTP ${resp.code}" })
         }
         if (t.isBlank()) JSONObject() else JSONObject(t)
     }
@@ -419,13 +419,13 @@ object Api {
                         }
                     }
                     val actual = tmp.length()
-                    if (total >= 0 && actual != total) throw ApiError(0, "Download cut off at $actual of $total bytes")
+                    if (total >= 0 && actual != total) throw ApiError(0, plural(R.plurals.net_download_cut_off, total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), actual, total))
                     if (expectedSize != null && expectedSize >= 0 && actual != expectedSize)
                         throw ApiError(0, "Download size mismatch: received $actual of $expectedSize bytes")
                 }
                 currentCoroutineContext().ensureActive()
                 epoch.commit(req.tag(Identity::class.java)!!.generation) {
-                    if (!tmp.renameTo(dest)) throw ApiError(0, "Couldn't save download")
+                    if (!tmp.renameTo(dest)) throw ApiError(0, str(R.string.net_download_save_failed))
                 }
             } finally { tmp.delete() }
         }
@@ -438,8 +438,8 @@ object Api {
 
     /** [proceed] runs under the epoch lock right before credentials are written: false (cancelled) writes nothing. */
     suspend fun pair(link: Uri, proceed: () -> Boolean = { true }): Unit = withContext(Dispatchers.IO) {
-        val u = link.getQueryParameter("u") ?: throw ApiError(0, "That link has no server address")
-        val c = link.getQueryParameter("c") ?: throw ApiError(0, "That link has no pairing code")
+        val u = link.getQueryParameter("u") ?: throw ApiError(0, str(R.string.pairing_link_no_server))
+        val c = link.getQueryParameter("c") ?: throw ApiError(0, str(R.string.pairing_link_no_code))
         val ticket = epoch.capture()
         val cfId = link.getQueryParameter("i")
         val cfSecret = link.getQueryParameter("s")
@@ -455,8 +455,8 @@ object Api {
         // first response was lost, the server gives this phone its device back on a retry of the same code.
         // Older servers ignore the headers and the extra field.
         val o = exec(req, pairingClient(plain, body, Keys::sign))
-        val token = o.getString("token").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing pairing token")
-        val device = o.getString("device_id").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing device ID")
+        val token = o.getString("token").takeIf { it.isNotBlank() } ?: throw ApiError(0, str(R.string.pairing_missing_token))
+        val device = o.getString("device_id").takeIf { it.isNotBlank() } ?: throw ApiError(0, str(R.string.pairing_missing_device_id))
         currentCoroutineContext().ensureActive()
         epoch.commit(ticket) {
             if (!proceed()) throw CancellationException("Pairing cancelled")

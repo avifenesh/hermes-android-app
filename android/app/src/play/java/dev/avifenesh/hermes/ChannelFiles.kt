@@ -16,12 +16,12 @@ internal fun isInstallablePackage(f: File, mime: String?): Boolean =
 
 fun openFile(c: Context, f: File, mime: String?) {
     if (isInstallablePackage(f, mime)) {
-        Ui.say("Installing APK attachments is unavailable in this Play edition. You can still save the file to Downloads.")
+        Ui.say(R.string.channel_apk_unavailable)
         return
     }
     val u = FileProvider.getUriForFile(c, c.packageName + ".files", f)
     val i = Intent(Intent.ACTION_VIEW).setDataAndType(u, mime ?: "*/*")
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { c.startActivity(Intent.createChooser(i, f.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        .onFailure { Ui.say("No app can open ${f.name}. Use the save button to put it in Downloads.") }
+        .onFailure { Ui.say(R.string.channel_no_app_to_open, f.name) }
 }

@@ -20,8 +20,17 @@ object HubLogic {
 
     val SEVERITIES = listOf("critical", "high", "medium", "low")
 
+    /** Display form of a severity count; the severity keys themselves stay protocol values. */
+    private fun severityPlural(severity: String): Int = when (severity) {
+        "critical" -> R.plurals.hub_findings_critical
+        "high" -> R.plurals.hub_findings_high
+        "medium" -> R.plurals.hub_findings_medium
+        else -> R.plurals.hub_findings_low
+    }
+
     fun findingsLine(counts: Map<String, Int>): String =
-        SEVERITIES.filter { (counts[it] ?: 0) > 0 }.joinToString(" · ") { "${counts[it]} $it" }.ifEmpty { "no findings" }
+        SEVERITIES.filter { (counts[it] ?: 0) > 0 }.joinToString(" · ") { val n = counts[it] ?: 0; plural(severityPlural(it), n, n) }
+            .ifEmpty { str(R.string.hub_no_findings) }
 
     fun logTail(log: String, lines: Int = 14): String = log.trimEnd().lines().takeLast(lines).joinToString("\n")
 
@@ -55,7 +64,12 @@ object HubLogic {
                 (query.isBlank() || text.contains(query.trim(), ignoreCase = true))
     }
 
-    fun trustLabel(t: String): String = when (t) { "builtin" -> "official"; "trusted" -> "trusted"; "community" -> "community"; else -> t }
+    fun trustLabel(t: String): String = when (t) {
+        "builtin" -> str(R.string.hub_trust_official)
+        "trusted" -> str(R.string.hub_trust_trusted)
+        "community" -> str(R.string.hub_trust_community)
+        else -> t
+    }
 
     fun pretty(slug: String): String = slug.replace('-', ' ').replace('_', ' ').replaceFirstChar { it.uppercase() }
 }

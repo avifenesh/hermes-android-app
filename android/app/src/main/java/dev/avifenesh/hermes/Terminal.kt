@@ -24,6 +24,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -128,7 +129,7 @@ fun TerminalViewport(snapshot: JSONObject, onClick: (Int, Int) -> Unit, modifier
                         modifier = Modifier.fillParentMaxWidth().pointerInput(line, snapshot.str("frame"), columns, rows, mouse) {
                             detectTapGestures { point ->
                                 if (!mouse) {
-                                    if (columns > 0) notice = "Keyboard-only: use arrows + Enter"
+                                    if (columns > 0) notice = str(R.string.terminal_keyboard_only)
                                     return@detectTapGestures
                                 }
                                 notice = null
@@ -187,25 +188,25 @@ fun TerminalControls(onInput: (JSONObject) -> Unit, busy: Boolean, modifier: Mod
         onInput(input)
     }
     val extras: @Composable () -> Unit = {
-        if (!compact) TerminalButton("Shift", !busy, shift) { shift = !shift }
-        TerminalButton("Ctrl", !busy, ctrl) { ctrl = !ctrl }
-        TerminalButton("Alt", !busy, alt) { alt = !alt }
+        if (!compact) TerminalButton(stringResource(R.string.terminal_key_shift), !busy, shift) { shift = !shift }
+        TerminalButton(stringResource(R.string.terminal_key_ctrl), !busy, ctrl) { ctrl = !ctrl }
+        TerminalButton(stringResource(R.string.terminal_key_alt), !busy, alt) { alt = !alt }
         for (number in 1..9) TerminalButton(number.toString(), !busy) { key(number.toString()) }
-        TerminalButton("Space", !busy) { key("space") }
+        TerminalButton(stringResource(R.string.terminal_key_space), !busy) { key("space") }
         TerminalButton("⌫", !busy) { key("backspace") }
-        TerminalButton("Home", !busy) { key("home") }
-        TerminalButton("End", !busy) { key("end") }
+        TerminalButton(stringResource(R.string.terminal_key_home), !busy) { key("home") }
+        TerminalButton(stringResource(R.string.terminal_key_end), !busy) { key("end") }
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TerminalButton("Esc", !busy) { key("escape") }
-            TerminalButton("Enter", !busy) { key("enter") }
-            if (compact) TerminalButton("Shift", !busy, shift) { shift = !shift }
-            for ((label, value) in listOf("Tab" to "tab", "↑" to "up", "↓" to "down",
-                "←" to "left", "→" to "right", "PgUp" to "page_up", "PgDn" to "page_down")) TerminalButton(label, !busy) { key(value) }
-            TerminalButton("Scroll up", !busy) { onInput(JSONObject().put("action", "scroll").put("direction", "up").put("amount", 3)) }
-            TerminalButton("Scroll down", !busy) { onInput(JSONObject().put("action", "scroll").put("direction", "down").put("amount", 3)) }
+            TerminalButton(stringResource(R.string.terminal_key_esc), !busy) { key("escape") }
+            TerminalButton(stringResource(R.string.terminal_key_enter), !busy) { key("enter") }
+            if (compact) TerminalButton(stringResource(R.string.terminal_key_shift), !busy, shift) { shift = !shift }
+            for ((label, value) in listOf(stringResource(R.string.terminal_key_tab) to "tab", "↑" to "up", "↓" to "down",
+                "←" to "left", "→" to "right", stringResource(R.string.terminal_key_page_up) to "page_up", stringResource(R.string.terminal_key_page_down) to "page_down")) TerminalButton(label, !busy) { key(value) }
+            TerminalButton(stringResource(R.string.terminal_scroll_up), !busy) { onInput(JSONObject().put("action", "scroll").put("direction", "up").put("amount", 3)) }
+            TerminalButton(stringResource(R.string.terminal_scroll_down), !busy) { onInput(JSONObject().put("action", "scroll").put("direction", "down").put("amount", 3)) }
             if (compact) extras()
         }
         if (!compact) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) { extras() }
@@ -215,25 +216,28 @@ fun TerminalControls(onInput: (JSONObject) -> Unit, busy: Boolean, modifier: Mod
 /** Legacy tmux/older gateways retain their existing interrupt path. */
 @Composable
 fun LegacyAgentInterrupt(canStop: Boolean, terminalAvailable: Boolean, busy: Boolean, onStop: () -> Unit) {
-    if (canStop && !terminalAvailable) TerminalButton("Esc", !busy, onClick = onStop)
+    if (canStop && !terminalAvailable) TerminalButton(stringResource(R.string.terminal_key_esc), !busy, onClick = onStop)
 }
 
 @Composable
 fun FleetQuickReplies(busy: Boolean, onSend: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (reply in listOf("go ahead", "continue", "yes", "no", "status?", "commit and open a PR"))
-            Chip(reply, false) { if (!busy) onSend(reply) }
+        // The label is translated; the agent always receives the English reply.
+        for ((label, reply) in listOf(R.string.terminal_reply_go_ahead to "go ahead", R.string.terminal_reply_continue to "continue",
+            R.string.terminal_reply_yes to "yes", R.string.terminal_reply_no to "no", R.string.terminal_reply_status to "status?",
+            R.string.terminal_reply_commit_pr to "commit and open a PR"))
+            Chip(stringResource(label), false) { if (!busy) onSend(reply) }
     }
 }
 
 /** Send stays labelled and visible, including with an empty draft or closed keyboard. */
 @Composable
 fun FleetComposer(text: String, onText: (String) -> Unit, onSend: () -> Unit, busy: Boolean,
-                  label: String = "Reply to agent", modifier: Modifier = Modifier, compact: Boolean = false) {
+                  label: String = stringResource(R.string.terminal_reply_to_agent), modifier: Modifier = Modifier, compact: Boolean = false) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         InputBox(text, onText, label, Modifier.weight(1f), maxLines = if (compact) 1 else 3)
         Spacer(Modifier.width(8.dp))
-        TerminalButton(if (busy) "Sending…" else "Send", !busy && text.isNotBlank(), primary = true, onClick = onSend)
+        TerminalButton(if (busy) stringResource(R.string.terminal_sending) else stringResource(R.string.common_send), !busy && text.isNotBlank(), primary = true, onClick = onSend)
     }
 }

@@ -4,10 +4,13 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /** "Restart to apply" is the active machine's server state; only an old server falls back to the app's own flag. */
 class RestartBannerTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     private val a = "https://a.example:9445"
     private val b = "https://b.example:9445"
 

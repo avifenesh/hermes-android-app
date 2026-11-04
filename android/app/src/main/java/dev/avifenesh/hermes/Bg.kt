@@ -84,7 +84,7 @@ class ActionReceiver : BroadcastReceiver() {
                 when (i.action) {
                     "deny" -> { val aid = i.getStringExtra("aid") ?: return@launch; Hub.resolve(aid, "deny", null, null); Notify.cancelApproval(c, aid) }
                     "reply" -> {
-                        if (locked(c)) { withContext(Dispatchers.Main) { Toast.makeText(c, "Unlock the phone to send", Toast.LENGTH_LONG).show() }; return@launch }
+                        if (locked(c)) { withContext(Dispatchers.Main) { Toast.makeText(c, str(R.string.notify_unlock_to_send), Toast.LENGTH_LONG).show() }; return@launch }
                         val cid = i.getStringExtra("chat") ?: return@launch
                         val text = RemoteInput.getResultsFromIntent(i)?.getCharSequence("reply")?.toString().orEmpty().trim()
                         if (text.isNotEmpty()) Hub.send(cid, text)
@@ -93,12 +93,12 @@ class ActionReceiver : BroadcastReceiver() {
                     "read" -> { val cid = i.getStringExtra("chat") ?: return@launch; Hub.markRead(cid) }
                     "fleet_reply" -> {
                         val id = i.getStringExtra("agent") ?: return@launch
-                        if (locked(c)) { withContext(Dispatchers.Main) { Toast.makeText(c, "Unlock the phone to send", Toast.LENGTH_LONG).show() }; return@launch }
+                        if (locked(c)) { withContext(Dispatchers.Main) { Toast.makeText(c, str(R.string.notify_unlock_to_send), Toast.LENGTH_LONG).show() }; return@launch }
                         val text = (i.getStringExtra("text") ?: RemoteInput.getResultsFromIntent(i)?.getCharSequence("reply")?.toString()).orEmpty().trim()
                         if (text.isNotEmpty()) {
                             val r = runCatching { Fleet.send(id, text) }
-                            val msg = r.fold({ it.str("line").ifBlank { "Sent to " + i.getStringExtra("name") } },
-                                { if ((it as? ApiError)?.code == 403) "Needs your fingerprint: open the session in $APP_NAME" else "Not sent: ${it.message}" })
+                            val msg = r.fold({ it.str("line").ifBlank { str(R.string.notify_sent_to, i.getStringExtra("name")) } },
+                                { if ((it as? ApiError)?.code == 403) str(R.string.notify_needs_fingerprint, APP_NAME) else str(R.string.agent_not_sent, it.message) })
                             withContext(Dispatchers.Main) { Toast.makeText(c, msg, Toast.LENGTH_LONG).show() }
                         }
                         Fleet.cancel(c, id)
@@ -124,8 +124,8 @@ object Approvals {
                 withContext(Dispatchers.Main) {
                     val a = r.getOrNull()
                     when {
-                        r.isFailure -> done(r.exceptionOrNull()?.message ?: "Failed")
-                        a?.state == "expired" -> done("That approval already expired")
+                        r.isFailure -> done(r.exceptionOrNull()?.message ?: str(R.string.common_failed))
+                        a?.state == "expired" -> done(str(R.string.approvals_expired))
                         else -> { Notify.cancelApproval(act, aid); done(null) }
                     }
                 }
@@ -134,16 +134,16 @@ object Approvals {
         if (choice == "deny") { submit(null, null); return }
         val ts = (System.currentTimeMillis() / 1000).toString()
         val payload = "approve\n$aid\n$choice\n$ts".toByteArray()
-        val sig = try { Keys.approvalSignature() } catch (e: Exception) { done("Approval key unavailable: ${e.message}"); return }
+        val sig = try { Keys.approvalSignature() } catch (e: Exception) { done(str(R.string.approvals_key_unavailable, e.message)); return }
         if (Prefs.noLock) {
             val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()
-            if (s == null) done("Signing failed") else submit(ts, s)
+            if (s == null) done(str(R.string.approvals_signing_failed)) else submit(ts, s)
             return
         }
         val prompt = BiometricPrompt(act, ContextCompat.getMainExecutor(act), object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                val s = result.cryptoObject?.signature ?: return done("No signature")
-                val out = try { s.update(payload); Base64.encodeToString(s.sign(), Base64.NO_WRAP) } catch (e: Exception) { return done(e.message ?: "Signing failed") }
+                val s = result.cryptoObject?.signature ?: return done(str(R.string.approvals_no_signature))
+                val out = try { s.update(payload); Base64.encodeToString(s.sign(), Base64.NO_WRAP) } catch (e: Exception) { return done(e.message ?: str(R.string.approvals_signing_failed)) }
                 submit(ts, out)
             }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -152,7 +152,7 @@ object Approvals {
             }
         })
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(if (choice == "once") "Approve command" else "Approve for $choice")
+            .setTitle(promptTitle(choice))
             .setSubtitle(cmd.take(140))
             .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
             .build()
@@ -173,13 +173,13 @@ object Approvals {
                     Api.put("/v1/sessions/${Uri.encode(sid)}/prompts/${Uri.encode(pid)}", body, headers)
                 }
                 withContext(Dispatchers.Main) {
-                    if (r.isFailure) done(r.exceptionOrNull()?.message ?: "Failed")
+                    if (r.isFailure) done(r.exceptionOrNull()?.message ?: str(R.string.common_failed))
                     else done(null)
                 }
             }
         }
         if (choice == "deny") { submit(null, null); return }
-        prove(act, if (choice == "once") "Approve command" else "Approve for $choice",
+        prove(act, promptTitle(choice),
             prompt.optString("command").ifBlank { prompt.optString("detail") },
             "approve\n$sid:$pid\n$choice", { done(it) }, ::submit)
     }
@@ -193,29 +193,37 @@ object Approvals {
                     if (ts != null && sig != null) { headers["X-HM-Ts"] = ts; headers["X-HM-ASig"] = sig }
                     Rooms.act(rid, a, choice, headers)
                 }
-                withContext(Dispatchers.Main) { done(if (r.isFailure) r.exceptionOrNull()?.message ?: "Failed" else null) }
+                withContext(Dispatchers.Main) { done(if (r.isFailure) r.exceptionOrNull()?.message ?: str(R.string.common_failed) else null) }
             }
         }
         if (choice == "deny") { submit(null, null); return }
         // Its own domain and server-side replay scope, one field per line (ids never contain a newline).
-        prove(act, "Approve command", a.command.ifBlank { a.description },
+        prove(act, str(R.string.approvals_prompt_once), a.command.ifBlank { a.description },
             "room-approve\n$rid\n${a.member}\n${a.requestId}\n$choice", { done(it) }, ::submit)
+    }
+
+    /** Fingerprint prompt title for an approval scope; scopes the app does not know show as the server sent them. */
+    private fun promptTitle(choice: String): String = when (choice) {
+        "once" -> str(R.string.approvals_prompt_once)
+        "session" -> str(R.string.approvals_prompt_session)
+        "always" -> str(R.string.approvals_prompt_always)
+        else -> str(R.string.approvals_prompt_scope, choice)
     }
 
     private fun prove(act: FragmentActivity, title: String, subtitle: String, prefix: String,
                       onError: (String) -> Unit, done: (String?, String?) -> Unit) {
         val ts = (System.currentTimeMillis() / 1000).toString()
         val payload = "$prefix\n$ts".toByteArray()
-        val sig = try { Keys.approvalSignature() } catch (e: Exception) { onError("Approval key unavailable: ${e.message}"); return }
+        val sig = try { Keys.approvalSignature() } catch (e: Exception) { onError(str(R.string.approvals_key_unavailable, e.message)); return }
         if (Prefs.noLock) {
             val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()
-            if (s == null) onError("Signing failed") else done(ts, s)
+            if (s == null) onError(str(R.string.approvals_signing_failed)) else done(ts, s)
             return
         }
         val prompt = BiometricPrompt(act, ContextCompat.getMainExecutor(act), object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                val s = result.cryptoObject?.signature ?: return onError("No signature")
-                val out = try { s.update(payload); Base64.encodeToString(s.sign(), Base64.NO_WRAP) } catch (e: Exception) { return onError(e.message ?: "Signing failed") }
+                val s = result.cryptoObject?.signature ?: return onError(str(R.string.approvals_no_signature))
+                val out = try { s.update(payload); Base64.encodeToString(s.sign(), Base64.NO_WRAP) } catch (e: Exception) { return onError(e.message ?: str(R.string.approvals_signing_failed)) }
                 done(ts, out)
             }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -239,7 +247,7 @@ class ApproveActivity : FragmentActivity() {
         val choice = intent.getStringExtra("choice") ?: "once"
         Approvals.run(this, aid, choice, intent.getStringExtra("cmd").orEmpty()) { err ->
             when {
-                err == null -> Toast.makeText(this, "Approved", Toast.LENGTH_SHORT).show()
+                err == null -> Toast.makeText(this, str(R.string.approvals_approved), Toast.LENGTH_SHORT).show()
                 err.isNotEmpty() -> Toast.makeText(this, err, Toast.LENGTH_LONG).show()
             }
             finish()

@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.LayoutBoundsHolder
@@ -126,7 +127,7 @@ fun RadarScreen() {
     // The listing knows best; until it answers, the momentum route says whether there is a scout.
     val scout = !momentum || (if (listing != null && listing.has("scout")) listing.optBoolean("scout") else m.optBoolean("scout", true))
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar("Radar", err ?: if (!scout) null else batch?.let { "Batch ${rel(it.optDouble("ts"))} · every 3h" } ?: if (data == null) "Loading…" else "No batch yet")
+        TopBar(stringResource(R.string.radar_title), err ?: if (!scout) null else batch?.let { stringResource(R.string.radar_batch, rel(it.optDouble("ts")), Fmt.hours(3)) } ?: if (data == null) stringResource(R.string.common_loading) else stringResource(R.string.radar_no_batch))
         PullToRefreshBox(refreshing, {
             scope.launch { refreshing = true; coroutineScope { launch { load() }; launch { loadMomentum(force = true) } }; refreshing = false }
         }, Modifier.fillMaxSize()) {
@@ -134,7 +135,7 @@ fun RadarScreen() {
                 if (m != null && momentum) {
                     item(key = "momentum-head") {
                         val (right, stale) = momentumWhen(m, moFailed != null)
-                        Section("Momentum", right, rightColor = if (stale) p.attt else p.mu)
+                        Section(stringResource(R.string.radar_momentum), right, rightColor = if (stale) p.attt else p.mu)
                     }
                     item(key = "momentum") {
                         MomentumPanel(m, moOpen, sightings, viewport) { k, open ->
@@ -143,11 +144,11 @@ fun RadarScreen() {
                             if (!open) Momentum.markRead(mapOf(k to Momentum.shown(rep, k)), rep)
                         }
                     }
-                    if (scout) item(key = "scout-head") { Section("Scout findings") }
+                    if (scout) item(key = "scout-head") { Section(stringResource(R.string.radar_scout_findings)) }
                 } else if (m == null && !moTried) item(key = "momentum-wait") { Skeleton(1) }
                 if (scout) stickyHeader(key = "views") {
                     Row(Modifier.fillMaxWidth().background(p.bg).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        Seg(listOf("current" to "Latest", "saved" to "Saved", "history" to "History"), view) { view = it }
+                        Seg(listOf("current" to stringResource(R.string.radar_view_latest), "saved" to stringResource(R.string.radar_view_saved), "history" to stringResource(R.string.radar_view_history)), view) { view = it }
                     }
                 }
                 items(notes, key = { "n" + it.str("id") }) { n ->
@@ -155,15 +156,15 @@ fun RadarScreen() {
                         Column(Modifier.clickable { noteOpen = n }.padding(14.dp)) {
                             Text(n.str("title"), style = sans(14.5f, 600, p.tx))
                             Text(n.str("body"), style = sans(13f, 400, p.mu, 18f), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            Text("Tap to see the skill diff", style = mono(11.5f, 500, p.acct))
+                            Text(stringResource(R.string.radar_tap_skill_diff), style = mono(11.5f, 500, p.acct))
                         }
                     }
                 }
                 if (scout && data != null && findings.isEmpty()) item {
-                    Empty(if (view == "saved") "Nothing saved" else "Nothing yet", when (view) {
-                        "current" -> "The scout runs every 3 hours. Pull to refresh."
-                        "saved" -> "Findings you save show up here."
-                        else -> "Past scout findings show up here."
+                    Empty(if (view == "saved") stringResource(R.string.radar_nothing_saved) else stringResource(R.string.radar_nothing_yet), when (view) {
+                        "current" -> stringResource(R.string.radar_empty_current)
+                        "saved" -> stringResource(R.string.radar_empty_saved)
+                        else -> stringResource(R.string.radar_empty_history)
                     })
                 }
                 items(findings, key = { it.str("id") }) { f -> FindingCard(f, ::replace) }
@@ -181,14 +182,14 @@ private fun NoteSheet(n: JSONObject, onClose: () -> Unit, onAck: () -> Unit) {
     LaunchedEffect(n.str("id")) { full = runCatching { Api.get("/v1/radar/notes/${Fleet.enc(n.str("id"))}").optJSONObject("note") }.getOrNull() }
     Box(Modifier.fillMaxSize().background(p.bg)) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(n.str("title"), "Curator note") { }
+            TopBar(n.str("title"), stringResource(R.string.radar_curator_note)) { }
             LazyColumn(Modifier.weight(1f)) {
                 item { Text(n.str("body"), style = sans(14.5f, 400, p.tx), modifier = Modifier.padding(16.dp)) }
-                item { CodeBlock(full?.str("diff").orEmpty().ifBlank { "(no diff)" }, "diff") }
+                item { CodeBlock(full?.str("diff").orEmpty().ifBlank { stringResource(R.string.radar_no_diff) }, "diff") }
             }
             Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Btn("Close", Modifier.weight(1f), primary = false, onClick = onClose)
-                Btn("Got it", Modifier.weight(1f), onClick = onAck)
+                Btn(stringResource(R.string.common_close), Modifier.weight(1f), primary = false, onClick = onClose)
+                Btn(stringResource(R.string.radar_got_it), Modifier.weight(1f), onClick = onAck)
             }
         }
     }
@@ -214,7 +215,7 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
         scope.launch {
             try {
                 Api.post("/v1/radar/findings/${Fleet.enc(id)}/$action", body).optJSONObject("finding")?.let(onUpdate)
-                when (action) { "feedback" -> Ui.say("Feedback saved"); "note" -> Ui.say("Note saved"); "dismiss" -> Ui.say("Dismissed"); "save" -> Ui.say("Saved for later") }
+                when (action) { "feedback" -> Ui.say(R.string.radar_feedback_saved); "note" -> Ui.say(R.string.radar_note_saved); "dismiss" -> Ui.say(R.string.radar_dismissed_toast); "save" -> Ui.say(R.string.radar_saved_for_later) }
                 if (action == "feedback" || action == "note") { text = ""; react = false }
             } catch (e: Exception) { Ui.say(e.message) } finally { busy = false }
         }
@@ -227,7 +228,7 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
                 val o = Api.post("/v1/radar/findings/${Fleet.enc(id)}/spawn", JSONObject().put("mode", mode).put("prompt", prompt))
                 spawn = null
                 if (mode == "chat") o.str("chat_id").takeIf { it.isNotBlank() }?.let { Ui.open(it) }
-                else Ui.say("Background agent queued: " + o.str("task_id"))
+                else Ui.say(R.string.radar_agent_queued, o.str("task_id"))
                 runCatching { Api.get("/v1/radar/findings/${Fleet.enc(id)}").optJSONObject("finding")?.let(onUpdate) }
             } catch (e: Exception) { Ui.say(e.message) } finally { busy = false }
         }
@@ -237,11 +238,11 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Pill(f.str("type_label").ifBlank { f.str("type") }, p.ink, p.acc)
                 Spacer(Modifier.width(8.dp))
-                Text("conf ${Fmt.percent(f.optDouble("confidence", 0.0))} · ${f.str("actionability")}", style = mono(11.5f, 500, p.mu))
+                Text(stringResource(R.string.radar_confidence, Fmt.percent(f.optDouble("confidence", 0.0))) + " · " + f.str("actionability"), style = mono(11.5f, 500, p.mu))
                 Spacer(Modifier.weight(1f))
-                if (state == "saved") Pill("saved", p.acct, p.accd)
-                if (state == "dismissed") Pill("dismissed", p.mu, p.s3)
-                if (f.optInt("spawned") > 0) { Spacer(Modifier.width(6.dp)); Pill("spawned", p.good, p.s3) }
+                if (state == "saved") Pill(stringResource(R.string.radar_status_saved), p.acct, p.accd)
+                if (state == "dismissed") Pill(stringResource(R.string.radar_status_dismissed), p.mu, p.s3)
+                if (f.optInt("spawned") > 0) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.radar_status_spawned), p.good, p.s3) }
             }
             Spacer(Modifier.height(8.dp))
             Text(f.str("title"), style = sans(16.5f, 650, p.tx))
@@ -256,47 +257,48 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
                     Text("• " + e, style = mono(11.5f, 500, if (url != null) p.acct else p.mu), maxLines = 3, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().clickable {
                             if (url != null && safeLink(url)) runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                            else { cb.setText(AnnotatedString(e)); Ui.say("Copied") }
+                            else { cb.setText(AnnotatedString(e)); Ui.say(R.string.common_copied) }
                         }.padding(vertical = 2.dp))
                 }
             }
             f.optJSONObject("freshness")?.let { fr ->
                 Spacer(Modifier.height(8.dp))
                 val ok = fr.str("result") == "fresh"
-                Text((if (ok) "✓ fresh: " else "↓ downgraded: ") + fr.str("checked") + fr.str("resurface_reason").let { if (it.isBlank()) "" else " · resurfaced: $it" },
+                Text((if (ok) stringResource(R.string.radar_fresh, fr.str("checked")) else stringResource(R.string.radar_downgraded, fr.str("checked"))) +
+                    fr.str("resurface_reason").let { if (it.isBlank()) "" else " · " + stringResource(R.string.radar_resurfaced, it) },
                     style = sans(12.5f, 400, if (ok) p.goodt else p.attt, 17f))
             }
             f.optJSONArray("feedback").objs().forEach { x ->
                 val t = x.str("text")
-                val label = when (x.str("kind")) { "note" -> "note"; "feedback" -> "you said"; "spawn_chat" -> "spawned chat"; "spawn_task" -> "spawned agent"; else -> x.str("kind") }
+                val label = when (x.str("kind")) { "note" -> stringResource(R.string.radar_feedback_note); "feedback" -> stringResource(R.string.radar_feedback_you_said); "spawn_chat" -> stringResource(R.string.radar_feedback_spawned_chat); "spawn_task" -> stringResource(R.string.radar_feedback_spawned_agent); else -> x.str("kind") }
                 Text("$label · ${rel(x.optDouble("ts"))}" + if (t.isNotBlank()) ": $t" else "", style = sans(12.5f, 400, p.mu, 17f), modifier = Modifier.padding(top = 4.dp))
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip("👍", vote > 0) { act(if (vote > 0) "clear-vote" else "like") }
                 Chip("👎", vote < 0) { act(if (vote < 0) "clear-vote" else "dislike") }
-                Chip("React", react) { react = !react; spawn = null }
-                Chip(if (state == "saved") "Saved" else "Save", state == "saved") { act(if (state == "saved") "unsave" else "save") }
-                Chip(if (state == "dismissed") "Restore" else "Dismiss", false) { act(if (state == "dismissed") "restore" else "dismiss") }
-                Chip("Spawn chat", spawn == "chat") { spawn = if (spawn == "chat") null else "chat"; react = false }
-                Chip("Spawn agent", spawn == "task") { spawn = if (spawn == "task") null else "task"; react = false }
+                Chip(stringResource(R.string.radar_react), react) { react = !react; spawn = null }
+                Chip(if (state == "saved") stringResource(R.string.common_saved) else stringResource(R.string.common_save), state == "saved") { act(if (state == "saved") "unsave" else "save") }
+                Chip(if (state == "dismissed") stringResource(R.string.radar_restore) else stringResource(R.string.radar_dismiss), false) { act(if (state == "dismissed") "restore" else "dismiss") }
+                Chip(stringResource(R.string.radar_spawn_chat), spawn == "chat") { spawn = if (spawn == "chat") null else "chat"; react = false }
+                Chip(stringResource(R.string.radar_spawn_agent), spawn == "task") { spawn = if (spawn == "task") null else "task"; react = false }
             }
             if (react) {
                 Spacer(Modifier.height(10.dp))
-                InputBox(text, { text = it }, "Your reaction, in your own words…", Modifier.fillMaxWidth(), minLines = 2)
+                InputBox(text, { text = it }, stringResource(R.string.radar_reaction_hint), Modifier.fillMaxWidth(), minLines = 2)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Btn("Send feedback", Modifier.weight(1f), enabled = text.isNotBlank() && !busy) { act("feedback", JSONObject().put("text", text)) }
-                    Btn("Save as note", Modifier.weight(1f), primary = false, enabled = text.isNotBlank() && !busy) { act("note", JSONObject().put("text", text)) }
+                    Btn(stringResource(R.string.radar_send_feedback), Modifier.weight(1f), enabled = text.isNotBlank() && !busy) { act("feedback", JSONObject().put("text", text)) }
+                    Btn(stringResource(R.string.radar_save_as_note), Modifier.weight(1f), primary = false, enabled = text.isNotBlank() && !busy) { act("note", JSONObject().put("text", text)) }
                 }
             }
             spawn?.let { mode ->
                 Spacer(Modifier.height(10.dp))
-                Text(if (mode == "chat") "New chat with this prompt" else "Background agent (kanban task) with this prompt", style = mono(11.5f, 600, p.mu))
+                Text(if (mode == "chat") stringResource(R.string.radar_spawn_chat_label) else stringResource(R.string.radar_spawn_agent_label), style = mono(11.5f, 600, p.mu))
                 Spacer(Modifier.height(6.dp))
-                InputBox(prompt, { prompt = it }, "Prompt", Modifier.fillMaxWidth(), minLines = 3, maxLines = 12, size = 14f)
+                InputBox(prompt, { prompt = it }, stringResource(R.string.radar_prompt_hint), Modifier.fillMaxWidth(), minLines = 3, maxLines = 12, size = 14f)
                 Spacer(Modifier.height(8.dp))
-                Btn(if (mode == "chat") "Start chat" else "Start agent", Modifier.fillMaxWidth(), enabled = prompt.isNotBlank() && !busy) { doSpawn(mode) }
+                Btn(if (mode == "chat") stringResource(R.string.radar_start_chat) else stringResource(R.string.radar_start_agent), Modifier.fillMaxWidth(), enabled = prompt.isNotBlank() && !busy) { doSpawn(mode) }
             }
         }
     }

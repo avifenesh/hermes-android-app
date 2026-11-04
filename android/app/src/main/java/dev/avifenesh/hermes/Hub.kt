@@ -38,12 +38,12 @@ fun readOnlyNotice(readonly: String): String? {
     val r = readonly.trim()
     if (r.isEmpty()) return null
     val surface = r.substringBefore(':', "").takeIf { it.isNotBlank() && ':' in r }?.replaceFirstChar { it.uppercase() }
-    val kind = when (r.substringAfter(':', "")) {
-        "group", "supergroup", "forum" -> "Group chat"
-        "channel" -> "Channel"
-        else -> "Shared chat"
+    return when (r.substringAfter(':', "")) {
+        "group", "supergroup", "forum" ->
+            if (surface != null) str(R.string.sync_readonly_group_in, surface) else str(R.string.sync_readonly_group)
+        "channel" -> if (surface != null) str(R.string.sync_readonly_channel_in, surface) else str(R.string.sync_readonly_channel)
+        else -> if (surface != null) str(R.string.sync_readonly_shared_in, surface) else str(R.string.sync_readonly_shared)
     }
-    return "$kind · read-only. Reply ${if (surface != null) "in $surface" else "where it started"}."
 }
 
 data class Msg(val id: String, val chatId: String, val role: String, val kind: String, val content: String,
@@ -160,7 +160,7 @@ object Hub {
     }
 
     // ---- parsing
-    fun chat(o: JSONObject) = Chat(o.getString("id"), o.str("title").ifBlank { "Chat" }, o.str("kind", "chat"), o.optDouble("updated", 0.0),
+    fun chat(o: JSONObject) = Chat(o.getString("id"), o.str("title").ifBlank { str(R.string.sync_chat_untitled) }, o.str("kind", "chat"), o.optDouble("updated", 0.0),
         o.optInt("unread"), o.optInt("pinned") == 1, o.optInt("archived") == 1, o.str("preview"), o.str("last_role"), o.str("profile"), o.str("readonly"))
     fun msg(o: JSONObject) = Msg(o.getString("id"), o.getString("chat_id"), o.str("role"), o.str("kind", "text"), o.str("content"),
         o.optJSONObject("meta") ?: JSONObject(), o.optDouble("ts", 0.0), o.optLong("seq"))

@@ -28,6 +28,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -50,8 +52,12 @@ suspend fun gitSignature(act: FragmentActivity, repo: String, action: String): M
     BiometricPrompt(act, ContextCompat.getMainExecutor(act), object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(r: BiometricPrompt.AuthenticationResult) = done(r.cryptoObject?.signature)
         override fun onAuthenticationError(code: Int, s: CharSequence) { if (k.isActive) k.resume(null) }
-    }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(action.replace('-', ' ').replaceFirstChar { it.uppercase() } + " · $repo")
-        .setSubtitle("Leaves this machine").setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL).build(), BiometricPrompt.CryptoObject(sig))
+    }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(when (action) {
+            "push" -> str(R.string.repo_sign_push, repo)
+            "create-pr" -> str(R.string.repo_sign_create_pr, repo)
+            else -> action.replace('-', ' ').replaceFirstChar { it.uppercase() } + " · $repo"
+        })
+        .setSubtitle(str(R.string.repo_sign_subtitle)).setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL).build(), BiometricPrompt.CryptoObject(sig))
 }
 
 @Composable
@@ -64,31 +70,31 @@ fun ProjectsScreen() {
     LaunchedEffect(Ui.stack.size, retry) {
         err = null
         runCatching { repos = Api.get("/v1/projects").optJSONArray("repos").objs() }
-            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; err = it.message ?: "Could not load projects." }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; err = it.message ?: str(R.string.projects_load_failed) }
     }
     val list = repos.orEmpty().filter { !dirtyOnly || it.optInt("changed") > 0 || it.optInt("ahead") > 0 }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Projects", err ?: repos?.let { "${it.size} repos · most recent first" } ?: "Loading…")
+        TopBar(stringResource(R.string.projects_title), err ?: repos?.let { pluralStringResource(R.plurals.projects_repo_count, it.size, it.size) } ?: stringResource(R.string.common_loading))
         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("All", !dirtyOnly) { dirtyOnly = false }
-            Chip("Has changes", dirtyOnly) { dirtyOnly = true }
+            Chip(stringResource(R.string.common_all), !dirtyOnly) { dirtyOnly = false }
+            Chip(stringResource(R.string.projects_has_changes), dirtyOnly) { dirtyOnly = true }
         }
         LazyColumn(Modifier.fillMaxSize()) {
             if (err != null) item { ErrorPanel(err!!) { retry++ } }
             else if (repos == null) item { Skeleton() }
             else if (list.isEmpty()) item {
-                Empty(if (dirtyOnly) "No projects with changes" else "No projects yet",
-                    if (dirtyOnly) "Choose All to see clean repositories." else "Repositories on your machine will appear here.")
+                Empty(if (dirtyOnly) stringResource(R.string.projects_no_changes_title) else stringResource(R.string.projects_empty_title),
+                    if (dirtyOnly) stringResource(R.string.projects_no_changes_body) else stringResource(R.string.projects_empty_body))
             }
             items(list, key = { it.str("id") }) { r ->
                 Row(Modifier.fillMaxWidth().clickable { Ui.push(Route.RepoR(r.str("id"))) }.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(r.str("id"), style = sans(15.5f, 600, p.tx))
-                        Text(r.str("branch").ifBlank { "detached" } + (if (r.optInt("ahead") > 0) " ↑${r.optInt("ahead")}" else "") + (if (r.optInt("behind") > 0) " ↓${r.optInt("behind")}" else ""),
+                        Text(r.str("branch").ifBlank { stringResource(R.string.projects_detached) } + (if (r.optInt("ahead") > 0) " ↑${r.optInt("ahead")}" else "") + (if (r.optInt("behind") > 0) " ↓${r.optInt("behind")}" else ""),
                             style = mono(11.5f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     val ch = r.optInt("changed")
-                    if (r.optInt("conflicted") > 0) Pill("conflict", p.bad, p.badd)
+                    if (r.optInt("conflicted") > 0) Pill(stringResource(R.string.projects_conflict), p.bad, p.badd)
                     else if (ch > 0) Text("$ch · +${r.optInt("added")} −${r.optInt("removed")}", style = mono(12f, 600, p.att))
                     Spacer(Modifier.width(10.dp))
                     Text(rel(r.optDouble("touched", 0.0)), style = mono(11.5f, 500, p.mu))
@@ -107,13 +113,13 @@ private fun RepoDiff(rid: String, path: String, revision: JSONObject?) {
         try {
             diff = Api.get("/v1/projects/${Fleet.enc(rid)}/diff?file=${Fleet.enc(path)}").str("diff")
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { err = e.message ?: "Could not load diff." }
+        catch (e: Exception) { err = e.message ?: str(R.string.repo_diff_failed) }
     }
     val text = diff
     when {
-        err != null -> ErrorPanel("Could not load diff: $err") { retry++ }
+        err != null -> ErrorPanel(stringResource(R.string.repo_diff_failed_detail, err.toString())) { retry++ }
         text == null -> Skeleton(1)
-        text.isBlank() -> Empty("No diff available", "This file has no text changes to show.")
+        text.isBlank() -> Empty(stringResource(R.string.repo_no_diff_title), stringResource(R.string.repo_no_diff_body))
         else -> DiffPane(text)
     }
 }
@@ -139,7 +145,7 @@ fun RepoScreen(rid: String) {
                 val o = Api.post("/v1/projects/${Fleet.enc(rid)}/$action", body, h)
                 val res = o.optJSONObject("result")
                 val url = res?.str("url").orEmpty()
-                Ui.say(when (action) { "commit" -> "Committed"; "commit-push" -> "Committed and pushed"; "push" -> "Pushed"; "create-pr" -> if (url.isNotBlank()) "PR opened" else "Done"; else -> "Done" })
+                Ui.say(when (action) { "commit" -> R.string.repo_committed; "commit-push" -> R.string.repo_committed_pushed; "push" -> R.string.repo_pushed; "create-pr" -> if (url.isNotBlank()) R.string.repo_pr_opened else R.string.common_done; else -> R.string.common_done })
                 if (action == "create-pr" && url.startsWith("https://")) runCatching { act.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
                 if (action.startsWith("commit")) msg = ""
                 load()
@@ -150,19 +156,19 @@ fun RepoScreen(rid: String) {
     val files = st?.optJSONArray("files").objs()
     val ship = info?.optJSONObject("ship")
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(rid, err ?: st?.let { (it.str("branch").ifBlank { "detached" }) + " · ${it.optInt("changed")} changed · +${it.optInt("added")} −${it.optInt("removed")}" } ?: "Loading…")
+        TopBar(rid, err ?: st?.let { (it.str("branch").ifBlank { stringResource(R.string.projects_detached) }) + " · " + pluralStringResource(R.plurals.repo_changed_count, it.optInt("changed"), it.optInt("changed")) + " · +${it.optInt("added")} −${it.optInt("removed")}" } ?: stringResource(R.string.common_loading))
         LazyColumn(Modifier.weight(1f)) {
             if (st != null && (st.optInt("ahead") > 0 || st.optInt("behind") > 0)) item {
-                Text("↑${st.optInt("ahead")} ahead · ↓${st.optInt("behind")} behind " + (st.str("defaultBranch").takeIf { it.isNotBlank() }?.let { "origin" } ?: ""),
+                Text(stringResource(R.string.repo_ahead_behind, st.optInt("ahead"), st.optInt("behind"), st.str("defaultBranch").takeIf { it.isNotBlank() }?.let { "origin" } ?: ""),
                     style = mono(12.5f, 600, p.tx2), modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             }
             ship?.optJSONObject("pr")?.let { pr -> item {
-                Text("PR #${pr.optInt("number")} · ${pr.str("state").lowercase()} · ${pr.str("title")}", style = sans(13.5f, 600, p.acct),
+                Text(stringResource(R.string.repo_pr_line, pr.optInt("number"), pr.str("state").lowercase(), pr.str("title")), style = sans(13.5f, 600, p.acct),
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp).clickable {
                         runCatching { act.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(pr.str("url")))) } })
             } }
-            item { Section("Changes", files.size.toString()) }
-            if (files.isEmpty() && st != null) item { Text("Working tree clean.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
+            item { Section(stringResource(R.string.repo_changes), files.size.toString()) }
+            if (files.isEmpty() && st != null) item { Text(stringResource(R.string.repo_clean), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
             items(files, key = { it.str("path") }) { f ->
                 val path = f.str("path")
                 Column {
@@ -171,7 +177,7 @@ fun RepoScreen(rid: String) {
                             style = mono(13f, 700, when { f.optBoolean("conflicted") -> p.bad; f.optBoolean("staged") -> p.good; else -> p.att }))
                         Spacer(Modifier.width(10.dp))
                         Text(path, style = mono(12.5f, 500, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        Text(if (f.optBoolean("staged")) "unstage" else "stage", style = sans(12.5f, 600, p.acct),
+                        Text(if (f.optBoolean("staged")) stringResource(R.string.repo_unstage) else stringResource(R.string.repo_stage), style = sans(12.5f, 600, p.acct),
                             modifier = Modifier.clickable { run(if (f.optBoolean("staged")) "unstage" else "stage", JSONObject().put("file", path)) }.padding(6.dp))
                     }
                     if (openFile == path) Column(Modifier.padding(horizontal = 12.dp)) { RepoDiff(rid, path, info) }
@@ -182,8 +188,8 @@ fun RepoScreen(rid: String) {
         if (files.isNotEmpty() || (st?.optInt("ahead") ?: 0) > 0) Column(Modifier.fillMaxWidth().background(p.bg).padding(horizontal = 12.dp, vertical = 8.dp)) {
             if (files.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip("Stage all", false) { run("stage") }
-                    Chip("Ask ${agentName()} for a message", false) {
+                    Chip(stringResource(R.string.repo_stage_all), false) { run("stage") }
+                    Chip(stringResource(R.string.repo_ask_agent, agentName()), false) {
                         scope.launch {
                             runCatching {
                                 val cid = Hub.newChat("Commit message · $rid")
@@ -195,14 +201,14 @@ fun RepoScreen(rid: String) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
-                    InputBox(msg, { msg = it }, "Commit message", Modifier.weight(1f), maxLines = 4)
+                    InputBox(msg, { msg = it }, stringResource(R.string.repo_commit_hint), Modifier.weight(1f), maxLines = 4)
                     Spacer(Modifier.width(8.dp))
-                    Btn(if (busy) "…" else "Commit", enabled = !busy && msg.isNotBlank()) { run("commit", JSONObject().put("message", msg.trim())) }
+                    Btn(if (busy) "…" else stringResource(R.string.repo_commit), enabled = !busy && msg.isNotBlank()) { run("commit", JSONObject().put("message", msg.trim())) }
                 }
             }
             Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if ((st?.optInt("ahead") ?: 0) > 0) Btn("Push", Modifier.weight(1f), primary = false, enabled = !busy) { run("push", signed = true) }
-                if (ship?.optJSONObject("pr") == null && st?.str("branch") != st?.str("defaultBranch")) Btn("Open PR", Modifier.weight(1f), primary = false, enabled = !busy) { run("create-pr", signed = true) }
+                if ((st?.optInt("ahead") ?: 0) > 0) Btn(stringResource(R.string.repo_push), Modifier.weight(1f), primary = false, enabled = !busy) { run("push", signed = true) }
+                if (ship?.optJSONObject("pr") == null && st?.str("branch") != st?.str("defaultBranch")) Btn(stringResource(R.string.repo_open_pr), Modifier.weight(1f), primary = false, enabled = !busy) { run("create-pr", signed = true) }
             }
         }
     }

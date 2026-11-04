@@ -63,17 +63,17 @@ fun plainText(s: String): String = s.replace(Regex("```[a-zA-Z]*\\n?"), "").repl
 
 /** Inbox preview line. A voice note with no text previews as its transcript, else "Voice message". */
 fun chatPreview(m: Msg): String = when (m.kind) {
-    "approval" -> "Needs approval: " + m.meta.str("command")
-    "image" -> "Photo" + (if (m.content.isNotBlank()) " · " + m.content else "")
-    "file" -> "File: " + m.meta.str("file_name")
-    "voice" -> "Voice message"
+    "approval" -> str(R.string.chat_preview_approval, m.meta.str("command"))
+    "image" -> str(R.string.chat_preview_photo) + (if (m.content.isNotBlank()) " · " + m.content else "")
+    "file" -> str(R.string.chat_preview_file, m.meta.str("file_name"))
+    "voice" -> str(R.string.chat_preview_voice)
     else -> plainText(m.content).lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: voicePreview(m) ?: ""
 }
 
 private fun voicePreview(m: Msg): String? {
     val clips = m.meta.optJSONArray("attachments").objs().filter { it.str("kind") == "voice" || it.str("mime").startsWith("audio/") }
     if (clips.isEmpty()) return null
-    return clips.map { it.str("transcript").trim() }.firstOrNull { it.isNotEmpty() }?.lineSequence()?.first() ?: "Voice message"
+    return clips.map { it.str("transcript").trim() }.firstOrNull { it.isNotEmpty() }?.lineSequence()?.first() ?: str(R.string.chat_preview_voice)
 }
 
 /**

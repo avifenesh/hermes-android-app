@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.LayoutBoundsHolder
 import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -55,9 +57,10 @@ import java.util.Calendar
  * the Radar row in Me.
  */
 object Momentum {
-    /** Display order: what only you can decide, what broke, what runs, what shipped, what was decided for you. */
-    val SECTIONS = listOf("needs_you" to "Needs you", "problems" to "Problems", "running" to "Running",
-        "shipped" to "Shipped", "decided" to "Decided")
+    /** Display order: what only you can decide, what broke, what runs, what shipped, what was decided for you.
+     * Each key pairs with its heading's string resource, resolved where the heading is drawn. */
+    val SECTIONS: List<Pair<String, Int>> = listOf("needs_you" to R.string.momentum_section_needs_you, "problems" to R.string.momentum_section_problems,
+        "running" to R.string.momentum_section_running, "shipped" to R.string.momentum_section_shipped, "decided" to R.string.momentum_section_decided)
     const val SHOWN = 5
 
     /** The last /v1/radar/momentum answer, null until one arrives. */
@@ -69,7 +72,7 @@ object Momentum {
 
     suspend fun load(force: Boolean = false) {
         val ticket = Api.epoch.capture()
-        fun fail(why: String?) { runCatching { Api.epoch.commit(ticket) { failed.value = why ?: "unreachable" } } }
+        fun fail(why: String?) { runCatching { Api.epoch.commit(ticket) { failed.value = why ?: str(R.string.momentum_unreachable) } } }
         val o = try { Api.get("/v1/radar/momentum" + if (force) "?refresh=1" else "") }
             catch (e: ApiError) { if (e.code == 404) JSONObject().put("available", false) else { fail(e.message); throw e } }
             catch (e: CancellationException) { throw e }
@@ -215,8 +218,8 @@ fun momentumStamp(ts: Double): String {
 fun momentumWhen(o: JSONObject, phoneFailed: Boolean): Pair<String?, Boolean> {
     val at = o.optDouble("fetched_at", 0.0)
     val stale = o.optBoolean("stale") || phoneFailed
-    if (at <= 0) return (if (phoneFailed) "stale" else null) to stale
-    return (if (stale) "stale · " + momentumStamp(at) else momentumStamp(at)) to stale
+    if (at <= 0) return (if (phoneFailed) str(R.string.momentum_stale) else null) to stale
+    return (if (stale) str(R.string.momentum_stale_at, momentumStamp(at)) else momentumStamp(at)) to stale
 }
 
 /**
@@ -233,8 +236,8 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, sightings: Momentum
     Panel(Modifier.padding(bottom = 4.dp)) {
         if (rep == null) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("No report yet", style = sans(14.5f, 600, p.tx2))
-                Text(o.str("error").ifBlank { "momentum has not produced a report" }, style = mono(11.5f, 500, p.mu),
+                Text(stringResource(R.string.momentum_no_report), style = sans(14.5f, 600, p.tx2))
+                Text(o.str("error").ifBlank { stringResource(R.string.momentum_no_report_detail) }, style = mono(11.5f, 500, p.mu),
                     maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             return@Panel
@@ -244,12 +247,12 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, sightings: Momentum
             val fresh = Momentum.unread(rep, key, readIds)
             // A dot marks what is new since the last read; on a first look everything is, so nothing is marked.
             val marked = if (key in readIds) fresh else emptySet()
-            MomentumSection(rep, key, label, open[key] ?: fresh.isNotEmpty(), marked, sightings, viewport) { onToggle(key, it) }
+            MomentumSection(rep, key, stringResource(label), open[key] ?: fresh.isNotEmpty(), marked, sightings, viewport) { onToggle(key, it) }
         }
         val why = phoneFailed ?: o.str("error").takeIf { o.optBoolean("stale") }
         if (why != null) {
             Line()
-            Text("Couldn't refresh: " + why.ifBlank { "no reason given" }, style = mono(11.5f, 500, p.mu),
+            Text(stringResource(R.string.momentum_refresh_failed, why.ifBlank { stringResource(R.string.momentum_no_reason) }), style = mono(11.5f, 500, p.mu),
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
         }
     }
@@ -266,8 +269,8 @@ private fun MomentumSection(rep: JSONObject, key: String, label: String, isOpen:
     val showing = isOpen && canOpen
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()
-            .then(if (canOpen) Modifier.clickable(role = Role.Button, onClickLabel = if (showing) "Show only the count" else "Show items") { onToggle(!showing) }
-                .semantics { stateDescription = if (showing) "Expanded" else "Collapsed" }
+            .then(if (canOpen) Modifier.clickable(role = Role.Button, onClickLabel = stringResource(if (showing) R.string.momentum_show_count_desc else R.string.momentum_show_items_desc)) { onToggle(!showing) }
+                .semantics { stateDescription = str(if (showing) R.string.momentum_expanded_desc else R.string.momentum_collapsed_desc) }
             else Modifier.semantics(mergeDescendants = true) {})
             .heightIn(min = 52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             if (key == "running" && n > 0) LiveDot(8.dp, tone) else Dot(if (n > 0) tone else p.dim, 8.dp)
@@ -283,7 +286,7 @@ private fun MomentumSection(rep: JSONObject, key: String, label: String, isOpen:
                 key(row) { MomentumItem(it, key, row, row in marked, sightings, viewport) }
             }
             val more = n - minOf(all.size, Momentum.SHOWN)
-            if (more > 0) Text("and $more more", style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(start = 36.dp, end = 16.dp, bottom = 14.dp))
+            if (more > 0) Text(pluralStringResource(R.plurals.momentum_more, more, more), style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(start = 36.dp, end = 16.dp, bottom = 14.dp))
         }
     }
 }
@@ -312,9 +315,9 @@ private fun MomentumItem(o: JSONObject, section: String, row: String, fresh: Boo
     val expandable = lead.isNotBlank() || rest.isNotBlank()
     Row(Modifier.fillMaxWidth()
         .onVisibilityChanged(minFractionVisible = 0.5f, viewportBounds = viewport) { sightings.row(section, row, it) }
-        .then(if (expandable) Modifier.clickable(onClickLabel = if (full) "Show less" else "Show all") { full = !full }
+        .then(if (expandable) Modifier.clickable(onClickLabel = stringResource(if (full) R.string.momentum_show_less_desc else R.string.momentum_show_all_desc)) { full = !full }
             else Modifier.semantics(mergeDescendants = true) {})
-        .semantics { if (fresh) stateDescription = "New" }
+        .semantics { if (fresh) stateDescription = str(R.string.momentum_new_desc) }
         .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (links.isEmpty()) 10.dp else 0.dp)) {
         Box(Modifier.width(20.dp)) {
             // Not read yet: a small dot under the section's own.
@@ -343,10 +346,10 @@ private fun MomentumItem(o: JSONObject, section: String, row: String, fresh: Boo
 private fun LinkChip(label: String, url: String) {
     val p = P
     val ctx = LocalContext.current
-    Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClickLabel = "Open in browser") {
+    Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClickLabel = stringResource(R.string.momentum_open_in_browser_desc)) {
         // Intent filters match schemes case-sensitively: "HTTPS://" would find no browser.
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url.toUri().normalizeScheme()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { Ui.say("No app can open this link") }
+            .onFailure { Ui.say(R.string.momentum_no_app_for_link) }
     }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
         Pill(label.ifBlank { url.toUri().host ?: url }, p.acct, p.accd)
     }

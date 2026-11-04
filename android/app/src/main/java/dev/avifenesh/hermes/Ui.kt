@@ -84,6 +84,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -220,7 +221,7 @@ fun Main() {
         App.schedule(ctx)
         LiveService.sync(ctx)
         Hub.connect()
-        runCatching { Hub.sync() }.onFailure { Ui.say("Sync failed: " + it.message) }
+        runCatching { Hub.sync() }.onFailure { Ui.say(R.string.nav_sync_failed, it.message) }
         runCatching { Hub.refreshMe() }
         runCatching { Wake.refresh(ctx) }
         runCatching { if (Push.refresh(ctx)) LiveService.pushReady(ctx) }
@@ -325,13 +326,13 @@ fun BoxScope.NavBar() {
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).height(62.dp).clip(CircleShape).background(p.nav).border(1.dp, p.line2, CircleShape).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            NavItem("inbox", "Inbox", Ic.inbox, if (unread > 0) b(unread) else null, false, Modifier.weight(1f))
-            NavItem("pulse", "Pulse", Ic.pulse, if (need > 0) b(need) else if (work.isNotEmpty()) b(work.size) else null, need > 0, Modifier.weight(1f))
-            NavItem("cron", "Cron", Ic.cron, null, false, Modifier.weight(1f))
-            NavItem("me", "Me", Ic.me, null, false, Modifier.weight(1f))
+            NavItem("inbox", stringResource(R.string.nav_inbox), Ic.inbox, if (unread > 0) b(unread) else null, false, Modifier.weight(1f))
+            NavItem("pulse", stringResource(R.string.nav_pulse), Ic.pulse, if (need > 0) b(need) else if (work.isNotEmpty()) b(work.size) else null, need > 0, Modifier.weight(1f))
+            NavItem("cron", stringResource(R.string.nav_cron), Ic.cron, null, false, Modifier.weight(1f))
+            NavItem("me", stringResource(R.string.nav_me), Ic.me, null, false, Modifier.weight(1f))
         }
         Box(Modifier.size(62.dp).shadow(10.dp, CircleShape, ambientColor = p.acc, spotColor = p.acc)
-            .clip(CircleShape).background(p.acc).semantics { contentDescription = "New chat" }
+            .clip(CircleShape).background(p.acc).semantics { contentDescription = str(R.string.nav_new_chat_desc) }
             .clickable(role = androidx.compose.ui.semantics.Role.Button) { Ui.composeOpen.value = true }, contentAlignment = Alignment.Center) { Icn(Ic.pen, p.ink, 24.dp) }
     }
 }
@@ -366,8 +367,8 @@ fun PairScreen(link: Uri?) {
     fun go(u: Uri, confirmed: Boolean = false) {
         if (busy) return
         // Never drop a live pairing on a link alone: only the explicit "Pair with this machine" tap passes confirmed.
-        if (Ui.paired.value && !confirmed) { err = "Tap Pair with this machine to switch"; return }
-        if (u.scheme != "hermes" || u.host != "pair") { err = "That isn't a Hermes pairing link"; return }
+        if (Ui.paired.value && !confirmed) { err = str(R.string.pair_tap_to_switch); return }
+        if (u.scheme != "hermes" || u.host != "pair") { err = str(R.string.pair_not_a_link, HERMES); return }
         err = null
         Pairing.redeem(ctx, u, auto = false)
     }
@@ -382,28 +383,28 @@ fun PairScreen(link: Uri?) {
         MarkBox(58.dp)
         Spacer(Modifier.height(26.dp))
         Text(APP_NAME, style = serif(64f, p.tx, italic = true))
-        Text("${agentName()}, in your pocket. Chats, approvals, runs and cron, straight from your machine.", style = sans(16f, 400, p.tx2, 24f))
+        Text(stringResource(R.string.pair_tagline, agentName()), style = sans(16f, 400, p.tx2, 24f))
         Spacer(Modifier.height(34.dp))
-        Text("1  On your machine", style = mono(12f, 600, p.mu))
+        Text(stringResource(R.string.pair_step_machine), style = mono(12f, 600, p.mu))
         Spacer(Modifier.height(8.dp))
         CodeBlock("hermes mobile pair", "shell")
         Spacer(Modifier.height(22.dp))
-        Text(if (scannerAvailable) "2  Scan the code, or paste the link" else "2  Paste the pairing link", style = mono(12f, 600, p.mu))
+        Text(if (scannerAvailable) stringResource(R.string.pair_step_scan_or_paste) else stringResource(R.string.pair_step_paste), style = mono(12f, 600, p.mu))
         Spacer(Modifier.height(10.dp))
         if (scannerAvailable) {
-            Btn(if (busy) "Pairing…" else "Scan QR code", Modifier.fillMaxWidth(), enabled = !busy) {
+            Btn(if (busy) stringResource(R.string.pair_pairing) else stringResource(R.string.pair_scan_qr), Modifier.fillMaxWidth(), enabled = !busy) {
                 GmsBarcodeScanning.getClient(ctx).startScan()
-                    .addOnSuccessListener { b -> val v = b.rawValue; if (v != null) go(Uri.parse(v.trim()), confirmed = true) else err = "Empty QR code" }
-                    .addOnFailureListener { err = "QR scanner unavailable. Paste the pairing link instead." }
+                    .addOnSuccessListener { b -> val v = b.rawValue; if (v != null) go(Uri.parse(v.trim()), confirmed = true) else err = str(R.string.pair_qr_empty) }
+                    .addOnFailureListener { err = str(R.string.pair_qr_unavailable) }
             }
         } else {
-            Text(if (busy) "Pairing…" else "QR scanning needs Google Play services. You can still pair with a link.", style = sans(14f, 400, p.tx2))
+            Text(if (busy) stringResource(R.string.pair_pairing) else stringResource(R.string.pair_qr_needs_play), style = sans(14f, 400, p.tx2))
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             InputBox(paste, { paste = it }, "hermes://pair?…", Modifier.weight(1f), maxLines = 3, size = 14f)
             Spacer(Modifier.width(8.dp))
-            Btn(if (paste.isBlank()) "Paste" else "Pair", primary = false, enabled = !busy) {
+            Btn(if (paste.isBlank()) stringResource(R.string.pair_paste) else stringResource(R.string.pair_submit), primary = false, enabled = !busy) {
                 val t = paste.ifBlank { cb.getText()?.text.orEmpty() }.trim()
                 paste = t
                 if (t.isNotBlank()) go(Uri.parse(t), confirmed = true)
@@ -417,22 +418,22 @@ fun PairScreen(link: Uri?) {
         val pl = pendingLink
         if (pl != null) {
             Spacer(Modifier.height(16.dp))
-            Text("Pair with " + (Uri.parse(pl.getQueryParameter("u") ?: "").host ?: "?") + "? Your current machines stay paired.", style = sans(14.5f, 500, p.tx))
+            Text(stringResource(R.string.pair_confirm_switch, Uri.parse(pl.getQueryParameter("u") ?: "").host ?: "?"), style = sans(14.5f, 500, p.tx))
             Spacer(Modifier.height(8.dp))
-            Btn("Pair with this machine", Modifier.fillMaxWidth(), enabled = !busy) { Pairing.offers.take()?.let { go(it, confirmed = true) } }
+            Btn(stringResource(R.string.pair_with_this_machine), Modifier.fillMaxWidth(), enabled = !busy) { Pairing.offers.take()?.let { go(it, confirmed = true) } }
         }
         if (link != null && Ui.paired.value) {
             Spacer(Modifier.height(10.dp))
             // Cancels an in-flight pairing too: its response must not switch this phone to the other machine.
-            Btn("Cancel", primary = false) { Pairing.cancel(); Ui.pairLink.value = null }
+            Btn(stringResource(R.string.common_cancel), primary = false) { Pairing.cancel(); Ui.pairLink.value = null }
         }
         Spacer(Modifier.height(40.dp))
-        Text("The link carries a one-time code. Your phone creates its own signing keys. Approvals require biometric or screen-lock authentication.", style = sans(13f, 400, p.dim, 19f))
+        Text(stringResource(R.string.pair_security_note), style = sans(13f, 400, p.dim, 19f))
         if (!Ui.paired.value && link == null) {
             Spacer(Modifier.height(16.dp))
-            Btn("Privacy policy", Modifier.fillMaxWidth(), primary = false, enabled = !busy) { Ui.push(Route.PrivacyR) }
+            Btn(stringResource(R.string.pair_privacy_policy), Modifier.fillMaxWidth(), primary = false, enabled = !busy) { Ui.push(Route.PrivacyR) }
             Spacer(Modifier.height(8.dp))
-            Btn("Licenses", primary = false, enabled = !busy) { Ui.push(Route.LegalR()) }
+            Btn(stringResource(R.string.pair_licenses), primary = false, enabled = !busy) { Ui.push(Route.LegalR()) }
         }
         Spacer(Modifier.height(30.dp))
     }
@@ -464,7 +465,7 @@ fun ComposeSheet() {
                 externalFlags?.let { ExternalShare.validate(ctx, u, it) }
                 atts += uploadUri(ctx, u, kind, generation)
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { Ui.say("Upload failed: ${e.message}") }
+            catch (e: Exception) { Ui.say(R.string.attach_upload_failed, e.message) }
             finally { busy = false }
         }
     }
@@ -473,12 +474,12 @@ fun ComposeSheet() {
     val cam = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val f = camPath?.let(::File); if (ok && f != null) scope.launch { busy = true; runCatching { atts += uploadFile(f, "image/jpeg", "image") }.onFailure { Ui.say(it.message) }; busy = false }
     }
-    val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say("Could not start recording: ${it.message}") }.getOrNull() else Ui.say("Microphone permission denied. You can still type a message.") }
+    val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say(R.string.record_start_failed, it.message) }.getOrNull() else Ui.say(R.string.record_mic_denied) }
     // The camera app takes the photo (TakePicture). Full asks for its declared CAMERA grant first; Play declares none.
     val camera = rememberCameraStart(open = {
         val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path
-        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") }
-    }, denied = { Ui.say("Camera permission denied. You can still attach a photo.") })
+        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say(R.string.attach_no_camera_app) }
+    }, denied = { Ui.say(R.string.attach_camera_denied) })
     val shared = Ui.share.value
     LaunchedEffect(shared) {
         shared?.let { s ->
@@ -504,27 +505,27 @@ fun ComposeSheet() {
                     val o = Ctl.apply(cid, JSONObject(pk.toString()))
                     val c = o.optJSONObject("confirm")
                     if (c != null) Ctl.confirm(cid, c.str("id"), "once")
-                    else if (!o.optBoolean("ok", true)) Ui.say("Model not switched: " + Hub.plain(o.str("error")).take(160))
+                    else if (!o.optBoolean("ok", true)) Ui.say(R.string.compose_model_not_switched, Hub.plain(o.str("error")).take(160))
                 }
                 Hub.send(cid, t, "send", atts.toList())
                 mpick = null
                 text = ""; atts.clear()
                 Ui.open(cid)
-            } catch (e: Exception) { Ui.say("Couldn't start: " + e.message) } finally { busy = false }
+            } catch (e: Exception) { Ui.say(R.string.compose_start_failed, e.message) } finally { busy = false }
         }
     }
     ModalBottomSheet(onDismissRequest = { rec?.cancel(); Ui.share.value = null; Ui.composeOpen.value = false }, sheetState = sheet, containerColor = p.s1,
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
         Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("New work", style = serif(36f, p.tx), modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.compose_title), style = serif(36f, p.tx), modifier = Modifier.weight(1f))
                 IconBtn(Ic.mic, p.acct, 40.dp, p.accd) { Ui.composeOpen.value = false; Ui.push(Route.TalkR) }
             }
             if (lastReply != null && text.isBlank()) {
                 Row(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.s2).clickable { Ui.open(lastReply.id) }
                     .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Continue last reply", style = sans(13.5f, 600, p.tx))
+                        Text(stringResource(R.string.compose_continue_last_reply), style = sans(13.5f, 600, p.tx))
                         Text(lastReply.title + " · " + lastReply.preview, style = sans(12.5f, 400, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Icn(Ic.chevR, p.mu, 16.dp)
@@ -532,7 +533,7 @@ fun ComposeSheet() {
             }
             if (profs.size > 1) {
                 Spacer(Modifier.height(12.dp))
-                Text("New chat in", style = mono(11f, 600, p.mu))
+                Text(stringResource(R.string.compose_new_chat_in), style = mono(11f, 600, p.mu))
                 Row(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (x in profs) Chip(x, x == prof) { prof = x }
                 }
@@ -541,10 +542,10 @@ fun ComposeSheet() {
             if (prof == "default") FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ComposeModelControl(mpick) { mpick = it }
                 Spacer(Modifier.width(8.dp))
-                Chip("Mixture of agents", text.startsWith("/moa ")) { text = if (text.startsWith("/moa ")) text.removePrefix("/moa ") else "/moa " + text }
-            } else Text("Runs in the $prof profile with its own model, memory and keys.", style = sans(12.5f, 400, p.mu))
+                Chip(stringResource(R.string.compose_mixture_of_agents), text.startsWith("/moa ")) { text = if (text.startsWith("/moa ")) text.removePrefix("/moa ") else "/moa " + text }
+            } else Text(stringResource(R.string.compose_profile_note, prof), style = sans(12.5f, 400, p.mu))
             Spacer(Modifier.height(10.dp))
-            InputBox(text, { text = it }, "Ask ${agentName()} anything, or type / for commands", Modifier.fillMaxWidth().heightIn(min = 120.dp), minLines = 4, maxLines = 10)
+            InputBox(text, { text = it }, stringResource(R.string.compose_placeholder, agentName()), Modifier.fillMaxWidth().heightIn(min = 120.dp), minLines = 4, maxLines = 10)
             SlashSuggest(text, { text = it }, Modifier.padding(top = 6.dp))
             if (atts.isNotEmpty()) AttRow(atts)
             AttachmentPrivacyNotice(Modifier.padding(top = 8.dp))
@@ -557,24 +558,24 @@ fun ComposeSheet() {
                 }
             } else Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SrcBtn(Ic.mic, "Voice") { if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) rec = runCatching { Recorder(ctx) }.getOrNull() else mic.launch(Manifest.permission.RECORD_AUDIO) }
-                SrcBtn(Ic.camera, "Camera") { camera() }
-                SrcBtn(Ic.plus, "Photo") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-                SrcBtn(Ic.file, "File") { doc.launch(arrayOf("*/*")) }
+                SrcBtn(Ic.mic, stringResource(R.string.attach_voice)) { if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) rec = runCatching { Recorder(ctx) }.getOrNull() else mic.launch(Manifest.permission.RECORD_AUDIO) }
+                SrcBtn(Ic.camera, stringResource(R.string.attach_camera)) { camera() }
+                SrcBtn(Ic.plus, stringResource(R.string.attach_photo)) { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                SrcBtn(Ic.file, stringResource(R.string.attach_file)) { doc.launch(arrayOf("*/*")) }
                 }
                 IconBtn(Ic.send, p.ink, 50.dp, p.acc, enabled = !busy && (text.isNotBlank() || atts.isNotEmpty())) { send() }
             }
             Spacer(Modifier.height(18.dp))
         }
     }
-    if (shared?.uri != null) HDialog("Upload shared file?", onDismiss = { Ui.share.value = null }, body = {
-        Text("This uploads the shared file to ${Prefs.base ?: "your paired machine"}. Nothing is uploaded until you confirm.", style = sans(15f, 400, p.tx2))
+    if (shared?.uri != null) HDialog(stringResource(R.string.attach_share_title), onDismiss = { Ui.share.value = null }, body = {
+        Text(Prefs.base?.let { stringResource(R.string.attach_share_body, it) } ?: stringResource(R.string.attach_share_body_default), style = sans(15f, 400, p.tx2))
     }, actions = {
-        Btn("Cancel", primary = false) { Ui.share.value = null }
-        Btn("Upload", enabled = !busy) {
+        Btn(stringResource(R.string.common_cancel), primary = false) { Ui.share.value = null }
+        Btn(stringResource(R.string.attach_upload), enabled = !busy) {
             Ui.share.value = null
             val generation = shared.generation ?: Api.epoch.capture()
-            if (generation != Api.epoch.capture()) Ui.say("Machine changed. Share the file again.")
+            if (generation != Api.epoch.capture()) Ui.say(R.string.attach_share_machine_changed)
             else add(shared.uri, generation = generation, externalFlags = shared.flags)
         }
     })
@@ -582,7 +583,7 @@ fun ComposeSheet() {
 
 @Composable
 fun AttachmentPrivacyNotice(modifier: Modifier = Modifier) {
-    Text("Files and photos upload to your paired gateway when selected, before Send. Removing a draft does not delete its server copy.",
+    Text(stringResource(R.string.attach_privacy_notice),
         style = sans(12.5f, 400, P.tx2, 18f), modifier = modifier)
 }
 
@@ -616,7 +617,7 @@ fun RecordBar(r: Recorder, onCancel: () -> Unit, onSend: () -> Unit) {
         IconBtn(Ic.x, p.mu, 42.dp) { onCancel() }
         LiveDot(9.dp, p.att)
         Spacer(Modifier.width(10.dp))
-        Text("Recording", style = sans(15f, 500, p.tx))
+        Text(stringResource(R.string.record_recording), style = sans(15f, 500, p.tx))
         Spacer(Modifier.width(10.dp))
         Elapsed(r.started / 1000.0, mono(14f, 500, p.mu))
         Spacer(Modifier.weight(1f))

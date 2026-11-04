@@ -200,14 +200,14 @@ internal fun SupportDialog(
         if (Ui.supportRequest.value?.id == request.id) Ui.supportRequest.value = null
     }
     if (stage == "actions") {
-        HDialog("Message actions", onDismiss = dismiss, body = {
-            Text("Copy the message, or review a voluntary report. Nothing is sent until you choose Send report or send from your mail app.", style = sans(13.5f, 400, p.tx2, 19f))
+        HDialog(stringResource(R.string.support_message_actions), onDismiss = dismiss, body = {
+            Text(stringResource(R.string.support_actions_body), style = sans(13.5f, 400, p.tx2, 19f))
         }, actions = {
-            Btn("Cancel", primary = false) { dismiss() }
-            Btn("Copy", primary = false) {
-                Support.act(request) { cb.setText(AnnotatedString(request.text.orEmpty())); dismiss(); Ui.say("Copied") }
+            Btn(stringResource(R.string.common_cancel), primary = false) { dismiss() }
+            Btn(stringResource(R.string.common_copy), primary = false) {
+                Support.act(request) { cb.setText(AnnotatedString(request.text.orEmpty())); dismiss(); Ui.say(R.string.common_copied) }
             }
-            Btn("Report") { Support.act(request) { stage = "edit" } }
+            Btn(stringResource(R.string.support_report)) { Support.act(request) { stage = "edit" } }
         })
         return
     }
@@ -223,55 +223,54 @@ internal fun SupportDialog(
     val draftId = rememberSaveable(body) { UUID.randomUUID().toString() }
     val draft = remember(body, draftId) { PublisherReportDraft(body, draftId) }
     var received by rememberSaveable(draftId) { mutableStateOf(false) }
-    HDialog(if (stage == "preview") "Review report" else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
+    HDialog(if (stage == "preview") stringResource(R.string.support_review_title) else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
         Text(SupportCopy.INTRO, style = sans(13.5f, 400, p.tx2, 19f))
         Spacer(Modifier.height(12.dp))
-        Btn("Privacy policy", Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
+        Btn(stringResource(R.string.support_privacy_policy), Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
             Support.act(request) { Ui.push(Route.PrivacyR) }
         }
-        Text("Opening the policy closes this unsent draft.", style = sans(12.5f, 400, p.tx2, 18f))
+        Text(stringResource(R.string.support_policy_closes_draft), style = sans(12.5f, 400, p.tx2, 18f))
         Spacer(Modifier.height(12.dp))
         if (stage == "preview") {
-            Text("Publisher endpoint: " + PublisherReports.ENDPOINT, style = sans(12.5f, 400, p.tx2, 18f))
+            Text(stringResource(R.string.support_endpoint, PublisherReports.ENDPOINT), style = sans(12.5f, 400, p.tx2, 18f))
             androidx.compose.foundation.text.selection.SelectionContainer {
-                Text("Report ID: " + draft.id, style = mono(12.5f, 500, p.tx2))
+                Text(stringResource(R.string.support_report_id, draft.id), style = mono(12.5f, 500, p.tx2))
             }
-            Text("Keep this ID for retry or deletion requests.", style = sans(12.5f, 400, p.tx2, 18f))
-            Text("Email alternative: " + stringResource(R.string.report_email), style = sans(14f, 600, p.tx))
-            Text("Mail subject: " + SupportCopy.SUBJECT, style = sans(14f, 600, p.tx))
+            Text(stringResource(R.string.support_keep_id), style = sans(12.5f, 400, p.tx2, 18f))
+            Text(stringResource(R.string.support_email_alternative, stringResource(R.string.report_email)), style = sans(14f, 600, p.tx))
             Spacer(Modifier.height(12.dp))
             // No ellipsis or collapsed section: both destinations get exactly this text.
             Text(body, style = sans(13.5f, 400, p.tx, 19f))
             if (received) Text(SupportCopy.RECEIPT, style = sans(13.5f, 600, p.tx2, 19f))
-            if (sendError) Text("No confirmed receipt. Your draft is still here. Tap Send report to retry the same report ID, or use email. A failed or cancelled connection may still have delivered it; nothing retries automatically.", style = sans(13.5f, 600, p.tx2, 19f))
+            if (sendError) Text(stringResource(R.string.support_send_failed), style = sans(13.5f, 600, p.tx2, 19f))
             if (mailError) {
                 Spacer(Modifier.height(12.dp))
-                Text("Could not open a mail app. Your draft is still here. You can email " + stringResource(R.string.report_email) + " yourself.", style = sans(13.5f, 600, p.tx2, 19f))
+                Text(stringResource(R.string.support_mail_failed, stringResource(R.string.report_email)), style = sans(13.5f, 600, p.tx2, 19f))
             }
         } else {
             InputBox(note, { value ->
                 noteTooLong = value.toByteArray(Charsets.UTF_8).size > SupportPayload.BODY_UTF8_LIMIT
                 if (!noteTooLong) note = value
-            }, "What went wrong? (optional)", Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, size = 14.5f)
-            if (noteTooLong) Text("That edit exceeds the 8 KiB draft limit. Shorten it; the previous note is unchanged.", style = sans(12.5f, 500, p.tx2))
-            Text("App version, package, Android version and device model are included in the preview. Review for secrets before sending. No gateway address or tokens are added automatically; no attachments or other chat history are included. Long reports are shortened in the preview to the 8 KiB limit. Email shares the same draft with your mail app; you choose whether to send it there.", style = sans(12.5f, 400, p.mu, 18f))
+            }, stringResource(R.string.support_note_hint), Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, size = 14.5f)
+            if (noteTooLong) Text(stringResource(R.string.support_note_too_long), style = sans(12.5f, 500, p.tx2))
+            Text(stringResource(R.string.support_included), style = sans(12.5f, 400, p.mu, 18f))
             if (!request.text.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 val includeLabel = stringResource(R.string.report_include)
                 Text(includeLabel, style = sans(14.5f, 600, p.tx), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(include, role = Role.Switch) { include = !include }.padding(horizontal = 2.dp, vertical = 12.dp))
-                Text("Only this selected message's text, including any reasoning. No attachments or other messages. Review it for secrets and personal information.", style = sans(12.5f, 400, p.mu, 18f))
-            } else Text("No chat messages or attachments are included.", style = sans(12.5f, 400, p.mu, 18f))
+                Text(stringResource(R.string.support_include_detail), style = sans(12.5f, 400, p.mu, 18f))
+            } else Text(stringResource(R.string.support_no_messages), style = sans(12.5f, 400, p.mu, 18f))
         }
     }, actions = {
-        Btn("Cancel", primary = false) { dismiss() }
+        Btn(stringResource(R.string.common_cancel), primary = false) { dismiss() }
         if (stage == "preview") {
-            Btn("Edit", primary = false, enabled = !sending) { Support.act(request) { stage = "edit"; mailError = false; sendError = false } }
-            Btn("Open mail app", primary = false, enabled = !sending) {
+            Btn(stringResource(R.string.common_edit), primary = false, enabled = !sending) { Support.act(request) { stage = "edit"; mailError = false; sendError = false } }
+            Btn(stringResource(R.string.support_open_mail), primary = false, enabled = !sending) {
                 Support.act(request) {
                     if (Support.openMail(ctx, body)) dismiss() else mailError = true
                 }
             }
-            Btn(if (sending) "Sending…" else if (received) "Received" else "Send report", enabled = !sending && !received) {
+            Btn(stringResource(if (sending) R.string.support_sending else if (received) R.string.support_received_button else R.string.support_send), enabled = !sending && !received) {
                 Support.act(request) {
                     // Set synchronously before launching: duplicate taps cannot enqueue uploads.
                     if (!sending && !received) {
@@ -294,7 +293,7 @@ internal fun SupportDialog(
                     }
                 }
             }
-        } else Btn("Review report") { Support.act(request) { stage = "preview" } }
+        } else Btn(stringResource(R.string.support_review_button)) { Support.act(request) { stage = "preview" } }
     })
 }
 
@@ -308,7 +307,7 @@ fun ReportProblemRow() {
 @Composable
 fun Modifier.reportable(message: Msg): Modifier {
     val haptic = LocalHapticFeedback.current
-    return if (message.content.isBlank()) this else combinedClickable(onClick = {}, onLongClickLabel = "Message actions", onLongClick = {
+    return if (message.content.isBlank()) this else combinedClickable(onClick = {}, onLongClickLabel = stringResource(R.string.support_message_actions), onLongClick = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         Support.open(message)
     })

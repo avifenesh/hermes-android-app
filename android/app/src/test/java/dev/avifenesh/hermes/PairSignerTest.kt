@@ -11,6 +11,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.io.BufferedReader
 import java.io.IOException
@@ -31,6 +32,8 @@ import kotlin.concurrent.thread
  * replay the server refuses, so every network attempt must carry its own. Real OkHttp, real loopback sockets.
  */
 class PairSignerTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     private class Box : AutoCloseable {
         val listener = ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"))
         val url = "http://127.0.0.1:${listener.localPort}"

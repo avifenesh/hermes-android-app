@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -248,7 +249,7 @@ object VoicePlayer {
     fun resume(c: Context) {
         val p = mp ?: return
         // Asked every time: a request kept through a transient loss does not mean focus is ours again.
-        if (!gate(c).acquire()) { Ui.say("Audio is busy. Try again in a moment."); return }
+        if (!gate(c).acquire()) { Ui.say(R.string.voice_audio_busy); return }
         start(p)
     }
 
@@ -400,7 +401,7 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     fun play(f: File, fromMs: Long = 0) {
-        runCatching { VoicePlayer.play(ctx, id, f, fromMs) }.onFailure { Ui.say("Can't play this voice message") }
+        runCatching { VoicePlayer.play(ctx, id, f, fromMs) }.onFailure { Ui.say(R.string.voice_cant_play) }
     }
     suspend fun download() {
         val got = try { fetch(ctx, id, name, size) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
@@ -433,7 +434,7 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
         onToggle = {
             val f = file
             when {
-                f != null -> runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say("Can't play this voice message") }
+                f != null -> runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say(R.string.voice_cant_play) }
                 else -> {
                     val t = VoiceTaps.tap(state, tapStarted = tapJob != null)
                     state = t.state
@@ -481,21 +482,22 @@ fun VoiceBubbleContent(
             itemVerticalAlignment = Alignment.CenterVertically) {
             val length = if (durationMs > 0) VoiceMath.clock(durationMs, total = true) else null
             val time = when {
-                fetch == VoiceFetch.FAILED -> "Couldn't load · tap to retry"
-                fetch == VoiceFetch.WAITING -> "Loading…"
-                fetch == VoiceFetch.MANUAL -> listOfNotNull(length, sizeBytes?.let { sizeStr(it) }, "tap to load").joinToString(" · ")
+                fetch == VoiceFetch.FAILED -> stringResource(R.string.voice_load_failed)
+                fetch == VoiceFetch.WAITING -> stringResource(R.string.common_loading)
+                fetch == VoiceFetch.MANUAL -> listOfNotNull(length, sizeBytes?.let { sizeStr(it) }, stringResource(R.string.voice_tap_to_load)).joinToString(" · ")
                 current -> VoiceMath.clock(pos) + " / " + (length ?: "--:--")
                 length != null -> length
-                else -> "Voice message"
+                else -> stringResource(R.string.voice_message)
             }
             Text(time, style = mono(11.5f, 500, when { fetch == VoiceFetch.FAILED -> p.attt; current || fetch == VoiceFetch.WAITING -> p.acct; else -> p.mu }),
                 modifier = Modifier.padding(end = 8.dp, bottom = if (transcript.isBlank()) 2.dp else 0.dp))
             if (transcript.isNotBlank()) {
+                val toggleLabel = stringResource(if (open) R.string.voice_transcript_hide else R.string.voice_transcript_show)
                 Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
-                    .semantics { stateDescription = if (open) "Expanded" else "Collapsed" }
-                    .clickable(role = Role.Button, onClickLabel = if (open) "Hide transcript" else "Show transcript") { open = !open }
+                    .semantics { stateDescription = str(if (open) R.string.voice_transcript_expanded else R.string.voice_transcript_collapsed) }
+                    .clickable(role = Role.Button, onClickLabel = toggleLabel) { open = !open }
                     .padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Transcript", style = mono(11.5f, 600, p.mu))
+                    Text(stringResource(R.string.voice_transcript), style = mono(11.5f, 600, p.mu))
                     Spacer(Modifier.width(4.dp))
                     Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 14.dp)
                 }
@@ -509,14 +511,14 @@ fun VoiceBubbleContent(
 @Composable
 private fun PlayButton(playing: Boolean, fetch: VoiceFetch, durationMs: Long, tapStarted: Boolean, onClick: () -> Unit) {
     val p = P
-    val length = if (durationMs > 0) ", " + VoiceMath.spoken(durationMs) else ""
+    val length = if (durationMs > 0) VoiceMath.spoken(durationMs) else null
     val label = when {
-        fetch == VoiceFetch.FAILED -> "Retry voice message"
-        fetch == VoiceFetch.WAITING && tapStarted -> "Loading voice message, tap to cancel the download"
-        fetch == VoiceFetch.WAITING -> "Loading voice message, plays when it arrives. Tap to not play it"
-        fetch == VoiceFetch.MANUAL -> "Load and play voice message$length"
-        playing -> "Pause voice message"
-        else -> "Play voice message$length"
+        fetch == VoiceFetch.FAILED -> stringResource(R.string.voice_retry_desc)
+        fetch == VoiceFetch.WAITING && tapStarted -> stringResource(R.string.voice_loading_cancel_desc)
+        fetch == VoiceFetch.WAITING -> stringResource(R.string.voice_loading_autoplay_desc)
+        fetch == VoiceFetch.MANUAL -> if (length != null) stringResource(R.string.voice_load_play_length_desc, length) else stringResource(R.string.voice_load_play_desc)
+        playing -> stringResource(R.string.voice_pause_desc)
+        else -> if (length != null) stringResource(R.string.voice_play_length_desc, length) else stringResource(R.string.voice_play_desc)
     }
     val quiet = fetch == VoiceFetch.FAILED || fetch == VoiceFetch.MANUAL
     Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = label }
@@ -552,8 +554,8 @@ private fun SpeedChip(speed: Float, mine: Boolean, onClick: () -> Unit) {
     val p = P
     val label = VoiceMath.speedLabel(speed)
     Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(12.dp))
-        .semantics { contentDescription = "Playback speed $label" }
-        .clickable(role = Role.Button, onClickLabel = "Change playback speed", onClick = onClick), contentAlignment = Alignment.Center) {
+        .semantics { contentDescription = str(R.string.voice_speed_desc, label) }
+        .clickable(role = Role.Button, onClickLabel = stringResource(R.string.voice_speed_change), onClick = onClick), contentAlignment = Alignment.Center) {
         Text(label, style = mono(11.5f, 600, if (speed != 1f) p.acct else p.tx2), modifier = Modifier.clearAndSetSemantics { }
             .clip(RoundedCornerShape(8.dp)).background(if (mine) p.s4 else p.s3).padding(horizontal = 7.dp, vertical = 3.dp))
     }
@@ -586,14 +588,14 @@ private fun Waveform(
         // Its own node: inside a long-pressable message bubble, which merges its children, TalkBack must still
         // reach the waveform as a separate seek control.
         .semantics(mergeDescendants = true) {
-            contentDescription = "Voice message position"
-            stateDescription = if (durationMs > 0) VoiceMath.spoken(pos) + " of " + VoiceMath.spoken(durationMs) else "Length unknown"
+            contentDescription = str(R.string.voice_position_desc)
+            stateDescription = if (durationMs > 0) str(R.string.voice_position_state, VoiceMath.spoken(pos), VoiceMath.spoken(durationMs)) else str(R.string.voice_length_unknown)
             if (durationMs > 0) {
                 progressBarRangeInfo = ProgressBarRangeInfo(pos / 1000f, 0f..durationMs / 1000f)
-                setProgress("Seek") { v -> onSeek(VoiceMath.seekMs(v * 1000f / durationMs, durationMs)); true }
+                setProgress(str(R.string.voice_seek)) { v -> onSeek(VoiceMath.seekMs(v * 1000f / durationMs, durationMs)); true }
                 customActions = listOf(
-                    CustomAccessibilityAction("Back 5 seconds") { onSeek(VoiceMath.step(pos, durationMs, -5000)); true },
-                    CustomAccessibilityAction("Forward 5 seconds") { onSeek(VoiceMath.step(pos, durationMs, 5000)); true },
+                    CustomAccessibilityAction(str(R.string.voice_seek_back)) { onSeek(VoiceMath.step(pos, durationMs, -5000)); true },
+                    CustomAccessibilityAction(str(R.string.voice_seek_forward)) { onSeek(VoiceMath.step(pos, durationMs, 5000)); true },
                 )
             }
         }) {

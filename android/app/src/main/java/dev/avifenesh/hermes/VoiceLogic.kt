@@ -105,15 +105,16 @@ object VoiceMath {
         return if (s < 3600) "%d:%02d".format(s / 60, s % 60) else "%d:%02d:%02d".format(s / 3600, (s / 60) % 60, s % 60)
     }
 
-    /** Spoken form for accessibility: "45 seconds", "1 minute 5 seconds", "1 hour 2 minutes". */
+    /** Spoken form for accessibility: "45 seconds", "1 minute 5 seconds", "1 hour 2 minutes" (app-language resources). */
     fun spoken(ms: Long): String {
         val s = (ms.coerceAtLeast(0) + 500) / 1000
-        fun unit(n: Long, w: String) = "$n $w" + if (n == 1L) "" else "s"
+        fun unit(n: Long, id: Int) = n.toInt().let { plural(id, it, it) }
+        fun pair(a: String, b: String?) = if (b == null) a else str(R.string.voice_spoken_pair, a, b)
         val h = s / 3600; val m = (s / 60) % 60; val sec = s % 60
         return when {
-            h > 0 -> listOfNotNull(unit(h, "hour"), m.takeIf { it > 0 }?.let { unit(it, "minute") }).joinToString(" ")
-            m > 0 -> listOfNotNull(unit(m, "minute"), sec.takeIf { it > 0 }?.let { unit(it, "second") }).joinToString(" ")
-            else -> unit(sec, "second")
+            h > 0 -> pair(unit(h, R.plurals.voice_spoken_hours), m.takeIf { it > 0 }?.let { unit(it, R.plurals.voice_spoken_minutes) })
+            m > 0 -> pair(unit(m, R.plurals.voice_spoken_minutes), sec.takeIf { it > 0 }?.let { unit(it, R.plurals.voice_spoken_seconds) })
+            else -> unit(sec, R.plurals.voice_spoken_seconds)
         }
     }
 

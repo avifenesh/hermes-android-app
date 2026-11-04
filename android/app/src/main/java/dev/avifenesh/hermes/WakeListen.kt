@@ -40,20 +40,20 @@ class WakeListenService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "stop") { Prefs.wakeWord = false; WakeListen.state.value = "off"; stopSelf(); return START_NOT_STICKY }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            WakeListen.state.value = "error:Microphone permission needed"; stopSelf(); return START_NOT_STICKY
+            WakeListen.state.value = "error:" + str(R.string.wakeword_mic_needed); stopSelf(); return START_NOT_STICKY
         }
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
-            WakeListen.state.value = "error:This device has no microphone"; stopSelf(); return START_NOT_STICKY
+            WakeListen.state.value = "error:" + str(R.string.wakeword_no_mic); stopSelf(); return START_NOT_STICKY
         }
         if (!WakeListen.notificationsReady(this)) {
-            WakeListen.state.value = "error:Allow Wake word notifications in Android settings so Turn off stays available"
+            WakeListen.state.value = "error:" + str(R.string.wakeword_allow_notifications)
             stopSelf(); return START_NOT_STICKY
         }
         try {
             ServiceCompat.startForeground(this, 11, note(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: RuntimeException) {
             Log.w(TAG, "foreground start rejected", e)
-            WakeListen.state.value = "error:Open $APP_NAME to resume wake word listening"
+            WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME)
             stopSelf(); return START_NOT_STICKY
         }
         // Debug builds: feed a 16 kHz WAV through the live detector instead of the mic (emulators have no mic input).
@@ -64,11 +64,11 @@ class WakeListenService : Service() {
     }
 
     private fun note() = NotificationCompat.Builder(this, WakeListen.CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt())
-        .setContentTitle("Listening for \u201c${WakeWord.label(Prefs.wakePhrase)}\u201d")
-        .setContentText("On-device. Nothing leaves the phone until you say it.")
+        .setContentTitle(str(R.string.wakeword_notif_title, WakeWord.label(Prefs.wakePhrase)))
+        .setContentText(str(R.string.wakeword_notif_text))
         .setOngoing(true).setSilent(true).setShowWhen(false)
         .setContentIntent(PendingIntent.getActivity(this, 48, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE))
-        .addAction(0, "Turn off", PendingIntent.getService(this, 49, Intent(this, WakeListenService::class.java).setAction("stop"), PendingIntent.FLAG_IMMUTABLE))
+        .addAction(0, str(R.string.wakeword_turn_off), PendingIntent.getService(this, 49, Intent(this, WakeListenService::class.java).setAction("stop"), PendingIntent.FLAG_IMMUTABLE))
         .build()
 
     @SuppressLint("MissingPermission")
@@ -76,7 +76,7 @@ class WakeListenService : Service() {
         val ww = try {
             WakeWord.load(assets, Prefs.wakeThreshold)
         } catch (e: Throwable) {
-            Log.e(TAG, "model load failed", e); WakeListen.state.value = "error:Wake model failed to load"; stopSelf(); return
+            Log.e(TAG, "model load failed", e); WakeListen.state.value = "error:" + str(R.string.wakeword_model_failed); stopSelf(); return
         }
         val min = AudioRecord.getMinBufferSize(WakeWord.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val buf = ShortArray(WakeWord.CHUNK)
@@ -96,11 +96,11 @@ class WakeListenService : Service() {
                     val recorderOrigin = Api.epoch.capture()
                     rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, WakeWord.RATE, AudioFormat.CHANNEL_IN_MONO,
                         AudioFormat.ENCODING_PCM_16BIT, maxOf(min, WakeWord.CHUNK * 4))
-                    check(rec.state == AudioRecord.STATE_INITIALIZED) { "Microphone unavailable. Close other recording apps and try again." }
+                    check(rec.state == AudioRecord.STATE_INITIALIZED) { str(R.string.wakeword_mic_unavailable) }
                     activeRecorder = rec
                     if (!run) break
                     rec.startRecording()
-                    check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "Microphone could not start" }
+                    check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { str(R.string.wakeword_mic_start_failed) }
                     cutoff = Prefs.wakeThreshold
                     ww.reset(cutoff)
                     streamOrigin = recorderOrigin
@@ -124,7 +124,7 @@ class WakeListenService : Service() {
                 while (got < buf.size && run) {
                     val n = rec.read(buf, got, buf.size - got)
                     if (!run) break
-                    check(n > 0) { "Microphone stopped ($n). Reopen $APP_NAME to try again." }
+                    check(n > 0) { str(R.string.wakeword_mic_stopped, n, APP_NAME) }
                     got += n
                 }
                 if (!run) break
@@ -167,7 +167,7 @@ class WakeListenService : Service() {
                 }
             }
         } catch (e: Throwable) {
-            if (run) { Log.e(TAG, "loop failed", e); WakeListen.state.value = "error:" + (e.message ?: "listening failed") }
+            if (run) { Log.e(TAG, "loop failed", e); WakeListen.state.value = "error:" + (e.message ?: str(R.string.wakeword_listening_failed)) }
         } finally {
             activeRecorder = null
             rec?.let { runCatching { it.stop() }; runCatching { it.release() } }
@@ -195,8 +195,8 @@ class WakeListenService : Service() {
             val pi = PendingIntent.getActivity(this, 50, i,
                 PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE, options)
             runCatching { getSystemService(NotificationManager::class.java).notify(12, NotificationCompat.Builder(this, WakeListen.CH_HIT)
-                .setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt()).setContentTitle("Wake word heard")
-                .setContentText("Tap to talk with " + Hub.agent.value).setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt()).setContentTitle(str(R.string.wakeword_heard))
+                .setContentText(str(R.string.wakeword_heard_text, Hub.agent.value)).setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true).setContentIntent(pi).build()) }
         }
         // Existing detector mic-pause recovery only; not a deadline for unlocking/tapping.
@@ -232,8 +232,8 @@ object WakeListen {
 
     fun channels(c: Context) {
         c.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(
-            NotificationChannel(CH, "Wake word", NotificationManager.IMPORTANCE_MIN).apply { description = "Shown while listening for the wake word"; setShowBadge(false) },
-            NotificationChannel(CH_HIT, "Wake word heard", NotificationManager.IMPORTANCE_HIGH).apply { description = "Opens Talk when you say the wake word"; setShowBadge(false) },
+            NotificationChannel(CH, str(R.string.wakeword_channel), NotificationManager.IMPORTANCE_MIN).apply { description = str(R.string.wakeword_channel_desc); setShowBadge(false) },
+            NotificationChannel(CH_HIT, str(R.string.wakeword_heard), NotificationManager.IMPORTANCE_HIGH).apply { description = str(R.string.wakeword_heard_channel_desc); setShowBadge(false) },
         ))
     }
 
@@ -249,15 +249,15 @@ object WakeListen {
         val i = Intent(c, WakeListenService::class.java)
         if (!Prefs.wakeWord || !Prefs.paired) { VoiceLaunch.gate.invalidate(); VoiceSession.revokeWake(); c.stopService(i); return }
         val error = when {
-            !c.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE) -> "This device has no microphone"
-            ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> "Microphone permission needed. Allow it in Android app settings."
-            !notificationsReady(c) -> "Allow Wake word notifications in Android settings so Turn off stays available"
+            !c.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE) -> str(R.string.wakeword_no_mic)
+            ContextCompat.checkSelfPermission(c, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> str(R.string.wakeword_mic_needed_settings)
+            !notificationsReady(c) -> str(R.string.wakeword_allow_notifications)
             else -> null
         }
         if (error != null) { state.value = "error:$error"; c.stopService(i); return }
-        if (!Hub.foreground) { state.value = "error:Open $APP_NAME to resume wake word listening"; return }
+        if (!Hub.foreground) { state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME); return }
         runCatching { ContextCompat.startForegroundService(c, i) }
-            .onFailure { state.value = "error:Android blocked listening. Open $APP_NAME and try again." }
+            .onFailure { state.value = "error:" + str(R.string.wakeword_blocked, APP_NAME) }
     }
 
     /** Talk tells the detector when it holds the mic. */

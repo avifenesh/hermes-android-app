@@ -122,7 +122,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        <receiver android:name=".FleetWidget" android:exported="true" android:label="Hermes fleet">
+        <receiver android:name=".FleetWidget" android:exported="true" android:label="@string/widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

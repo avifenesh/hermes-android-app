@@ -42,7 +42,7 @@ object RoomLogic {
 
     fun room(o: JSONObject): Room {
         val p = o.optJSONObject("preview")
-        return Room(o.str("id"), o.str("name").ifBlank { "Group chat" }, o.optJSONArray("members").objs().map(::member),
+        return Room(o.str("id"), o.str("name").ifBlank { str(R.string.room_default_name) }, o.optJSONArray("members").objs().map(::member),
             o.optLong("latest_seq"), o.optLong("read_seq"), o.optInt("unread"), o.optDouble("updated", 0.0),
             o.optJSONArray("working").strs(),
             p?.let { RoomPreview(it.optLong("seq"), it.str("role"), it.str("name"), it.str("text"), it.optDouble("ts", 0.0)) },
@@ -164,23 +164,25 @@ object RoomLogic {
 
     fun workingLine(names: List<String>): String = when (names.size) {
         0 -> ""
-        1 -> "${names[0]} is answering"
-        2 -> "${names[0]} and ${names[1]} are answering"
-        else -> names.dropLast(1).joinToString(", ") + " and ${names.last()} are answering"
+        1 -> str(R.string.room_answering_one, names[0])
+        2 -> str(R.string.room_answering_two, names[0], names[1])
+        else -> str(R.string.room_answering_many, names.dropLast(1).joinToString(", "), names.last())
     }
 
     fun noticeText(e: RoomEvent): String {
-        val who = e.name.ifBlank { "A member" }
+        val who = e.name.ifBlank { str(R.string.room_notice_someone) }
         return when (e.notice) {
-            "turn.failed" -> "$who hit an error" + if (e.detail.isNotBlank()) ": " + e.detail.lineSequence().first() else ""
-            "turn.cancelled" -> if (e.detail == "superseded_by_newer_user_event") "$who moved on to your newer message" else "$who's turn was cancelled"
-            "turn.deferred" -> "$who is unavailable; the turn waits"
-            "member.unavailable" -> "$who is unavailable"
-            "room.stop_requested" -> "You stopped the group"
-            "room.disbanded" -> "This group was deleted"
-            "room.renamed" -> if (e.detail.isNotBlank()) "Renamed to ${e.detail}" else "Group renamed"
-            "authority.lost" -> "Another gateway took over this group"
-            "room.bounded" -> "Round limit reached; @mention a Bot to continue"
+            "turn.failed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_failed_detail, who, e.detail.lineSequence().first())
+                else str(R.string.room_notice_failed, who)
+            "turn.cancelled" -> if (e.detail == "superseded_by_newer_user_event") str(R.string.room_notice_superseded, who)
+                else str(R.string.room_notice_cancelled, who)
+            "turn.deferred" -> str(R.string.room_notice_deferred, who)
+            "member.unavailable" -> str(R.string.room_notice_unavailable, who)
+            "room.stop_requested" -> str(R.string.room_notice_stopped)
+            "room.disbanded" -> str(R.string.room_notice_deleted)
+            "room.renamed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_renamed_to, e.detail) else str(R.string.room_notice_renamed)
+            "authority.lost" -> str(R.string.room_notice_authority_lost)
+            "room.bounded" -> str(R.string.room_notice_round_limit)
             else -> e.notice
         }
     }
@@ -193,8 +195,8 @@ object RoomLogic {
     }
 
     fun previewLine(r: Room): String {
-        val p = r.preview ?: return "${r.members.size} members"
-        val who = if (p.role == "user") "You" else p.name.ifBlank { "Bot" }
+        val p = r.preview ?: return plural(R.plurals.rooms_member_count, r.members.size, r.members.size)
+        val who = if (p.role == "user") str(R.string.common_you) else p.name.ifBlank { "Bot" }
         return "$who: ${p.text}"
     }
 

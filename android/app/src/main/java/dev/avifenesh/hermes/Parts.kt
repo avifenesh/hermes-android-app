@@ -77,6 +77,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -248,7 +249,7 @@ suspend fun uploadUri(c: Context, u: Uri, kind: String? = null, generation: Long
     var name = "file"
     runCatching { cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) name = it.getString(0) ?: name } }
     checkpoint()
-    val snapshot = spoolUpload(cr.openInputStream(u) ?: throw java.io.IOException("Couldn't open attachment"), c.cacheDir, checkpoint)
+    val snapshot = spoolUpload(cr.openInputStream(u) ?: throw java.io.IOException(str(R.string.attach_open_failed)), c.cacheDir, checkpoint)
     try {
         Api.upload(name, mime, snapshot, generation).put("kind", kind ?: when {
             mime.startsWith("image/") -> "image"; mime.startsWith("audio/") -> "voice"; else -> "file"
@@ -296,7 +297,7 @@ suspend fun saveToDownloads(c: Context, f: File, name: String, mime: String?): U
         put(android.provider.MediaStore.Downloads.IS_PENDING, 1)
     }
     val r = c.contentResolver
-    val uri = r.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: throw IllegalStateException("Downloads unavailable")
+    val uri = r.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: throw IllegalStateException(str(R.string.file_downloads_unavailable))
     try {
         r.openOutputStream(uri)!!.use { out -> f.inputStream().use { it.copyTo(out) } }
         r.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.Downloads.IS_PENDING, 0) }, null, null)
@@ -378,7 +379,7 @@ fun RemoteImage(key: String, remote: Boolean = false, modifier: Modifier = Modif
         Image(b, null, modifier.widthIn(max = 320.dp).heightIn(max = 420.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Fit)
     } else {
         Box(modifier.width(220.dp).height(160.dp).clip(RoundedCornerShape(16.dp)).background(P.s2), contentAlignment = Alignment.Center) {
-            Text(if (failed) "Image unavailable" else "Loading…", style = mono(12f, 500, P.mu))
+            Text(if (failed) stringResource(R.string.image_unavailable) else stringResource(R.string.common_loading), style = mono(12f, 500, P.mu))
         }
     }
 }
@@ -707,9 +708,9 @@ fun CodeBlock(code: String, lang: String = "") {
     val cb = LocalClipboardManager.current
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(P.s2).border(1.dp, P.line, RoundedCornerShape(14.dp))) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(lang.ifBlank { "code" }, style = mono(11f, 500, P.mu))
+            Text(lang.ifBlank { stringResource(R.string.parts_code_label) }, style = mono(11f, 500, P.mu))
             Spacer(Modifier.weight(1f))
-            Text("copy", style = mono(11f, 500, P.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(code)); Ui.say("Copied") }.padding(8.dp))
+            Text(stringResource(R.string.parts_code_copy), style = mono(11f, 500, P.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(code)); Ui.say(R.string.common_copied) }.padding(8.dp))
         }
         Text(code, style = mono(13f, 400, P.tx), softWrap = false,
             modifier = Modifier.horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 12.dp))
@@ -745,35 +746,36 @@ fun MarkBox(size: Dp = 30.dp, bg: Color = P.acc) {
 fun Icn(v: ImageVector, tint: Color = P.tx, size: Dp = 22.dp, modifier: Modifier = Modifier) = Icon(v, null, tint = tint, modifier = modifier.size(size))
 
 /** Shared defaults for icon-only controls; callers can supply a contextual label. */
-fun iconLabel(v: ImageVector): String = when (v) {
-    Ic.back -> "Back"
-    Ic.x -> "Close"
-    Ic.plus -> "Add"
-    Ic.send -> "Send"
-    Ic.stop -> "Stop"
-    Ic.play -> "Run"
-    Ic.pause -> "Pause"
-    Ic.mic -> "Microphone"
-    Ic.camera -> "Camera"
-    Ic.search -> "Search"
-    Ic.refresh -> "Refresh"
-    Ic.more -> "More options"
-    Ic.trash -> "Delete"
-    Ic.edit -> "Edit"
-    Ic.pin -> "Pin"
-    Ic.download -> "Download"
-    Ic.chevR -> "Next"
-    Ic.chevD -> "Expand"
-    Ic.chevU -> "Collapse"
-    Ic.pen -> "New chat"
-    Ic.sliders -> "Settings"
-    Ic.link -> "Link"
-    Ic.file -> "File"
-    Ic.check -> "Confirm"
-    Ic.power -> "Power"
-    Ic.users -> "Members"
-    else -> "Open"
-}
+@Composable
+fun iconLabel(v: ImageVector): String = stringResource(when (v) {
+    Ic.back -> R.string.icon_back_desc
+    Ic.x -> R.string.icon_close_desc
+    Ic.plus -> R.string.icon_add_desc
+    Ic.send -> R.string.icon_send_desc
+    Ic.stop -> R.string.icon_stop_desc
+    Ic.play -> R.string.icon_run_desc
+    Ic.pause -> R.string.icon_pause_desc
+    Ic.mic -> R.string.icon_microphone_desc
+    Ic.camera -> R.string.icon_camera_desc
+    Ic.search -> R.string.icon_search_desc
+    Ic.refresh -> R.string.icon_refresh_desc
+    Ic.more -> R.string.icon_more_desc
+    Ic.trash -> R.string.icon_delete_desc
+    Ic.edit -> R.string.icon_edit_desc
+    Ic.pin -> R.string.icon_pin_desc
+    Ic.download -> R.string.icon_download_desc
+    Ic.chevR -> R.string.icon_next_desc
+    Ic.chevD -> R.string.icon_expand_desc
+    Ic.chevU -> R.string.icon_collapse_desc
+    Ic.pen -> R.string.icon_new_chat_desc
+    Ic.sliders -> R.string.icon_settings_desc
+    Ic.link -> R.string.icon_link_desc
+    Ic.file -> R.string.icon_file_desc
+    Ic.check -> R.string.icon_confirm_desc
+    Ic.power -> R.string.icon_power_desc
+    Ic.users -> R.string.icon_members_desc
+    else -> R.string.icon_open_desc
+})
 
 @Composable
 fun IconBtn(v: ImageVector, tint: Color = P.tx, size: Dp = 44.dp, bg: Color = Color.Transparent, enabled: Boolean = true, label: String = iconLabel(v), onClick: () -> Unit) {
@@ -949,7 +951,7 @@ fun FileChip(a: JSONObject, id: String, mime: String, mine: Boolean) {
         if (prog != null) return
         prog = 0f
         scope.launch {
-            runCatching { then(fetchMedia(ctx, id, name, sz) { p -> prog = p }) }.onFailure { Ui.say("Download failed: " + it.message) }
+            runCatching { then(fetchMedia(ctx, id, name, sz) { p -> prog = p }) }.onFailure { Ui.say(R.string.file_download_failed, it.message) }
             prog = null
         }
     }
@@ -961,15 +963,15 @@ fun FileChip(a: JSONObject, id: String, mime: String, mine: Boolean) {
             Text(name, style = sans(14f, 500, P.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val p = prog
             Text(when {
-                p != null -> "Downloading… ${(p * 100).toInt()}%" + (sz?.let { " of " + sizeStr(it) } ?: "")
-                else -> listOfNotNull(sz?.let { sizeStr(it) }, if (apk) "tap to install" else "tap to open").joinToString(" · ")
+                p != null -> sz?.let { stringResource(R.string.file_downloading_of, Fmt.percent((p * 100).toInt() / 100.0), sizeStr(it)) } ?: stringResource(R.string.file_downloading, Fmt.percent((p * 100).toInt() / 100.0))
+                else -> listOfNotNull(sz?.let { sizeStr(it) }, if (apk) stringResource(R.string.file_tap_to_install) else stringResource(R.string.file_tap_to_open)).joinToString(" · ")
             }, style = mono(11f, 500, if (p != null) P.acct else P.mu))
             if (p != null) Box(Modifier.padding(top = 4.dp).width(150.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(P.s3)) {
                 Box(Modifier.fillMaxWidth(p.coerceIn(0.02f, 1f)).height(3.dp).background(P.acc))
             }
         }
         Spacer(Modifier.width(4.dp))
-        IconBtn(Ic.download, P.tx2, 40.dp) { get { saveToDownloads(ctx, it, name, mime); Ui.say("Saved to Downloads: $name") } }
+        IconBtn(Ic.download, P.tx2, 40.dp) { get { saveToDownloads(ctx, it, name, mime); Ui.say(R.string.file_saved_to_downloads, name) } }
     }
 }
 
@@ -979,7 +981,7 @@ fun ErrorPanel(msg: String, onRetry: () -> Unit) {
     Panel(Modifier.padding(vertical = 8.dp)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(msg, style = sans(14f, 400, p.tx2))
-            Btn("Try again", primary = false, onClick = onRetry)
+            Btn(stringResource(R.string.common_try_again), primary = false, onClick = onRetry)
         }
     }
 }
@@ -1026,7 +1028,7 @@ fun StopCircle(onClick: () -> Unit) {
     val p = P
     val hf = LocalHapticFeedback.current
     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(46.dp).clip(CircleShape).background(p.bad).semantics { contentDescription = "Stop run" }
+        Box(Modifier.size(46.dp).clip(CircleShape).background(p.bad).semantics { contentDescription = str(R.string.run_stop_desc) }
             .clickable { hf.performHapticFeedback(HapticFeedbackType.Reject); onClick() }, contentAlignment = Alignment.Center) {
             Icn(Ic.stop, Color.White, 18.dp)
         }
@@ -1039,9 +1041,9 @@ fun StopCircle(onClick: () -> Unit) {
 fun TapToLoadImage(url: String) {
     var go by remember(url) { mutableStateOf(false) }
     if (go) { RemoteImage(url, remote = true); return }
-    val host = runCatching { android.net.Uri.parse(url).host }.getOrNull() ?: "link"
+    val host = runCatching { android.net.Uri.parse(url).host }.getOrNull()
     Box(Modifier.width(220.dp).heightIn(min = 72.dp).clip(RoundedCornerShape(16.dp)).background(P.s2).clickable { go = true }.padding(14.dp),
         contentAlignment = Alignment.Center) {
-        Text("Image from $host · tap to load", style = mono(12f, 500, P.tx2))
+        Text(if (host != null) stringResource(R.string.image_tap_to_load, host) else stringResource(R.string.image_tap_to_load_link), style = mono(12f, 500, P.tx2))
     }
 }

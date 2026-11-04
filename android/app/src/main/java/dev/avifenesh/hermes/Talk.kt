@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -107,7 +108,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
             Log.i(TAG, "TTS init status=${if (st == TextToSpeech.SUCCESS) "SUCCESS" else "ERROR($st)"} ready=$ok lang=$lang")
             ui {
                 ttsReady = ok
-                if (!ok) onNotice(TTS_OFF)
+                if (!ok) onNotice(str(R.string.talk_tts_off))
             }
         }.apply {
             setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -126,7 +127,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
         stopSpeaking()
         if (!SpeechRecognizer.isRecognitionAvailable(c)) {
             Log.w(TAG, "No speech recognizer available")
-            onState("error:No speech recognizer on this phone"); return
+            onState("error:" + str(R.string.talk_no_recognizer)); return
         }
         val r = sr ?: run {
             srOnDevice = !cloudFallback && SpeechRecognizer.isOnDeviceRecognitionAvailable(c)
@@ -151,14 +152,14 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
                         runCatching { sr?.destroy() }; sr = null
                         main.post { if (current()) listen() }
                     }
-                    e == SpeechRecognizer.ERROR_NO_MATCH || e == SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> onState("hint:Didn't catch that, tap to retry")
-                    else -> onState("error:Recognizer error $e")
+                    e == SpeechRecognizer.ERROR_NO_MATCH || e == SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> onState("hint:" + str(R.string.talk_didnt_catch))
+                    else -> onState("error:" + str(R.string.talk_recognizer_error, e))
                 }
             }
             override fun onResults(b: Bundle?) {
                 if (!current()) return
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
-                if (t.isEmpty()) onState("hint:Didn't catch that, tap to retry") else onHeard(t)
+                if (t.isEmpty()) onState("hint:" + str(R.string.talk_didnt_catch)) else onHeard(t)
             }
             override fun onPartialResults(b: Bundle?) {
                 if (!current()) return
@@ -187,7 +188,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
     /** Server voice first (Hermes TTS: tts.provider + voice, e.g. xAI "ara"); the phone's TTS engine only as fallback. */
     fun speak(text: String) {
         if (released || !allowed()) return
-        val s = speakable(text).ifBlank { "Done." }
+        val s = speakable(text).ifBlank { str(R.string.talk_spoken_done) }
         stopSpeaking()
         val generation = speechGeneration
         if (!Prefs.serverVoice) { speakLocal(s); return }
@@ -203,7 +204,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
                 Log.w(TAG, "server voice failed: ${e.message}"); emptyList()
             }
             if (released || generation != speechGeneration || !allowed()) { files.forEach { it.delete() }; return@launch }
-            if (files.isEmpty()) { onNotice(SERVER_VOICE_OFF); speakLocal(s) } else play(files, 0, generation)
+            if (files.isEmpty()) { onNotice(str(R.string.talk_server_voice_off)); speakLocal(s) } else play(files, 0, generation)
         }
     }
 
@@ -229,7 +230,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
     private fun speakLocal(s: String) {
         if (released || !allowed()) return
         val t = tts
-        if (t == null || !ttsReady) { onNotice(TTS_OFF); afterSpeak?.invoke(); return }
+        if (t == null || !ttsReady) { onNotice(str(R.string.talk_tts_off)); afterSpeak?.invoke(); return }
         val chunks = s.chunked(3500)
         chunks.forEachIndexed { i, ch -> t.speak(ch, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "$speechGeneration:" + if (i == chunks.lastIndex) "last" else "p$i") }
     }
@@ -245,8 +246,6 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
 
     companion object {
         private const val TAG = "HermesTalk"
-        const val TTS_OFF = "Voice output unavailable \u2014 replies shown as text"
-        const val SERVER_VOICE_OFF = "Server voice unavailable \u2014 using the phone voice"
         /** Markdown -> something worth hearing: drop code blocks, tables, links' URLs. */
         /** Gateway show_reasoning prepends "💭 **Reasoning:**" + a fenced (or "> " quoted) block. Never speak it. */
         private val REASONING_FENCE = Regex("^\\s*💭[^\\n]*\\n```[\\s\\S]*?\\n```[ \\t]*(\\n|$)")
@@ -262,7 +261,7 @@ class Talker(private val c: Context, private val onState: (String) -> Unit, priv
             .replace(Regex("```[\\s\\S]*?```"), " ")
             .lines().filterNot { it.trimStart().startsWith("|") }.joinToString("\n")
             .replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "$1")
-            .replace(Regex("https?://\\S+"), "a link")
+            .replace(Regex("https?://\\S+")) { str(R.string.talk_spoken_link) }
             .replace(Regex("[*_`#>]"), "")
             .replace(Regex("\\n{2,}"), ". ").trim()
     }
@@ -321,14 +320,14 @@ fun TalkScreen() {
         // Also gate this queued effect: a revoked render must not re-pause the detector or restart the service.
         val active = valid(ticket) && state in setOf("listening", "speaking", "waiting", "sending", "thinking")
         WakeListen.talk(active)
-        if (active) TalkService.start(ctx, when (state) { "listening" -> "Listening"; "speaking" -> "Speaking"; else -> "Thinking" })
+        if (active) TalkService.start(ctx, str(when (state) { "listening" -> R.string.talk_notif_listening; "speaking" -> R.string.talk_notif_speaking; else -> R.string.talk_notif_thinking }))
         else TalkService.stop(ctx)
     }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         val requested = permissionTicket
         permissionTicket = null
         if (requested != null && requested == ticket && valid(requested) && VoiceLaunch.unlocked(ctx)) {
-            if (ok) talker.listen() else state = "error:Microphone permission denied"
+            if (ok) talker.listen() else state = "error:" + str(R.string.talk_mic_denied)
         }
     }
     fun continueListening(t: VoiceTicket?) {
@@ -386,7 +385,7 @@ fun TalkScreen() {
                     Hub.send(id, text)
                     if (valid(origin)) state = "waiting"
                 } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { if (valid(origin)) state = "error:" + (e.message ?: "send failed") }
+                catch (e: Exception) { if (valid(origin)) state = "error:" + (e.message ?: str(R.string.talk_send_failed)) }
             }
         }
     }
@@ -401,33 +400,33 @@ fun TalkScreen() {
     }
     val running = cid != null && work.containsKey(cid)
     Column(Modifier.fillMaxSize().background(p.bg)) {
-        TopBar("Talk", if (cid != null) "voice · " + (Hub.chats.collectAsState().value[cid]?.title ?: "Talk") else "voice") {
-            Text(if (handsFree) "Hands-free" else "Push to talk", style = sans(13f, 600, if (handsFree) p.acct else p.mu),
+        TopBar(stringResource(R.string.talk_title), if (cid != null) stringResource(R.string.talk_subtitle_voice) + " · " + (Hub.chats.collectAsState().value[cid]?.title ?: stringResource(R.string.talk_title)) else stringResource(R.string.talk_subtitle_voice)) {
+            Text(stringResource(if (handsFree) R.string.talk_hands_free else R.string.talk_push_to_talk), style = sans(13f, 600, if (handsFree) p.acct else p.mu),
                 modifier = Modifier.padding(end = 10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).background(p.s2)
                     .clickable { handsFree = !handsFree }.padding(horizontal = 12.dp, vertical = 7.dp))
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (heard.isNotBlank()) {
-                Text("YOU", style = mono(11f, 700, p.mu)); Text(heard, style = sans(20f, 500, p.tx, 28f))
+                Text(stringResource(R.string.talk_you_label), style = mono(11f, 700, p.mu)); Text(heard, style = sans(20f, 500, p.tx, 28f))
             }
             if (said.isNotBlank()) {
                 Text(agentName().uppercase(), style = mono(11f, 700, p.acct)); Md(said, size = 17f)
             }
-            if (heard.isBlank() && said.isBlank()) Text("Tap the orb and talk. ${agentName()} answers out loud, then listens again.", style = sans(16f, 400, p.mu, 24f))
+            if (heard.isBlank() && said.isBlank()) Text(stringResource(R.string.talk_empty_hint, agentName()), style = sans(16f, 400, p.mu, 24f))
         }
         val label = when {
             state.startsWith("error:") -> state.removePrefix("error:")
             state.startsWith("hint:") -> state.removePrefix("hint:")
-            state == "listening" -> "Listening…"
-            state == "thinking" || state == "sending" -> "Got it…"
-            state == "waiting" -> if (running) "${agentName()} is working…" else "Waiting for the reply…"
-            state == "speaking" -> "Speaking · tap to interrupt"
-            else -> "Tap to talk"
+            state == "listening" -> stringResource(R.string.talk_state_listening)
+            state == "thinking" || state == "sending" -> stringResource(R.string.talk_state_got_it)
+            state == "waiting" -> if (running) stringResource(R.string.talk_state_working, agentName()) else stringResource(R.string.talk_state_waiting)
+            state == "speaking" -> stringResource(R.string.talk_state_speaking)
+            else -> stringResource(R.string.talk_state_idle)
         }
         if (notice.isNotBlank()) Text(notice, style = sans(13f, 500, p.mu), textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 6.dp))
         Text(label, style = sans(15f, 600, if (state.startsWith("error")) p.bad else p.tx2), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text("Talk may send audio to your system speech provider. Transcripts go to your paired gateway; spoken replies may use its voice provider or your phone's TTS service.",
+        Text(stringResource(R.string.talk_privacy_note),
             style = sans(12.5f, 400, p.tx2, 18f), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp))
         Spacer(Modifier.height(18.dp))
         val pulse by rememberInfiniteTransition(label = "orb").animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "s")
@@ -448,8 +447,8 @@ fun TalkScreen() {
             }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalArrangement = Arrangement.Center) {
-            Text("New conversation", style = sans(13.5f, 600, p.mu), modifier = Modifier.clickable { VoiceSession.revoke(); cid = null; Prefs.talkChat = null; heard = ""; said = "" }.padding(8.dp))
-            if (cid != null) Text("Open as chat", style = sans(13.5f, 600, p.mu), modifier = Modifier.clickable { Ui.open(cid!!) }.padding(8.dp))
+            Text(stringResource(R.string.talk_new_conversation), style = sans(13.5f, 600, p.mu), modifier = Modifier.clickable { VoiceSession.revoke(); cid = null; Prefs.talkChat = null; heard = ""; said = "" }.padding(8.dp))
+            if (cid != null) Text(stringResource(R.string.talk_open_as_chat), style = sans(13.5f, 600, p.mu), modifier = Modifier.clickable { Ui.open(cid!!) }.padding(8.dp))
         }
     }
 }

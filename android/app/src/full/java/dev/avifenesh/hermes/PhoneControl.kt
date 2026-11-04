@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
@@ -36,9 +37,9 @@ object PhoneNotice {
         val stop = PendingIntent.getBroadcast(c, ID, Intent(c, PhoneStopReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val open = PendingIntent.getActivity(c, ID, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(c, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("Phone control is on").setContentText("Your agent can read and operate this unlocked phone.")
+            .setContentTitle(str(R.string.phone_control_notice_title)).setContentText(str(R.string.phone_control_notice_text))
             .setContentIntent(open).setOngoing(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .addAction(0, "Stop control", stop).build()
+            .addAction(0, str(R.string.phone_control_stop), stop).build()
         if (Notify.can(c)) c.getSystemService(NotificationManager::class.java).notify(ID, n)
     }
     fun hide(c: Context) { c.getSystemService(NotificationManager::class.java).cancel(ID) }
@@ -76,18 +77,18 @@ fun PhoneControlPanel() {
         onDispose { lifecycle.removeObserver(observer) }
     }
     Panel {
-        SettingRow("Accessibility service", if (enabled) "Enabled in Android settings." else "Enable Hermes phone control in Android Accessibility settings.") {
-            Btn("Open", primary = false) { PhoneService.openSettings(c) }
+        SettingRow(stringResource(R.string.phone_control_accessibility_service), if (enabled) stringResource(R.string.phone_control_service_enabled) else stringResource(R.string.phone_control_service_disabled, APP_NAME)) {
+            Btn(stringResource(R.string.common_open), primary = false) { PhoneService.openSettings(c) }
         }
         Line()
-        SettingRow("Allow agent control", if (armed) "On. The agent can read, tap, type, swipe and open apps." else "Off. No screen content or commands are sent.") {
+        SettingRow(stringResource(R.string.phone_control_allow), if (armed) stringResource(R.string.phone_control_allow_on) else stringResource(R.string.phone_control_allow_off)) {
             Toggle(armed, { on ->
                 if (!on) { PhoneService.stop(c); return@Toggle }
                 if (busy) return@Toggle
-                if (!enabled) { error = "Enable the Accessibility service first"; return@Toggle }
-                if (!ready) { error = "Phone control is not available on the server yet"; return@Toggle }
+                if (!enabled) { error = str(R.string.phone_control_enable_service_first); return@Toggle }
+                if (!ready) { error = str(R.string.phone_control_server_unavailable); return@Toggle }
                 if (!PhoneNotice.available(c)) {
-                    error = "Enable the Live runs & connection notification channel so Stop control stays accessible"
+                    error = str(R.string.phone_control_enable_channel)
                     c.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, c.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, Notify.CH_LIVE))
                     return@Toggle
                 }
@@ -98,14 +99,14 @@ fun PhoneControlPanel() {
                     busy = true; error = null
                     var session: String? = null
                     runCatching {
-                        val arming = Guard.call(act, "phone", "arm", true, "Allow phone control") { headers -> Api.post("/v1/phone/arm", JSONObject().put("on", true), headers) }
+                        val arming = Guard.call(act, "phone", "arm", true, str(R.string.phone_control_confirm_title)) { headers -> Api.post("/v1/phone/arm", JSONObject().put("on", true), headers) }
                         session = arming.str("session").ifBlank { null }
                         check(generation == PhoneService.activationGeneration() && base == Prefs.base && device == Prefs.deviceId &&
-                            PhoneService.enabled(c) && PhoneService.inst != null && PhoneNotice.available(c)) { "Activation cancelled because control, pairing or Accessibility changed" }
+                            PhoneService.enabled(c) && PhoneService.inst != null && PhoneNotice.available(c)) { str(R.string.phone_control_activation_cancelled) }
                         val status = Api.get("/v1/phone")
-                        check(status.optBoolean("this") && status.str("session") == session) { "Server did not arm this phone or activation was superseded" }
+                        check(status.optBoolean("this") && status.str("session") == session) { str(R.string.phone_control_not_armed) }
                         check(generation == PhoneService.activationGeneration() && base == Prefs.base && device == Prefs.deviceId &&
-                            PhoneService.enabled(c) && PhoneService.inst != null && PhoneNotice.available(c)) { "Activation cancelled because control, pairing or Accessibility changed" }
+                            PhoneService.enabled(c) && PhoneService.inst != null && PhoneNotice.available(c)) { str(R.string.phone_control_activation_cancelled) }
                         Prefs.phoneArmed = true; PhoneNotice.show(c); LiveService.sync(c); Hub.connect(); PhoneService.pull()
                     }.onFailure { error = it.message }
                     if (session != null && !Prefs.phoneArmed && base == Prefs.base && device == Prefs.deviceId) {
@@ -118,14 +119,14 @@ fun PhoneControlPanel() {
         if (armed) {
             Line()
             Column(androidx.compose.ui.Modifier.fillMaxWidth().padding(16.dp)) {
-                Btn("Stop control", androidx.compose.ui.Modifier.fillMaxWidth(), danger = true) { PhoneService.stop(c) }
+                Btn(stringResource(R.string.phone_control_stop), androidx.compose.ui.Modifier.fillMaxWidth(), danger = true) { PhoneService.stop(c) }
             }
         }
     }
     Spacer(androidx.compose.ui.Modifier.height(14.dp))
-    Text("First setup for a sideloaded APK: Android may block Accessibility. Open Android Settings → Apps → Hermes → ⋮ → Allow restricted settings, then enable the service here. You only need to do this once.", style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
+    Text(stringResource(R.string.phone_control_sideload_help, APP_NAME), style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
     Spacer(androidx.compose.ui.Modifier.height(12.dp))
-    Text("Control works only while the screen is on and unlocked. Android blocks screenshots of protected screens. Password fields stay private. Turn control off here or from the notification at any time.", style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
-    if (busy) Text("Confirm with fingerprint or PIN…", style = sans(13f, 500, P.acct), modifier = androidx.compose.ui.Modifier.padding(20.dp))
+    Text(stringResource(R.string.phone_control_limits), style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
+    if (busy) Text(stringResource(R.string.phone_control_confirming), style = sans(13f, 500, P.acct), modifier = androidx.compose.ui.Modifier.padding(20.dp))
     error?.let { Text(it, style = sans(13f, 500, P.tx2), modifier = androidx.compose.ui.Modifier.padding(20.dp)) }
 }

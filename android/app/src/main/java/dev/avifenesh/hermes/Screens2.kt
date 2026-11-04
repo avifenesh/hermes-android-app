@@ -54,6 +54,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -91,37 +93,37 @@ fun PulseScreen() {
     PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.fillMaxSize(), state = ptr,
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-        item { Header("Pulse", "What needs you, what's running, what's done") }
-        if (err != null) item { ErrorPanel("Can't reach Hermes: $err") { scope.launch { load() } } }
+        item { Header(stringResource(R.string.pulse_title), stringResource(R.string.pulse_subtitle)) }
+        if (err != null) item { ErrorPanel(stringResource(R.string.pulse_unreachable, HERMES, err.orEmpty())) { scope.launch { load() } } }
         else if (pulse == null) item { Skeleton(2) }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Stat("spent today", pulse?.optDouble("spend_today")?.takeIf { !it.isNaN() }?.let { money(it) } ?: "–", Modifier.weight(1f))
-                Stat("runs today", pulse?.optInt("runs_today")?.toString() ?: "–", Modifier.weight(1f))
-                Stat("cron fails", pulse?.optInt("failures_today")?.toString() ?: "–", Modifier.weight(1f))
+                Stat(stringResource(R.string.pulse_stat_spent_today), pulse?.optDouble("spend_today")?.takeIf { !it.isNaN() }?.let { money(it) } ?: "–", Modifier.weight(1f))
+                Stat(stringResource(R.string.pulse_stat_runs_today), pulse?.optInt("runs_today")?.toString() ?: "–", Modifier.weight(1f))
+                Stat(stringResource(R.string.pulse_stat_cron_fails), pulse?.optInt("failures_today")?.toString() ?: "–", Modifier.weight(1f))
             }
         }
         item { Box(Modifier.clickable { Ui.push(Route.UsageR) }) { SpendBars(pulse) } }
-        item { Section("Needs you", if (pending.isEmpty()) "nothing" else pending.size.toString(), if (pending.isEmpty()) p.mu else p.att) }
-        if (pending.isEmpty()) item { Text("No approvals waiting.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
+        item { Section(stringResource(R.string.pulse_needs_you), if (pending.isEmpty()) stringResource(R.string.pulse_needs_you_nothing) else pending.size.toString(), if (pending.isEmpty()) p.mu else p.att) }
+        if (pending.isEmpty()) item { Text(stringResource(R.string.pulse_no_approvals), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
         items(pending, key = { "a" + it.id }) { a ->
             val m = Msg("x" + a.id, a.chatId, "agent", "approval", "", JSONObject().put("approval_id", a.id), a.ts, 0)
             Column {
-                Text(chats[a.chatId]?.title ?: "Chat", style = sans(13f, 600, p.tx2), modifier = Modifier.padding(start = 20.dp, top = 6.dp).clickable { Ui.open(a.chatId) })
+                Text(chats[a.chatId]?.title ?: stringResource(R.string.pulse_chat_fallback), style = sans(13f, 600, p.tx2), modifier = Modifier.padding(start = 20.dp, top = 6.dp).clickable { Ui.open(a.chatId) })
                 ApprovalCard(a, m)
             }
         }
         item { FleetSection() }
-        item { Section("Hermes runs", if (work.isEmpty() && live.isEmpty()) "idle" else (work.size + live.size).toString(), if (work.isEmpty()) p.mu else p.acct) }
+        item { Section(stringResource(R.string.pulse_hermes_runs, HERMES), if (work.isEmpty() && live.isEmpty()) stringResource(R.string.pulse_runs_idle) else (work.size + live.size).toString(), if (work.isEmpty()) p.mu else p.acct) }
         items(work.entries.toList(), key = { "w" + it.key }) { (cid, since) ->
-            ListRow({ LiveDot(9.dp) }, chats[cid]?.title ?: "Run", "from this phone", { Elapsed(since, mono(13f, 600, p.acct)) }, { Ui.push(Route.RunR(cid)) })
+            ListRow({ LiveDot(9.dp) }, chats[cid]?.title ?: stringResource(R.string.pulse_run_fallback), stringResource(R.string.pulse_run_from_phone), { Elapsed(since, mono(13f, 600, p.acct)) }, { Ui.push(Route.RunR(cid)) })
         }
         items(live, key = { "l" + it.str("id") }) { s ->
-            ListRow({ Dot(p.acct.copy(alpha = 0.6f), 9.dp) }, s.str("title").ifBlank { "Untitled session" }, s.str("source") + " · " + s.str("model").substringAfterLast('/'),
+            ListRow({ Dot(p.acct.copy(alpha = 0.6f), 9.dp) }, s.str("title").ifBlank { stringResource(R.string.pulse_untitled_session) }, s.str("source") + " · " + s.str("model").substringAfterLast('/'),
                 { Text(rel(s.optDouble("last", 0.0)), style = mono(12f, 500, p.mu)) }, { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { s.str("source") }, s.str("source"))) })
         }
-        item { Section("Recently done", null) }
-        if (recent.isEmpty()) item { Text("Nothing in the last day.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
+        item { Section(stringResource(R.string.pulse_recently_done), null) }
+        if (recent.isEmpty()) item { Text(stringResource(R.string.pulse_nothing_last_day), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
         items(recent, key = { "r" + it.id }) { c ->
             ListRow({ Icn(if (c.kind == "digest") Ic.digest else Ic.check, if (c.kind == "digest") p.tx2 else p.good, 18.dp) }, c.title, c.preview,
                 { Text(rel(c.updated), style = mono(11.5f, 500, p.mu)) }, { Ui.open(c.id) })
@@ -139,13 +141,13 @@ fun SpendBars(pulse: JSONObject?) {
     val mx = (v.maxOrNull() ?: 0.0).coerceAtLeast(0.0001)
     Panel(Modifier.padding(top = 6.dp)) {
         Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp)) {
-            Text("7 days", style = mono(11.5f, 600, p.mu))
+            Text(pluralStringResource(R.plurals.spend_days, 7, 7), style = mono(11.5f, 600, p.mu))
             Spacer(Modifier.weight(1f))
             Text(money(v.sum()), style = mono(11.5f, 600, p.tx2))
             Spacer(Modifier.width(12.dp))
-            Text("Usage ›", style = sans(13f, 600, p.acct))
+            Text(stringResource(R.string.spend_usage_link), style = sans(13f, 600, p.acct))
         }
-        Canvas(Modifier.fillMaxWidth().height(70.dp).padding(16.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(70.dp).padding(16.dp).mirrorInRtl()) {
             val w = size.width / v.size
             v.forEachIndexed { i, x ->
                 val h = (x / mx).toFloat() * size.height
@@ -175,13 +177,13 @@ fun CronScreen() {
     val wov by Wake.overview.collectAsState()
     val wnext = wov?.optJSONObject("next")
     Column(Modifier.fillMaxSize()) {
-        Header(if (seg == "alarms") "Alarm clock" else "Cron",
-            if (seg == "alarms") wnext?.let { "next " + clock(it.getDouble("ts")) + " · " + until(it.getDouble("ts")) } ?: "no alarm set"
-            else jobs?.let { "${on.size} active · ${off.size} paused" }) {
+        Header(if (seg == "alarms") stringResource(R.string.cron_alarm_clock) else stringResource(R.string.cron_title),
+            if (seg == "alarms") wnext?.let { stringResource(R.string.cron_alarm_next, clock(it.getDouble("ts")), until(it.getDouble("ts"))) } ?: stringResource(R.string.cron_no_alarm)
+            else jobs?.let { pluralStringResource(R.plurals.cron_active_count, on.size, on.size) + " · " + pluralStringResource(R.plurals.cron_paused_count, off.size, off.size) }) {
             if (seg == "jobs") IconBtn(Ic.plus, p.ink, 44.dp, p.acc) { Ui.push(Route.CronEditR(null)) }
         }
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Seg(listOf("jobs" to "Cron jobs", "alarms" to "Alarm clock"), seg) { seg = it }
+            Seg(listOf("jobs" to stringResource(R.string.cron_tab_jobs), "alarms" to stringResource(R.string.cron_alarm_clock)), seg) { seg = it }
         }
         if (seg == "alarms") {
             WakeSettingsScreen(Modifier.weight(1f), embedded = true)
@@ -190,15 +192,15 @@ fun CronScreen() {
     PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.weight(1f), state = ptr,
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-        if (err != null) item { ErrorPanel("Can't reach Hermes: $err") { scope.launch { load() } } }
+        if (err != null) item { ErrorPanel(stringResource(R.string.cron_unreachable, HERMES, err.orEmpty())) { scope.launch { load() } } }
         else if (jobs == null) item { Skeleton() }
-        else if (all.isEmpty()) item { EmptyState("No cron jobs", "Tap + to schedule one.") }
+        else if (all.isEmpty()) item { EmptyState(stringResource(R.string.cron_empty_title), stringResource(R.string.cron_empty_sub)) }
         if (on.isNotEmpty()) item { DayStrip(on.mapNotNull { parseTime(it.opt("next_run_at")) }) }
         val next = on.firstOrNull()
         if (next != null) item {
             Panel(Modifier.padding(top = 6.dp), border = p.accd) {
                 Column(Modifier.clickable { Ui.push(Route.JobR(next.str("id"))) }.padding(16.dp)) {
-                    Text("NEXT UP", style = mono(11f, 700, p.acct))
+                    Text(stringResource(R.string.cron_next_up), style = mono(11f, 700, p.acct))
                     Spacer(Modifier.height(6.dp))
                     Text(next.str("name").ifBlank { next.str("id") }, style = serif(30f, p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(4.dp))
@@ -206,10 +208,10 @@ fun CronScreen() {
                 }
             }
         }
-        item { Section("Active", on.size.toString()) }
+        item { Section(stringResource(R.string.cron_section_active), on.size.toString()) }
         items(on, key = { it.str("id") }) { j -> JobRow(j) { scope.launch { load() } } }
         if (off.isNotEmpty()) {
-            item { Row(Modifier.clickable { showOff = !showOff }) { Section("Paused", if (showOff) "hide" else "show ${off.size}") } }
+            item { Row(Modifier.clickable { showOff = !showOff }) { Section(stringResource(R.string.cron_section_paused), if (showOff) stringResource(R.string.cron_paused_hide) else stringResource(R.string.cron_paused_show, off.size)) } }
             if (showOff) items(off, key = { it.str("id") }) { j -> JobRow(j) { scope.launch { load() } } }
         }
         item { Spacer(Modifier.height(30.dp)) }
@@ -230,7 +232,7 @@ fun JobRow(j: JSONObject, reload: () -> Unit) {
     val nx = parseTime(j.opt("next_run_at"))
     val lr = parseTime(j.opt("last_run_at"))
     val sub = listOfNotNull(j.str("schedule_display").ifBlank { j.str("schedule") }.takeIf { it.isNotBlank() },
-        if (enabled && nx != null) until(nx) else null, lr?.let { "ran " + rel(it) + (if (!ok) " · failed" else "") }).joinToString(" · ")
+        if (enabled && nx != null) until(nx) else null, lr?.let { stringResource(if (ok) R.string.cron_job_ran else R.string.cron_job_ran_failed, rel(it)) }).joinToString(" · ")
     ListRow({ Dot(when { !enabled -> p.dim; !ok -> p.bad; else -> p.good }, 8.dp) }, j.str("name").ifBlank { id }, sub, {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.play, p.tx2, 40.dp) { confirm = true }
@@ -240,11 +242,11 @@ fun JobRow(j: JSONObject, reload: () -> Unit) {
             })
         }
     }, { Ui.push(Route.JobR(id)) })
-    if (confirm) HDialog("Run now?", onDismiss = { confirm = false }, body = {
-            Text(j.str("name").ifBlank { id } + " will run on the next scheduler tick.", style = sans(15f, 400, p.tx2))
+    if (confirm) HDialog(stringResource(R.string.cron_run_now_title), onDismiss = { confirm = false }, body = {
+            Text(stringResource(R.string.cron_run_now_body, j.str("name").ifBlank { id }), style = sans(15f, 400, p.tx2))
         }) {
-            Btn("Cancel", primary = false) { confirm = false }
-            Btn("Run") { confirm = false; scope.launch { runCatching { Api.post("/v1/cron/$id/run"); Ui.say("Queued") }.onFailure { Ui.say(it.message) }; reload() } }
+            Btn(stringResource(R.string.common_cancel), primary = false) { confirm = false }
+            Btn(stringResource(R.string.common_run)) { confirm = false; scope.launch { runCatching { Api.post("/v1/cron/$id/run"); Ui.say(R.string.cron_queued) }.onFailure { Ui.say(it.message) }; reload() } }
         }
 }
 
@@ -260,7 +262,7 @@ fun JobScreen(id: String) {
     LaunchedEffect(id, run, retry) {
         out = null; err = null
         runCatching { val o = Api.get("/v1/cron/$id/output" + (run?.let { "?run=" + Uri.encode(it) } ?: "")); out = o.str("text"); if (run == null) run = o.str("run") }
-            .onFailure { out = ""; err = if (it is ApiError && it.code == 404) "No output saved yet" else it.message }
+            .onFailure { out = ""; err = if (it is ApiError && it.code == 404) str(R.string.job_no_output) else it.message }
     }
     val j = job
     val runs = j?.optJSONArray("runs").strs()
@@ -271,11 +273,12 @@ fun JobScreen(id: String) {
         LazyColumn(Modifier.weight(1f)) {
             if (j != null) item {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    KV("status", if (j.optBoolean("enabled", true)) "active" else ("paused" + (j.str("paused_reason").takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")))
-                    parseTime(j.opt("next_run_at"))?.let { KV("next", until(it)) }
-                    parseTime(j.opt("last_run_at"))?.let { KV("last", rel(it) + " ago · " + j.str("last_status").ifBlank { "ok" }) }
-                    if (j.str("model").isNotBlank()) KV("model", j.str("model"))
-                    if (j.str("deliver").isNotBlank()) KV("deliver", j.str("deliver"))
+                    KV(stringResource(R.string.job_kv_status), if (j.optBoolean("enabled", true)) stringResource(R.string.job_status_active)
+                        else j.str("paused_reason").takeIf { it.isNotBlank() }?.let { stringResource(R.string.job_status_paused_reason, it) } ?: stringResource(R.string.job_status_paused))
+                    parseTime(j.opt("next_run_at"))?.let { KV(stringResource(R.string.job_kv_next), until(it)) }
+                    parseTime(j.opt("last_run_at"))?.let { KV(stringResource(R.string.job_kv_last), stringResource(R.string.job_last_value, rel(it), j.str("last_status").ifBlank { "ok" })) }
+                    if (j.str("model").isNotBlank()) KV(stringResource(R.string.job_kv_model), j.str("model"))
+                    if (j.str("deliver").isNotBlank()) KV(stringResource(R.string.job_kv_deliver), j.str("deliver"))
                     if (j.str("last_error").isNotBlank()) Text(j.str("last_error"), style = mono(12f, 500, p.bad))
                 }
             }
@@ -289,13 +292,13 @@ fun JobScreen(id: String) {
                     val o = out
                     when {
                         o == null -> Skeleton(6)
-                        o.isBlank() -> if (err != null) ErrorPanel(err!!) { retry++ } else Text("Empty output", style = sans(14f, 400, p.mu))
+                        o.isBlank() -> if (err != null) ErrorPanel(err!!) { retry++ } else Text(stringResource(R.string.job_empty_output), style = sans(14f, 400, p.mu))
                         else -> Md(o.take(40000))
                     }
                 }
             }
             if (j != null && j.str("prompt").isNotBlank()) item {
-                Section("Prompt", null)
+                Section(stringResource(R.string.job_prompt), null)
                 Text(j.str("prompt"), style = mono(12.5f, 400, p.tx2), modifier = Modifier.padding(horizontal = 20.dp))
                 Spacer(Modifier.height(30.dp))
             }
@@ -320,20 +323,20 @@ fun ElsewhereScreen() {
     var reloadKey by remember { mutableStateOf(0) }
     LaunchedEffect(reloadKey) { runCatching { list = Api.get("/v1/sessions").optJSONArray("sessions").objs() }.onFailure { err = it.message } }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Elsewhere", "Sessions from the CLI, Telegram and other apps")
+        TopBar(stringResource(R.string.elsewhere_title), stringResource(R.string.elsewhere_subtitle))
         val l = list
         when {
             err != null -> ErrorPanel(err!!) { err = null; reloadKey++ }
             l == null -> Skeleton()
-            l.isEmpty() -> Empty("Nothing else", "Sessions started outside the app show up here.")
+            l.isEmpty() -> Empty(stringResource(R.string.elsewhere_empty_title), stringResource(R.string.elsewhere_empty_sub))
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(l, key = { it.str("id") }) { s ->
-                    Row(Modifier.fillMaxWidth().clickable { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { "Untitled" }, s.str("source"))) }.padding(horizontal = 20.dp, vertical = 12.dp),
+                    Row(Modifier.fillMaxWidth().clickable { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { str(R.string.elsewhere_untitled) }, s.str("source"))) }.padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Pill(s.str("source").ifBlank { "?" }, p.tx2, p.s3)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.str("title").ifBlank { "Untitled session" }, style = sans(15f, 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(s.str("title").ifBlank { stringResource(R.string.elsewhere_untitled_session) }, style = sans(15f, 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(s.str("model").substringAfterLast('/') + (s.optDouble("cost", 0.0).takeIf { it > 0 }?.let { " · " + money(it) } ?: ""), style = mono(11.5f, 500, p.mu), maxLines = 1)
                         }
                         Text(rel(s.optDouble("started_at", 0.0)), style = mono(11.5f, 500, p.mu))
@@ -429,7 +432,7 @@ fun SessionScreen(r: Route.SessR) {
             prompts = o.optJSONArray("prompts").objs().filter { it.str("state") !in setOf("answered", "denied", "cancelled", "interrupted") }
             err = null
         } catch (e: Exception) {
-            err = e.message ?: "Couldn't load this session"
+            err = e.message ?: str(R.string.session_load_failed)
         } finally {
             if (older) loadingOlder = false else refreshing = false
         }
@@ -494,9 +497,9 @@ fun SessionScreen(r: Route.SessR) {
 
     Column(Modifier.fillMaxSize().background(p.bg)) {
         TopBar(r.title, when {
-            readOnly -> "${r.source} · superseded · read only"
-            running -> "${r.source} · live · working"
-            else -> "${r.source} · live"
+            readOnly -> stringResource(R.string.session_sub_read_only, r.source)
+            running -> stringResource(R.string.session_sub_working, r.source)
+            else -> stringResource(R.string.session_sub_live, r.source)
         }, right = {
             Icn(Ic.refresh, p.tx2, 20.dp, Modifier.clip(RoundedCornerShape(8.dp))
                 .clickable { scope.launch { load() } }.padding(7.dp))
@@ -508,11 +511,11 @@ fun SessionScreen(r: Route.SessR) {
             else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list,
                 contentPadding = PaddingValues(vertical = 10.dp)) {
                 if (loadingOlder) item(key = "older") {
-                    Text("Loading earlier messages…", style = mono(12f, 500, p.mu),
+                    Text(stringResource(R.string.session_loading_older), style = mono(12f, 500, p.mu),
                         modifier = Modifier.fillMaxWidth().padding(16.dp))
                 }
                 if (current.isEmpty()) item(key = "empty") {
-                    Empty("No messages yet", "Send a message to continue this session.")
+                    Empty(stringResource(R.string.session_empty_title), stringResource(R.string.session_empty_sub))
                 }
                 items(current, key = { it.id }) { m -> MsgView(m, emptyMap(), compact = false) }
                 items(prompts, key = { it.str("prompt_id") }) { prompt ->
@@ -534,16 +537,16 @@ fun SessionScreen(r: Route.SessR) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp))
         if (running) Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             LiveDot(7.dp); Spacer(Modifier.width(8.dp))
-            Text("Working — your message will steer or queue in the session", style = sans(12.5f, 400, p.acct), modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.session_working), style = sans(12.5f, 400, p.acct), modifier = Modifier.weight(1f))
             if (text.isBlank()) Icn(Ic.stop, p.bad, 18.dp, Modifier.clip(RoundedCornerShape(7.dp)).clickable {
                 scope.launch { runCatching { Api.post("$base/stop", JSONObject().put("generation", generation)); load() }
                     .onFailure { Ui.say(it.message) } }
             }.padding(7.dp))
         }
-        if (readOnly) Text("This session was superseded. Open its continuation to send messages.",
+        if (readOnly) Text(stringResource(R.string.session_superseded),
             style = sans(13f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
         else Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.Bottom) {
-            InputBox(text, { text = it }, if (running) "Steer or queue a follow-up…" else "Message this session…", Modifier.weight(1f))
+            InputBox(text, { text = it }, if (running) stringResource(R.string.session_input_steer) else stringResource(R.string.session_input_message), Modifier.weight(1f))
             Spacer(Modifier.width(10.dp))
             IconBtn(Ic.send, p.ink, 46.dp, p.acc, enabled = text.isNotBlank() && !sending) { send() }
         }
@@ -573,20 +576,20 @@ private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: S
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icn(if (approval) Ic.shield else Ic.blocks, p.att, 18.dp)
             Spacer(Modifier.width(9.dp))
-            Text(if (approval) "Approval needed" else "Hermes is asking", style = sans(15f, 650, p.tx))
+            Text(if (approval) stringResource(R.string.session_approval_needed) else stringResource(R.string.session_agent_asking, HERMES), style = sans(15f, 650, p.tx))
         }
         if (approval) {
             if (prompt.str("command").isNotBlank()) Text(prompt.str("command"), style = mono(12.5f, 500, p.tx2))
             if (prompt.str("detail").isNotBlank()) Text(prompt.str("detail"), style = sans(13.5f, 400, p.mu, 19f))
-            if (answered.contains(pid)) Text("Response sent", style = sans(13f, 500, p.goodt))
+            if (answered.contains(pid)) Text(stringResource(R.string.session_response_sent), style = sans(13f, 500, p.goodt))
             else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Btn("Allow once", enabled = busy == null) { onApproval("once") }
-                    if (!Prefs.noLock) Btn("This session", primary = false, enabled = busy == null) { onApproval("session") }
+                    Btn(stringResource(R.string.session_allow_once), enabled = busy == null) { onApproval("once") }
+                    if (!Prefs.noLock) Btn(stringResource(R.string.session_allow_session), primary = false, enabled = busy == null) { onApproval("session") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!Prefs.noLock) Btn("Always", primary = false, enabled = busy == null) { onApproval("always") }
-                    Btn("Deny", primary = false, enabled = busy == null) { onApproval("deny") }
+                    if (!Prefs.noLock) Btn(stringResource(R.string.session_allow_always), primary = false, enabled = busy == null) { onApproval("always") }
+                    Btn(stringResource(R.string.common_deny), primary = false, enabled = busy == null) { onApproval("deny") }
                 }
             }
         } else {
@@ -600,8 +603,8 @@ private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: S
                 val multi = q.optBoolean("multi_select")
                 var draft by remember(key) { mutableStateOf("") }
                 var selected by remember(key) { mutableStateOf<Set<Int>>(emptySet()) }
-                Text(q.str("question").ifBlank { "Your answer" }, style = sans(14.5f, 550, p.tx, 20f))
-                if (answered.contains(key)) Text("Answer sent", style = sans(13f, 500, p.goodt))
+                Text(q.str("question").ifBlank { stringResource(R.string.session_your_answer) }, style = sans(14.5f, 550, p.tx, 20f))
+                if (answered.contains(key)) Text(stringResource(R.string.session_answer_sent), style = sans(13f, 500, p.goodt))
                 else {
                     if (options.isNotEmpty()) {
                         for ((index, option) in options.withIndex()) {
@@ -611,12 +614,12 @@ private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: S
                                 else onClarify(prompt, option, qid)
                             }
                         }
-                        if (multi) Btn("Send selection", primary = false, enabled = busy == null && selected.isNotEmpty()) {
+                        if (multi) Btn(stringResource(R.string.session_send_selection), primary = false, enabled = busy == null && selected.isNotEmpty()) {
                             onClarify(prompt, selected.sorted().joinToString(",") { (it + 1).toString() }, qid)
                         }
                     }
-                    InputBox(draft, { draft = it }, if (options.isEmpty()) "Type your answer…" else "Other / more detail…", Modifier.fillMaxWidth())
-                    if (draft.isNotBlank()) Btn("Send answer", enabled = busy == null) {
+                    InputBox(draft, { draft = it }, if (options.isEmpty()) stringResource(R.string.session_type_answer) else stringResource(R.string.session_other_detail), Modifier.fillMaxWidth())
+                    if (draft.isNotBlank()) Btn(stringResource(R.string.session_send_answer), enabled = busy == null) {
                         onClarify(prompt, draft.trim(), qid); draft = ""
                     }
                 }
@@ -643,7 +646,7 @@ fun MeScreen() {
     // Once each time Me shows (the app coming back counts too), so the Radar badge is current; no polling.
     VisibleEffect(feat.radar) { if (feat.radar) runCatching { Momentum.load() } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-        item { Header("Me") }
+        item { Header(stringResource(R.string.me_title)) }
         item {
             Panel {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -651,66 +654,66 @@ fun MeScreen() {
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(meta.str("name").ifBlank { Prefs.server ?: "Hermes" }, style = sans(17f, 650, p.tx))
-                        Text("profile " + meta.str("profile").ifBlank { Prefs.profile ?: "default" } + " · " + meta.str("model").ifBlank { "–" }, style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.me_profile_model, meta.str("profile").ifBlank { Prefs.profile ?: "default" }, meta.str("model").ifBlank { "–" }), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Dot(if (online) p.good else p.dim, 8.dp); Spacer(Modifier.width(6.dp))
-                        Text(if (online) "live" else "offline", style = mono(12f, 600, if (online) p.goodt else p.mu))
+                        Text(if (online) stringResource(R.string.me_status_live) else stringResource(R.string.me_status_offline), style = mono(12f, 600, if (online) p.goodt else p.mu))
                     }
                 }
             }
         }
         item { RestartBanner() }
         if (degraded.isNotEmpty()) item {
-            Panel { NavRow(Ic.server, "Server problems", "${degraded.size} problem" + (if (degraded.size == 1) "" else "s") + " found by the self-check", p.bad) { probs = true } }
+            Panel { NavRow(Ic.server, stringResource(R.string.me_server_problems), pluralStringResource(R.plurals.me_server_problems_count, degraded.size, degraded.size), p.bad) { probs = true } }
         }
-        item { Section("Settings", null) }
+        item { Section(stringResource(R.string.common_settings), null) }
         item {
             Panel {
-                NavRow(Ic.sliders, "Agent", "Model, reasoning, approvals, memory, subagents, tools") { Ui.push(Route.SettingsR) }
+                NavRow(Ic.sliders, stringResource(R.string.me_agent), stringResource(R.string.me_agent_sub)) { Ui.push(Route.SettingsR) }
                 Line()
-                NavRow(Ic.phone, "This phone", "Voice, look, notifications, connection") { Ui.push(Route.PhoneR) }
+                NavRow(Ic.phone, stringResource(R.string.me_this_phone), stringResource(R.string.me_this_phone_sub)) { Ui.push(Route.PhoneR) }
             }
         }
-        item { Section("Workspace", null) }
+        item { Section(stringResource(R.string.me_workspace), null) }
         item {
             Panel {
-                NavRow(Ic.download, "Hub", "Install skills, plugins and MCP servers") { Ui.push(Route.HubR) }
+                NavRow(Ic.download, stringResource(R.string.me_hub), stringResource(R.string.me_hub_sub)) { Ui.push(Route.HubR) }
                 if (feat.radar) {
                     Line()
                     val rep = Momentum.report(mo)
                     val needs = Momentum.count(rep, "needs_you")
                     val fresh = Momentum.unread(rep, "needs_you", moRead).size
                     val sub = when {
-                        mo?.optBoolean("available") != true -> "Every 3h: the 5 most useful things the scout found"
-                        mo?.optBoolean("scout", true) == false -> "Momentum: what needs you, runs and shipped"
-                        else -> "Momentum and the scout's findings"
+                        mo?.optBoolean("available") != true -> stringResource(R.string.me_radar_sub_scout)
+                        mo?.optBoolean("scout", true) == false -> stringResource(R.string.me_radar_sub_momentum)
+                        else -> stringResource(R.string.me_radar_sub_both)
                     }
-                    NavRow(Ic.zap, "Radar", sub,
+                    NavRow(Ic.zap, stringResource(R.string.me_radar), sub,
                         badge = if (needs > 99) "99+" else if (needs > 0) "$needs" else null,
                         badgeHot = fresh > 0,
-                        badgeLabel = (if (needs == 1) "1 decision needs you" else "$needs decisions need you") +
-                            (if (fresh > 0) ", $fresh new" else "")) { Ui.push(Route.RadarR) }
+                        badgeLabel = if (fresh > 0) pluralStringResource(R.plurals.me_radar_decisions_new_desc, needs, needs, fresh)
+                            else pluralStringResource(R.plurals.me_radar_decisions_desc, needs, needs)) { Ui.push(Route.RadarR) }
                 }
                 Line()
-                NavRow(Ic.blocks, "Skills & plugins", "Turn skills, plugins and MCP servers on or off") { Ui.push(Route.ExtR) }
+                NavRow(Ic.blocks, stringResource(R.string.me_skills), stringResource(R.string.me_skills_sub)) { Ui.push(Route.ExtR) }
                 Line()
-                NavRow(Ic.book, "Memory", "What ${agentName()} remembers about you") { Ui.push(Route.MemoryR) }
+                NavRow(Ic.book, stringResource(R.string.me_memory), stringResource(R.string.me_memory_sub, agentName())) { Ui.push(Route.MemoryR) }
                 Line()
-                NavRow(Ic.chart, "Usage", "Spend and tokens by day, model and surface") { Ui.push(Route.UsageR) }
+                NavRow(Ic.chart, stringResource(R.string.me_usage), stringResource(R.string.me_usage_sub)) { Ui.push(Route.UsageR) }
                 if (feat.projects) {
                     Line()
-                    NavRow(Ic.file, "Projects", "Repos on the machine: changes, diffs, commit, push, PRs") { Ui.push(Route.ProjectsR) }
+                    NavRow(Ic.file, stringResource(R.string.me_projects), stringResource(R.string.me_projects_sub)) { Ui.push(Route.ProjectsR) }
                 }
                 Line()
-                NavRow(Ic.search, "Search everything", "Full-text over every session on the machine") { Ui.push(Route.SearchR) }
+                NavRow(Ic.search, stringResource(R.string.me_search), stringResource(R.string.me_search_sub)) { Ui.push(Route.SearchR) }
                 Line()
-                NavRow(Ic.power, "Restart Hermes", "Reload config and plugins on the machine") { restart = true }
+                NavRow(Ic.power, stringResource(R.string.me_restart, HERMES), stringResource(R.string.me_restart_sub)) { restart = true }
             }
         }
         item { MachinesSection() }
-        item { Panel { NavRow(Ic.shield, "Privacy policy", "Offline policy: data, permissions, retention and support") { Ui.push(Route.PrivacyR) } } }
-        item { Panel { NavRow(Ic.book, "Licenses", "Offline notices, model restrictions and full license texts") { Ui.push(Route.LegalR()) } } }
+        item { Panel { NavRow(Ic.shield, stringResource(R.string.me_privacy), stringResource(R.string.me_privacy_sub)) { Ui.push(Route.PrivacyR) } } }
+        item { Panel { NavRow(Ic.book, stringResource(R.string.me_licenses), stringResource(R.string.me_licenses_sub)) { Ui.push(Route.LegalR()) } } }
         editionHelpItems()
         item { ReportProblemRow() }
         item {
@@ -719,7 +722,7 @@ fun MeScreen() {
         }
     }
     if (restart) RestartDialog { restart = false }
-    if (probs) HDialog("Server problems", onDismiss = { probs = false }, body = {
+    if (probs) HDialog(stringResource(R.string.me_server_problems), onDismiss = { probs = false }, body = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 degraded.forEach { d ->
                     Text(listOf(d.str("path"), d.optInt("status", 0).takeIf { it > 0 }?.toString().orEmpty(), d.str("error"))
@@ -727,7 +730,7 @@ fun MeScreen() {
                 }
             }
         }) {
-            Btn("Close") { probs = false }
+            Btn(stringResource(R.string.common_close)) { probs = false }
         }
 }
 
@@ -745,7 +748,7 @@ fun PhoneSettingsScreen() {
     suspend fun loadDevices() { runCatching { val o = Api.get("/v1/devices"); devices = o.optJSONArray("devices").objs(); thisId = o.str("this") } }
     LaunchedEffect(Unit) { loadDevices(); push = runCatching { Push.refresh(ctx) }.getOrDefault(push) }
     Column(Modifier.fillMaxSize()) {
-        TopBar("This phone", "How the app looks, speaks and stays connected")
+        TopBar(stringResource(R.string.phone_settings_title), stringResource(R.string.phone_settings_subtitle))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
             Seg(phoneSettingsTabs(), tab) { tab = it }
         }
@@ -753,44 +756,46 @@ fun PhoneSettingsScreen() {
             when (tab) {
                 "control" -> channelControlSettings()
                 "look" -> {
-                item { Section("Theme", null) }
+                item { Section(stringResource(R.string.phone_settings_theme), null) }
                 item {
                     Column(Modifier.padding(horizontal = 20.dp)) {
-                        Seg(listOf("0" to "System", "1" to "Night", "2" to "Day"), Ui.theme.intValue.toString()) { Ui.theme.intValue = it.toInt(); Prefs.theme = it.toInt() }
+                        Seg(listOf("0" to stringResource(R.string.phone_settings_theme_system), "1" to stringResource(R.string.phone_settings_theme_night),
+                            "2" to stringResource(R.string.phone_settings_theme_day)), Ui.theme.intValue.toString()) { Ui.theme.intValue = it.toInt(); Prefs.theme = it.toInt() }
                         Spacer(Modifier.height(14.dp))
                         Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                             Accents.forEachIndexed { i, (name, night, _) ->
                                 val sel = Ui.accent.intValue == i
+                                val desc = stringResource(R.string.phone_settings_accent_desc, stringResource(name))
                                 Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .semantics { contentDescription = "$name accent" }
+                                    .semantics { contentDescription = desc }
                                     .selectable(selected = sel, role = Role.RadioButton, onClick = { Ui.accent.intValue = i; Prefs.accent = i }), contentAlignment = Alignment.Center) {
                                     Box(Modifier.size(if (sel) 34.dp else 28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(night)
                                         .border(if (sel) 3.dp else 0.dp, p.tx, androidx.compose.foundation.shape.CircleShape))
                                 }
                             }
                             Spacer(Modifier.width(8.dp))
-                            Text(Accents.getOrNull(Ui.accent.intValue)?.first ?: "", style = sans(14f, 500, p.tx2))
+                            Text(Accents.getOrNull(Ui.accent.intValue)?.first?.let { stringResource(it) } ?: "", style = sans(14f, 500, p.tx2))
                         }
                     }
                 }
                 languageSettings()
                 }
                 "voice" -> {
-                item { Section("Talk voice", null) }
+                item { Section(stringResource(R.string.phone_settings_talk_voice), null) }
                 item { Panel { TalkVoicePanel() } }
-                item { Section("Wake word", null) }
+                item { Section(stringResource(R.string.phone_settings_wake_word), null) }
                 item { WakeWordPanel() }
                 }
                 "alerts" -> {
-                item { Section("Notifications", null) }
+                item { Section(stringResource(R.string.phone_settings_notifications), null) }
                 item {
                     Panel {
                         ChannelConnectionSettings(push)
                         Line()
                         CronDeliveryRow()
                         Line()
-                        SettingRow("Channels", "Approvals, replies, cron & digests, live runs. Mute each one separately.") {
-                            Btn("Open", primary = false) { ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }
+                        SettingRow(stringResource(R.string.phone_settings_channels), stringResource(R.string.phone_settings_channels_sub)) {
+                            Btn(stringResource(R.string.common_open), primary = false) { ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }
                         }
                         ChannelBatterySettings()
                     }
@@ -799,7 +804,7 @@ fun PhoneSettingsScreen() {
                 else -> {
                 // Revoked devices are history (test pairings, old phones); only the live ones matter here.
                 val shown = devices.filter { it.optInt("revoked") == 0 }
-                item { Section("Devices", shown.size.toString()) }
+                item { Section(stringResource(R.string.phone_settings_devices), shown.size.toString()) }
                 item {
                     Panel {
                         shown.forEachIndexed { i, d ->
@@ -808,29 +813,29 @@ fun PhoneSettingsScreen() {
                                 Icn(Ic.phone, if (d.optInt("revoked") == 1) p.dim else p.tx2, 20.dp)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(d.str("name") + if (d.str("id") == thisId) " (this phone)" else "", style = sans(15f, 550, if (d.optInt("revoked") == 1) p.dim else p.tx))
-                                    Text(if (d.optInt("revoked") == 1) "revoked" else "seen " + rel(d.optDouble("last_seen", 0.0)), style = mono(11.5f, 500, p.mu))
+                                    Text(if (d.str("id") == thisId) stringResource(R.string.phone_settings_device_this, d.str("name")) else d.str("name"), style = sans(15f, 550, if (d.optInt("revoked") == 1) p.dim else p.tx))
+                                    Text(if (d.optInt("revoked") == 1) stringResource(R.string.phone_settings_device_revoked) else stringResource(R.string.phone_settings_device_seen, rel(d.optDouble("last_seen", 0.0))), style = mono(11.5f, 500, p.mu))
                                 }
-                                if (d.str("id") != thisId && d.optInt("revoked") == 0) Btn("Revoke", danger = true) {
+                                if (d.str("id") != thisId && d.optInt("revoked") == 0) Btn(stringResource(R.string.phone_settings_revoke), danger = true) {
                                     scope.launch { runCatching { Api.delete("/v1/devices/" + d.str("id")) }.onFailure { Ui.say(it.message) }; loadDevices() }
                                 }
                             }
                         }
                     }
                 }
-                item { Section("Connection", null) }
+                item { Section(stringResource(R.string.phone_settings_connection), null) }
                 item {
                     Panel {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            KV("server", Prefs.base?.removePrefix("https://") ?: "–")
-                            KV("security", if (Prefs.cfId != null) "Cloudflare Access + signed requests" else "signed requests")
-                            KV("approval", if (Prefs.noLock) "no screen lock set" else "fingerprint or PIN")
+                            KV(stringResource(R.string.phone_settings_kv_server), Prefs.base?.removePrefix("https://") ?: "–")
+                            KV(stringResource(R.string.phone_settings_kv_security), if (Prefs.cfId != null) stringResource(R.string.phone_settings_security_access) else stringResource(R.string.phone_settings_security_signed))
+                            KV(stringResource(R.string.phone_settings_kv_approval), if (Prefs.noLock) stringResource(R.string.phone_settings_approval_no_lock) else stringResource(R.string.phone_settings_approval_biometric))
                         }
                     }
                 }
                     item {
                         Column(Modifier.padding(20.dp)) {
-                            Btn("Unpair this phone", Modifier.fillMaxWidth(), danger = true) { unpair = true }
+                            Btn(stringResource(R.string.phone_settings_unpair_button), Modifier.fillMaxWidth(), danger = true) { unpair = true }
                             Spacer(Modifier.height(18.dp))
                             Text("$EDITION_NAME " + runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty(), style = mono(11.5f, 500, p.dim))
                         }
@@ -839,11 +844,11 @@ fun PhoneSettingsScreen() {
             }
         }
     }
-    if (unpair) HDialog("Unpair?", onDismiss = { unpair = false }, body = {
-            Text("This phone forgets the machine and its keys. You'll need a new pairing code.", style = sans(15f, 400, p.tx2))
+    if (unpair) HDialog(stringResource(R.string.phone_settings_unpair_title), onDismiss = { unpair = false }, body = {
+            Text(stringResource(R.string.phone_settings_unpair_body), style = sans(15f, 400, p.tx2))
         }) {
-            Btn("Cancel", primary = false) { unpair = false }
-            Btn("Unpair", danger = true) {
+            Btn(stringResource(R.string.common_cancel), primary = false) { unpair = false }
+            Btn(stringResource(R.string.phone_settings_unpair), danger = true) {
             unpair = false
             scope.launch {
                 runCatching { Prefs.deviceId?.let { Api.delete("/v1/devices/$it") } }
@@ -883,15 +888,15 @@ fun WakeWordPanel() {
     val warmingUp by WakeListen.warmingUp.collectAsState()
     fun apply(v: Boolean) { on = v; Prefs.wakeWord = v; WakeListen.sync(ctx); if (!v) WakeListen.state.value = "off" }
     val perm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) apply(true) else Ui.say("Wake word needs the microphone")
+        if (ok) apply(true) else Ui.say(R.string.phone_settings_wake_needs_mic)
     }
     Panel {
-        SettingRow("Say \u201c${WakeWord.label(Prefs.wakePhrase)}\u201d", when {
+        SettingRow(stringResource(R.string.phone_settings_wake_say, WakeWord.label(Prefs.wakePhrase)), when {
             st.startsWith("error:") -> st.removePrefix("error:")
-            !on -> "Continuously uses the microphone in the background while enabled. Wake detection stays on-device; after a hit, Talk may send audio to the system recognizer and text to your gateway/providers."
-            st == "paused" -> "Paused while Talk has the mic"
-            st == "listening" -> "Listening" + if (hits > 0) " \u00b7 heard $hits\u00d7 this session" else ""
-            else -> "Starting\u2026"
+            !on -> stringResource(R.string.phone_settings_wake_off_sub)
+            st == "paused" -> stringResource(R.string.phone_settings_wake_paused)
+            st == "listening" -> if (hits > 0) pluralStringResource(R.plurals.phone_settings_wake_listening_hits, hits, hits) else stringResource(R.string.phone_settings_wake_listening)
+            else -> stringResource(R.string.phone_settings_wake_starting)
         }) {
             Toggle(on, { v ->
                 if (v && androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
@@ -901,27 +906,27 @@ fun WakeWordPanel() {
         if (on) {
             Line()
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("microWakeWord v2 · offline", style = sans(15f, 600, p.tx))
-                Text("Window cutoff: ${Fmt.decimal(thr.toDouble(), 2)} · 5 inferences", style = mono(12f, 500, p.mu))
+                Text(stringResource(R.string.phone_settings_wake_engine, "microWakeWord v2"), style = sans(15f, 600, p.tx))
+                Text(pluralStringResource(R.plurals.phone_settings_wake_cutoff, 5, Fmt.decimal(thr.toDouble(), 2), 5), style = mono(12f, 500, p.mu))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Manual native-cutoff adjustment, not invented calibrated sensitivity presets.
-                    Btn("Lower", primary = false, enabled = thr > 0.01f) {
+                    Btn(stringResource(R.string.phone_settings_wake_lower), primary = false, enabled = thr > 0.01f) {
                         thr = (kotlin.math.round(thr * 100).toInt() - 1).coerceAtLeast(1) / 100f; Prefs.wakeThreshold = thr
                     }
-                    Btn("Higher", primary = false, enabled = thr < 0.99f) {
+                    Btn(stringResource(R.string.phone_settings_wake_higher), primary = false, enabled = thr < 0.99f) {
                         thr = (kotlin.math.round(thr * 100).toInt() + 1).coerceAtMost(99) / 100f; Prefs.wakeThreshold = thr
                     }
                 }
-                Btn("Use recommended 0.97", primary = false) { thr = WakeWord.DEFAULT_CUTOFF; Prefs.wakeThreshold = thr }
+                Btn(stringResource(R.string.phone_settings_wake_use_recommended, Fmt.decimal(WakeWord.DEFAULT_CUTOFF.toDouble(), 2)), primary = false) { thr = WakeWord.DEFAULT_CUTOFF; Prefs.wakeThreshold = thr }
                 if (st == "listening") {
                     Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(p.s3)) {
                         Box(Modifier.fillMaxWidth((activation / 255f).coerceIn(0f, 1f)).height(6.dp)
                             .background(p.acct.copy(alpha = 0.6f)))
                     }
-                    Text(if (warmingUp) "Warming up / rearming" else "Activation window: ${kotlin.math.round(activation).toInt()} / 255",
+                    Text(if (warmingUp) stringResource(R.string.phone_settings_wake_warming_up) else stringResource(R.string.phone_settings_wake_activation, kotlin.math.round(activation).toInt(), 255),
                         style = mono(12f, 500, p.mu))
                 }
-                Text("Higher is stricter; lower may trigger on other speech. The bar is the native model's five-output activation mean, not confidence. Changing cutoff restarts warm-up. The old engine's sensitivity was reset to the model recommendation.", style = sans(12.5f, 400, p.mu, 17f))
+                Text(stringResource(R.string.phone_settings_wake_explainer), style = sans(12.5f, 400, p.mu, 17f))
             }
         }
     }
@@ -937,12 +942,12 @@ fun DayStrip(runs: List<Double>) {
     val inDay = runs.filter { it >= now && it < now + 86400 }
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("NEXT 24H", style = mono(11f, 700, p.mu), modifier = Modifier.weight(1f))
-            Text("${inDay.size} run" + (if (inDay.size == 1) "" else "s"), style = mono(11f, 500, p.tx2))
+            Text(stringResource(R.string.phone_settings_daystrip_next_24h), style = mono(11f, 700, p.mu), modifier = Modifier.weight(1f))
+            Text(pluralStringResource(R.plurals.phone_settings_daystrip_runs, inDay.size, inDay.size), style = mono(11f, 500, p.tx2))
         }
         Spacer(Modifier.height(8.dp))
         val acc = p.acc; val tick = p.line2; val track = p.s2; val nowC = p.tx
-        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(28.dp).clip(RoundedCornerShape(14.dp)).background(track)) {
+        androidx.compose.foundation.Canvas(Modifier.mirrorInRtl().fillMaxWidth().height(28.dp).clip(RoundedCornerShape(14.dp)).background(track)) {
             val w = size.width; val h = size.height
             // ticks at local 00/06/12/18 inside the window
             cal.timeInMillis = (now * 1000).toLong(); cal.set(java.util.Calendar.MINUTE, 0); cal.set(java.util.Calendar.SECOND, 0)
@@ -957,7 +962,7 @@ fun DayStrip(runs: List<Double>) {
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth()) {
             listOf(0.0, 0.25, 0.5, 0.75, 1.0).forEachIndexed { i, f ->
-                Text(if (i == 0) "now" else Fmt.time(((now + f * 86400) * 1000).toLong()), style = mono(10f, 500, p.mu),
+                Text(if (i == 0) stringResource(R.string.time_now) else Fmt.time(((now + f * 86400) * 1000).toLong()), style = mono(10f, 500, p.mu),
                     modifier = Modifier.weight(1f), textAlign = when (i) { 0 -> androidx.compose.ui.text.style.TextAlign.Start; 4 -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Center })
             }
         }
@@ -969,7 +974,7 @@ fun DayStrip(runs: List<Double>) {
 fun TalkVoicePanel() {
     val p = P
     var server by remember { mutableStateOf(Prefs.serverVoice) }
-    SettingRow("Server voice", if (server) "Hermes' own voice (set under Agent → Voice). About a second before each reply." else "The phone's text-to-speech engine. Instant, robotic.") {
+    SettingRow(stringResource(R.string.phone_settings_server_voice), if (server) stringResource(R.string.phone_settings_server_voice_on, HERMES) else stringResource(R.string.phone_settings_server_voice_off)) {
         Toggle(server, { v -> server = v; Prefs.serverVoice = v })
     }
 }

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Accessibility service ================= -->
+    <string name="phone_service_label">Hermes phone control</string>
+    <string name="phone_service_desc">Lets your Hermes agent read the screen and tap, type and swipe on this phone. It only acts while Control is turned on in the app (Me, This phone, Control).</string>
+
+    <!-- ================= Phone control ================= -->
+    <!-- ===== Phone control notification (PhoneControl.kt, full edition only) ===== -->
+    <!-- Ongoing notification title while the agent may control the phone. -->
+    <string name="phone_control_notice_title">Phone control is on</string>
+    <!-- Ongoing notification text. -->
+    <string name="phone_control_notice_text">Your agent can read and operate this unlocked phone.</string>
+    <!-- Notification action and button (verb): turn agent control of the phone off. -->
+    <string name="phone_control_stop">Stop control</string>
+
+    <!-- ===== Phone control panel (Me > This phone > Control) ===== -->
+    <!-- Setting title: the Android accessibility service this app provides. -->
+    <string name="phone_control_accessibility_service">Accessibility service</string>
+    <!-- Setting subtitle when the service is on. -->
+    <string name="phone_control_service_enabled">Enabled in Android settings.</string>
+    <!-- Setting subtitle when the service is off. %1$s: the app name (not translated). "phone control" is the service's name in Android Accessibility settings. -->
+    <string name="phone_control_service_disabled">Enable %1$s phone control in Android Accessibility settings.</string>
+    <!-- Setting title with an on/off switch. -->
+    <string name="phone_control_allow">Allow agent control</string>
+    <!-- Setting subtitle when control is on. -->
+    <string name="phone_control_allow_on">On. The agent can read, tap, type, swipe and open apps.</string>
+    <!-- Setting subtitle when control is off. -->
+    <string name="phone_control_allow_off">Off. No screen content or commands are sent.</string>
+    <!-- Error under the panel. -->
+    <string name="phone_control_enable_service_first">Enable the Accessibility service first</string>
+    <!-- Error under the panel. -->
+    <string name="phone_control_server_unavailable">Phone control is not available on the server yet</string>
+    <!-- Error under the panel. "Live runs & connection" is the name of the app's notification channel; use its translated name. "Stop control" is the notification action (phone_control_stop). -->
+    <string name="phone_control_enable_channel">Enable the Live runs &amp; connection notification channel so Stop control stays accessible</string>
+    <!-- Fingerprint/PIN prompt title when turning phone control on. -->
+    <string name="phone_control_confirm_title">Allow phone control</string>
+    <!-- Error under the panel when turning control on was interrupted. -->
+    <string name="phone_control_activation_cancelled">Activation cancelled because control, pairing or Accessibility changed</string>
+    <!-- Error under the panel. -->
+    <string name="phone_control_not_armed">Server did not arm this phone or activation was superseded</string>
+    <!-- Help text. %1$s: the app name as listed in Android Settings > Apps (not translated). "Allow restricted settings" is Android's own menu item; use Android's wording in your language. -->
+    <string name="phone_control_sideload_help">First setup for a sideloaded APK: Android may block Accessibility. Open Android Settings → Apps → %1$s → ⋮ → Allow restricted settings, then enable the service here. You only need to do this once.</string>
+    <!-- Help text. -->
+    <string name="phone_control_limits">Control works only while the screen is on and unlocked. Android blocks screenshots of protected screens. Password fields stay private. Turn control off here or from the notification at any time.</string>
+    <!-- Shown while the fingerprint/PIN prompt is open. -->
+    <string name="phone_control_confirming">Confirm with fingerprint or PIN…</string>
+
+    <!-- ================= Edition-specific settings and files ================= -->
+    <!-- ===== This phone settings (full edition) ===== -->
+    <!-- Tab: lets the agent operate this phone -->
+    <string name="channel_tab_control">Control</string>
+    <!-- Section header -->
+    <string name="channel_control_section">Agent phone control</string>
+    <string name="channel_battery_title">Battery optimization</string>
+    <!-- %1$s: the app's own name -->
+    <string name="channel_battery_body">Some phones kill the background connection. Allow %1$s to run unrestricted.</string>
+
+    <!-- ===== Opening attachments (full edition) ===== -->
+    <!-- "Install unknown apps" is the Android setting's name: use the name Android shows in this language. %1$s: the app's own name -->
+    <string name="channel_allow_unknown_apps">Allow \"Install unknown apps\" for %1$s, then tap the file again</string>
+</resources>

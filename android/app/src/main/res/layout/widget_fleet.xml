@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/w_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,7 +17,7 @@
             android:layout_height="wrap_content"
             android:id="@+id/w_name"
             android:layout_weight="1"
-            android:text="Hermes"
+            tools:text="Hermes"
             android:textColor="#F2F1EC"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -40,9 +41,9 @@
             android:textColor="#F2F1EC" android:textSize="22sp" android:textStyle="bold" android:text="–" />
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="waiting" android:textColor="#8A8F98" android:textSize="11sp" />
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="working" android:textColor="#8A8F98" android:textSize="11sp" />
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="approvals" android:textColor="#8A8F98" android:textSize="11sp" />
+        <TextView android:id="@+id/w_wait_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/widget_waiting" android:textColor="#8A8F98" android:textSize="11sp" />
+        <TextView android:id="@+id/w_work_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/widget_working" android:textColor="#8A8F98" android:textSize="11sp" />
+        <TextView android:id="@+id/w_appr_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/widget_approvals" android:textColor="#8A8F98" android:textSize="11sp" />
     </LinearLayout>
     <TextView
         android:id="@+id/w_top"
@@ -60,10 +61,10 @@
         android:layout_marginTop="6dp"
         android:orientation="horizontal">
         <TextView android:id="@+id/w_talk" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1"
-            android:background="@drawable/widget_btn_acc" android:gravity="center" android:text="Talk" android:textColor="#14160F" android:textSize="13sp" android:textStyle="bold" />
+            android:background="@drawable/widget_btn_acc" android:gravity="center" android:text="@string/widget_talk" android:textColor="#14160F" android:textSize="13sp" android:textStyle="bold" />
         <TextView android:id="@+id/w_new" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:layout_marginStart="8dp"
-            android:background="@drawable/widget_btn" android:gravity="center" android:text="New" android:textColor="#F2F1EC" android:textSize="13sp" android:textStyle="bold" />
+            android:background="@drawable/widget_btn" android:gravity="center" android:text="@string/widget_new" android:textColor="#F2F1EC" android:textSize="13sp" android:textStyle="bold" />
         <TextView android:id="@+id/w_fleet" android:layout_width="0dp" android:layout_height="34dp" android:layout_weight="1" android:layout_marginStart="8dp"
-            android:background="@drawable/widget_btn" android:gravity="center" android:text="Fleet" android:textColor="#F2F1EC" android:textSize="13sp" android:textStyle="bold" />
+            android:background="@drawable/widget_btn" android:gravity="center" android:text="@string/widget_fleet" android:textColor="#F2F1EC" android:textSize="13sp" android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>

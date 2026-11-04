@@ -1,9 +1,12 @@
 package dev.avifenesh.hermes
 
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 
 class HubLogicTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     @Test fun guardKeyMatchesServer() {
         assertEquals("skill:install:official/dogfood/adversarial-ux-test", HubLogic.guardKey("skill", "install", "official/dogfood/adversarial-ux-test"))
         assertEquals("plugin:update:x:accept", HubLogic.guardKey("plugin", "update", "x", accept = true))

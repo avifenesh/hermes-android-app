@@ -22,13 +22,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.intl.LocaleList as ComposeLocales
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 
@@ -94,3 +97,7 @@ private fun LanguageOption(title: String, sub: String?, tag: String?, selected: 
         if (selected) Icn(Ic.check, p.acct, 20.dp, Modifier.size(20.dp))
     }
 }
+
+/** Drawings with time on the x-axis (bar charts, the day strip) run right to left in RTL, like the label rows under them. */
+@Composable
+fun Modifier.mirrorInRtl(): Modifier = if (LocalLayoutDirection.current == LayoutDirection.Rtl) scale(-1f, 1f) else this

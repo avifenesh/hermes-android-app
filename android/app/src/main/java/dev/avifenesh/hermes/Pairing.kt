@@ -114,7 +114,7 @@ internal class PairSigner(private val body: ByteArray, private val sign: (ByteAr
         // Keystore failures (ProviderException, SignatureException, a missing key) are not IOExceptions. OkHttp
         // rethrows those on its dispatcher thread, which kills the app; as an IOException the call fails normally.
         val sig = try { sign(canon.toByteArray()) } catch (e: IOException) { throw e } catch (e: Exception) {
-            throw IOException("Pairing signature failed", e)
+            throw IOException(str(R.string.pairing_signature_failed), e)
         }
         return chain.proceed(r.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", sig).build())
     }
@@ -130,6 +130,8 @@ internal fun pairingClient(base: OkHttpClient, body: ByteArray, sign: (ByteArray
 
 /** The pairing in progress. It runs on [Hub.scope], so it outlives the pairing screen's composition. */
 object Pairing {
+    /** The command that makes a new pairing link on the computer; shown as is, never translated. */
+    private const val PAIR_COMMAND = "hermes mobile pair"
     val busy = mutableStateOf(false)
     /** The prompt and failure the pairing screen shows; set by deliveries, so a re-delivery re-arms them. */
     internal val offers = PairOffers<Uri>()
@@ -152,9 +154,10 @@ object Pairing {
         if (known) {
             offers.clear()
             Ui.pairLink.value = null
-            Ui.say("Already paired with " + (base?.let { Uri.parse(it).host } ?: "this machine"))
+            Ui.say(base?.let { Uri.parse(it).host }?.let { str(R.string.pairing_already_paired_with, it) }
+                ?: str(R.string.pairing_already_paired_this_machine))
         } else {
-            offers.failed("That pairing link was already used. Run hermes mobile pair again.")
+            offers.failed(str(R.string.pairing_link_used, PAIR_COMMAND))
         }
     }
 
@@ -174,7 +177,7 @@ object Pairing {
             PairOffers.Next.AlreadyPaired -> alreadyPaired(link)
             PairOffers.Next.Redeem ->
                 if (link.scheme == "hermes" && link.host == "pair") redeem(ctx, link, auto = true)
-                else offers.failed("That isn't a Hermes pairing link")
+                else offers.failed(str(R.string.pairing_not_a_pairing_link, HERMES))
             PairOffers.Next.Confirm, PairOffers.Next.Nothing -> {}
         }
     }
@@ -203,7 +206,7 @@ object Pairing {
     fun redeem(ctx: Context, link: Uri, auto: Boolean) {
         val k = key(link)
         if (k == null) {
-            offers.failed(if (link.getQueryParameter("u") == null) "That link has no server address" else "That link has no pairing code")
+            offers.failed(str(if (link.getQueryParameter("u") == null) R.string.pairing_link_no_server else R.string.pairing_link_no_code))
             return
         }
         when (gate.begin(k, auto)) {
@@ -231,16 +234,16 @@ object Pairing {
                 Ui.stack.clear(); Ui.tab.value = "inbox"
                 Ui.pairLink.value = null; Ui.paired.value = true
                 // Main owns sync / metadata / push bootstrap after the pairing screen leaves composition.
-                Ui.say("Paired with " + (Prefs.server ?: "Hermes"))
+                Ui.say(R.string.pairing_paired_with, Prefs.server ?: HERMES)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (!a.isCancelled) {
                     failedKey = k
                     offers.failed(when {
-                        e is ApiError && e.code == 403 -> "That code is used or expired. Run hermes mobile pair again."
+                        e is ApiError && e.code == 403 -> str(R.string.pairing_code_expired, PAIR_COMMAND)
                         // The server saw this exact request before (a transport re-send): a new attempt can still pair.
-                        e is ApiError && e.code == 409 -> "This phone already sent that pairing request. Open the link again to retry."
+                        e is ApiError && e.code == 409 -> str(R.string.pairing_request_replayed)
                         else -> e.message ?: e.toString()
                     })
                 }

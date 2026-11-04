@@ -1,5 +1,9 @@
 package dev.avifenesh.hermes
 
+import android.icu.text.MeasureFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
+import android.icu.util.ULocale
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -49,11 +55,15 @@ import org.json.JSONObject
 
 // ---------------------------------------------------------------- activity card (in chat)
 fun durStr(sec: Double): String = when {
-    sec < 1 -> "<1s"
-    sec < 60 -> "${sec.toInt()}s"
-    sec < 3600 -> "${(sec / 60).toInt()}m ${(sec % 60).toInt()}s"
-    else -> "${(sec / 3600).toInt()}h ${((sec % 3600) / 60).toInt()}m"
+    sec < 1 -> str(R.string.activity_duration_under, Fmt.seconds(1))
+    sec < 60 -> Fmt.seconds(sec.toLong())
+    sec < 3600 -> narrowDuration(Measure((sec / 60).toLong(), MeasureUnit.MINUTE), Measure((sec % 60).toLong(), MeasureUnit.SECOND))
+    else -> Fmt.hoursMinutes((sec / 3600).toLong(), ((sec % 3600) / 60).toLong())
 }
+
+/** Narrow units in the app language ("5m 3s", "250ms" in English), like [Fmt.minutes]. */
+private fun narrowDuration(vararg m: Measure): String =
+    MeasureFormat.getInstance(ULocale.forLocale(Fmt.locale()), MeasureFormat.FormatWidth.NARROW).formatMeasures(*m)
 
 @Composable
 fun ActivityCard(m: Msg) {
@@ -71,19 +81,19 @@ fun ActivityCard(m: Msg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (live) LiveDot(8.dp) else Icn(Ic.tool, p.mu, 15.dp)
             Spacer(Modifier.width(9.dp))
-            Text(m.content.ifBlank { "Tool activity" }, style = sans(14.5f, 600, p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(m.content.ifBlank { stringResource(R.string.activity_tool_activity) }, style = sans(14.5f, 600, p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
             Icn(Ic.chevR, p.mu, 16.dp)
         }
         Spacer(Modifier.height(5.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!m.content.any { it.isDigit() }) Text("$count tool${if (count == 1) "" else "s"}", style = mono(12f, 500, p.mu))   // the summary usually carries the count already
+            if (!m.content.any { it.isDigit() }) Text(pluralStringResource(R.plurals.activity_tools, count, count), style = mono(12f, 500, p.mu))   // the summary usually carries the count already
             if (added + removed > 0) Text(buildAnnotatedString {
                 withStyle(SpanStyle(color = p.good)) { append("+$added") }
                 append(" ")
                 withStyle(SpanStyle(color = p.bad)) { append("-$removed") }
             }, style = mono(12f, 600, p.mu))
-            if (errors > 0) Text("$errors failed", style = mono(12f, 600, p.bad))
+            if (errors > 0) Text(pluralStringResource(R.plurals.activity_failed, errors, errors), style = mono(12f, 600, p.bad))
             val started = meta.optDouble("started", 0.0)
             val ended = meta.optDouble("ended", 0.0)
             if (!live && started > 0 && ended > started) Text(durStr(ended - started), style = mono(12f, 500, p.dim))
@@ -111,14 +121,14 @@ fun ActivityScreen(mid: String, cid: String) {
     var tab by remember { mutableStateOf("calls") }
     val open = remember { mutableStateMapOf<String, Boolean>() }
     Column(Modifier.fillMaxSize()) {
-        TopBar(msg?.content ?: "Tool activity", if (live) "working" else msg?.let { clock(it.ts) }, if (live) p.acct else p.mu)
+        TopBar(msg?.content ?: stringResource(R.string.activity_tool_activity), if (live) stringResource(R.string.chat_status_working) else msg?.let { clock(it.ts) }, if (live) p.acct else p.mu)
         if (files.isNotEmpty()) Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Seg(listOf("calls" to "Calls · ${calls.size}", "files" to "Files · ${files.size}"), tab) { tab = it }
+            Seg(listOf("calls" to stringResource(R.string.activity_tab_calls, calls.size), "files" to stringResource(R.string.activity_tab_files, files.size)), tab) { tab = it }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
-            if (err != null) item { ErrorPanel("Could not load tool activity: $err") { retry++ } }
+            if (err != null) item { ErrorPanel(stringResource(R.string.activity_load_failed, err.orEmpty())) { retry++ } }
             else if (data == null) item { Skeleton() }
-            else if (calls.isEmpty() && files.isEmpty()) item { Empty("No tool activity", "Tool calls and changed files will appear here.") }
+            else if (calls.isEmpty() && files.isEmpty()) item { Empty(stringResource(R.string.activity_empty_title), stringResource(R.string.activity_empty_body)) }
             if (tab == "files" && files.isNotEmpty()) {
                 items(files.size) { i -> FileDiff(files[i]) }
             } else {
@@ -147,7 +157,7 @@ private fun CallRow(c: JSONObject, expanded: Boolean, toggle: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(c.str("tool"), style = mono(11f, 500, p.mu))
                     val ms = c.optLong("ms", 0)
-                    if (ms > 0) Text(if (ms < 1000) "${ms}ms" else durStr(ms / 1000.0), style = mono(11f, 500, p.dim))
+                    if (ms > 0) Text(if (ms < 1000) narrowDuration(Measure(ms, MeasureUnit.MILLISECOND)) else durStr(ms / 1000.0), style = mono(11f, 500, p.dim))
                     val a = c.optInt("added", 0); val r = c.optInt("removed", 0)
                     if (a + r > 0) Text("+$a -$r", style = mono(11f, 600, p.mu))
                 }
@@ -156,9 +166,9 @@ private fun CallRow(c: JSONObject, expanded: Boolean, toggle: () -> Unit) {
         }
         if (expanded) Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             c.str("error").takeIf { it.isNotBlank() }?.let { Text(it, style = mono(12f, 500, p.bad)) }
-            c.str("detail").takeIf { it.isNotBlank() }?.let { Pane(if (c.str("tool") == "terminal") "command" else "input", it) }
+            c.str("detail").takeIf { it.isNotBlank() }?.let { Pane(if (c.str("tool") == "terminal") stringResource(R.string.activity_pane_command) else stringResource(R.string.activity_pane_input), it) }
             c.str("diff").takeIf { it.isNotBlank() }?.let { DiffPane(it) }
-            c.str("output").takeIf { it.isNotBlank() }?.let { Pane("output", it) }
+            c.str("output").takeIf { it.isNotBlank() }?.let { Pane(stringResource(R.string.activity_pane_output), it) }
         }
     }
 }
@@ -171,7 +181,7 @@ private fun Pane(label: String, text: String) {
         Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 2.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = mono(10.5f, 600, p.mu))
             Spacer(Modifier.weight(1f))
-            Text("copy", style = mono(10.5f, 500, p.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(text)); Ui.say("Copied") }.padding(8.dp))
+            Text(stringResource(R.string.parts_code_copy), style = mono(10.5f, 500, p.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(text)); Ui.say(R.string.common_copied) }.padding(8.dp))
         }
         SelectionContainer {
             Text(text, style = mono(12f, 400, p.tx), softWrap = false,
@@ -206,7 +216,7 @@ fun FileDiff(f: JSONObject) {
         if (open) {
             val d = f.str("diff")
             Box(Modifier.padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
-                if (d.isBlank()) Text("No diff captured for this file.", style = sans(13f, 400, p.mu), modifier = Modifier.padding(6.dp)) else DiffPane(d)
+                if (d.isBlank()) Text(stringResource(R.string.diff_none_captured), style = sans(13f, 400, p.mu), modifier = Modifier.padding(6.dp)) else DiffPane(d)
             }
         }
     }

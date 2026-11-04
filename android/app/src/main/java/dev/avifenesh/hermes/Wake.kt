@@ -59,8 +59,8 @@ object Wake {
         localOk = sp.getBoolean("lok", false)
         overview.value = sp.getString("ov", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CH, "Wake alarm", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "The wake alarm and its check-ins"; setSound(null, null); enableVibration(false)
+            NotificationChannel(CH, str(R.string.wake_channel), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = str(R.string.wake_channel_desc); setSound(null, null); enableVibration(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC; setBypassDnd(true)
             })
     }
@@ -280,7 +280,7 @@ class WakeService : Service() {
         val ticket = Api.epoch.capture()
         active = this
         try {
-            ServiceCompat.startForeground(this, 9, note("Prove you're awake"), WAKE_FGS_TYPE)
+            ServiceCompat.startForeground(this, 9, note(str(R.string.wake_prove_awake)), WAKE_FGS_TYPE)
         } catch (e: RuntimeException) {
             Log.w("hermes", "wake foreground start rejected", e)
             finish(); return@synchronized START_NOT_STICKY
@@ -334,14 +334,14 @@ class WakeService : Service() {
         // Background alarms use the system's full-screen notification policy, not a blocked activity start.
         if (Hub.foreground) runCatching { startActivity(Intent(this, WakeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         runCatching { getSystemService(NotificationManager::class.java).notify(9,
-            note(if (Wake.phase(Wake.session.value) == "checkin") "Check-in: one quick puzzle" else "Prove you're awake")) }
+            note(str(if (Wake.phase(Wake.session.value) == "checkin") R.string.wake_notif_checkin else R.string.wake_prove_awake))) }
     }
 
     private fun note(text: String): Notification {
         val pi = PendingIntent.getActivity(this, 9, Intent(this, WakeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, Wake.CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
-            .setContentTitle("Wake").setContentText(text).setOngoing(true)
+            .setContentTitle(str(R.string.wake_notif_title)).setContentText(text).setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setContentIntent(pi)
             .apply { if (Wake.canFullScreen(this@WakeService)) setFullScreenIntent(pi, true) }.build()
@@ -433,7 +433,7 @@ class WakeBootReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         Wake.schedule(c)
         // Android 14+ forbids starting microphone services from boot. Resume only when the user opens Hermes.
-        if (Prefs.wakeWord) WakeListen.state.value = "error:Open $APP_NAME to resume wake word listening"
+        if (Prefs.wakeWord) WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME)
         if (Prefs.paired) {
             // Network I/O can outlive a broadcast's deadline. Let WorkManager refresh cached alarm state.
             androidx.work.WorkManager.getInstance(c).enqueueUniqueWork("wake_rearm", androidx.work.ExistingWorkPolicy.KEEP,

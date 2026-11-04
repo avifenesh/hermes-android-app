@@ -57,6 +57,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -114,7 +116,7 @@ fun InboxScreen(initialFilter: String = "all") {
     Column(Modifier.fillMaxSize()) {
         val me by Hub.meta.collectAsState()
         val metaLine = listOf("name", "profile", "model").map { me.str(it).trim() }.filter { it.isNotBlank() }.joinToString(" · ")
-        Header("Inbox", if (online) null else "Offline · showing what's on the phone", meta = {
+        Header(stringResource(R.string.inbox_title), if (online) null else stringResource(R.string.inbox_offline), meta = {
             Row(Modifier.padding(top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Dot(if (online) p.good else p.mu, 7.dp)
                 if (metaLine.isNotBlank()) { Spacer(Modifier.width(7.dp)); Text(metaLine, style = mono(11.5f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -124,8 +126,8 @@ fun InboxScreen(initialFilter: String = "all") {
             IconBtn(Ic.search, if (searching) p.acct else p.tx) { searching = !searching; if (!searching) q = "" }
         }
         if (searching) {
-            InputBox(q, { q = it }, "Search messages", Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
-            Text("Search every session on the machine →", style = sans(13.5f, 600, p.acct), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+            InputBox(q, { q = it }, stringResource(R.string.inbox_search_placeholder), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1)
+            Text(stringResource(R.string.inbox_search_everywhere), style = sans(13.5f, 600, p.acct), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 .clickable { Ui.push(Route.SearchR) })
         }
         if (work.isNotEmpty()) {
@@ -134,19 +136,19 @@ fun InboxScreen(initialFilter: String = "all") {
                 .border(1.dp, p.line, RoundedCornerShape(20.dp)).clickable { Ui.tab.value = "pulse" }.padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 LiveDot(8.dp); Spacer(Modifier.width(10.dp))
-                Text("${agentName()} is on $n thing${if (n == 1) "" else "s"}", style = sans(14f, 600, p.tx), modifier = Modifier.weight(1f))
+                Text(pluralStringResource(R.plurals.inbox_agent_busy, n, n, agentName()), style = sans(14f, 600, p.tx), modifier = Modifier.weight(1f))
                 Icn(Ic.chevR, p.mu, 16.dp)
             }
         }
         val unreadChats = chats.values.filter { it.kind != "digest" && !it.archived }.sumOf { it.unread }
         val unreadDigests = chats.values.filter { it.kind == "digest" && !it.archived }.sumOf { it.unread }
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("All", filter == "all") { filter = "all" }
-            Chip("Chats", filter == "chats", unreadChats) { filter = "chats" }
-            if (roomsOn) Chip("Rooms", filter == "rooms", roomMap.values.sumOf { it.unread }) { filter = "rooms" }
-            Chip("Digests", filter == "digests", unreadDigests) { filter = "digests" }
-            Chip("Archived", filter == "archived") { filter = "archived" }
-            Chip("Elsewhere", false) { Ui.push(Route.Elsewhere) }
+            Chip(stringResource(R.string.common_all), filter == "all") { filter = "all" }
+            Chip(stringResource(R.string.inbox_filter_chats), filter == "chats", unreadChats) { filter = "chats" }
+            if (roomsOn) Chip(stringResource(R.string.inbox_filter_rooms), filter == "rooms", roomMap.values.sumOf { it.unread }) { filter = "rooms" }
+            Chip(stringResource(R.string.inbox_filter_digests), filter == "digests", unreadDigests) { filter = "digests" }
+            Chip(stringResource(R.string.inbox_filter_archived), filter == "archived") { filter = "archived" }
+            Chip(stringResource(R.string.inbox_filter_elsewhere), false) { Ui.push(Route.Elsewhere) }
         }
         val ptr = rememberPullToRefreshState()
         PullToRefreshBox(refreshing, { scope.launch { refreshing = true; runCatching { Hub.sync(full = true); if (roomsOn) Rooms.load() }.onFailure { Ui.say(it.message) }; refreshing = false } },
@@ -156,10 +158,10 @@ fun InboxScreen(initialFilter: String = "all") {
                 if (filter == "rooms" && q.isBlank()) item(key = "new-room") { NewRoomRow { newRoom = true } }
                 if (entries.isEmpty()) item {
                     when {
-                        q.isNotBlank() -> Empty("Nothing found", "No chat mentions \"$q\".")
+                        q.isNotBlank() -> Empty(stringResource(R.string.inbox_search_empty_title), stringResource(R.string.inbox_search_empty_body, q))
                         filter == "rooms" && !roomsLoaded -> Skeleton(2)
-                        filter == "rooms" -> Empty("No group chats yet", "Start one with two or more Bots, or open one from Hermes Desktop.")
-                        else -> Empty("All quiet", "Start new work with the pen, or wait for ${agentName()} and cron to report in.")
+                        filter == "rooms" -> Empty(stringResource(R.string.inbox_rooms_empty_title), stringResource(R.string.inbox_rooms_empty_body, HERMES_DESKTOP))
+                        else -> Empty(stringResource(R.string.inbox_empty_title), stringResource(R.string.inbox_empty_body, agentName()))
                     }
                 }
                 items(entries, key = { it.first }) { (_, v) ->
@@ -202,9 +204,9 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val sub = when {
-                        needs -> "Waiting for your approval"
-                        live -> "${agentName()} is working…"
-                        else -> (if (c.lastRole == "user") "You: " else "") + c.preview
+                        needs -> stringResource(R.string.inbox_row_waiting_approval)
+                        live -> stringResource(R.string.inbox_row_working, agentName())
+                        else -> if (c.lastRole == "user") stringResource(R.string.inbox_row_you, c.preview) else c.preview
                     }
                     Text(sub, style = sans(14f, 400, when { needs -> p.att; live -> p.acct; else -> p.mu }), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (c.unread > 0) {
@@ -215,9 +217,9 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
             }
         }
         DropdownMenu(menu, { menu = false }, containerColor = p.s2) {
-            DropdownMenuItem({ Text(if (c.pinned) "Unpin" else "Pin", style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { runCatching { Hub.patch(c.id, "pinned", if (c.pinned) 0 else 1) } } })
-            DropdownMenuItem({ Text(if (c.archived) "Unarchive" else "Archive", style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { runCatching { Hub.patch(c.id, "archived", if (c.archived) 0 else 1) } } })
-            if (c.unread > 0) DropdownMenuItem({ Text("Mark read", style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { Hub.markRead(c.id) } })
+            DropdownMenuItem({ Text(if (c.pinned) stringResource(R.string.inbox_menu_unpin) else stringResource(R.string.inbox_menu_pin), style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { runCatching { Hub.patch(c.id, "pinned", if (c.pinned) 0 else 1) } } })
+            DropdownMenuItem({ Text(if (c.archived) stringResource(R.string.inbox_menu_unarchive) else stringResource(R.string.inbox_menu_archive), style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { runCatching { Hub.patch(c.id, "archived", if (c.archived) 0 else 1) } } })
+            if (c.unread > 0) DropdownMenuItem({ Text(stringResource(R.string.inbox_menu_mark_read), style = sans(15f, 500, p.tx)) }, { menu = false; scope.launch { Hub.markRead(c.id) } })
         }
     }
 }
@@ -295,7 +297,7 @@ fun ChatScreen(cid: String) {
         loading = true; loadErr = null
         try { Hub.loadChat(cid); Hub.markRead(cid) }
         catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { loadErr = e.message ?: "Connection failed" }
+        catch (e: Exception) { loadErr = e.message ?: str(R.string.common_connection_failed) }
         finally { loading = false }
     }
     LaunchedEffect(cid) { runCatching { Hub.loadCmds() } }
@@ -367,7 +369,7 @@ fun ChatScreen(cid: String) {
             if ((chat?.unread ?: 0) > 0) Hub.markRead(cid)
         }
     }
-    fun add(u: android.net.Uri, kind: String? = null) { scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say("Upload failed: " + it.message) }; busy = false } }
+    fun add(u: android.net.Uri, kind: String? = null) { scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say(R.string.attach_upload_failed, it.message) }; busy = false } }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let { u -> add(u, "image") } }
     val doc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> add(u) } }
     val cam = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
@@ -376,9 +378,9 @@ fun ChatScreen(cid: String) {
     // The camera app takes the photo (TakePicture). Full asks for its declared CAMERA grant first; Play declares none.
     val camera = rememberCameraStart(open = {
         val f = newMediaFile(ctx, "cam", ".jpg"); camPath = f.path
-        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say("No camera app is available. Attach a photo instead.") }
-    }, denied = { Ui.say("Camera permission denied. You can still attach a photo.") })
-    val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say("Could not start recording: ${it.message}") }.getOrNull() else Ui.say("Microphone permission denied. You can still type a message.") }
+        runCatching { cam.launch(FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)) }.onFailure { f.delete(); Ui.say(R.string.attach_no_camera_app) }
+    }, denied = { Ui.say(R.string.attach_camera_denied) })
+    val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) rec = runCatching { Recorder(ctx) }.onFailure { Ui.say(R.string.record_start_failed, it.message) }.getOrNull() else Ui.say(R.string.record_mic_denied) }
     fun send(extra: List<JSONObject> = emptyList()) {
         val t = text.trim()
         val a = atts.toList() + extra
@@ -389,7 +391,7 @@ fun ChatScreen(cid: String) {
         scope.launch {
             try { Hub.send(cid, t, m, a); text = ""; atts.clear() }
             catch (e: kotlinx.coroutines.CancellationException) { following = false; throw e }
-            catch (e: Exception) { following = false; Ui.say("Not sent: " + e.message) }
+            catch (e: Exception) { following = false; Ui.say(R.string.chat_not_sent, e.message) }
             finally { busy = false }
         }
     }
@@ -400,11 +402,11 @@ fun ChatScreen(cid: String) {
     val label = modelLabeler()
     val sub = when {
         // While working: model and cost only. The full token line is one tap away in the run screen.
-        running -> "working" + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }, costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
-        chat?.kind == "digest" -> "digest"
+        running -> stringResource(R.string.chat_status_working) + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }, costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
+        chat?.kind == "digest" -> stringResource(R.string.chat_status_digest)
         else -> headerLine(use?.optJSONObject("session"), use?.optJSONObject("turn"), label)
     }
-    TopBar(chat?.title ?: "Chat", sub, if (running) p.acct else p.mu) {
+    TopBar(chat?.title ?: stringResource(R.string.chat_title_fallback), sub, if (running) p.acct else p.mu) {
             if (running) {
                 Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accd).clickable { Ui.push(Route.RunR(cid)) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -416,9 +418,9 @@ fun ChatScreen(cid: String) {
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
-            if (loadErr != null) item { ErrorPanel("Could not load chat: $loadErr") { retry++ } }
+            if (loadErr != null) item { ErrorPanel(stringResource(R.string.chat_load_failed, loadErr.orEmpty())) { retry++ } }
             else if (msgs.isEmpty()) item {
-                if (loading) Skeleton() else Empty("New chat", "Say something to ${agentName()}.")
+                if (loading) Skeleton() else Empty(stringResource(R.string.chat_empty_title), stringResource(R.string.chat_empty_body, agentName()))
             }
             items(msgs.size, key = { msgs[it].id }) { i ->
                 val m = msgs[i]
@@ -449,7 +451,7 @@ fun ChatScreen(cid: String) {
             Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp).height(48.dp).clip(RoundedCornerShape(20.dp)).background(p.s2)
                 .border(1.dp, p.line2, RoundedCornerShape(20.dp)).clickable { pending = false; scope.launch { list.animateScrollToItem(msgs.size + 1) } }
                 .padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
-                Text(if (pending) "New messages ↓" else "Jump to latest", style = sans(13.5f, 600, if (pending) p.acct else p.tx))
+                Text(if (pending) stringResource(R.string.chat_new_messages) else stringResource(R.string.chat_jump_to_latest), style = sans(13.5f, 600, if (pending) p.acct else p.tx))
             }
         }
         }
@@ -464,14 +466,14 @@ fun ChatScreen(cid: String) {
         }
         else Column(Modifier.fillMaxWidth().background(p.bg).navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
             if (running) Row(Modifier.padding(start = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Seg(listOf("steer" to "Steer", "queue" to "Queue"), mode) { mode = it }
+                Seg(listOf("steer" to stringResource(R.string.chat_mode_steer), "queue" to stringResource(R.string.chat_mode_queue)), mode) { mode = it }
                 Spacer(Modifier.width(10.dp))
-                Text(if (mode == "steer") "redirects before the next step" else "runs after this one finishes", style = sans(12.5f, 400, p.mu), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(if (mode == "steer") stringResource(R.string.chat_mode_steer_hint) else stringResource(R.string.chat_mode_queue_hint), style = sans(12.5f, 400, p.mu), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             else Row(Modifier.padding(start = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 ChatModelControl(cid)
             }
-            if (chat?.kind == "digest" && !running) DigestActions(cid, msgs.lastOrNull { it.role != "user" && it.kind == "text" }) { t -> text = ""; scope.launch { runCatching { Hub.send(cid, t) }.onFailure { Ui.say("Not sent: " + it.message) } } }
+            if (chat?.kind == "digest" && !running) DigestActions(cid, msgs.lastOrNull { it.role != "user" && it.kind == "text" }) { t -> text = ""; scope.launch { runCatching { Hub.send(cid, t) }.onFailure { Ui.say(R.string.chat_not_sent, it.message) } } }
             SlashSuggest(text, { text = it }, Modifier.padding(bottom = 8.dp))
             if (atts.isNotEmpty()) AttRow(atts)
             val r = rec
@@ -485,15 +487,15 @@ fun ChatScreen(cid: String) {
                     IconBtn(Ic.plus, p.tx2, 46.dp, p.s2) { plus = true }
                     DropdownMenu(plus, { plus = false }, containerColor = p.s2) {
                         AttachmentPrivacyNotice(Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 10.dp))
-                        DropdownMenuItem({ Text("Photo", style = sans(15f, 500, p.tx)) }, { plus = false; pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, leadingIcon = { Icn(Ic.plus, p.tx2, 18.dp) })
-                        DropdownMenuItem({ Text("Camera", style = sans(15f, 500, p.tx)) }, { plus = false; camera() }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) })
-                        DropdownMenuItem({ Text("File", style = sans(15f, 500, p.tx)) }, { plus = false; doc.launch(arrayOf("*/*")) }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) })
+                        DropdownMenuItem({ Text(stringResource(R.string.attach_photo), style = sans(15f, 500, p.tx)) }, { plus = false; pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, leadingIcon = { Icn(Ic.plus, p.tx2, 18.dp) })
+                        DropdownMenuItem({ Text(stringResource(R.string.attach_camera), style = sans(15f, 500, p.tx)) }, { plus = false; camera() }, leadingIcon = { Icn(Ic.camera, p.tx2, 18.dp) })
+                        DropdownMenuItem({ Text(stringResource(R.string.attach_file), style = sans(15f, 500, p.tx)) }, { plus = false; doc.launch(arrayOf("*/*")) }, leadingIcon = { Icn(Ic.file, p.tx2, 18.dp) })
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                InputBox(text, { text = it }, if (running) (if (mode == "steer") "Steer ${agentName()}…" else "Queue a follow-up…") else "Message ${agentName()}", Modifier.weight(1f))
+                InputBox(text, { text = it }, if (running) (if (mode == "steer") stringResource(R.string.chat_placeholder_steer, agentName()) else stringResource(R.string.chat_placeholder_queue)) else stringResource(R.string.chat_placeholder_message, agentName()), Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
-                if (running && text.isBlank() && atts.isEmpty()) StopCircle { scope.launch { runCatching { Hub.stop(cid); Ui.say("Stopping…") }.onFailure { Ui.say(it.message) } } }
+                if (running && text.isBlank() && atts.isEmpty()) StopCircle { scope.launch { runCatching { Hub.stop(cid); Ui.say(R.string.run_stopping) }.onFailure { Ui.say(it.message) } } }
                 else if (text.isBlank() && atts.isEmpty()) IconBtn(Ic.mic, p.tx, 46.dp, p.s2) {
                     if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) rec = runCatching { Recorder(ctx) }.getOrNull()
                     else mic.launch(Manifest.permission.RECORD_AUDIO)
@@ -512,7 +514,7 @@ fun WorkingRow(since: Double, onClick: () -> Unit) {
         Spacer(Modifier.width(AVATAR_GAP))
         Row(Modifier.weight(1f, fill = false).clip(RoundedCornerShape(16.dp)).background(p.accd).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text("${agentName()} is working", style = sans(14f, 600, p.acct), modifier = Modifier.weight(1f, fill = false))
+            Text(stringResource(R.string.chat_agent_working, agentName()), style = sans(14f, 600, p.acct), modifier = Modifier.weight(1f, fill = false))
             Spacer(Modifier.width(10.dp))
             Elapsed(since, mono(12.5f, 500, p.acct))
             Spacer(Modifier.width(6.dp))
@@ -545,7 +547,7 @@ fun NoticeRow(run: List<Msg>) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(p.dim))
             Spacer(Modifier.width(8.dp))
-            Text(if (run.size == 1) lastLine else if (open) "${run.size} notices" else "${run.size} notices · $lastLine", style = mono(11.5f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(if (run.size == 1) lastLine else if (open) pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) else pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) + " · " + lastLine, style = mono(11.5f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (expandable) Icn(if (open) Ic.chevU else Ic.chevD, p.dim, 13.dp)
             Text(clock(run.last().ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(start = 6.dp))
         }
@@ -564,7 +566,7 @@ fun ThinkingRow(text: String) {
     var open by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { open = !open }.padding(horizontal = 6.dp, vertical = 4.dp).animateContentSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Thinking", style = mono(11.5f, 600, p.mu))
+            Text(stringResource(R.string.msg_thinking), style = mono(11.5f, 600, p.mu))
             Spacer(Modifier.width(6.dp))
             Icn(if (open) Ic.chevU else Ic.chevD, p.dim, 14.dp)
         }
@@ -594,7 +596,7 @@ fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean =
                     Spacer(Modifier.width(AVATAR_GAP))
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
-                    if (m.kind == "steer" || m.kind == "queued") Text(if (m.kind == "steer") "STEER" else "QUEUED", style = mono(10.5f, 700, p.acct), modifier = Modifier.padding(end = 6.dp, bottom = 3.dp))
+                    if (m.kind == "steer" || m.kind == "queued") Text(if (m.kind == "steer") stringResource(R.string.msg_tag_steer) else stringResource(R.string.msg_tag_queued), style = mono(10.5f, 700, p.acct), modifier = Modifier.padding(end = 6.dp, bottom = 3.dp))
                     val body = @Composable {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (a in atts) AttachmentView(a, mine)
@@ -637,7 +639,7 @@ fun TraceRow(m: Msg, compact: Boolean) {
             Icn(Ic.tool, p.mu, 15.dp)
             Spacer(Modifier.width(8.dp))
             val names = steps.map { it.str("tool") }.distinct()
-            Text(if (steps.isEmpty()) "Tool activity" else "${steps.size} step${if (steps.size == 1) "" else "s"} · " + names.take(3).joinToString(", ") + if (names.size > 3) "…" else "",
+            Text(if (steps.isEmpty()) stringResource(R.string.activity_tool_activity) else pluralStringResource(R.plurals.msg_trace_steps, steps.size, steps.size) + " · " + names.take(3).joinToString(", ") + if (names.size > 3) "…" else "",
                 style = mono(12.5f, 500, p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
@@ -663,10 +665,10 @@ fun ApprovalContext(meta: JSONObject, pending: Boolean) {
     var open by remember { mutableStateOf(false) }
     Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.s1).clickable { open = !open }.padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("CONTEXT", style = mono(10.5f, 700, p.mu))
+            Text(stringResource(R.string.approval_context), style = mono(10.5f, 700, p.mu))
             Spacer(Modifier.width(8.dp))
-            Text(listOfNotNull(files.size.takeIf { it > 0 }?.let { "$it file" + if (it > 1) "s" else "" },
-                recent.size.takeIf { it > 0 }?.let { "$it recent steps" }, if (diff.isNotBlank()) "last diff" else null).joinToString(" · "),
+            Text(listOfNotNull(files.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.approval_context_files, it, it) },
+                recent.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.approval_context_recent_steps, it, it) }, if (diff.isNotBlank()) stringResource(R.string.approval_context_last_diff) else null).joinToString(" · "),
                 style = mono(11.5f, 500, p.tx2), modifier = Modifier.weight(1f))
             Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
@@ -694,7 +696,7 @@ fun ApprovalCard(a: Appr?, m: Msg) {
     val pending = state == "pending"
     val cmd = a?.command ?: m.meta.str("command")
     val desc = a?.description ?: m.meta.str("description")
-    val acts = a?.actions?.ifEmpty { null } ?: listOf(Act("Approve", "once", "primary"), Act("Deny", "deny", "danger"))
+    val acts = a?.actions?.ifEmpty { null } ?: listOf(Act(stringResource(R.string.common_approve), "once", "primary"), Act(stringResource(R.string.common_deny), "deny", "danger"))
     fun go(choice: String) {
         val id = a?.id ?: m.meta.str("approval_id")
         if (busy || id.isBlank()) return
@@ -706,19 +708,19 @@ fun ApprovalCard(a: Appr?, m: Msg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icn(Ic.shield, if (pending) p.att else p.mu, 18.dp)
             Spacer(Modifier.width(8.dp))
-            Text(when (state) { "pending" -> "Needs your approval"; "approved" -> "Approved" + (a?.choice?.takeIf { it != "once" }?.let { " · $it" } ?: ""); "denied" -> "Denied"; else -> "Expired" },
+            Text(when (state) { "pending" -> stringResource(R.string.approval_needs_you); "approved" -> stringResource(R.string.approval_approved) + (a?.choice?.takeIf { it != "once" }?.let { " · $it" } ?: ""); "denied" -> stringResource(R.string.approval_denied); else -> stringResource(R.string.approval_expired) },
                 style = sans(14.5f, 650, if (pending) p.att else p.mu))
             Spacer(Modifier.weight(1f))
             Text(clock(m.ts), style = mono(11f, 500, p.mu))
         }
         if (desc.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(desc, style = sans(14.5f, 400, p.tx, 21f)) }
-        if (cmd.isNotBlank()) { Spacer(Modifier.height(10.dp)); CodeBlock(cmd, "command") }
-        if (m.meta.optBoolean("smart_denied")) Text("Hermes' safety check flagged this one. Read it before approving.",
+        if (cmd.isNotBlank()) { Spacer(Modifier.height(10.dp)); CodeBlock(cmd, stringResource(R.string.approval_command_label)) }
+        if (m.meta.optBoolean("smart_denied")) Text(stringResource(R.string.approval_smart_denied, HERMES),
             style = sans(13f, 600, p.bad), modifier = Modifier.padding(top = 8.dp))
         ApprovalContext(m.meta, pending)
         // Without a screen lock the approval key can't require a fingerprint: say so on the card itself, and
         // offer only this-once (session/always would widen what runs unchecked from a key nothing protects).
-        if (pending && Prefs.noLock) Text("No screen lock on this phone, so approving doesn't ask for your fingerprint. Set a screen lock and re-pair to fix.",
+        if (pending && Prefs.noLock) Text(stringResource(R.string.approval_no_lock),
             style = sans(13f, 600, p.bad), modifier = Modifier.padding(top = 8.dp))
         if (pending) {
             Spacer(Modifier.height(12.dp))
@@ -726,7 +728,7 @@ fun ApprovalCard(a: Appr?, m: Msg) {
                 val main = acts.filter { it.choice != "deny" }
                 val first = main.firstOrNull()
                 if (first != null) Btn(if (busy) "…" else first.label, Modifier.weight(1f), enabled = !busy) { go(first.choice) }
-                Btn("Deny", Modifier.weight(1f), danger = true, enabled = !busy) { go("deny") }
+                Btn(stringResource(R.string.common_deny), Modifier.weight(1f), danger = true, enabled = !busy) { go("deny") }
             }
             val rest = acts.filter { it.choice != "deny" }.drop(1).filter { !Prefs.noLock || it.choice == "once" }
             if (rest.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -754,22 +756,22 @@ fun RunScreen(cid: String) {
         do {
             try { info = Api.get("/v1/chats/$cid/run"); loadErr = null }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { loadErr = e.message ?: "Connection failed" }
+            catch (e: Exception) { loadErr = e.message ?: str(R.string.common_connection_failed) }
             if (since != null) delay(4000)
         } while (since != null)
     }
     val steps = info?.optJSONArray("steps").objs()
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar("Run", chat?.title)
+        TopBar(stringResource(R.string.run_title), chat?.title)
         LazyColumn(Modifier.weight(1f)) {
-            if (loadErr != null) item { ErrorPanel("Could not load run: $loadErr") { retry++ } }
+            if (loadErr != null) item { ErrorPanel(stringResource(R.string.run_load_failed, loadErr.orEmpty())) { retry++ } }
             else if (info == null) item { Skeleton() }
             if (info != null) {
             item {
                 Column(Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (since != null) { LiveDot(10.dp); Spacer(Modifier.width(10.dp)) }
-                        Text(if (since != null) "Working" else "Idle", style = serif(44f, if (since != null) p.acct else p.tx))
+                        Text(if (since != null) stringResource(R.string.run_state_working) else stringResource(R.string.run_state_idle), style = serif(44f, if (since != null) p.acct else p.tx))
                         Spacer(Modifier.weight(1f))
                         if (since != null) Elapsed(since, mono(22f, 500, p.tx))
                     }
@@ -778,8 +780,8 @@ fun RunScreen(cid: String) {
                     RunUsage(liveTurn ?: info?.optJSONObject("usage"), info?.optJSONObject("session"), Hub.meta.collectAsState().value.str("name"))
                 }
             }
-            item { Section("Steps", if (steps.isEmpty()) null else "${steps.size}") }
-            if (steps.isEmpty()) item { Text(if (since != null) "Waiting for the first tool call…" else "No tool calls in the latest turn.", style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
+            item { Section(stringResource(R.string.run_steps), if (steps.isEmpty()) null else "${steps.size}") }
+            if (steps.isEmpty()) item { Text(if (since != null) stringResource(R.string.run_waiting_first_call) else stringResource(R.string.run_no_calls), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
             items(steps.size) { i ->
                 val s = steps[i]
                 val last = i == steps.lastIndex && since != null
@@ -803,14 +805,14 @@ fun RunScreen(cid: String) {
         }
         if (since != null) Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                InputBox(steer, { steer = it }, "Steer before the next step…", Modifier.weight(1f))
+                InputBox(steer, { steer = it }, stringResource(R.string.run_steer_placeholder), Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
                 IconBtn(Ic.send, p.ink, 46.dp, p.acc, enabled = steer.isNotBlank()) {
-                    val t = steer.trim(); scope.launch { runCatching { Hub.send(cid, t, "steer"); steer = ""; Ui.say("Steer sent") }.onFailure { Ui.say(it.message) } }
+                    val t = steer.trim(); scope.launch { runCatching { Hub.send(cid, t, "steer"); steer = ""; Ui.say(R.string.run_steer_sent) }.onFailure { Ui.say(it.message) } }
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Btn("Stop run", Modifier.fillMaxWidth(), danger = true) { scope.launch { runCatching { Hub.stop(cid); Ui.say("Stopping…") }.onFailure { Ui.say(it.message) } } }
+            Btn(stringResource(R.string.run_stop), Modifier.fillMaxWidth(), danger = true) { scope.launch { runCatching { Hub.stop(cid); Ui.say(R.string.run_stopping) }.onFailure { Ui.say(it.message) } } }
         }
     }
 }

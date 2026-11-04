@@ -78,13 +78,14 @@ fun serif(size: Float, c: Color = Color.Unspecified, italic: Boolean = false) =
     TextStyle(fontFamily = Serif, fontSize = size.sp, lineHeight = (size * 1.08f).sp, color = c,
         textDirection = TextDirection.Content, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, letterSpacing = (-0.4).sp)
 
-/** Accent presets: (name, night accent, day text-safe accent). Lime is the design default. */
-val Accents = listOf(
-    Triple("Lime", Color(0xFFD4F75C), Color(0xFF4F6600)),
-    Triple("Coral", Color(0xFFFF8A66), Color(0xFFB2431F)),
-    Triple("Sky", Color(0xFF7CC8FF), Color(0xFF1F5F92)),
-    Triple("Violet", Color(0xFFB9A2FF), Color(0xFF5B3FC4)),
-    Triple("Mint", Color(0xFF7BE0A6), Color(0xFF1E7A48)),
+/** Accent presets: (name string resource, night accent, day text-safe accent). Lime is the design default.
+ * The name stays a resource id so it resolves in the current app language where it is shown. */
+val Accents: List<Triple<Int, Color, Color>> = listOf(
+    Triple(R.string.accent_lime, Color(0xFFD4F75C), Color(0xFF4F6600)),
+    Triple(R.string.accent_coral, Color(0xFFFF8A66), Color(0xFFB2431F)),
+    Triple(R.string.accent_sky, Color(0xFF7CC8FF), Color(0xFF1F5F92)),
+    Triple(R.string.accent_violet, Color(0xFFB9A2FF), Color(0xFF5B3FC4)),
+    Triple(R.string.accent_mint, Color(0xFF7BE0A6), Color(0xFF1E7A48)),
 )
 
 fun Pal.withAccent(i: Int): Pal {

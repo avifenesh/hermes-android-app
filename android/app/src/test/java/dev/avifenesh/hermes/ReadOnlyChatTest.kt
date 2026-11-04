@@ -2,10 +2,13 @@ package dev.avifenesh.hermes
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 
 /** A mirrored group conversation is read-only on the phone; the notice says where to reply. */
 class ReadOnlyChatTest {
+    @Before fun englishStrings() = TestStrings.install()
+
     @Test fun groupMirrorsSayWhereToReply() {
         assertEquals("Group chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:group"))
         assertEquals("Group chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:forum"))

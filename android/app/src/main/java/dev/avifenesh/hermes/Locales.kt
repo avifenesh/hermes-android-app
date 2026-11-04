@@ -59,7 +59,32 @@ object Locales {
         }
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply { if (tag == null) remove(KEY) else putString(KEY, tag) }.commit()
         applyDefault(c)
+        relocalized(c.applicationContext)
         synchronized(live) { live.toList() }.filter { it is MainActivity || it is WakeActivity }.forEach { it.recreate() }
+    }
+
+    /** After a language change: rename the notification channels, redraw the widget and the Talk tile. The launcher
+     * and System UI render those with the system language unless the app sets the text itself. */
+    fun relocalized(app: Context) {
+        runCatching {
+            Notify.channels(app)
+            WakeListen.channels(app)
+            val nm = app.getSystemService(android.app.NotificationManager::class.java)
+            nm.getNotificationChannel(Wake.CH)?.let { ch ->
+                ch.name = str(R.string.wake_channel); ch.description = str(R.string.wake_channel_desc); nm.createNotificationChannel(ch)
+            }
+            Widget.update(app)
+            android.service.quicksettings.TileService.requestListeningState(app, android.content.ComponentName(app, TalkTile::class.java))
+        }
+    }
+
+    private var seen: String? = null
+
+    /** Application.onConfigurationChanged hook: Android 13+ delivers a per-app or system language change here. */
+    fun configurationChanged(app: Context, conf: Configuration) {
+        val tags = conf.locales.toLanguageTags()
+        if (seen != null && tags != seen) relocalized(app)
+        seen = tags
     }
 
     /** A context whose resources use the chosen language; the plain context on 13+ or with no choice. */
@@ -80,6 +105,7 @@ object Locales {
     }
 
     fun init(app: Application) {
+        seen = app.resources.configuration.locales.toLanguageTags()
         // A choice stored while the phone ran Android 12 moves to the system once it runs 13+.
         if (Build.VERSION.SDK_INT >= 33) {
             val old = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
