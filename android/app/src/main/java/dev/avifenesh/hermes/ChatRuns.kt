@@ -33,3 +33,45 @@ fun endsRun(msgs: List<Msg>, i: Int, quiet: (Msg) -> Boolean): Boolean {
     val next = msgs.getOrNull(k)
     return next == null || next.role != m.role
 }
+
+// Gateway progress/housekeeping lines (mirrors store.is_notice on the server, so messages stored before
+// the server learned to tag them fold the same way).
+private val NOTICE_HEAD = Regex("^\\s*(?:\u23f3|\u267b\ufe0f?|\ud83e\udde0|\ud83d\udcbb|\ud83d\udc0d|\ud83d\udcda|\ud83d\udcd6|\ud83d\udc41\ufe0f?|\u270d\ufe0f?|\ud83d\udd00|\ud83c\udf10|\ud83d\udd0d|\ud83d\udcc4|\u23e9|\u26a1|\ud83e\uddf9|\ud83d\udddc\ufe0f?|\ud83d\udd04|\ud83d\udcbe|\ud83d\udcec|\u2705|\u274c)\\s")
+private val NOTICE_LINE = Regex("^\\s*(?:\ud83d\udcbb|\ud83d\udc0d|\ud83d\udcda|\ud83d\udcd6|\ud83d\udc41\ufe0f?|\u270d\ufe0f?|\ud83d\udd00|\ud83c\udf10|\ud83d\udd0d|\ud83d\udcc4)\\s")
+
+fun isNoticeMsg(m: Msg): Boolean {
+    if (m.kind == "status") return true
+    if (m.kind != "text" || m.role == "user" || m.content.length > 2000) return false
+    val lines = m.content.lines().filter { it.isNotBlank() }
+    if (lines.isEmpty()) return false
+    if (lines.size == 1) return NOTICE_HEAD.containsMatchIn(lines[0])
+    val hits = lines.count { NOTICE_LINE.containsMatchIn(it) }
+    return NOTICE_LINE.containsMatchIn(lines[0]) && hits >= maxOf(2, (lines.size + 1) / 2)
+}
+
+/** Rows inside a speaker run that do not break it: tool traces, activity cards, notices. */
+fun quietInRun(m: Msg): Boolean = m.kind == "activity" || m.kind == "trace" || isNoticeMsg(m)
+
+/** Hermes' echo of a voice note's transcript, once the plugin linked it to that note. */
+fun isTranscriptEcho(m: Msg): Boolean = m.kind == "status" && m.meta.str("transcript_of").isNotEmpty()
+
+/** Whether [m] may become its chat's inbox preview and last speaker. The echo repeats the user's own words. */
+fun previewCandidate(m: Msg): Boolean = m.kind !in setOf("trace", "activity", "deleted") && !isTranscriptEcho(m)
+
+fun plainText(s: String): String = s.replace(Regex("```[a-zA-Z]*\\n?"), "").replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "\$1")
+    .replace(Regex("[*_`#>]"), "").replace(Regex("\\n{3,}"), "\n\n").trim()
+
+/** Inbox preview line. A voice note with no text previews as its transcript, else "Voice message". */
+fun chatPreview(m: Msg): String = when (m.kind) {
+    "approval" -> "Needs approval: " + m.meta.str("command")
+    "image" -> "Photo" + (if (m.content.isNotBlank()) " · " + m.content else "")
+    "file" -> "File: " + m.meta.str("file_name")
+    "voice" -> "Voice message"
+    else -> plainText(m.content).lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: voicePreview(m) ?: ""
+}
+
+private fun voicePreview(m: Msg): String? {
+    val clips = m.meta.optJSONArray("attachments").objs().filter { it.str("kind") == "voice" || it.str("mime").startsWith("audio/") }
+    if (clips.isEmpty()) return null
+    return clips.map { it.str("transcript").trim() }.firstOrNull { it.isNotEmpty() }?.lineSequence()?.first() ?: "Voice message"
+}

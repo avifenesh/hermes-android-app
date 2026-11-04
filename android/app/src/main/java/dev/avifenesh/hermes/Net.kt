@@ -298,6 +298,13 @@ object Api {
             }).build()
     }
     val sse: OkHttpClient by lazy { http.newBuilder().readTimeout(75, TimeUnit.SECONDS).build() }
+    /** Media downloads get their own dispatcher. A body streams while its call holds a dispatcher slot, and
+     *  OkHttp allows 5 per host per dispatcher, so a chat full of voice notes on the shared one would queue
+     *  the event stream and API calls behind it. Two transfers at a time. */
+    val media: OkHttpClient by lazy {
+        http.newBuilder().readTimeout(5, TimeUnit.MINUTES)
+            .dispatcher(okhttp3.Dispatcher().apply { maxRequests = 2; maxRequestsPerHost = 2 }).build()
+    }
     val plain: OkHttpClient by lazy {
         OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
             // Pairing carries CF credentials and a one-time code even before bearer authentication.
@@ -386,11 +393,10 @@ object Api {
     suspend fun download(p: String, dest: java.io.File, expectedSize: Long?, progress: (Float) -> Unit) {
         val req = request(p).build()
         withContext(Dispatchers.IO) {
-            val big = http.newBuilder().readTimeout(5, TimeUnit.MINUTES).build()
             // Concurrent downloads must not share or delete one another's partial file.
             val tmp = java.io.File.createTempFile("hm-download-", ".part", dest.absoluteFile.parentFile)
             try {
-                read(req, big) { r ->
+                read(req, media) { r ->
                     if (!r.isSuccessful) throw ApiError(r.code, "HTTP ${r.code}")
                     val total = r.body.contentLength()
                     r.body.byteStream().use { inp ->

@@ -161,18 +161,32 @@ class VoiceLogicTest {
     private fun msg(id: String, role: String, kind: String = "text", ts: Double = 1000.0, meta: JSONObject = JSONObject()) =
         Msg(id, "c", role, kind, "x", meta, ts, 0)
 
-    private val quiet = { m: Msg -> m.kind == "activity" || m.kind == "trace" || m.kind == "status" }
     private val day = { a: Msg, b: Msg -> (a.ts / 86_400).toLong() == (b.ts / 86_400).toLong() }
+
+    private fun said(id: String, role: String, content: String, kind: String = "text") =
+        Msg(id, "c", role, kind, content, JSONObject(), 1000.0, 0)
+
+    @Test fun theChatsQuietRowsAreTracesActivityAndNotices() {
+        assertTrue(quietInRun(msg("t", "agent", "trace")))
+        assertTrue(quietInRun(msg("a", "agent", "activity")))
+        assertTrue(quietInRun(msg("s", "agent", "status")))
+        assertTrue(quietInRun(said("n", "agent", "\u23f3 Working on it")))
+        assertTrue(quietInRun(said("b", "agent", "\ud83d\udcbb ls\n\ud83d\udcbb cat x")))
+        assertFalse(quietInRun(said("r", "agent", "Here is the answer.")))
+        assertFalse(quietInRun(said("u", "user", "\u23f3 typed by the user")))
+        assertFalse(quietInRun(msg("ap", "agent", "approval")))
+    }
 
     @Test fun runsStartOnANewSpeakerACardOrANewDay() {
         val ms = listOf(
-            msg("u1", "user"), msg("u2", "user", "voice"),
-            msg("a1", "agent"), msg("t", "agent", "trace"), msg("n", "agent", "status"), msg("a2", "agent", "voice"),
+            msg("u1", "user"), msg("u2", "user", "voice"), said("n", "agent", "\u23f3 Still working"),
+            msg("a1", "agent"), msg("t", "agent", "trace"), msg("a2", "agent", "voice"),
             msg("ap", "agent", "approval"), msg("a3", "agent"),
             msg("a4", "agent", ts = 1000.0 + 86_400),
         )
-        val leads = ms.indices.filter { leadsRun(ms, it, quiet, day) }.map { ms[it].id }
-        // Traces and notices between a1 and a2 do not split the run; an approval card does; so does midnight.
+        val leads = ms.indices.filter { leadsRun(ms, it, ::quietInRun, day) }.map { ms[it].id }
+        // A notice before a1 does not make it a continuation of anything; a trace between a1 and a2 does not
+        // split the run; an approval card does; so does midnight.
         assertTrue("u1" in leads && "a1" in leads && "a3" in leads && "a4" in leads)
         assertFalse("u2" in leads || "a2" in leads)
     }
@@ -184,5 +198,115 @@ class VoiceLogicTest {
         val gone = msg("d", "agent", "deleted")
         assertEquals(listOf("v", "o"), chatVisible(listOf(voice, echo, orphan, gone)).map { it.id })
         assertEquals(listOf("e"), chatVisible(listOf(echo)).map { it.id })
+    }
+
+    // ------------------------------------------------------------ inbox preview
+    @Test fun theTranscriptEchoIsNeverThePreviewAndAVoiceNotePreviewsAsItsWords() {
+        val voice = Msg("v", "c", "user", "text", "", JSONObject().put("attachments", org.json.JSONArray()
+            .put(JSONObject().put("kind", "voice").put("transcript", "pick up the parcel\nthen call"))), 1000.0, 0)
+        val bare = Msg("b", "c", "user", "text", "", JSONObject().put("attachments", org.json.JSONArray()
+            .put(JSONObject().put("mime", "audio/ogg"))), 1000.0, 0)
+        val echo = msg("e", "agent", "status", meta = JSONObject().put("quiet", true).put("transcript_of", "v"))
+        assertTrue(isTranscriptEcho(echo))
+        assertFalse(previewCandidate(echo))
+        assertTrue(previewCandidate(voice) && previewCandidate(said("r", "agent", "\ud83c\udf99\ufe0f \"plain echo bubble\"")))
+        assertFalse(previewCandidate(msg("t", "agent", "trace")) || previewCandidate(msg("d", "agent", "deleted")))
+        assertEquals("pick up the parcel", chatPreview(voice))
+        assertEquals("Voice message", chatPreview(bare))
+        assertEquals("Caption wins", chatPreview(Msg("c2", "c", "user", "text", "Caption wins", voice.meta, 1000.0, 0)))
+        assertEquals("Voice message", chatPreview(msg("k", "agent", "voice")))
+    }
+
+    // ------------------------------------------------------------ fetching
+    @Test fun onlySmallVoiceNotesOnUnmeteredNetworksDownloadOnTheirOwn() {
+        val cap = VoiceFetchRules.AUTO_BYTES
+        assertTrue(VoiceFetchRules.auto(voiceKind = true, size = 240_000, metered = false, failedBefore = false))
+        assertTrue(VoiceFetchRules.auto(true, cap, false, false))
+        assertFalse(VoiceFetchRules.auto(true, cap + 1, false, false))
+        assertFalse(VoiceFetchRules.auto(true, null, false, false))
+        assertFalse(VoiceFetchRules.auto(true, 240_000, metered = true, failedBefore = false))
+        assertFalse(VoiceFetchRules.auto(true, 240_000, false, failedBefore = true))
+        assertFalse(VoiceFetchRules.auto(voiceKind = false, size = 240_000, metered = false, failedBefore = false))
+    }
+
+    @Test fun mediaDownloadsNeverTakeTheApiAndEventStreamSlots() {
+        assertTrue(Api.media.dispatcher !== Api.http.dispatcher)
+        assertTrue(Api.media.dispatcher !== Api.sse.dispatcher)
+        assertEquals(2, Api.media.dispatcher.maxRequestsPerHost)
+        assertEquals(Api.http.interceptors, Api.media.interceptors) // still signed
+        assertFalse(Api.media.followRedirects)
+    }
+
+    // ------------------------------------------------------------ decode bounds
+    private class FakeClock(var t: Long = 0)
+
+    private fun pumpOf(steps: List<PumpStep>, clock: FakeClock, stepMs: Long = 20): Pair<() -> PumpStep, () -> Int> {
+        var i = 0
+        // A loop that ignores its bounds fails here instead of hanging the suite.
+        return { check(i < 100_000) { "runaway decode loop" }; clock.t += stepMs; steps.getOrElse(i++) { steps.last() } } to { i }
+    }
+
+    @Test fun theDecodeLoopEndsReleasesAndReportsWhy() {
+        var closed = 0
+        val clock = FakeClock()
+        val (done, _) = pumpOf(listOf(PumpStep.PROGRESS, PumpStep.IDLE, PumpStep.PROGRESS, PumpStep.END), clock)
+        assertEquals(PumpEnd.DONE, DecodeBounds.pump(done, { closed++ }, { clock.t }, budgetMs = 10_000, idleTurns = 3))
+        assertEquals(1, closed)
+        // A decoder that stops answering: the idle bound ends it.
+        val (stuck, turns) = pumpOf(listOf(PumpStep.PROGRESS, PumpStep.IDLE), clock)
+        assertEquals(PumpEnd.STALLED, DecodeBounds.pump(stuck, { closed++ }, { clock.t }, budgetMs = 10_000_000, idleTurns = 50))
+        assertEquals(51, turns())
+        assertEquals(2, closed)
+        // One that trickles output forever: the time budget ends it.
+        val (slow, _) = pumpOf(listOf(PumpStep.PROGRESS), clock, stepMs = 1000)
+        assertEquals(PumpEnd.OUT_OF_TIME, DecodeBounds.pump(slow, { closed++ }, { clock.t }, budgetMs = 30_000, idleTurns = 3))
+        assertEquals(3, closed)
+    }
+
+    @Test fun theDecoderIsReleasedWhenOpeningStepsOrCancellationThrow() {
+        var closed = 0
+        val clock = FakeClock()
+        for (fail in listOf("open", "step", "cancel")) {
+            val thrown = runCatching {
+                DecodeBounds.pump(step = { if (fail == "step") error("codec died") else PumpStep.PROGRESS },
+                    close = { closed++ }, now = { clock.t }, budgetMs = 1000,
+                    checkActive = { if (fail == "cancel") throw java.util.concurrent.CancellationException("left the chat") },
+                    open = { if (fail == "open") error("no decoder for this format") })
+            }.exceptionOrNull()
+            assertTrue(fail, thrown != null)
+        }
+        assertEquals(3, closed)
+    }
+
+    @Test fun theDecodeBudgetGrowsWithTheClip() {
+        assertEquals(60_000L, DecodeBounds.budgetMs(0))
+        assertEquals(15_000L + 15_000L, DecodeBounds.budgetMs(60_000))
+        assertEquals(15_000L + 900_000L, DecodeBounds.budgetMs(3_600_000))
+        assertTrue(DecodeBounds.MAX_BYTES >= VoiceFetchRules.AUTO_BYTES)
+    }
+
+    // ------------------------------------------------------------ playback lifecycle and focus
+    @Test fun configurationChangesKeepTheNotePlaying() {
+        assertEquals(PlaybackAct.KEEP, PlaybackRules.onActivityStop(changingConfigurations = true))
+        assertEquals(PlaybackAct.PAUSE, PlaybackRules.onActivityStop(changingConfigurations = false))
+        assertEquals(PlaybackAct.KEEP, PlaybackRules.onScreenLeave(changingConfigurations = true))
+        assertEquals(PlaybackAct.STOP, PlaybackRules.onScreenLeave(changingConfigurations = false))
+    }
+
+    @Test fun focusLossesPauseDuckAndComeBack() {
+        // A navigation prompt: pause, then resume when it ends.
+        assertEquals(FocusAct.PAUSE_FOR_NOW, Focus.act(Focus.LOSS_TRANSIENT, playing = true, pausedForNow = false, ducked = false))
+        assertEquals(FocusAct.RESUME, Focus.act(Focus.GAIN, playing = false, pausedForNow = true, ducked = false))
+        // A notification sound that allows ducking: quieter, then full volume.
+        assertEquals(FocusAct.DUCK, Focus.act(Focus.LOSS_TRANSIENT_CAN_DUCK, playing = true, pausedForNow = false, ducked = false))
+        assertEquals(FocusAct.NONE, Focus.act(Focus.LOSS_TRANSIENT_CAN_DUCK, playing = true, pausedForNow = false, ducked = true))
+        assertEquals(FocusAct.RESTORE, Focus.act(Focus.GAIN, playing = true, pausedForNow = false, ducked = true))
+        // Another player taking over: pause for good, also from a transient pause.
+        assertEquals(FocusAct.PAUSE, Focus.act(Focus.LOSS, playing = true, pausedForNow = false, ducked = false))
+        assertEquals(FocusAct.PAUSE, Focus.act(Focus.LOSS, playing = false, pausedForNow = true, ducked = false))
+        // Nothing to do when nothing plays, and a gain after the user paused does not restart the note.
+        assertEquals(FocusAct.NONE, Focus.act(Focus.LOSS_TRANSIENT, playing = false, pausedForNow = false, ducked = false))
+        assertEquals(FocusAct.NONE, Focus.act(Focus.GAIN, playing = false, pausedForNow = false, ducked = false))
+        assertEquals(listOf(1, -1, -2, -3), listOf(Focus.GAIN, Focus.LOSS, Focus.LOSS_TRANSIENT, Focus.LOSS_TRANSIENT_CAN_DUCK))
     }
 }

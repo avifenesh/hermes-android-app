@@ -169,3 +169,96 @@ class WaveCache(private val maxBytes: Int) {
     @Synchronized fun size(): Int = map.size
     @Synchronized fun clear() { map.clear(); bytes = 0 }
 }
+
+// ---------------------------------------------------------------- decode bounds
+/** One turn of the decode loop: fed input or drained output, nothing possible yet, or end of stream. */
+enum class PumpStep { PROGRESS, IDLE, END }
+enum class PumpEnd { DONE, STALLED, OUT_OF_TIME }
+
+object DecodeBounds {
+    /** Above this a clip gets no waveform: 16 MB is over an hour of the app's 32 kb/s notes. */
+    const val MAX_BYTES = 16L * 1024 * 1024
+    /** Consecutive idle turns before the decoder counts as stuck; a turn waits up to 20 ms, so about 6 s. */
+    const val IDLE_TURNS = 300
+
+    /**
+     * Whole-decode time budget: 15 s plus a quarter of the clip's length. Phones decode speech many
+     * times faster than real time, so reaching it means the decoder is stuck or the device starved.
+     * A clip with no stated length gets 60 s.
+     */
+    fun budgetMs(containerMs: Long): Long = if (containerMs <= 0) 60_000 else 15_000 + containerMs / 4
+
+    /**
+     * [open] the decoder, then run [step] until the stream ends, the decoder stops answering for
+     * [idleTurns] turns, or [budgetMs] passes on [now]. [checkActive] may throw to cancel. [close]
+     * runs on every exit, including a failed [open].
+     */
+    fun pump(step: () -> PumpStep, close: () -> Unit, now: () -> Long, budgetMs: Long,
+             idleTurns: Int = IDLE_TURNS, checkActive: () -> Unit = {}, open: () -> Unit = {}): PumpEnd {
+        try {
+            open()
+            val start = now()
+            var idle = 0
+            while (true) {
+                checkActive()
+                if (now() - start > budgetMs) return PumpEnd.OUT_OF_TIME
+                when (step()) {
+                    PumpStep.END -> return PumpEnd.DONE
+                    PumpStep.PROGRESS -> idle = 0
+                    PumpStep.IDLE -> if (++idle >= idleTurns) return PumpEnd.STALLED
+                }
+            }
+        } finally {
+            close()
+        }
+    }
+}
+
+// ---------------------------------------------------------------- fetching
+object VoiceFetchRules {
+    /** Auto-download ceiling: 5 MB is about 20 minutes of the app's 32 kb/s notes or 5 of 128 kb/s speech. */
+    const val AUTO_BYTES = 5L * 1024 * 1024
+
+    /**
+     * Whether a voice bubble may download its clip without a tap: only real voice notes (not any
+     * audio file), with a known size under [AUTO_BYTES], off metered networks, and not after a
+     * failed download of the same media id.
+     */
+    fun auto(voiceKind: Boolean, size: Long?, metered: Boolean, failedBefore: Boolean): Boolean =
+        voiceKind && size != null && size in 0..AUTO_BYTES && !metered && !failedBefore
+}
+
+// ---------------------------------------------------------------- playback lifecycle
+enum class PlaybackAct { KEEP, PAUSE, STOP }
+
+object PlaybackRules {
+    /** The Activity stopped: Home or screen off pauses; a rotation, theme or font change keeps playing. */
+    fun onActivityStop(changingConfigurations: Boolean) = if (changingConfigurations) PlaybackAct.KEEP else PlaybackAct.PAUSE
+
+    /** The chat left composition: leaving the screen stops; recreation for a configuration change keeps playing. */
+    fun onScreenLeave(changingConfigurations: Boolean) = if (changingConfigurations) PlaybackAct.KEEP else PlaybackAct.STOP
+}
+
+// ---------------------------------------------------------------- audio focus
+enum class FocusAct { NONE, PAUSE, PAUSE_FOR_NOW, DUCK, RESTORE, RESUME }
+
+/** AudioManager focus-change codes (stable platform constants). */
+object Focus {
+    const val GAIN = 1
+    const val LOSS = -1
+    const val LOSS_TRANSIENT = -2
+    const val LOSS_TRANSIENT_CAN_DUCK = -3
+
+    /**
+     * A permanent loss pauses for good. A transient loss pauses and the note resumes when focus
+     * returns, unless the user paused meanwhile. A loss that allows ducking lowers the volume
+     * instead, and focus coming back restores it.
+     */
+    fun act(change: Int, playing: Boolean, pausedForNow: Boolean, ducked: Boolean): FocusAct = when (change) {
+        LOSS -> if (playing || pausedForNow) FocusAct.PAUSE else FocusAct.NONE
+        LOSS_TRANSIENT -> if (playing) FocusAct.PAUSE_FOR_NOW else FocusAct.NONE
+        LOSS_TRANSIENT_CAN_DUCK -> if (playing && !ducked) FocusAct.DUCK else FocusAct.NONE
+        GAIN -> when { ducked -> FocusAct.RESTORE; pausedForNow -> FocusAct.RESUME; else -> FocusAct.NONE }
+        else -> FocusAct.NONE
+    }
+}

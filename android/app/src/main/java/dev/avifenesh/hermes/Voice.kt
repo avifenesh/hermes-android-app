@@ -10,6 +10,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaPlayer
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -107,11 +108,12 @@ object Waves {
     /**
      * Decode the first audio track to PCM with MediaExtractor + MediaCodec and keep the peak of
      * each slice ([PeakMeter]). Duration is measured from the decoded frames, falling back to the
-     * container's. A file the platform cannot decode yields null peaks, never an exception.
+     * container's. [DecodeBounds] caps the file size, the whole decode's time and a stalled
+     * decoder; the codec and extractor are released on every exit. A file the platform cannot
+     * decode, or one past a bound, yields null peaks, never an exception.
      */
     suspend fun decode(f: File, buckets: Int = BUCKETS): Wave {
         val ex = MediaExtractor()
-        var codec: MediaCodec? = null
         var containerMs = 0L
         try {
             ex.setDataSource(f.path)
@@ -120,11 +122,9 @@ object Waves {
             } ?: return Wave(0, null)
             val fmt = ex.getTrackFormat(track)
             if (fmt.containsKey(MediaFormat.KEY_DURATION)) containerMs = fmt.getLong(MediaFormat.KEY_DURATION) / 1000
+            if (f.length() > DecodeBounds.MAX_BYTES) return Wave(containerMs, null)
             ex.selectTrack(track)
             val c = MediaCodec.createDecoderByType(fmt.getString(MediaFormat.KEY_MIME)!!)
-            codec = c
-            c.configure(fmt, null, null, 0)
-            c.start()
             var rate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             var channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
             var float = false
@@ -133,12 +133,13 @@ object Waves {
             var shorts = ShortArray(0)
             var floats = FloatArray(0)
             var inputDone = false
-            var idle = 0
-            while (true) {
-                currentCoroutineContext().ensureActive()
+            val context = currentCoroutineContext()
+            val end = DecodeBounds.pump(step = {
+                var moved = false
                 if (!inputDone) {
                     val i = c.dequeueInputBuffer(10_000)
                     if (i >= 0) {
+                        moved = true
                         val n = ex.readSampleData(c.getInputBuffer(i)!!, 0)
                         if (n < 0) { c.queueInputBuffer(i, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inputDone = true }
                         else { c.queueInputBuffer(i, 0, n, ex.sampleTime, 0); ex.advance() }
@@ -147,7 +148,6 @@ object Waves {
                 val o = c.dequeueOutputBuffer(info, 10_000)
                 when {
                     o >= 0 -> {
-                        idle = 0
                         val out = c.getOutputBuffer(o)
                         if (out != null && info.size > 0) {
                             out.position(info.offset); out.limit(info.offset + info.size)
@@ -163,7 +163,7 @@ object Waves {
                             }
                         }
                         c.releaseOutputBuffer(o, false)
-                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
+                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) PumpStep.END else PumpStep.PROGRESS
                     }
                     o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val of = c.outputFormat
@@ -172,11 +172,20 @@ object Waves {
                         float = of.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
                             of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
                         if (meter.frames == 0L) meter = PeakMeter(rate)
+                        PumpStep.PROGRESS
                     }
-                    // 300 empty 10 ms polls after end of input: the decoder is stuck; keep what it gave.
-                    inputDone && ++idle > 300 -> break
+                    moved -> PumpStep.PROGRESS
+                    else -> PumpStep.IDLE
                 }
-            }
+            }, close = {
+                runCatching { c.stop() }
+                c.release()
+            }, now = { android.os.SystemClock.elapsedRealtime() }, budgetMs = DecodeBounds.budgetMs(containerMs),
+                checkActive = { context.ensureActive() }, open = {
+                c.configure(fmt, null, null, 0)
+                c.start()
+            })
+            if (end != PumpEnd.DONE) return Wave(containerMs, null)  // a partial wave would misdraw the clip
             val measured = if (meter.frames > 0) meter.frames * 1000 / rate else 0L
             return Wave(if (measured > 0) measured else containerMs, meter.finish(buckets))
         } catch (e: CancellationException) {
@@ -184,15 +193,15 @@ object Waves {
         } catch (e: Exception) {
             return Wave(containerMs, null)
         } finally {
-            runCatching { codec?.stop() }
-            runCatching { codec?.release() }
             ex.release()
         }
     }
 }
 
 // ---------------------------------------------------------------- playback
-/** One voice message plays at a time, app-wide. Main thread only (Compose callbacks, lifecycle, MediaPlayer listeners). */
+/** One voice message plays at a time, app-wide, and the player outlives the Activity (process scope):
+ *  a rotation keeps the note going. Main thread only (Compose callbacks, lifecycle, MediaPlayer and
+ *  audio-focus listeners all run on the main looper). */
 object VoicePlayer {
     /** Server media id loaded in the player (playing or paused), else null. */
     val current = mutableStateOf<String?>(null)
@@ -204,8 +213,17 @@ object VoicePlayer {
     private var mp: MediaPlayer? = null
     private var focus: AudioFocusRequest? = null
     private var audio: AudioManager? = null
+    /** Paused by a transient focus loss; resumes when focus returns unless the user acted meanwhile. */
+    private var pausedForNow = false
+    private var ducked = false
     private val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+
+    init {
+        check(AudioManager.AUDIOFOCUS_GAIN == Focus.GAIN && AudioManager.AUDIOFOCUS_LOSS == Focus.LOSS &&
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT == Focus.LOSS_TRANSIENT &&
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK == Focus.LOSS_TRANSIENT_CAN_DUCK)
+    }
 
     fun toggle(c: Context, id: String, f: File) {
         if (current.value == id && mp != null) { if (playing.value) pause() else resume(c) } else play(c, id, f)
@@ -231,19 +249,30 @@ object VoicePlayer {
 
     fun resume(c: Context) {
         val p = mp ?: return
+        pausedForNow = false
         if (!requestFocus(c)) { Ui.say("Audio is busy. Try again in a moment."); return }
+        start(p)
+    }
+
+    private fun start(p: MediaPlayer) {
         // A non-zero speed on a prepared player starts it, so speed is applied only here, never while paused.
         runCatching { p.playbackParams = p.playbackParams.setSpeed(speed.floatValue) }
         if (!p.isPlaying) p.start()
         playing.value = true
     }
 
+    /** The user, the Activity stopping, or a permanent focus loss: pause and give focus back. */
     fun pause() {
+        hold()
+        pausedForNow = false
+        abandonFocus()
+    }
+
+    private fun hold() {
         val p = mp ?: return
         if (p.isPlaying) p.pause()
         position.longValue = p.currentPosition.toLong()
         playing.value = false
-        abandonFocus()
     }
 
     fun seek(id: String, ms: Long) {
@@ -268,16 +297,28 @@ object VoicePlayer {
         val p = mp
         mp = null
         current.value = null; playing.value = false; position.longValue = 0; duration.longValue = 0
+        pausedForNow = false; ducked = false
         if (p != null) { runCatching { p.stop() }; p.release() }
         abandonFocus()
+    }
+
+    private fun onFocus(change: Int) {
+        val p = mp ?: return
+        when (Focus.act(change, playing.value, pausedForNow, ducked)) {
+            FocusAct.PAUSE -> pause()
+            FocusAct.PAUSE_FOR_NOW -> { hold(); pausedForNow = true }
+            FocusAct.DUCK -> { p.setVolume(0.2f, 0.2f); ducked = true }
+            FocusAct.RESTORE -> { p.setVolume(1f, 1f); ducked = false }
+            FocusAct.RESUME -> { pausedForNow = false; start(p) }
+            FocusAct.NONE -> Unit
+        }
     }
 
     private fun requestFocus(c: Context): Boolean {
         if (focus != null) return true
         val am = c.getSystemService(AudioManager::class.java) ?: return true
-        // A call, an alarm or another player taking focus pauses the note; it does not resume on its own.
         val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attrs)
-            .setOnAudioFocusChangeListener { change -> if (change < 0) pause() }.build()
+            .setOnAudioFocusChangeListener(::onFocus).build()
         if (am.requestAudioFocus(req) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return false
         audio = am; focus = req
         return true
@@ -290,41 +331,106 @@ object VoicePlayer {
     }
 }
 
-/** Ties voice playback to the screen showing it: pauses when the Activity stops, stops when the screen leaves. */
+/**
+ * Ties voice playback to the screen showing it: Home or screen off pauses, leaving the screen
+ * stops, and an Activity recreated for a rotation, theme or font change keeps the note playing
+ * at its position ([PlaybackRules]).
+ */
 @Composable
 fun VoicePlaybackScope() {
     val owner = LocalLifecycleOwner.current
-    DisposableEffect(owner) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) VoicePlayer.pause() }
+    val activity = LocalActivity.current
+    DisposableEffect(owner, activity) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_STOP && PlaybackRules.onActivityStop(activity?.isChangingConfigurations == true) == PlaybackAct.PAUSE)
+                VoicePlayer.pause()
+        }
         owner.lifecycle.addObserver(obs)
-        onDispose { owner.lifecycle.removeObserver(obs); VoicePlayer.stop() }
+        onDispose {
+            owner.lifecycle.removeObserver(obs)
+            if (PlaybackRules.onScreenLeave(activity?.isChangingConfigurations == true) == PlaybackAct.STOP) VoicePlayer.stop()
+        }
     }
     val playing = VoicePlayer.playing.value
     // 20 position reads a second while playing and visible: finer than one bar of a short clip.
     VisibleEffect(playing) { while (VoicePlayer.playing.value) { VoicePlayer.tick(); delay(50) } }
 }
 
+// ---------------------------------------------------------------- fetching
+/** Where a bubble's clip stands. */
+enum class VoiceFetch {
+    /** On the phone. */ READY,
+    /** Downloading on its own; a tap turns it into [WAITING]. */ FETCHING,
+    /** Downloading after a tap; plays the moment it lands. */ WAITING,
+    /** Not downloaded on its own (large, metered, not a voice note, or failed before); a tap loads and plays it. */ MANUAL,
+    /** The download failed; a tap retries. */ FAILED,
+}
+
+object VoiceMedia {
+    /** Media ids whose download failed in this process: scrolling back does not refetch them on its own. */
+    private val failed = java.util.Collections.synchronizedSet(HashSet<String>())
+    fun failedBefore(id: String) = id in failed
+    fun noteFailure(id: String) { failed.add(id) }
+    fun noteSuccess(id: String) { failed.remove(id) }
+
+    /** The clip already on the phone (downloaded before, or this phone's own recording), else null. */
+    fun local(c: Context, id: String, name: String, size: Long?): File? =
+        mediaCacheFile(c, id, name).takeIf { it.isFile && it.length() > 0 && (size == null || it.length() == size) }
+
+    fun metered(c: Context): Boolean =
+        runCatching { c.getSystemService(android.net.ConnectivityManager::class.java)?.isActiveNetworkMetered }.getOrNull() ?: true
+}
+
 // ---------------------------------------------------------------- bubble
-/** A voice attachment, sent or received: fetched once per media id, decoded off the main thread, played by [VoicePlayer]. */
+/**
+ * A voice attachment, sent or received. The clip comes from the phone when it is already there;
+ * otherwise a real voice note under [VoiceFetchRules.AUTO_BYTES] on an unmetered network downloads
+ * on its own and anything else waits for a tap. A tap during a download plays the note as soon as
+ * it lands. Waveforms decode off the main thread; [VoicePlayer] plays.
+ */
 @Composable
-fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier) {
+fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
+                fetch: suspend (Context, String, String, Long?) -> File = { c, id, name, size -> fetchMedia(c, id, name, size) }) {
     val ctx = LocalContext.current
     val id = a.str("id").ifBlank { a.str("media") }
     val name = a.str("file_name")
     val size = a.optString("size").toLongOrNull()
+    val voiceKind = a.str("kind") == "voice"
     // Server-supplied length when present; otherwise measured locally from the decoded clip.
     val hint = a.optLong("duration_ms", 0L).coerceAtLeast(0)
-    var file by remember(id) { mutableStateOf<File?>(null) }
+    var file by remember(id) { mutableStateOf(VoiceMedia.local(ctx, id, name, size)) }
     var wave by remember(id) { mutableStateOf(Waves.cached(id)) }
-    var unavailable by remember(id) { mutableStateOf(false) }
+    // Decided before the first frame, so a local or auto-downloading clip never flashes "tap to load".
+    var state by remember(id) {
+        mutableStateOf(when {
+            file != null -> VoiceFetch.READY
+            VoiceMedia.failedBefore(id) -> VoiceFetch.FAILED
+            VoiceFetchRules.auto(voiceKind, size, VoiceMedia.metered(ctx), false) -> VoiceFetch.FETCHING
+            else -> VoiceFetch.MANUAL
+        })
+    }
     var attempt by remember(id) { mutableIntStateOf(0) }
+    fun play(f: File, fromMs: Long = 0) {
+        runCatching { VoicePlayer.play(ctx, id, f, fromMs) }.onFailure { Ui.say("Can't play this voice message") }
+    }
     LaunchedEffect(id, attempt) {
-        unavailable = false
-        try {
-            val f = fetchMedia(ctx, id, name, size)
-            file = f
-            if (wave == null) wave = Waves.load(id, f)
-        } catch (e: CancellationException) { throw e } catch (_: Exception) { unavailable = true }
+        val have = file
+        if (have == null) {
+            // Without a tap, only the states decided above download on their own.
+            if (attempt == 0 && state != VoiceFetch.FETCHING && state != VoiceFetch.WAITING) return@LaunchedEffect
+            if (state != VoiceFetch.WAITING) state = VoiceFetch.FETCHING
+            val got = try { fetch(ctx, id, name, size) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+            if (got == null) { VoiceMedia.noteFailure(id); state = VoiceFetch.FAILED; return@LaunchedEffect }
+            VoiceMedia.noteSuccess(id)
+            file = got
+            val wanted = state == VoiceFetch.WAITING
+            state = VoiceFetch.READY
+            if (wanted) play(got)
+        } else {
+            file = have
+            state = VoiceFetch.READY
+        }
+        if (wave == null) wave = Waves.load(id, file!!)
     }
     val current = VoicePlayer.current.value == id
     val w = wave
@@ -334,19 +440,22 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier) {
         else -> hint
     }
     VoiceBubbleContent(
-        mine = mine, peaks = w?.peaks, ready = w != null, unavailable = unavailable && file == null,
+        mine = mine, peaks = w?.peaks, ready = w != null, fetch = state, sizeBytes = size,
         durationMs = dur, positionMs = { if (VoicePlayer.current.value == id) VoicePlayer.position.longValue else 0L },
         current = current, playing = current && VoicePlayer.playing.value, speed = VoicePlayer.speed.floatValue,
         transcript = a.str("transcript"),
         onToggle = {
             val f = file
-            if (f == null) attempt++
-            else runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say("Can't play this voice message") }
+            when {
+                f != null -> runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say("Can't play this voice message") }
+                state == VoiceFetch.FETCHING -> state = VoiceFetch.WAITING
+                state == VoiceFetch.WAITING -> state = VoiceFetch.FETCHING  // a second tap takes the request back
+                else -> { state = VoiceFetch.WAITING; attempt++ }  // load on demand, or retry a failure
+            }
         },
         onSeek = { ms ->
             val f = file
-            if (VoicePlayer.current.value == id) VoicePlayer.seek(id, ms)
-            else if (f != null) runCatching { VoicePlayer.play(ctx, id, f, ms) }.onFailure { Ui.say("Can't play this voice message") }
+            if (VoicePlayer.current.value == id) VoicePlayer.seek(id, ms) else if (f != null) play(f, ms)
         },
         onSpeed = { VoicePlayer.cycleSpeed() },
         modifier = modifier,
@@ -360,10 +469,10 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier) {
  */
 @Composable
 fun VoiceBubbleContent(
-    mine: Boolean, peaks: FloatArray?, ready: Boolean, unavailable: Boolean, durationMs: Long, positionMs: () -> Long,
+    mine: Boolean, peaks: FloatArray?, ready: Boolean, fetch: VoiceFetch, durationMs: Long, positionMs: () -> Long,
     current: Boolean, playing: Boolean, speed: Float, transcript: String,
     onToggle: () -> Unit, onSeek: (Long) -> Unit, onSpeed: () -> Unit,
-    modifier: Modifier = Modifier, transcriptOpen: Boolean = false,
+    modifier: Modifier = Modifier, transcriptOpen: Boolean = false, sizeBytes: Long? = null,
 ) {
     val p = P
     var open by remember(transcript) { mutableStateOf(transcriptOpen) }
@@ -373,7 +482,7 @@ fun VoiceBubbleContent(
     val pos by remember(current) { derivedStateOf { if (current) positionMs() / 1000 * 1000 else 0L } }
     Column(modifier.then(shell)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PlayButton(playing, unavailable, durationMs, onToggle)
+            PlayButton(playing, fetch, durationMs, onToggle)
             Spacer(Modifier.width(4.dp))
             Waveform(peaks, ready, durationMs, positionMs, pos, current, mine, onSeek, Modifier.weight(1f).height(48.dp))
             Spacer(Modifier.width(2.dp))
@@ -381,13 +490,16 @@ fun VoiceBubbleContent(
         }
         FlowRow(Modifier.fillMaxWidth().padding(start = 52.dp), horizontalArrangement = Arrangement.SpaceBetween,
             itemVerticalAlignment = Alignment.CenterVertically) {
+            val length = if (durationMs > 0) VoiceMath.clock(durationMs, total = true) else null
             val time = when {
-                unavailable -> "Couldn't load"
-                current -> VoiceMath.clock(pos) + " / " + (if (durationMs > 0) VoiceMath.clock(durationMs, total = true) else "--:--")
-                durationMs > 0 -> VoiceMath.clock(durationMs, total = true)
+                fetch == VoiceFetch.FAILED -> "Couldn't load · tap to retry"
+                fetch == VoiceFetch.WAITING -> "Loading…"
+                fetch == VoiceFetch.MANUAL -> listOfNotNull(length, sizeBytes?.let { sizeStr(it) }, "tap to load").joinToString(" · ")
+                current -> VoiceMath.clock(pos) + " / " + (length ?: "--:--")
+                length != null -> length
                 else -> "Voice message"
             }
-            Text(time, style = mono(11.5f, 500, when { unavailable -> p.attt; current -> p.acct; else -> p.mu }),
+            Text(time, style = mono(11.5f, 500, when { fetch == VoiceFetch.FAILED -> p.attt; current || fetch == VoiceFetch.WAITING -> p.acct; else -> p.mu }),
                 modifier = Modifier.padding(end = 8.dp, bottom = if (transcript.isBlank()) 2.dp else 0.dp))
             if (transcript.isNotBlank()) {
                 Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
@@ -406,19 +518,42 @@ fun VoiceBubbleContent(
 }
 
 @Composable
-private fun PlayButton(playing: Boolean, unavailable: Boolean, durationMs: Long, onClick: () -> Unit) {
+private fun PlayButton(playing: Boolean, fetch: VoiceFetch, durationMs: Long, onClick: () -> Unit) {
     val p = P
+    val length = if (durationMs > 0) ", " + VoiceMath.spoken(durationMs) else ""
     val label = when {
-        unavailable -> "Retry voice message"
+        fetch == VoiceFetch.FAILED -> "Retry voice message"
+        fetch == VoiceFetch.WAITING -> "Loading voice message, tap to cancel"
+        fetch == VoiceFetch.MANUAL -> "Load and play voice message$length"
         playing -> "Pause voice message"
-        durationMs > 0 -> "Play voice message, " + VoiceMath.spoken(durationMs)
-        else -> "Play voice message"
+        else -> "Play voice message$length"
     }
+    val quiet = fetch == VoiceFetch.FAILED || fetch == VoiceFetch.MANUAL
     Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = label }
         .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(40.dp).clip(CircleShape).background(if (unavailable) p.s4 else p.acc), contentAlignment = Alignment.Center) {
-            Icn(when { unavailable -> Ic.refresh; playing -> Ic.pause; else -> Ic.play }, if (unavailable) p.tx else p.ink, 17.dp)
+        Box(Modifier.size(40.dp).clip(CircleShape).background(if (quiet) p.s4 else p.acc), contentAlignment = Alignment.Center) {
+            when {
+                fetch == VoiceFetch.WAITING -> LoadingRing(p.ink)
+                fetch == VoiceFetch.FAILED -> Icn(Ic.refresh, p.tx, 17.dp)
+                fetch == VoiceFetch.MANUAL -> Icn(Ic.download, p.tx, 17.dp)
+                else -> Icn(if (playing) Ic.pause else Ic.play, p.ink, 17.dp)
+            }
         }
+    }
+}
+
+/** A thin spinning arc while a tapped note downloads; a still arc when motion is off. */
+@Composable
+private fun LoadingRing(color: androidx.compose.ui.graphics.Color) {
+    val still = rememberReducedMotion()
+    val turn = if (still) 0f else {
+        val t by rememberInfiniteTransition(label = "voice loading").animateFloat(0f, 360f,
+            infiniteRepeatable(tween(900, easing = androidx.compose.animation.core.LinearEasing)), label = "turn")
+        t
+    }
+    Canvas(Modifier.size(18.dp)) {
+        drawArc(color, startAngle = turn - 90f, sweepAngle = 270f, useCenter = false,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
     }
 }
 
@@ -458,7 +593,9 @@ private fun Waveform(
                 onDragCancel = { scrub = null },
             ) { change, _ -> scrub = VoiceMath.fraction(change.position.x, size.width.toFloat(), rtl) }
         }
-        .semantics {
+        // Its own node: inside a long-pressable message bubble, which merges its children, TalkBack must still
+        // reach the waveform as a separate seek control.
+        .semantics(mergeDescendants = true) {
             contentDescription = "Voice message position"
             stateDescription = if (durationMs > 0) VoiceMath.spoken(pos) + " of " + VoiceMath.spoken(durationMs) else "Length unknown"
             if (durationMs > 0) {

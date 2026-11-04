@@ -171,30 +171,12 @@ object Hub {
             o.str("state", "pending"), o.str("choice"), o.optDouble("ts", 0.0))
     }
 
-    // Gateway progress/housekeeping lines (mirrors store.is_notice on the server, so messages stored before
-    // the server learned to tag them fold the same way).
-    private val NOTICE_HEAD = Regex("^\\s*(?:\u23f3|\u267b\ufe0f?|\ud83e\udde0|\ud83d\udcbb|\ud83d\udc0d|\ud83d\udcda|\ud83d\udcd6|\ud83d\udc41\ufe0f?|\u270d\ufe0f?|\ud83d\udd00|\ud83c\udf10|\ud83d\udd0d|\ud83d\udcc4|\u23e9|\u26a1|\ud83e\uddf9|\ud83d\udddc\ufe0f?|\ud83d\udd04|\ud83d\udcbe|\ud83d\udcec|\u2705|\u274c)\\s")
-    private val NOTICE_LINE = Regex("^\\s*(?:\ud83d\udcbb|\ud83d\udc0d|\ud83d\udcda|\ud83d\udcd6|\ud83d\udc41\ufe0f?|\u270d\ufe0f?|\ud83d\udd00|\ud83c\udf10|\ud83d\udd0d|\ud83d\udcc4)\\s")
-    fun isNotice(m: Msg): Boolean {
-        if (m.kind == "status") return true
-        if (m.kind != "text" || m.role == "user" || m.content.length > 2000) return false
-        val lines = m.content.lines().filter { it.isNotBlank() }
-        if (lines.isEmpty()) return false
-        if (lines.size == 1) return NOTICE_HEAD.containsMatchIn(lines[0])
-        val hits = lines.count { NOTICE_LINE.containsMatchIn(it) }
-        return NOTICE_LINE.containsMatchIn(lines[0]) && hits >= maxOf(2, (lines.size + 1) / 2)
-    }
+    // Gateway progress/housekeeping lines: see isNoticeMsg (mirrors store.is_notice on the server).
+    fun isNotice(m: Msg): Boolean = isNoticeMsg(m)
 
-    fun plain(s: String): String = s.replace(Regex("```[a-zA-Z]*\\n?"), "").replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "\$1")
-        .replace(Regex("[*_`#>]"), "").replace(Regex("\\n{3,}"), "\n\n").trim()
+    fun plain(s: String): String = plainText(s)
 
-    fun previewOf(m: Msg): String = when (m.kind) {
-        "approval" -> "Needs approval: " + m.meta.str("command")
-        "image" -> "Photo" + (if (m.content.isNotBlank()) " · " + m.content else "")
-        "file" -> "File: " + m.meta.str("file_name")
-        "voice" -> "Voice message"
-        else -> plain(m.content).lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: ""
-    }
+    fun previewOf(m: Msg): String = chatPreview(m)
 
     // ---- state updates
     private fun upsertChat(c: Chat, hasPreview: Boolean) {
@@ -215,7 +197,7 @@ object Hub {
             }
             out
         }
-        list.filter { it.kind !in setOf("trace", "activity", "deleted") }.groupBy { it.chatId }.forEach { (cid, l) ->
+        list.filter { previewCandidate(it) }.groupBy { it.chatId }.forEach { (cid, l) ->
             val last = l.maxBy { it.ts }
             chats.update { m -> m[cid]?.let { c -> if (last.ts >= c.updated - 2) m + (cid to c.copy(preview = previewOf(last), lastRole = last.role)) else m } ?: m }
         }

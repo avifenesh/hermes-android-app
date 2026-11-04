@@ -198,9 +198,6 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
 }
 
 // ---------------------------------------------------------------- chat
-/** Rows inside a speaker run that do not break it: tool traces, activity cards, notices. */
-internal fun quietInRun(m: Msg) = m.kind == "activity" || m.kind == "trace" || Hub.isNotice(m)
-
 /** Where the user was last reading a chat: first-visible message id + px offset.
  *  In-memory map stays current on every scroll; the disk copy is flushed debounced
  *  (and on leaving the chat), so reopening lands on the same message, not the top.
