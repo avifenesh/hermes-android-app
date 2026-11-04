@@ -200,6 +200,56 @@ def check_source(store: "S.Store", profiles: List[Tuple[str, Path]], cid: str) -
     return ro
 
 
+# Routing a phone reply into a mirrored chat reads only the persisted mirror row (and, for a take-over, the source's
+# chat type): no Mirror object, which is created lazily and may be backing off after a failed start.
+def _mirror_row(store: "S.Store", cid: str, cols: str):
+    try:
+        return store._db.execute(f"SELECT {cols} FROM mirror WHERE chat_id=?", (cid,)).fetchone()
+    except sqlite3.OperationalError:
+        return None  # no mirror table: nothing was ever mirrored here
+
+
+def _store_write(store: "S.Store", sql: str, args: tuple) -> int:
+    with store._lock:
+        store._db.execute("BEGIN IMMEDIATE")
+        try:
+            n = store._db.execute(sql, args).rowcount
+            store._db.execute("COMMIT")
+            return n
+        except Exception:
+            store._db.execute("ROLLBACK")
+            raise
+
+
+def mirror_profile(store: "S.Store", cid: str) -> str:
+    """The profile a mirrored chat came from ("" for the default profile, or for a chat that is no mirror)."""
+    row = _mirror_row(store, cid, "COALESCE(profile,'')")
+    return row[0] if row else ""
+
+
+def take_over_mirror(store: "S.Store", profiles: List[Tuple[str, Path]], cid: str) -> Optional[str]:
+    """First phone reply in an untaken default-profile mirror: mark it taken and return its source session for
+    /resume. None for anything else, and for a group/forum/channel source or one that can't be read (/resume would
+    read the same database). Atomic: two quick replies can't both resume it."""
+    row = _mirror_row(store, cid, "tip, taken, COALESCE(profile,'')")
+    if not row or row[1] or row[2]:
+        return None
+    home = profile_home(profiles, "")
+    types = source_types(home, [row[0]]) if home is not None and (home / "state.db").exists() else None
+    if types is None or types.get(row[0], "") in SHARED_CHAT_TYPES:
+        return None
+    return row[0] if _store_write(store, "UPDATE mirror SET taken=1 WHERE chat_id=? AND taken=0", (cid,)) == 1 else None
+
+
+def claim_mirror_tip(store: "S.Store", cid: str) -> str:
+    """A named-profile mirror's source session for --resume. The phone owns the chat from now on: stop mirroring."""
+    row = _mirror_row(store, cid, "tip")
+    if not (row and row[0]):
+        return ""
+    _store_write(store, "UPDATE mirror SET taken=1 WHERE chat_id=?", (cid,))
+    return row[0]
+
+
 class Mirror:
     def __init__(self, store: "S.Store", state_db, profiles: Optional[List[Tuple[str, Path]]] = None) -> None:
         self.st = store
@@ -548,32 +598,8 @@ class Mirror:
         return bool(row) and row[0] != readonly
 
     def profile_of(self, cid: str) -> str:
-        row = self.st._db.execute("SELECT profile FROM mirror WHERE chat_id=?", (cid,)).fetchone()
-        return (row[0] or "") if row else ""
+        return mirror_profile(self.st, cid)
 
     def take_over(self, cid: str) -> Optional[str]:
         """First phone reply in a mirrored default-profile chat: stop mirroring and return the session to /resume."""
-        row = self.st._db.execute("SELECT tip, taken, COALESCE(profile,'') FROM mirror WHERE chat_id=?", (cid,)).fetchone()
-        if not row or row[1] or row[2] or self._shared(row[0]):
-            return None
-        self._tx("UPDATE mirror SET taken=1 WHERE chat_id=?", (cid,))
-        return row[0]
-
-    def _shared(self, sid: str) -> bool:
-        """A group/forum/channel session (mirrored before chains() filtered them) must not be resumed in the phone's
-        DM lane. Unreadable state counts as shared: /resume would read the same database anyway."""
-        home = next((h for p, h in self.profiles if not p), None)
-        if home is None:
-            return True
-        try:
-            c = self._src(home)
-            try:
-                if not _has_chat_type(c):
-                    return False
-                r = c.execute("SELECT chat_type FROM sessions WHERE id=?", (sid,)).fetchone()
-            finally:
-                c.close()
-        except Exception as e:
-            logger.debug("[mobile] mirror chat type of %s unreadable: %s", sid, e)
-            return True
-        return bool(r) and str(r[0] or "").lower() in SHARED_CHAT_TYPES
+        return take_over_mirror(self.st, self.profiles, cid)

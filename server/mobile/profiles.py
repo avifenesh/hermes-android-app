@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from . import mirror as MR
 from . import store as S
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,9 @@ class ProfileChats:
         v = self._kv(cid)
         if v.get("profile"):
             return v["profile"]
-        m = getattr(self.ad, "_mirror", None)
-        return m.profile_of(cid) if m else ""
+        # From the persisted mirror row, not the lazily created Mirror: while it backs off after a failed start, a
+        # named-profile chat must still go to its profile, not the default gateway.
+        return MR.mirror_profile(self.ad.store, cid)
 
     def bind(self, cid: str, profile: str, session: str = "") -> None:
         self._put(cid, {"profile": profile, "session": session})
@@ -85,14 +87,7 @@ class ProfileChats:
         v = self._kv(cid)
         if v.get("session"):
             return v["session"]
-        m = getattr(self.ad, "_mirror", None)
-        if not m:
-            return ""
-        row = m.st._db.execute("SELECT tip FROM mirror WHERE chat_id=?", (cid,)).fetchone()
-        if row and row[0]:
-            m._tx("UPDATE mirror SET taken=1 WHERE chat_id=?", (cid,))  # the phone owns it now; stop mirroring
-            return row[0]
-        return ""
+        return MR.claim_mirror_tip(self.ad.store, cid)  # the mirrored session; the phone owns it now
 
     # ---------------------------------------------------------------- queue
     def busy(self, cid: str) -> bool:

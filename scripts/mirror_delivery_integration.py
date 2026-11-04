@@ -11,7 +11,9 @@ checks what the plugin's mirror imports into a disposable mobile.db. Group
 sessions are mirrored read-only: the plugin refuses phone sends into them.
 No gateway, provider, live data or phone is used.
 """
+import asyncio
 import atexit
+import json
 import os
 from pathlib import Path
 import shutil
@@ -51,6 +53,7 @@ from mobile import control as C  # noqa: E402
 from mobile import control2 as C2  # noqa: E402
 from mobile import fleet as FL  # noqa: E402
 from mobile import mirror as MR  # noqa: E402
+from mobile import profiles as PR  # noqa: E402
 from mobile import store as S  # noqa: E402
 
 HOME = Path(_HOME.name)
@@ -563,6 +566,105 @@ class MirrorSourceFailures(Fixture, unittest.IsolatedAsyncioTestCase):
         self.assertIn("no longer", body.get("error", ""))
         self.assertNotIn("Anyone?", [r[1] for r in self.rows(gone)])
         self.ad.handle_message.assert_not_called()
+
+
+class FailedStartRouting(Fixture, unittest.IsolatedAsyncioTestCase):
+    """While mirror creation is backing off, a reply into a private mirror is accepted, so it must still go where the
+    mirror row says: a named-profile chat to that profile with --resume of its session, a default-profile chat via
+    /resume of its source session, and the row marked taken. Real ProfileChats; its CLI child is only captured."""
+
+    async def asyncSetUp(self):
+        self.ad = object.__new__(AD.MobileAdapter)
+        self.ad.store = self.store
+        self.ad._working = {}
+        self.ad._emit = lambda *a, **kw: None
+        self.ad._emit_msg = lambda *a, **kw: None
+        self.ad.build_source = lambda **kw: SimpleNamespace(platform="mobile", **kw)
+        self.ad.handle_message = AsyncMock()
+        self.ad._profiles = PR.ProfileChats(self.ad)
+        self.children = []
+
+        async def child(*argv, **kw):
+            self.children.append(list(argv))
+
+            async def lines():
+                return
+                yield b""
+
+            async def wait():
+                proc.returncode = 0
+                return 0
+
+            proc = SimpleNamespace(returncode=None, stdout=lines(), stderr=SimpleNamespace(read=AsyncMock(return_value=b"")),
+                                   wait=wait, terminate=lambda: None)
+            return proc
+
+        self.child = child
+
+        @web.middleware
+        async def as_device(request, handler):
+            request["device"] = {"id": "d-synthetic"}
+            return await handler(request)
+
+        app = web.Application(middlewares=[as_device])
+        app.router.add_post("/v1/chats/{cid}/messages", self.ad.h_post_message)
+        self.client = TestClient(TestServer(app))
+        await self.client.start_server()
+
+    async def asyncTearDown(self):
+        await self.client.close()
+
+    def old_mirror(self, cid: str, sid: str, prof: str) -> None:
+        self.store.ensure_chat(cid, title="Mirrored")
+        self.mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,0,?)",
+                        (cid, sid, sid, "telegram", prof))
+
+    def taken(self, cid: str) -> int:
+        return self.store._db.execute("SELECT taken FROM mirror WHERE chat_id=?", (cid,)).fetchone()[0]
+
+    async def reply(self, cid: str, text: str):
+        with patch.object(MR, "Mirror", side_effect=RuntimeError("mirror init failed")), \
+                patch.object(PR.asyncio, "create_subprocess_exec", self.child):
+            async with self.client.post(f"/v1/chats/{cid}/messages", json={"text": text}) as r:
+                body = await r.json()
+            for _ in range(200):  # the reply is dispatched from a task
+                if self.children or self.ad.handle_message.await_count:
+                    break
+                await asyncio.sleep(0.01)
+        self.assertFalse(self.ad._mirror, "mirror creation failed and is backing off")
+        return r.status, body
+
+    async def test_a_named_profile_dm_goes_to_its_profile_and_session(self):
+        lab = HOME / "profiles" / "lab"
+        lab.mkdir(parents=True, exist_ok=True)
+        ldb = SessionDB(lab / "state.db")
+        self.addCleanup(ldb.close)
+        sid = uid("s")
+        ldb.create_session(sid, "telegram", chat_id=uid("dm"), chat_type="dm", user_id="owner",
+                           session_key="agent:main:telegram:dm:lab")
+        for role, text in (("user", "Plan?"), ("assistant", "Draft ready."), ("user", "Send it")):
+            ldb.append_message(sid, role, text, platform_message_id=uid("pm") if role == "user" else None)
+        cid = f"h-lab-{sid}"
+        self.old_mirror(cid, sid, "lab")
+        status, body = await self.reply(cid, "Ship the draft")
+        self.assertEqual(status, 200, body)
+        self.ad.handle_message.assert_not_called()  # not the default gateway
+        self.assertEqual(len(self.children), 1, "the lab profile ran the reply")
+        argv = self.children[0]
+        self.assertEqual(argv[argv.index("-p") + 1], "lab")
+        self.assertEqual(argv[argv.index("--resume") + 1], sid, "it continues the mirrored session")
+        self.assertEqual(self.taken(cid), 1)
+
+    async def test_a_default_profile_mirror_resumes_its_source_session(self):
+        sid = self.session("telegram", uid("dm"), turns=[("user", "Hi"), ("assistant", "Ok."), ("user", "Thanks")])
+        cid = "h-" + sid
+        self.old_mirror(cid, sid, "")
+        status, body = await self.reply(cid, "Follow up")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.children, [])
+        first = self.ad.handle_message.await_args_list[0].args[0]
+        self.assertEqual(first.text, f"/resume {sid} --all", "the first phone reply takes the conversation over")
+        self.assertEqual(self.taken(cid), 1)
 
 
 if __name__ == "__main__":

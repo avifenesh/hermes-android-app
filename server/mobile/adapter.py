@@ -884,9 +884,12 @@ class MobileAdapter(BasePlatformAdapter):
         ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
         if ro:
             return ro
+        return MR.check_source(self.store, self._mirror_profiles(), cid)
+
+    def _mirror_profiles(self):
+        """The mirrored profiles: the Mirror's when it exists, else discovered the same way it would."""
         mirror = getattr(self, "_mirror", None)
-        profiles = mirror.profiles if mirror else MR.discover_profiles(S.hermes_home())
-        return MR.check_source(self.store, profiles, cid)
+        return mirror.profiles if mirror else MR.discover_profiles(S.hermes_home())
 
     @staticmethod
     def readonly_error(readonly: str) -> str:
@@ -967,7 +970,9 @@ class MobileAdapter(BasePlatformAdapter):
                 prompt = GatewayInboundMixin._prepend_inbound_reply_context(event, source, text)
             await self._profiles.send(cid, prof, prompt, atts)
             return msg
-        tip = self._mirror.take_over(cid) if cid.startswith("h-") and getattr(self, "_mirror", None) else None
+        # From the persisted mirror row: a reply accepted while the Mirror backs off after a failed start still takes
+        # its conversation over.
+        tip = MR.take_over_mirror(self.store, self._mirror_profiles(), cid) if cid.startswith("h-") else None
         if tip:
             resume = MessageEvent(text=f"/resume {tip} --all", message_type=MessageType.COMMAND, source=source,
                                   message_id=S.new_id("rs"))
