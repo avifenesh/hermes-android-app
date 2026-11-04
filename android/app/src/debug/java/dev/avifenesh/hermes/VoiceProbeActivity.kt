@@ -1,6 +1,10 @@
 package dev.avifenesh.hermes
 
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,19 +41,44 @@ import kotlin.math.sin
  * cache under the exact names [fetchMedia] reads, so the bubbles run the production fetch-cache,
  * decoder and player paths on the bundled clip.
  *
- * assets/probe/voice-fixture.ogg is synthetic, not a recording: 3.2 s of harmonic tones under
- * eight syllable-shaped envelopes, 48 kHz mono, Opus 24 kb/s in Ogg (the recorder's format).
+ * assets/probe/voice-fixture.ogg is synthetic, not a recording: 12.2 s of harmonic tones under
+ * four phrases of syllable-shaped envelopes, 48 kHz mono, Opus 16 kb/s in Ogg (the recorder's format).
  *
  * am start -n <package>/dev.avifenesh.hermes.VoiceProbeActivity --ei theme 1|2 (1 Night, 2 Day)
+ *
+ * Live rows: "slow download" waits 4 s in a fake fetch, so a tap during it shows the loading ring and
+ * plays when the clip lands. The interruption buttons take audio focus from the playing note for 3 s
+ * through the real AudioManager, as a navigation prompt or a notification sound would.
  */
 class VoiceProbeActivity : FragmentActivity() {
+    private var held: AudioFocusRequest? = null
+
+    /** Take audio focus from the playing note like another app would; give it back after 3 s unless [forGood]. */
+    private fun takeFocus(gain: Int, forGood: Boolean = false) {
+        val am = getSystemService(AudioManager::class.java) ?: return
+        held?.let { am.abandonAudioFocusRequest(it) }
+        val req = AudioFocusRequest.Builder(gain).setAudioAttributes(AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+            .setOnAudioFocusChangeListener { }.build()
+        held = req
+        Log.i("HermesVoiceProbe", "FOCUS ${am.requestAudioFocus(req)} gain=$gain")
+        if (!forGood) android.os.Handler(mainLooper).postDelayed({ am.abandonAudioFocusRequest(req); if (held === req) held = null }, 3000)
+    }
+
+    override fun onDestroy() {
+        if (!isChangingConfigurations) held?.let { getSystemService(AudioManager::class.java)?.abandonAudioFocusRequest(it) }
+        super.onDestroy()
+    }
+
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         check(!Prefs.paired && android.os.Build.PRODUCT.contains("sdk")) { "Disposable unpaired emulator only" }
         val theme = intent.getIntExtra("theme", 1)
         val clip = assets.open("probe/voice-fixture.ogg").use { it.readBytes() }
         fun seed(id: String, name: String, bytes: ByteArray): JSONObject {
-            mediaCacheFile(this, id, name).writeBytes(bytes)
+            // Never rewrite a clip that may be playing: a rotation recreates this Activity mid-note.
+            val f = mediaCacheFile(this, id, name)
+            if (!f.isFile || f.length() != bytes.size.toLong()) f.writeBytes(bytes)
             return JSONObject().put("id", id).put("kind", "voice").put("mime", "audio/ogg").put("file_name", name).put("size", bytes.size)
         }
         val sent = seed("probe-sent.ogg", "note.ogg", clip)
@@ -57,6 +86,14 @@ class VoiceProbeActivity : FragmentActivity() {
         val reply = seed("probe-reply.ogg", "reply.ogg", clip)
         val plain = seed("probe-plain.ogg", "plain.ogg", clip)
         val broken = seed("probe-broken.ogg", "broken.ogg", "not an audio file".toByteArray())
+        // Not seeded: the fake fetch below hands over the bundled clip after 4 s.
+        val slow = JSONObject().put("id", "probe-slow.ogg").put("kind", "voice").put("mime", "audio/ogg")
+            .put("file_name", "slow.ogg").put("size", clip.size)
+        val slowFile = mediaCacheFile(this, "probe-slow.ogg", "slow.ogg").also { it.delete() }
+        val slowFetch: suspend (android.content.Context, String, String, Long?) -> java.io.File = { _, _, _, _ ->
+            kotlinx.coroutines.delay(4000)
+            slowFile.writeBytes(clip); slowFile
+        }
         val now = System.currentTimeMillis() / 1000.0
         val chat = chatVisible(listOf(
             Msg("p1", "probe", "user", "text", "", JSONObject().put("attachments", JSONArray().put(sent)), now - 300, 1),
@@ -88,21 +125,43 @@ class VoiceProbeActivity : FragmentActivity() {
                     item { Section("States") }
                     item { Label("Received, long, playing at 38%, 1.5x") }
                     item {
-                        Agent { VoiceBubbleContent(mine = false, peaks = long, ready = true, unavailable = false, durationMs = 252_000,
+                        Agent { VoiceBubbleContent(mine = false, peaks = long, ready = true, fetch = VoiceFetch.READY, durationMs = 252_000,
                             positionMs = { 95_760 }, current = true, playing = true, speed = 1.5f, transcript = "",
                             onToggle = {}, onSeek = {}, onSpeed = {}) }
                     }
                     item { Label("Sent, long, paused at 62%, transcript open") }
                     item {
-                        Mine { VoiceBubbleContent(mine = true, peaks = long, ready = true, unavailable = false, durationMs = 252_000,
+                        Mine { VoiceBubbleContent(mine = true, peaks = long, ready = true, fetch = VoiceFetch.READY, durationMs = 252_000,
                             positionMs = { 156_240 }, current = true, playing = false, speed = 1f, transcript = transcript,
                             onToggle = {}, onSeek = {}, onSpeed = {}, transcriptOpen = true) }
                     }
-                    item { Label("Sent, short, idle (live: tap to play)") }
+                    item { Label("Sent, 12 s, idle (live: tap to play, then rotate)") }
                     item { Mine { VoiceBubble(plain, mine = true) } }
+                    item {
+                        FlowRow(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Btn("Interrupt 3 s", primary = false) { takeFocus(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT) }
+                            Btn("Duck 3 s", primary = false) { takeFocus(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK) }
+                            Btn("Take for good", primary = false, danger = true) { takeFocus(AudioManager.AUDIOFOCUS_GAIN, forGood = true) }
+                        }
+                    }
+                    item { Label("Slow download (live: tap during the first 4 s)") }
+                    item { Agent { VoiceBubble(slow, mine = false, fetch = slowFetch) } }
+                    item { Label("Tapped while downloading") }
+                    item {
+                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, fetch = VoiceFetch.WAITING, durationMs = 0,
+                            positionMs = { 0 }, current = false, playing = false, speed = 1f, transcript = "",
+                            onToggle = {}, onSeek = {}, onSpeed = {}) }
+                    }
+                    item { Label("Large or on a metered network: tap to load") }
+                    item {
+                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, fetch = VoiceFetch.MANUAL, durationMs = 384_000,
+                            positionMs = { 0 }, current = false, playing = false, speed = 1f, transcript = "",
+                            onToggle = {}, onSeek = {}, onSpeed = {}, sizeBytes = 6_400_000) }
+                    }
                     item { Label("Waveform still computing") }
                     item {
-                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, unavailable = false, durationMs = 0,
+                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, fetch = VoiceFetch.FETCHING, durationMs = 0,
                             positionMs = { 0 }, current = false, playing = false, speed = 1f, transcript = "",
                             onToggle = {}, onSeek = {}, onSpeed = {}) }
                     }
@@ -110,7 +169,7 @@ class VoiceProbeActivity : FragmentActivity() {
                     item { Agent { VoiceBubble(broken, mine = false) } }
                     item { Label("Download failed") }
                     item {
-                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, unavailable = true, durationMs = 0,
+                        Agent { VoiceBubbleContent(mine = false, peaks = null, ready = false, fetch = VoiceFetch.FAILED, durationMs = 0,
                             positionMs = { 0 }, current = false, playing = false, speed = 1f, transcript = "",
                             onToggle = {}, onSeek = {}, onSpeed = {}) }
                     }
