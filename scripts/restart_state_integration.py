@@ -27,12 +27,18 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
-    raise RuntimeError("Run directly in a fresh managed-Python process")
 SCRATCH = Path.home() / ".hermes/cache/scratch"
 SCRATCH.mkdir(parents=True, exist_ok=True)
-_HOME = tempfile.TemporaryDirectory(prefix="restart-state-", dir=SCRATCH)
-atexit.register(shutil.rmtree, _HOME.name, ignore_errors=True)
+# hermes_bootstrap may re-exec this script under the managed runtime (os.execv), which skips exit handlers. The
+# re-run adopts the isolated home its first run made instead of orphaning it; either run removes it at exit.
+# A --child is a separate gateway process: the parent starts it without HERMES_HOME, so it never adopts this one.
+_prior = Path(os.environ.get("HERMES_HOME") or SCRATCH)
+_home = (str(_prior) if _prior.parent == SCRATCH and _prior.name.startswith("restart-state-") and _prior.is_dir()
+         else tempfile.mkdtemp(prefix="restart-state-", dir=SCRATCH))
+atexit.register(shutil.rmtree, _home, ignore_errors=True)
+_HOME = SimpleNamespace(name=_home, cleanup=lambda: shutil.rmtree(_home, ignore_errors=True))
+if "hermes_bootstrap" in sys.modules or "hermes_constants" in sys.modules:
+    raise RuntimeError("Run directly in a fresh managed-Python process")
 os.environ["HERMES_HOME"] = _HOME.name
 os.environ["HERMES_ENABLE_PROJECT_PLUGINS"] = "false"
 os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
@@ -65,6 +71,14 @@ def child(db: str) -> None:
     ad = adapter(Path(db))
     ad.start_boot()
     print(json.dumps(ad.restart_state()))
+
+
+def reimport() -> None:
+    """The plugin module imported again inside one process (a platform re-arm): prints the boot id around it."""
+    import importlib
+    before = AD.process_boot()
+    importlib.reload(AD)
+    print(json.dumps({"before": before, "after": AD.process_boot()}))
 
 
 def public(key):
@@ -110,11 +124,19 @@ class RestartState(unittest.IsolatedAsyncioTestCase):
         async with self.client.put("/v1/settings", json={"key": key, "value": value}) as r:
             return r.status, await r.json()
 
-    def new_process(self):
-        out = subprocess.run([sys.executable, __file__, "--child", str(self.db)], capture_output=True, text=True,
-                             timeout=120, env=dict(os.environ))
+    def run_child(self, *args):
+        env = {k: v for k, v in os.environ.items() if k != "HERMES_HOME"}
+        out = subprocess.run([sys.executable, __file__, *args], capture_output=True, text=True, timeout=120, env=env)
         self.assertEqual(out.returncode, 0, out.stderr[-2000:])
         return json.loads(out.stdout.strip().splitlines()[-1])
+
+    def new_process(self):
+        return self.run_child("--child", str(self.db))
+
+    async def test_boot_id_survives_a_module_reimport(self):
+        ids = self.run_child("--reimport")
+        self.assertEqual(ids["before"], ids["after"], "re-importing the plugin is not a gateway restart")
+        self.assertNotEqual(ids["before"], AD.process_boot(), "another process has another boot id")
 
     async def test_restart_flagged_setting_sets_needed_until_a_new_boot(self):
         first = await self.me()
@@ -222,6 +244,9 @@ class RestartState(unittest.IsolatedAsyncioTestCase):
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--child":
         child(sys.argv[2])
+        sys.exit(0)
+    if sys.argv[1:] == ["--reimport"]:
+        reimport()
         sys.exit(0)
     try:
         unittest.main(verbosity=2)

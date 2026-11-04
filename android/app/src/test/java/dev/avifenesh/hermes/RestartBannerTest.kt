@@ -40,6 +40,12 @@ class RestartBannerTest {
         assertFalse(restartBanner(JSONObject(), null, setOf(a)))
     }
 
+    @Test fun nothingShowsBeforeThisMachinesMetadataLoads() {
+        // Right after a switch or cold start the metadata is empty: the app's own flag must not flash a banner a
+        // current server is about to contradict.
+        assertFalse(restartBanner(JSONObject(), a, setOf(a)))
+    }
+
     @Test fun aHelloFromANewBootRereadsMetadata() {
         assertTrue(bootChanged(me(needed = true, boot = "boot-1"), "boot-2"))
         assertFalse(bootChanged(me(needed = true, boot = "boot-1"), "boot-1"))

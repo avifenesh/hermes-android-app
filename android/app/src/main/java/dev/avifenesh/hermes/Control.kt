@@ -346,8 +346,11 @@ const val NEW_CHAT = "_new"
 
 // ---------------------------------------------------------------- restart
 /** Show "Restart to apply" for [machine]? /v1/me `restart` is authoritative (a restart from any surface clears it);
- *  without it (older server) the app's own per-machine flag decides. A restart already draining hides it. */
+ *  without it (older server) the app's own per-machine flag decides. A restart already draining hides it, and so
+ *  does metadata that hasn't loaded yet. */
 internal fun restartBanner(me: JSONObject, machine: String?, flagged: Set<String>): Boolean {
+    // Empty: this machine's metadata hasn't loaded yet (cold start, switch). Its server may be about to say no.
+    if (me.length() == 0) return false
     val r = me.optJSONObject("restart") ?: return machine != null && machine in flagged
     return r.optBoolean("needed") && !r.optBoolean("pending")
 }

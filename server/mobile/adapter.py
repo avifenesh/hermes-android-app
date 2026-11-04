@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import mimetypes
@@ -9,7 +10,9 @@ import os
 import shutil
 import socket
 import sqlite3
+import sys
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -112,16 +115,31 @@ def route_delivery(store: S.Store, chat_id: str, content: str, home: str, job_id
     return {"chat_id": f"cron-{S._digest_slug(title)}", "title": title, "kind": "digest"}
 
 
-_PROCESS_BOOT: Optional[str] = None
+def _process_started() -> str:
+    """When the OS started this process. Unchanged by re-importing this module; new for every process."""
+    try:  # Linux: start time in clock ticks since boot (stat field 22), plus this boot's random id
+        start = Path("/proc/self/stat").read_text().rsplit(")", 1)[1].split()[19]
+        return Path("/proc/sys/kernel/random/boot_id").read_text().strip() + ":" + start
+    except Exception:
+        pass
+    try:
+        import psutil
+        return repr(psutil.Process().create_time())
+    except Exception:
+        pass
+    # Elsewhere: one marker per interpreter, kept on sys, which no plugin re-import replaces.
+    marker = getattr(sys, "_hermes_mobile_started", None)
+    if marker is None:
+        marker = uuid.uuid4().hex
+        setattr(sys, "_hermes_mobile_started", marker)
+    return marker
 
 
 def process_boot() -> str:
-    """This gateway process's id, made at its first adapter connect. Plugins and restart-flagged config load once per
-    process: a restart from any surface is a new process with a new id; a same-process adapter reconnect is not."""
-    global _PROCESS_BOOT
-    if _PROCESS_BOOT is None:
-        _PROCESS_BOOT = S.new_id("boot")
-    return _PROCESS_BOOT
+    """This gateway process's id, from its pid and start time. Plugins and restart-flagged config load once per
+    process: a restart from any surface is a new process with a new id; a reconnect or a re-import of this module
+    inside the same process is not."""
+    return "boot-" + hashlib.sha256(f"{os.getpid()}:{_process_started()}".encode()).hexdigest()[:16]
 
 
 def _origin(url: Any) -> Optional[Tuple[str, str, int, str]]:
