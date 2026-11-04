@@ -102,6 +102,57 @@ async def drained(pc, cid):
         await asyncio.sleep(0.02)
 
 
+def profile_config(name, config, env=None):
+    home = Path(HOME) / "profiles" / name
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "config.yaml").write_text(config)
+    if env is not None:
+        (home / ".env").write_text(env)
+
+
+class launch_timeout:
+    """The gateway process's own HERMES_AGENT_TIMEOUT, bridged from the launch profile's config."""
+    def __init__(self, value):
+        self.value = value
+
+    def __enter__(self):
+        self.previous = os.environ.get("HERMES_AGENT_TIMEOUT")
+        os.environ["HERMES_AGENT_TIMEOUT"] = self.value
+
+    def __exit__(self, *exc):
+        if self.previous is None:
+            os.environ.pop("HERMES_AGENT_TIMEOUT", None)
+        else:
+            os.environ["HERMES_AGENT_TIMEOUT"] = self.previous
+
+
+def alive(pid):
+    try:
+        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except (OSError, IndexError):
+        return False
+    return state != "Z"
+
+
+async def run_child(child, profile, grace=None):
+    ad = FakeAdapter()
+    stop = asyncio.Event()
+    reaper = asyncio.create_task(ad.reap(stop))
+    pc = chats(ad, silent_s=0, child=child)
+    if grace is not None:
+        pc.TERM_GRACE_S = grace
+    await pc.send("c1", profile, "hello")
+    try:
+        await asyncio.wait_for(drained(pc, "c1"), timeout=8)
+    finally:
+        for proc in list(pc.procs.values()):
+            if proc.returncode is None:
+                proc.kill()
+        stop.set()
+        await reaper
+    return ad, pc
+
+
 class ProfileWorkingTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
@@ -123,53 +174,71 @@ class ProfileWorkingTests(unittest.TestCase):
         events = asyncio.run(run())
         self.assertEqual([e[:2] for e in events], [("working", True), ("working", False)], events)
 
-    def test_a_hung_child_ends_after_cores_inactivity_limit(self):
-        # Core stops a gateway turn after agent.gateway_timeout (HERMES_AGENT_TIMEOUT) without activity; a profile
-        # child that prints nothing for as long is stopped the same way, so the chat cannot show working forever.
+    def test_a_hung_child_ends_after_its_profiles_inactivity_limit(self):
+        # Core stops a gateway turn after agent.gateway_timeout without activity; a profile child that prints nothing
+        # for its own profile's limit is stopped the same way, so the chat cannot show working forever. The gateway's
+        # HERMES_AGENT_TIMEOUT belongs to the launch profile and must not decide it.
+        profile_config("hung", "agent:\n  gateway_timeout: %s\n" % (IDLE_S * 3))
         hung = "import time, json; print(json.dumps({'type': 'text', 'text': 'thinking'}), flush=True); time.sleep(120)"
-
-        async def run():
-            ad = FakeAdapter()
-            stop = asyncio.Event()
-            reaper = asyncio.create_task(ad.reap(stop))
-            pc = chats(ad, silent_s=0, child=hung)
-            await pc.send("c1", "seller", "hello")
-            try:
-                await asyncio.wait_for(drained(pc, "c1"), timeout=5)
-            finally:
-                for proc in list(pc.procs.values()):
-                    if proc.returncode is None:
-                        proc.kill()
-                stop.set(); await reaper
-            return ad, pc
-
-        previous = os.environ.get("HERMES_AGENT_TIMEOUT")
-        os.environ["HERMES_AGENT_TIMEOUT"] = str(IDLE_S * 3)
-        try:
-            ad, pc = asyncio.run(run())
-        finally:
-            if previous is None:
-                os.environ.pop("HERMES_AGENT_TIMEOUT", None)
-            else:
-                os.environ["HERMES_AGENT_TIMEOUT"] = previous
+        with launch_timeout("600"):
+            ad, pc = asyncio.run(run_child(hung, "hung"))
         self.assertEqual([e[:2] for e in ad.events], [("working", True), ("working", False)], ad.events)
         self.assertNotIn("c1", ad._working)
         self.assertFalse(pc.procs)
         self.assertTrue(any("no output" in (t or "") for t in ad.store.texts), ad.store.texts)
 
-    def test_inactivity_limit_follows_core(self):
+    def test_an_open_tool_counts_as_activity(self):
+        # Core heartbeats while a tool runs; stream-json only says tool_use at the start and tool_result at the end.
+        profile_config("tools", "agent:\n  gateway_timeout: %s\n" % (IDLE_S * 2))
+        child = ("import time, json\n"
+                 "say = lambda **e: print(json.dumps(e), flush=True)\n"
+                 "say(type='tool_use', name='delegate_task', tool_call_id='t1')\n"
+                 "time.sleep(%s)\n"
+                 "say(type='tool_result', name='delegate_task', tool_call_id='t1', output='ok')\n"
+                 "say(type='result', text='done')\n") % (IDLE_S * 5)
+        with launch_timeout(str(IDLE_S * 2)):
+            ad, pc = asyncio.run(run_child(child, "tools"))
+        self.assertEqual([e[:2] for e in ad.events], [("working", True), ("working", False)], ad.events)
+        self.assertFalse(any("no output" in (t or "") for t in ad.store.texts), ad.store.texts)
+        self.assertIn("done", ad.store.texts)
+
+    def test_a_hung_child_is_stopped_with_its_tool_processes(self):
+        profile_config("group", "agent:\n  gateway_timeout: %s\n" % (IDLE_S * 2))
+        pid_file_reset = Path(HOME) / "grandchild.pid"
+        pid_file_reset.unlink(missing_ok=True)
+        pid_file = Path(HOME) / "grandchild.pid"
+        child = ("import json, signal, subprocess, sys, time\n"
+                 "g = subprocess.Popen([sys.executable, '-c', 'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(120)'])\n"
+                 "open(%r, 'w').write(str(g.pid))\n"
+                 "print(json.dumps({'type': 'tool_use', 'name': 'terminal', 'tool_call_id': 't1'}), flush=True)\n"
+                 "print(json.dumps({'type': 'tool_result', 'name': 'terminal', 'tool_call_id': 't1'}), flush=True)\n"
+                 "time.sleep(120)\n") % str(pid_file)
+        grandchild = None
+        try:
+            ad, pc = asyncio.run(run_child(child, "group", grace=IDLE_S))
+            grandchild = int(pid_file.read_text())
+            deadline = time.monotonic() + 5
+            while alive(grandchild) and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertFalse(alive(grandchild), "a tool process the child started outlived the stop")
+            self.assertFalse(pc.procs)
+        finally:
+            if grandchild is None and pid_file.exists():
+                grandchild = int(pid_file.read_text())
+            if grandchild and alive(grandchild):
+                os.kill(grandchild, 9)
+
+    def test_inactivity_limit_is_the_target_profiles(self):
+        profile_config("cfg", "agent:\n  gateway_timeout: 600\n")
+        profile_config("zero", "agent:\n  gateway_timeout: 0\n")
+        profile_config("envonly", "model: x\n", env="HERMES_AGENT_TIMEOUT=120\n")
+        profile_config("plain", "model: x\n")
+        profile_config("junk", "agent:\n  gateway_timeout: soon\n")
         pc = P.ProfileChats(FakeAdapter())
-        for raw, expected in ((None, 1800.0), ("600", 600.0), ("0", None), ("-1", None), ("junk", 1800.0)):
-            previous = os.environ.pop("HERMES_AGENT_TIMEOUT", None)
-            if raw is not None:
-                os.environ["HERMES_AGENT_TIMEOUT"] = raw
-            try:
-                with self.subTest(raw=raw):
-                    self.assertEqual(pc._idle_limit(), expected)
-            finally:
-                os.environ.pop("HERMES_AGENT_TIMEOUT", None)
-                if previous is not None:
-                    os.environ["HERMES_AGENT_TIMEOUT"] = previous
+        with launch_timeout("5"):
+            for profile, expected in (("cfg", 600.0), ("zero", None), ("envonly", 120.0), ("plain", 1800.0), ("junk", 1800.0)):
+                with self.subTest(profile=profile):
+                    self.assertEqual(pc._idle_limit(profile), expected)
 
     def test_queued_turns_share_one_working_span(self):
         async def run():

@@ -15,12 +15,15 @@ the prompt so the agent can open it with its tools.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import mimetypes
 import os
+import signal
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -45,6 +48,40 @@ def profile_names() -> List[str]:
         return ["default"] + sorted(d.name for d in (base / "profiles").glob("*") if (d / "config.yaml").exists())
 
 
+def _config_timeout(path: Path) -> Any:
+    """agent.gateway_timeout from a profile's config.yaml, or None."""
+    try:
+        import yaml
+        data = yaml.safe_load(path.read_text()) or {}
+    except Exception:
+        return None
+    agent = data.get("agent") if isinstance(data, dict) else None
+    return agent.get("gateway_timeout") if isinstance(agent, dict) else None
+
+
+def _dotenv_value(path: Path, key: str) -> Optional[str]:
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        name, sep, value = line.partition("=")
+        if sep and name.strip() == key:
+            return value.strip().strip("'\"")
+    return None
+
+
+def _core_default_timeout() -> float:
+    try:
+        from hermes_cli.config_defaults import DEFAULT_CONFIG
+        return float(DEFAULT_CONFIG["agent"]["gateway_timeout"])
+    except Exception:
+        return 1800.0
+
+
 def profile_home(name: str) -> Optional[Path]:
     if not name or name == "default":
         return None
@@ -56,6 +93,8 @@ class ProfileChats:
     # The adapter's reaper drops a chat from the working set after 14 s without a refresh. A child that is silent in a
     # slow tool or model step is still running, so the busy period refreshes it well inside that limit.
     KEEPALIVE_S = 4.0
+    # Core's own SIGTERM-to-SIGKILL grace for processes it stops (process_registry daemon_term_grace_seconds, 2 s).
+    TERM_GRACE_S = 2.0
 
     def __init__(self, ad):
         self.ad = ad
@@ -137,16 +176,39 @@ class ProfileChats:
                 self.ad._emit({"type": "working", "chat_id": cid, "working": False})
 
     @staticmethod
-    def _idle_limit() -> Optional[float]:
-        """Core's own turn inactivity limit: agent.gateway_timeout, which the gateway bridges to HERMES_AGENT_TIMEOUT
-        (30 min by default, 0 = unlimited). A child that prints nothing for that long is stopped the way core stops a
-        stuck gateway turn, so the keepalive cannot show a hung child as working forever."""
-        raw = os.environ.get("HERMES_AGENT_TIMEOUT", "").strip()
+    def _idle_limit(profile: str) -> Optional[float]:
+        """The target profile's own turn inactivity limit, resolved the way core resolves it for that profile:
+        config.yaml agent.gateway_timeout (core bridges it over any env value), else HERMES_AGENT_TIMEOUT from the
+        profile's .env, else core's default (30 min); 0 or less = unlimited. Never this gateway process's own
+        HERMES_AGENT_TIMEOUT, which the launch profile set. A child silent that long, with no tool open, is stopped the
+        way core stops a stuck gateway turn, so the keepalive cannot show a hung child as working forever."""
+        home = profile_home(profile) or S.hermes_home()
+        raw = _config_timeout(home / "config.yaml")
+        if raw is None:
+            raw = _dotenv_value(home / ".env", "HERMES_AGENT_TIMEOUT")
+        default = _core_default_timeout()
         try:
-            limit = float(raw) if raw else 1800.0
-        except ValueError:
-            limit = 1800.0
+            limit = float(raw) if raw is not None and str(raw).strip() else default
+        except (TypeError, ValueError):
+            limit = default
         return limit if limit > 0 else None
+
+    async def _stop_group(self, proc: asyncio.subprocess.Process) -> None:
+        """SIGTERM the child's whole process group (the CLI and every tool process still in it; the CLI's own
+        SIGTERM handling also stops the tool groups it created), then SIGKILL what is left after the grace."""
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        deadline = time.monotonic() + self.TERM_GRACE_S
+        while time.monotonic() < deadline:
+            try:
+                os.killpg(proc.pid, 0)
+            except ProcessLookupError:
+                return
+            await asyncio.sleep(0.05)
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGKILL)
 
     async def _keepalive(self, cid: str) -> None:
         while True:
@@ -245,16 +307,19 @@ class ProfileChats:
             proc = await asyncio.create_subprocess_exec(*self._argv(profile, prompt, resume, image), env=self._env(profile),
                                                         cwd=str(profile_home(profile) or S.hermes_home()),
                                                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                                                        limit=8 * 1024 * 1024)
+                                                        limit=8 * 1024 * 1024, start_new_session=True)
             self.procs[cid] = proc
             assert proc.stdout
-            idle, hung = self._idle_limit(), False
+            idle, hung, open_tools = self._idle_limit(profile), False, Counter()
             while True:
+                # Core counts a running tool as activity (it heartbeats every 30 s while one runs); stream-json reports
+                # only its tool_use and tool_result, so the silence limit applies only while no tool is open.
+                wait = idle if idle and not +open_tools else None
                 try:
-                    raw = await (asyncio.wait_for(proc.stdout.readline(), idle) if idle else proc.stdout.readline())
+                    raw = await (asyncio.wait_for(proc.stdout.readline(), wait) if wait else proc.stdout.readline())
                 except asyncio.TimeoutError:
                     hung = True
-                    proc.kill()
+                    await self._stop_group(proc)
                     break
                 if not raw:
                     break
@@ -270,6 +335,9 @@ class ProfileChats:
                     buf += ev.get("text") or ""
                 elif t == "tool_use":
                     tools.append(str(ev.get("name") or "tool"))
+                    open_tools[str(ev.get("tool_call_id") or ev.get("name") or "tool")] += 1
+                elif t == "tool_result":
+                    open_tools[str(ev.get("tool_call_id") or ev.get("name") or "tool")] -= 1
                 elif t == "result":
                     sid = ev.get("session_id") or sid
                     final = ev.get("text")
@@ -278,7 +346,11 @@ class ProfileChats:
                 if body and time.time() - last_edit > 0.8:
                     last_edit = time.time()
                     msg = self._upsert(cid, msg, body, profile, tools, partial=True)
-            err = (await proc.stderr.read()).decode(errors="replace")[-600:] if proc.stderr else ""
+            err = ""
+            if proc.stderr:
+                # A stopped child's stderr may still be held by a process outside its group: do not wait on it.
+                with contextlib.suppress(asyncio.TimeoutError):
+                    err = (await asyncio.wait_for(proc.stderr.read(), 5 if hung else None)).decode(errors="replace")[-600:]
             rc = await proc.wait()
             if sid:
                 self.bind(cid, profile, sid)
