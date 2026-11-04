@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">أسطول Herms</string>
+    <string name="channel_control_unavailable_title">غير متاح في هذا الإصدار</string>
+    <string name="channel_control_unavailable_body">لا يمكن لإصدار Play هذا قراءة التطبيقات الأخرى أو تشغيلها. لا يمكن للأوامر عن بُعد تفعيل هذه الإمكانية.</string>
+    <string name="channel_background_title">التسليم في الخلفية</string>
+    <string name="channel_background_body">يبقى تحسين البطارية في Android مفعّلًا. تظل الإشعارات الفورية (عند إعدادها) والمزامنة الدورية متاحة، وقد يتأخر التسليم في الخلفية.</string>
+    <string name="channel_apk_unavailable">تثبيت مرفقات APK غير متاح في إصدار Play هذا. لا يزال بإمكانك حفظ الملف في التنزيلات.</string>
+</resources>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">التحكم في الهاتف عبر Hermes</string>
+    <string name="phone_service_desc">يتيح لوكيل Hermes قراءة الشاشة والنقر والكتابة والتمرير على هذا الهاتف. لا يعمل إلا أثناء تفعيل «التحكم» في التطبيق (أنا، هذا الهاتف، التحكم).</string>
+    <string name="phone_control_notice_title">التحكم في الهاتف مفعّل</string>
+    <string name="phone_control_notice_text">يمكن لوكيلك قراءة هذا الهاتف غير المقفل وتشغيله.</string>
+    <string name="phone_control_stop">إيقاف التحكم</string>
+    <string name="phone_control_accessibility_service">خدمة تسهيل الاستخدام</string>
+    <string name="phone_control_service_enabled">مفعّلة في إعدادات Android.</string>
+    <string name="phone_control_service_disabled">فعّل «التحكم في الهاتف عبر %1$s» في إعدادات تسهيل الاستخدام في Android.</string>
+    <string name="phone_control_allow">السماح بتحكم الوكيل</string>
+    <string name="phone_control_allow_on">مفعّل. يمكن للوكيل القراءة والنقر والكتابة والتمرير وفتح التطبيقات.</string>
+    <string name="phone_control_allow_off">معطّل. لا يُرسل أي محتوى للشاشة أو أوامر.</string>
+    <string name="phone_control_enable_service_first">فعّل خدمة تسهيل الاستخدام أولًا</string>
+    <string name="phone_control_server_unavailable">التحكم في الهاتف غير متاح على الخادم بعد</string>
+    <string name="phone_control_enable_channel">فعّل قناة إشعارات «التشغيلات المباشرة والاتصال» ليبقى «إيقاف التحكم» متاحًا</string>
+    <string name="phone_control_confirm_title">السماح بالتحكم في الهاتف</string>
+    <string name="phone_control_activation_cancelled">أُلغي التفعيل لأن التحكم أو الإقران أو تسهيل الاستخدام قد تغيّر</string>
+    <string name="phone_control_not_armed">لم يجهّز الخادم هذا الهاتف، أو استُبدل التفعيل</string>
+    <string name="phone_control_sideload_help">الإعداد الأول لحزمة APK مثبّتة من خارج المتجر: قد يحظر Android تسهيل الاستخدام. افتح إعدادات Android ← التطبيقات ← %1$s ← ⋮ ← السماح بالإعدادات المحظورة، ثم فعّل الخدمة هنا. لا تحتاج إلى ذلك إلا مرة واحدة.</string>
+    <string name="phone_control_limits">لا يعمل التحكم إلا أثناء تشغيل الشاشة وفتح قفلها. يحظر Android لقطات الشاشة للشاشات المحمية. تبقى حقول كلمات المرور خاصة. أوقِف التحكم من هنا أو من الإشعار في أي وقت.</string>
+    <string name="phone_control_confirming">أكّد باستخدام البصمة أو رقم التعريف الشخصي…</string>
+    <string name="channel_tab_control">التحكم</string>
+    <string name="channel_control_section">تحكم الوكيل في الهاتف</string>
+    <string name="channel_battery_title">تحسين البطارية</string>
+    <string name="channel_battery_body">تُنهي بعض الهواتف الاتصال في الخلفية. اسمح لـ %1$s بالعمل دون قيود.</string>
+    <string name="channel_allow_unknown_apps">اسمح بـ «تثبيت التطبيقات غير المعروفة» لـ %1$s، ثم انقر على الملف مرة أخرى</string>
+</resources>
