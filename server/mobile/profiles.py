@@ -101,6 +101,7 @@ class ProfileChats:
         self.procs: Dict[str, asyncio.subprocess.Process] = {}
         self.queues: Dict[str, List[Dict[str, Any]]] = {}
         self._busy: set = set()
+        self._stopping: set = set()
 
     # ---------------------------------------------------------------- binding
     def profile_of(self, cid: str) -> str:
@@ -146,12 +147,23 @@ class ProfileChats:
         dropped = len(self.queues.pop(cid, []))
         p = self.procs.get(cid)
         if p and p.returncode is None:
-            p.terminate()
+            # The whole group, like the inactivity stop: a tool process still holding the child's stdout would
+            # otherwise keep the run open. In the background, so the Stop request answers at once.
+            t = asyncio.create_task(self._stop_group(p))
+            self._stopping.add(t)
+            t.add_done_callback(self._stopping.discard)
         if dropped:
             note = self.ad.store.add_message(cid, "agent", f"Stopped. Dropped {dropped} queued message{'s' if dropped > 1 else ''}.",
                                              kind="status", meta={"quiet": True})
             self.ad._emit_msg(note, push=None)
         return self.busy(cid) or bool(dropped)
+
+    async def close_all(self) -> None:
+        """At adapter disconnect: drop queued turns and stop every running child with its group. The child leads its
+        own session, so a gateway that exits outside systemd (launchd, a terminal) no longer takes it down."""
+        self.queues.clear()
+        running = [p for p in self.procs.values() if p.returncode is None]
+        await asyncio.gather(*(self._stop_group(p) for p in running), *self._stopping, return_exceptions=True)
 
     async def send(self, cid: str, profile: str, text: str, atts: Optional[List[Dict[str, Any]]] = None) -> None:
         """Run now, or queue behind the current run of this chat."""
@@ -337,7 +349,9 @@ class ProfileChats:
                     tools.append(str(ev.get("name") or "tool"))
                     open_tools[str(ev.get("tool_call_id") or ev.get("name") or "tool")] += 1
                 elif t == "tool_result":
-                    open_tools[str(ev.get("tool_call_id") or ev.get("name") or "tool")] -= 1
+                    key = str(ev.get("tool_call_id") or ev.get("name") or "tool")
+                    if open_tools[key] > 0:  # an unmatched result must not cancel a later tool_use of the same key
+                        open_tools[key] -= 1
                 elif t == "result":
                     sid = ev.get("session_id") or sid
                     final = ev.get("text")

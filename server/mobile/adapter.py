@@ -352,6 +352,8 @@ class MobileAdapter(BasePlatformAdapter):
         if getattr(self, "_fleet", None):
             self._fleet.stop()
         self._rooms.stop_polling()
+        if getattr(self, "_profiles", None):
+            await self._profiles.close_all()
         await self._live_sessions.close_all()
         if self._runner:
             await self._runner.cleanup()

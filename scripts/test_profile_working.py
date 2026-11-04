@@ -257,5 +257,70 @@ class ProfileWorkingTests(unittest.TestCase):
         self.assertEqual(events[-1][:2], ("working", False))
 
 
+    def _group_child(self, name):
+        """A child that starts a SIGTERM-ignoring tool process in its group, then runs until stopped."""
+        pid_file = Path(HOME) / f"{name}.pid"
+        pid_file.unlink(missing_ok=True)
+        child = ("import json, subprocess, sys, time\n"
+                 "g = subprocess.Popen([sys.executable, '-c', 'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(120)'])\n"
+                 "open(%r, 'w').write(str(g.pid))\n"
+                 "print(json.dumps({'type': 'tool_use', 'name': 'terminal', 'tool_call_id': 't1'}), flush=True)\n"
+                 "time.sleep(120)\n") % str(pid_file)
+        return child, pid_file
+
+    def _stopped_by(self, name, stopper):
+        """Start the group child, call ``stopper(pc)`` once its tool runs, and return the child and tool pids."""
+        child, pid_file = self._group_child(name)
+        async def run():
+            ad = FakeAdapter()
+            pc = chats(ad, silent_s=0, child=child)
+            pc.TERM_GRACE_S = IDLE_S
+            await pc.send("c1", "plain", "first")
+            await pc.send("c1", "plain", "queued")
+            deadline = time.monotonic() + 5
+            while not (pid_file.exists() and pid_file.read_text()) and time.monotonic() < deadline:
+                await asyncio.sleep(0.02)
+            cpid = pc.procs["c1"].pid
+            await stopper(pc)
+            await asyncio.wait_for(drained(pc, "c1"), timeout=8)
+            return ad, pc, cpid
+        gpid = None
+        try:
+            ad, pc, cpid = asyncio.run(run())
+            gpid = int(pid_file.read_text())
+            deadline = time.monotonic() + 5
+            while (alive(gpid) or alive(cpid)) and time.monotonic() < deadline:
+                time.sleep(0.05)
+            return ad, pc, cpid, gpid
+        finally:
+            if gpid is None and pid_file.exists() and pid_file.read_text():
+                gpid = int(pid_file.read_text())
+            if gpid and alive(gpid):
+                os.kill(gpid, 9)
+
+    def test_disconnect_stops_every_running_child(self):
+        # The child leads its own session: outside systemd (launchd, a terminal) nothing else stops it with the gateway.
+        ad, pc, cpid, gpid = self._stopped_by("closeall", lambda pc: pc.close_all())
+        self.assertFalse(alive(cpid), "the profile CLI outlived the adapter")
+        self.assertFalse(alive(gpid), "a tool process outlived the adapter")
+        self.assertFalse(pc.procs)
+
+    def test_stop_ends_the_childs_tool_processes(self):
+        ad, pc, cpid, gpid = self._stopped_by("stop", lambda pc: pc.stop("c1"))
+        self.assertFalse(alive(cpid))
+        self.assertFalse(alive(gpid), "Stop left the child's tool process running")
+
+    def test_an_unmatched_tool_result_does_not_hide_a_later_open_tool(self):
+        profile_config("unmatched", "agent:\n  gateway_timeout: %s\n" % (IDLE_S / 2))
+        child = ("import json, time\n"
+                 "print(json.dumps({'type': 'tool_result', 'name': 'terminal'}), flush=True)\n"
+                 "print(json.dumps({'type': 'tool_use', 'name': 'terminal'}), flush=True)\n"
+                 "time.sleep(%s)\n"
+                 "print(json.dumps({'type': 'result', 'text': 'done'}), flush=True)\n") % (IDLE_S * 1.5)
+        ad, pc = asyncio.run(run_child(child, "unmatched"))
+        self.assertFalse(any("no output" in (t or "") for t in ad.store.texts), ad.store.texts)
+        self.assertIn("done", ad.store.texts)
+
+
 if __name__ == "__main__":
     unittest.main()
