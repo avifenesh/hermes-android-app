@@ -33,12 +33,31 @@ FULL_ONLY_PERMISSIONS = {
     "android.permission.REQUEST_INSTALL_PACKAGES",
     "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
     "android.permission.USE_EXACT_ALARM",
+    # Play captures through the camera app (ACTION_IMAGE_CAPTURE), which needs no grant when CAMERA is undeclared.
+    "android.permission.CAMERA",
+    # Play's alarm sound runs as systemExempted instead of mediaPlayback.
+    "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+}
+PLAY_ONLY_PERMISSIONS = {"android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"}
+# android:foregroundServiceType flag values (android.content.pm.ServiceInfo). apkanalyzer prints them as hex.
+FGS_BITS = {
+    "dataSync": 0x1, "mediaPlayback": 0x2, "phoneCall": 0x4, "location": 0x8, "connectedDevice": 0x10,
+    "mediaProjection": 0x20, "camera": 0x40, "microphone": 0x80, "health": 0x100, "remoteMessaging": 0x200,
+    "systemExempted": 0x400, "shortService": 0x800, "fileManagement": 0x1000, "mediaProcessing": 0x2000,
+    "specialUse": 0x40000000,
+}
+# Every typed foreground service in the merged manifest, by class short name. Any other typed service fails.
+FGS_TYPES = {
+    "full": {"LiveService": "dataSync", "WakeService": "mediaPlayback", "TalkService": "microphone", "WakeListenService": "microphone"},
+    "play": {"LiveService": "dataSync", "WakeService": "systemExempted", "TalkService": "microphone", "WakeListenService": "microphone"},
 }
 FORBIDDEN_SOURCE = (
     "import android.accessibilityservice.", "/v1/phone/", "PhoneControlPanel",
     "ACTION_ACCESSIBILITY_SETTINGS", "ACTION_MANAGE_UNKNOWN_APP_SOURCES",
     "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", "canRequestPackageInstalls",
     "PackageInstaller", "dispatchGesture(",
+    # The always-on background connection preference and the camera grant live in full sources only.
+    "Prefs.live", "Manifest.permission.CAMERA",
 )
 FORBIDDEN_DEX_STRINGS = (
     "/v1/phone/", "android.settings.ACCESSIBILITY_SETTINGS",
@@ -47,7 +66,10 @@ FORBIDDEN_DEX_STRINGS = (
     "Allow agent control", "Allow phone control", "PhoneControlPanel",
     "Landroid/accessibilityservice/AccessibilityService;",
     "Landroid/accessibilityservice/GestureDescription;",
+    "Stay connected in background",
 )
+# Play-only safeguard: the first-run AI-content notice.
+PLAY_DEX_STRINGS = ("About AI replies",)
 FULL_CLASSES = ("PhoneService", "PhoneStopReceiver", "PhoneNotice", "PhoneControlKt")
 DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "MarkdownProbeActivity", "FleetProbeActivity", "ReleaseLinkageProbe",
@@ -64,6 +86,29 @@ DEBUG_ASSET_DIR = "assets/probe/"
 def require(ok: bool, message: str) -> None:
     if not ok:
         raise ValueError(message)
+
+
+def fgs_bits(value: str) -> int:
+    """foregroundServiceType as written in source XML (names joined by |) or printed by apkanalyzer (hex/decimal)."""
+    value = value.strip()
+    if re.fullmatch(r"0x[0-9a-fA-F]+", value):
+        return int(value, 16)
+    if value.isdigit():
+        return int(value)
+    bits = 0
+    for name in value.split("|"):
+        require(name in FGS_BITS, f"unknown foreground service type: {name}")
+        bits |= FGS_BITS[name]
+    return bits
+
+
+def foreground_services(app: ET.Element) -> dict:
+    found = {}
+    for service in app.findall("service"):
+        kind = service.get(A + "foregroundServiceType")
+        if kind is not None:
+            found[service.get(A + "name", "").rsplit(".", 1)[-1]] = fgs_bits(kind)
+    return found
 
 
 def source_check(root: Path = ROOT) -> dict:
@@ -102,6 +147,13 @@ def source_check(root: Path = ROOT) -> dict:
     for permission in FULL_ONLY_PERMISSIONS:
         require(permission in permissions and permissions[permission].get(T + "node") == "remove",
                 f"missing Play defense-in-depth permission removal: {permission}")
+    for permission in PLAY_ONLY_PERMISSIONS:
+        require(permission in permissions and permissions[permission].get(T + "node") is None,
+                f"missing Play permission: {permission}")
+    wake = [n for n in play.iter("service") if n.get(A + "name") == ".WakeService"]
+    require(len(wake) == 1 and wake[0].get(A + "foregroundServiceType") == FGS_TYPES["play"]["WakeService"]
+            and wake[0].get(T + "replace") == "android:foregroundServiceType",
+            "Play overlay must replace the WakeService foreground service type with systemExempted")
     main = (src / "main/AndroidManifest.xml").read_text()
     require('android:authorities="${applicationId}.files"' in main, "provider identity not flavor-safe")
     require('android:taskAffinity="${applicationId}.wake"' in main, "Wake task affinity not flavor-safe")
@@ -136,8 +188,14 @@ def manifest_check(xml: str, flavor: str, debug: bool = False) -> dict:
         require("PhoneStopReceiver" not in xml and "PhoneProbeActivity" not in xml, "Play phone component")
         exact = permissions.get("android.permission.SCHEDULE_EXACT_ALARM")
         require(exact is not None and exact.get(A + "maxSdkVersion") is None, "Play exact alarm access capped/missing")
+        for permission in PLAY_ONLY_PERMISSIONS:
+            require(permission in permissions, f"Play is missing {permission}")
     else:
         require(FULL_ONLY_PERMISSIONS <= permissions.keys(), "full permissions lost")
+        require(not (PLAY_ONLY_PERMISSIONS & permissions.keys()), "full includes Play-only permissions")
+    services = foreground_services(app)
+    expected_services = {name: fgs_bits(kind) for name, kind in FGS_TYPES[flavor].items()}
+    require(services == expected_services, f"wrong foreground service type set: {services} != {expected_services}")
     provider = [p for p in app.findall("provider") if p.get(A + "name") == "androidx.core.content.FileProvider"]
     require(len(provider) == 1 and provider[0].get(A + "authorities") == expected + ".files", "wrong FileProvider authority")
     wake = [p for p in app.findall("activity") if p.get(A + "name", "").endswith(".WakeActivity")]
@@ -151,7 +209,7 @@ def manifest_check(xml: str, flavor: str, debug: bool = False) -> dict:
     else:
         require(not root.findall("instrumentation"), "instrumentation leaked into release")
         require(not any(n.endswith("." + d) for n in names for d in DEBUG_CLASSES), "debug component in release")
-    return {"package": expected, "permissions": sorted(permissions)}
+    return {"package": expected, "permissions": sorted(permissions), "foreground_services": services}
 
 
 def dex_tables(data: bytes) -> tuple[set[str], set[str]]:
@@ -181,8 +239,10 @@ def dex_check(strings: set[str], classes: set[str], flavor: str, debug: bool = F
         for token in FORBIDDEN_DEX_STRINGS:
             require(not any(token in s for s in strings), f"full-only DEX marker: {token}")
         require(has("UnsupportedPhoneControl"), "missing inert Play contract")
+        require(all(token in strings for token in PLAY_DEX_STRINGS), "missing Play AI-content notice")
     else:
         require(all(has(n) for n in FULL_CLASSES), "full implementation missing from DEX")
+        require(not any(token in strings for token in PLAY_DEX_STRINGS), "Play AI-content notice in full DEX")
     if not debug:
         require(not any(has(n) for n in DEBUG_CLASSES), "debug fixture in release DEX")
 

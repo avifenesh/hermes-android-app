@@ -18,6 +18,8 @@ import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 
+import check_distribution as boundary
+
 
 class QualificationError(AssertionError):
     """A failed gate. Raised explicitly so `python -O` cannot strip the check."""
@@ -93,6 +95,16 @@ def generated_from_bundle(java: str, keytool: str, bundletool: Path, bundle: Pat
 def validate_apk_identity(badging: str, code: int, version: str) -> None:
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.MULTILINE)
     require(package and package.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'APK/source version mismatch')
+
+
+def validate_play_boundary(distribution: dict) -> dict[str, str]:
+    """Bind the receipt to the merged-manifest permissions and foreground service types the Play declarations describe."""
+    permissions = set(distribution.get('permissions', []))
+    require(not (permissions & boundary.FULL_ONLY_PERMISSIONS), 'Play artifact requests full-only permissions')
+    require(boundary.PLAY_ONLY_PERMISSIONS <= permissions, 'Play artifact lacks FOREGROUND_SERVICE_SYSTEM_EXEMPTED')
+    expected = {name: boundary.fgs_bits(kind) for name, kind in boundary.FGS_TYPES['play'].items()}
+    require(distribution.get('foreground_services') == expected, f"Unexpected foreground service types: {distribution.get('foreground_services')}")
+    return dict(boundary.FGS_TYPES['play'])
 
 
 def validate_test_counts(counts: dict[str, int]) -> None:
@@ -209,6 +221,7 @@ def main() -> None:
     require(min(path.stat().st_mtime for path in (args.apk, args.bundle, args.bundle_apk)) >= latest_input, 'Artifacts predate Android inputs; rebuild')
     distribution = json.loads(command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.apk),
         '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'distribution.json'))
+    foreground_services = validate_play_boundary(distribution)
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.apk)], args.output / 'legal.json')
     command([str(args.build_tools / 'zipalign'), '-c', '-P', '16', '4', str(args.apk)], args.output / 'zipalign.log')
     badging = command([str(args.build_tools / 'aapt2'), 'dump', 'badging', str(args.apk)], args.output / 'apk-badging.log')
@@ -235,8 +248,9 @@ def main() -> None:
     require(certificates and {item.replace(':', '').lower() for item in certificates} == {args.expected_cert_sha256.lower()}, 'Unexpected bundle signer')
     payload_parity(args.bundle_apk, args.bundle)
     generated_from_bundle(args.java, keytool, Path(args.bundletool), args.bundle, args.bundle_apk, args.output / 'bundle-regeneration.log')
-    command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.bundle_apk),
-        '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'bundle-apk-distribution.json')
+    bundle_distribution = json.loads(command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.bundle_apk),
+        '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'bundle-apk-distribution.json'))
+    require(validate_play_boundary(bundle_distribution) == foreground_services, 'Bundle APK service types differ from the APK')
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.bundle_apk)], args.output / 'bundle-apk-legal.json')
     command([str(args.build_tools / 'zipalign'), '-c', '-P', '16', '4', str(args.bundle_apk)], args.output / 'bundle-apk-zipalign.log')
     bundled_badging = command([str(args.build_tools / 'aapt2'), 'dump', 'badging', str(args.bundle_apk)], args.output / 'bundle-apk-badging.log')
@@ -272,6 +286,7 @@ def main() -> None:
         'bundle_generated_apk': {'path': str(args.bundle_apk), 'sha256': digest(args.bundle_apk), 'source_bundle_sha256': digest(args.bundle), 'bytes': args.bundle_apk.stat().st_size, 'native': generated_native},
         'build_provenance_sha256': digest(args.provenance),
         'expected_upload_certificate_sha256': args.expected_cert_sha256.lower(),
+        'foreground_services': foreground_services, 'permissions': distribution['permissions'],
         'unit_tests': counts, 'lint': {'errors': lint_errors, 'warnings': len(issues)}, 'native': native,
         'scope_limits': ['No physical-phone qualification', 'No real FCM or microphone quality qualification',
             'No public reviewer-hosting availability', 'Play App Signing and listing declarations remain owner decisions']}

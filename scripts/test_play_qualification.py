@@ -51,6 +51,24 @@ class BuildProvenanceTests(unittest.TestCase):
             build.validate_provenance(self.record, self.sources, self.outputs)
 
 
+class PlayBoundaryReceiptTests(unittest.TestCase):
+    """The receipt binds the merged-manifest service types and permissions the Play declarations describe."""
+    good = {'permissions': ['android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED', 'android.permission.SCHEDULE_EXACT_ALARM'],
+            'foreground_services': {'LiveService': 0x1, 'WakeService': 0x400, 'TalkService': 0x80, 'WakeListenService': 0x80}}
+
+    def test_system_exempted_alarm_receipt_is_accepted(self):
+        self.assertEqual(qualify.validate_play_boundary(self.good)['WakeService'], 'systemExempted')
+
+    def test_media_playback_alarm_or_camera_is_rejected(self):
+        for change in ({'foreground_services': {**self.good['foreground_services'], 'WakeService': 0x2}},
+                       {'permissions': self.good['permissions'] + ['android.permission.CAMERA']},
+                       {'permissions': self.good['permissions'] + ['android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK']},
+                       {'permissions': ['android.permission.SCHEDULE_EXACT_ALARM']},
+                       {'foreground_services': {**self.good['foreground_services'], 'Extra': 0x1}}):
+            with self.subTest(change=change), self.assertRaises(AssertionError):
+                qualify.validate_play_boundary({**self.good, **change})
+
+
 class ApkIdentityTests(unittest.TestCase):
     def test_correct_candidate_is_accepted(self):
         qualify.validate_apk_identity("package: name='dev.avifenesh.hermes.play' versionCode='41' versionName='0.16.9'", 41, '0.16.9')
