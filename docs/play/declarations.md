@@ -22,6 +22,8 @@ The application label in this artifact is still "Hermes Play preview". The owner
 
 Each item says what blocks what. Details are in the section named.
 
+**Status:** C1, C2, C4, C5 and C6 are implemented in the Play build (`play/compliance`), with the permission and service-type boundary enforced by `scripts/check_distribution.py`. C3 waits on the reviewer sandbox redeploy after PR #22; C4 also needs the report Worker redeploy. Entries below written "after C1/C2/C6" describe the current Play build.
+
 | # | Change | Why | Blocks |
 |---|---|---|---|
 | C1 | **`LiveService` (dataSync) must stop being an always-on connection in the Play build.** Run it only while a run the user started from this phone is in progress, and stop it when the run ends. Do not set `Prefs.live = true` on pairing. Remove or reword the "Stay connected in background" toggle in Play. | Play allows a foreground service only if it "runs only for as long as necessary to complete the task". Today the service starts automatically after pairing whenever the gateway has no push setup, then shows "Hermes · Connected" with no task and no end. That fails the policy. The reviewer sandbox has push disabled, so every reviewer sees it. See [dataSync](#datasync-liveservice). | Foreground service declaration, review |
@@ -348,7 +350,7 @@ None of these has a Play Console declaration. Each is disclosed in the privacy p
 |---|---|---|
 | `POST_NOTIFICATIONS` | Replies, approvals, cron digests, alarm and service notifications. Requested once on first open. | Runtime permission; no declaration |
 | `RECORD_AUDIO` | Talk, voice notes, on-device wake word | Runtime; counted in health-policy scope but not a health feature; covered by the microphone service entry |
-| `CAMERA` | Camera attachments and photo proofs, through the system camera | Runtime; no declaration. Removable together with the three permission gates (C6) |
+| `CAMERA` | Not in the Play build (C6): camera attachments and photo proofs open the system camera app, which needs no permission | None |
 | `ACTIVITY_RECOGNITION` | Wake step proof | Runtime; answered in the Health apps declaration |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm Wake alarms after reboot, update, time or timezone change | Normal. The receiver only reschedules alarms and enqueues WorkManager. It starts no foreground service: Android 14 forbids microphone services from boot, and Android 15 adds dataSync and mediaPlayback |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Approval signatures with Keystore keys | Normal |
