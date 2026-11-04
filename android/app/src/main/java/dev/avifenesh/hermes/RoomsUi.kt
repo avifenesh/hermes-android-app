@@ -193,8 +193,9 @@ fun RoomScreen(rid: String) {
     val hasOlder = Rooms.before.collectAsState().value[rid] != null
     val driverUp by Rooms.driverUp.collectAsState()
     var draft by rememberSaveable(rid) { mutableStateOf("") }
-    // One client id per intended message: a retry after a lost answer is the same send, never a second one.
-    var clientId by rememberSaveable(rid) { mutableStateOf<String?>(null) }
+    // One client id per intended message, bound to its exact text and files (RoomLogic.sendId): a retry
+    // after a lost answer is the same send, an edited message a new one.
+    var held by rememberSaveable(rid) { mutableStateOf<Pair<String, String>?>(null) }
     val atts = rememberSaveable(rid, saver = AttachmentsSaver) { mutableStateListOf<JSONObject>() }
     var busy by remember { mutableStateOf(false) }
     var loading by remember(rid) { mutableStateOf(true) }
@@ -229,7 +230,8 @@ fun RoomScreen(rid: String) {
     } }
     val dragging by list.interactionSource.collectIsDraggedAsState()
     var landed by remember(rid) { mutableStateOf(false) }
-    val pendingCount = (driver?.pending ?: room?.pending)?.size ?: 0
+    val cards = RoomLogic.cards(driver, room)
+    val pendingCount = cards.size
     LaunchedEffect(events.size, loading, pendingCount) {
         if (events.isEmpty() || loading) return@LaunchedEffect
         // Rows never outnumber events, plus a few fixed rows; an index past the end lands on the last row.
@@ -237,23 +239,30 @@ fun RoomScreen(rid: String) {
         if (!landed) { landed = true; list.scrollToItem(end); return@LaunchedEffect }
         if (nearEnd && !dragging) list.animateScrollToItem(end)
     }
-    VisibleEffect(rid, nearEnd, latest, room?.unread) {
-        val r = room ?: return@VisibleEffect
-        if (nearEnd && landed && (r.unread > 0 || r.readSeq < r.latestSeq)) Rooms.markRead(rid, r.latestSeq)
+    // Keyed on landing, not on unread: clearing unread must not restart (and so cancel) its own read.
+    VisibleEffect(rid, nearEnd, latest, landed) {
+        RoomLogic.readTarget(room, nearEnd, landed)?.let { Rooms.markRead(rid, it) }
     }
     fun add(u: android.net.Uri, kind: String? = null) {
-        scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say("Upload failed: " + it.message) }; busy = false; clientId = null }
+        scope.launch { busy = true; runCatching { atts += uploadUri(ctx, u, kind) }.onFailure { Ui.say("Upload failed: " + it.message) }; busy = false }
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let { u -> add(u, "image") } }
     val doc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let { u -> add(u) } }
     fun send() {
-        val t = draft.trim()
+        val sentDraft = draft
+        val t = sentDraft.trim()
         val a = atts.toList()
         if ((t.isEmpty() && a.isEmpty()) || busy) return
-        val id = clientId ?: java.util.UUID.randomUUID().toString().also { clientId = it }
+        val identity = RoomLogic.sendId(held, t, a) { java.util.UUID.randomUUID().toString() }.also { held = it }
         busy = true
         scope.launch {
-            try { Rooms.send(rid, t, a, id); draft = ""; atts.clear(); clientId = null }
+            try {
+                Rooms.send(rid, t, a, identity.second)
+                // The composer stayed editable: keep what was typed or attached while this was in flight.
+                draft = RoomLogic.draftAfterSend(draft, sentDraft)
+                atts.removeAll(a)
+                held = null
+            }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { Ui.say("Not sent: " + e.message) }
             finally { busy = false }
@@ -287,13 +296,13 @@ fun RoomScreen(rid: String) {
                 else -> confirm = a
             }
         },
-        mention = { m -> draft = RoomLogic.mention(draft, m.handle); clientId = null },
+        mention = { m -> draft = RoomLogic.mention(draft, m.handle) },
         members = { sheet = true },
         stop = { run("stop") { Rooms.stop(rid); Ui.say("Stopping the group…") } },
         rename = { renaming = true },
         delete = { deleting = true },
     )
-    RoomBody(room, events, driver, driverUp, loading, err, hasOlder, draft, { draft = it; clientId = null }, atts, busy,
+    RoomBody(room, events, driver, driverUp, loading, err, hasOlder, draft, { draft = it }, atts, busy,
         actionBusy, list, cb)
     if (sheet && room != null) RoomMembersSheet(room, driver, onDismiss = { sheet = false }) { m -> sheet = false; cb.mention(m) }
     if (renaming && room != null) RenameRoomDialog(room.name, onDismiss = { renaming = false }) { name ->
@@ -357,10 +366,10 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
         Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
                 if (error != null) item { ErrorPanel("Could not load the group: $error", cb.retry) }
-                else if (events.isEmpty()) item {
+                else if (events.isEmpty() && !hasOlder) item {
                     if (loading) Skeleton() else Empty(room?.name ?: "Group chat", "Say something to the group. @mention a Bot to ask just that one.")
                 }
-                if (hasOlder && events.isNotEmpty()) item(key = "older") {
+                if (RoomLogic.olderControl(hasOlder, error)) item(key = "older") {
                     Text("Earlier messages", style = sans(13.5f, 600, p.acct), textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = cb.older).heightIn(min = 48.dp).padding(vertical = 14.dp))
                 }
@@ -375,8 +384,8 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
                 }
                 if (answering.isNotEmpty() || queued.isNotEmpty()) item(key = "working") { RoomWorkingRow(answering, queued) }
                 // What the room waits on scrolls with the log, so a long command never squeezes the composer.
-                items(driver?.pending ?: room?.pending.orEmpty(), key = { "act:${it.kind}:${it.taskId}:${it.generation}" }) { a ->
-                    Box(Modifier.padding(horizontal = 14.dp)) { RoomActionCard(a, members, actionBusy == a.taskId, cb.act) }
+                items(RoomLogic.cards(driver, room), key = { "act:${it.action.kind}:${it.action.taskId}:${it.action.generation}" }) { c ->
+                    Box(Modifier.padding(horizontal = 14.dp)) { RoomActionCard(c.action, members, actionBusy == c.action.taskId, cb.act, c.ready) }
                 }
                 item(key = "end") { Spacer(Modifier.height(8.dp)) }
             }
@@ -528,7 +537,7 @@ fun RoomAttachment(rid: String, e: RoomEvent, a: JSONObject, mine: Boolean) {
 }
 
 @Composable
-fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAct: (RoomAction, String) -> Unit) {
+fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAct: (RoomAction, String) -> Unit, ready: Boolean = true) {
     val p = P
     val who = members.firstOrNull { it.id == a.member }?.name ?: a.member
     val approval = a.kind == "approval"
@@ -545,14 +554,16 @@ fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAc
         }
         if (a.description.isNotBlank()) Text(a.description, style = sans(14f, 400, p.tx, 20f), modifier = Modifier.padding(top = 8.dp))
         if (a.command.isNotBlank()) { Spacer(Modifier.height(8.dp)); CodeBlock(a.command, "command") }
+        if (!ready) Text("Loading the full command before you can answer…", style = sans(13f, 500, p.tx2),
+            modifier = Modifier.padding(top = 8.dp))
         if (approval && Prefs.noLock) Text("No screen lock on this phone, so approving doesn't ask for your fingerprint.",
             style = sans(13f, 600, p.bad), modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (a.kind) {
                 "approval" -> {
-                    Btn(if (busy) "…" else "Approve", Modifier.weight(1f), enabled = !busy) { onAct(a, "once") }
-                    Btn("Deny", Modifier.weight(1f), danger = true, enabled = !busy) { onAct(a, "deny") }
+                    Btn(if (busy) "…" else "Approve", Modifier.weight(1f), enabled = ready && !busy) { onAct(a, "once") }
+                    Btn("Deny", Modifier.weight(1f), danger = true, enabled = ready && !busy) { onAct(a, "deny") }
                 }
                 "discard" -> Btn(if (busy) "…" else "Discard turn", Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }
                 else -> Btn(if (busy) "…" else "Run again", Modifier.weight(1f), primary = false, enabled = !busy) { onAct(a, "") }

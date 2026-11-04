@@ -6,7 +6,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 
 class RoomLogicTest {
     private fun ev(seq: Long, role: String, member: String = "", ts: Double = 1000.0 + seq, kind: String = "message",
@@ -148,5 +154,73 @@ class RoomLogicTest {
         assertTrue(RoomLogic.asksOutside("crew", foreground = true, open = "other"))
         assertTrue(RoomLogic.asksOutside("crew", foreground = false, open = "crew"))
         assertFalse(RoomLogic.asksOutside("crew", foreground = true, open = "crew"))  // already looking at it
+    }
+
+    @Test fun aSummaryApprovalShowsButOnlyTheFullDetailCanBeAnswered() {
+        val cut = RoomLogic.action(JSONObject().put("kind", "approval").put("member", "scout").put("task_id", "t1")
+            .put("generation", 1).put("request_id", "r1").put("command", "x".repeat(300)).put("command_truncated", true))
+        assertTrue(cut.truncated)
+        val discard = RoomAction("discard", "scribe", "t2", 1, "", "", "")
+        val room = room(0, 1).copy(pending = listOf(cut, discard))
+        assertEquals(listOf(false, true), RoomLogic.cards(null, room).map { it.ready })  // detail not loaded yet
+        val full = cut.copy(command = "x".repeat(5000), truncated = false)
+        val driver = RoomDriver(true, true, false, emptyMap(), listOf(full))
+        assertEquals(listOf(RoomCard(full, true)), RoomLogic.cards(driver, room))  // the detail replaces the summary
+    }
+
+    @Test fun theReadCursorMovesOnceTheRoomHasLanded() {
+        val short = room(2, 9)  // every row fits: nearEnd is true from the first frame
+        assertNull(RoomLogic.readTarget(short, nearEnd = true, landed = false))
+        assertEquals(9L, RoomLogic.readTarget(short, nearEnd = true, landed = true))
+        assertNull(RoomLogic.readTarget(short, nearEnd = false, landed = true))
+        assertNull(RoomLogic.readTarget(short.copy(unread = 0, readSeq = 9), nearEnd = true, landed = true))
+        assertNull(RoomLogic.readTarget(null, nearEnd = true, landed = true))
+    }
+
+    @Test fun aRetryKeepsItsIdOnlyWhileTheMessageIsUnchanged() {
+        var n = 0
+        val fresh = { "id-${++n}" }
+        val a = JSONObject().put("id", "u-a.txt")
+        val b = JSONObject().put("id", "u-b.txt")
+        val first = RoomLogic.sendId(null, "hello", listOf(a, b), fresh)
+        assertEquals("id-1", first.second)
+        assertEquals(first, RoomLogic.sendId(first, "hello", listOf(a, b), fresh))  // a retry is the same send
+        assertEquals("id-2", RoomLogic.sendId(first, "hello", listOf(b), fresh).second)  // a file removed
+        assertEquals("id-3", RoomLogic.sendId(first, "hello!", listOf(a, b), fresh).second)  // text edited
+        assertEquals("id-4", RoomLogic.sendId(first, "hello", listOf(b, a), fresh).second)  // files reordered
+    }
+
+    @Test fun aSendKeepsWhatWasTypedWhileItWasInFlight() {
+        assertEquals("", RoomLogic.draftAfterSend("plan it", "plan it"))
+        assertEquals("and the tests", RoomLogic.draftAfterSend("plan it and the tests", "plan it"))
+        assertEquals("something else", RoomLogic.draftAfterSend("something else", "plan it"))
+    }
+
+    @Test fun earlierMessagesShowEvenWhenTheNewestPageWasBookkeeping() {
+        assertTrue(RoomLogic.olderControl(hasOlder = true, error = null))
+        assertFalse(RoomLogic.olderControl(hasOlder = false, error = null))
+        assertFalse(RoomLogic.olderControl(hasOlder = true, error = "offline"))
+    }
+
+    @Test fun aMissingRouteIsAnAnswerPublishedUnderTheGuards() = runBlocking {
+        val missing: suspend () -> JSONObject = { throw ApiError(404, "HTTP 404") }
+        var published: JSONObject? = null
+        val fresh = loadCapability({ true }, SessionEpoch(), SessionEpoch(), { roomListAnswer(missing) }) { published = it }
+        assertFalse(fresh!!.optBoolean("supported", true))
+        assertEquals(0, published!!.getJSONArray("rooms").length())
+        // A 404 that arrives after a switch to another machine publishes nothing.
+        val session = SessionEpoch()
+        val gate = CompletableDeferred<Unit>()
+        var late: JSONObject? = null
+        val job = async(start = CoroutineStart.UNDISPATCHED) {
+            loadCapability({ true }, session, SessionEpoch(), { gate.await(); roomListAnswer(missing) }) { late = it }
+        }
+        session.invalidate()
+        gate.complete(Unit)
+        try { job.await(); fail("a stale 404 was published") } catch (_: CancellationException) { }
+        assertNull(late)
+        try { roomListAnswer { throw ApiError(500, "HTTP 500") }; fail("other errors are not answers") } catch (e: ApiError) {
+            assertEquals(500, e.code)
+        }
     }
 }

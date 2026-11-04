@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,7 +22,10 @@ data class RoomEvent(val seq: Long, val id: String, val kind: String, val role: 
 
 /** Work Hermes' room driver is waiting on: a member's command approval, or a turn to retry or discard. */
 data class RoomAction(val kind: String, val member: String, val taskId: String, val generation: Long,
-                      val requestId: String, val command: String, val description: String)
+                      val requestId: String, val command: String, val description: String, val truncated: Boolean = false)
+
+/** An action card and whether it may be answered: a summary's approval (its command cut short) only shows. */
+data class RoomCard(val action: RoomAction, val ready: Boolean)
 data class RoomDriver(val running: Boolean, val working: Boolean, val blocked: Boolean,
                       val members: Map<String, String>, val pending: List<RoomAction>)
 data class RoomBot(val profile: String, val name: String)
@@ -46,7 +50,33 @@ object RoomLogic {
     }
 
     fun action(o: JSONObject) = RoomAction(o.str("kind"), o.str("member"), o.str("task_id"), o.optLong("generation"),
-        o.str("request_id"), o.str("command"), o.str("description"))
+        o.str("request_id"), o.str("command"), o.str("description"), o.optBoolean("command_truncated"))
+
+    /** The room's driver detail answers; until it arrives the summary's actions show, and an approval among
+     *  them cannot be answered: the owner approves exactly the command they can read in full. */
+    fun cards(driver: RoomDriver?, room: Room?): List<RoomCard> =
+        driver?.pending?.map { RoomCard(it, true) } ?: room?.pending.orEmpty().map { RoomCard(it, it.kind != "approval") }
+
+    /** The read cursor moves once the room has landed on its newest row and something is unread. */
+    fun readTarget(r: Room?, nearEnd: Boolean, landed: Boolean): Long? =
+        r?.takeIf { nearEnd && landed && (it.unread > 0 || it.readSeq < it.latestSeq) }?.latestSeq
+
+    /** One client id per intended message, bound to its exact text and files: an unchanged retry reuses it,
+     *  any edit (text, a file added or removed) is a new message with a new id. */
+    fun sendId(held: Pair<String, String>?, text: String, atts: List<JSONObject>, fresh: () -> String): Pair<String, String> {
+        val print = text + "\u0000" + atts.joinToString("\u0000") { it.str("id").ifBlank { it.str("media") } }
+        return if (held != null && held.first == print) held else print to fresh()
+    }
+
+    /** What stays in the composer after a send: whatever was typed while it was in flight. */
+    fun draftAfterSend(current: String, sent: String): String = when {
+        current == sent -> ""
+        current.startsWith(sent) -> current.removePrefix(sent).trimStart()
+        else -> current
+    }
+
+    /** "Earlier messages" shows whenever older history exists, even if the newest page held only bookkeeping. */
+    fun olderControl(hasOlder: Boolean, error: String?): Boolean = hasOlder && error == null
 
     fun event(o: JSONObject) = RoomEvent(o.optLong("seq"), o.str("id"), o.str("kind", "message"), o.str("role"),
         o.str("member"), o.str("name"), o.str("text"), o.optDouble("ts", 0.0), o.str("thread"), o.str("notice"),
@@ -177,6 +207,15 @@ object RoomLogic {
     fun initial(name: String): String = name.trim().trimStart('@').take(1).uppercase().ifBlank { "#" }
 }
 
+/** The room-list fetch for [loadCapability]: a 404 (a plugin from before group chats, no such route) is an
+ *  answer, so it is published under the same session and capability guards as any other list, never from an
+ *  error handler a stale response from another machine or capability generation could reach. */
+internal suspend fun roomListAnswer(fetch: suspend () -> JSONObject): JSONObject =
+    try { fetch() } catch (e: ApiError) {
+        if (e.code != 404) throw e
+        JSONObject().put("supported", false).put("rooms", JSONArray()).put("bots", JSONArray())
+    }
+
 /** Gateway-hosted Group Chats (Hermes Desktop's Bot Mode rooms), shared with every surface of the gateway. */
 object Rooms {
     val list = MutableStateFlow<Map<String, Room>>(emptyMap())
@@ -203,22 +242,17 @@ object Rooms {
     fun put(r: Room) = list.update { it + (r.id to r) }
 
     suspend fun load() {
-        try {
-            call({ Api.get("/v1/rooms") }) { o ->
-                supported.value = o.optBoolean("supported", true)
-                driverUp.value = o.optBoolean("driver", true)
-                val before = list.value
-                list.value = o.optJSONArray("rooms").objs().map(RoomLogic::room).associateBy { it.id }
-                if (Hub.isAppInitialized()) {
-                    for (r in list.value.values) approvals(Hub.app, before[r.id], r)
-                    for ((id, gone) in before) if (id !in list.value) approvals(Hub.app, gone, null)
-                }
-                bots.value = o.optJSONArray("bots").objs().map { RoomBot(it.str("profile"), it.str("name").ifBlank { it.str("profile") }) }
-                loaded.value = true
+        call({ roomListAnswer { Api.get("/v1/rooms") } }) { o ->
+            supported.value = o.optBoolean("supported", true)
+            driverUp.value = o.optBoolean("driver", true)
+            val before = list.value
+            list.value = o.optJSONArray("rooms").objs().map(RoomLogic::room).associateBy { it.id }
+            if (Hub.isAppInitialized()) {
+                for (r in list.value.values) approvals(Hub.app, before[r.id], r)
+                for ((id, gone) in before) if (id !in list.value) approvals(Hub.app, gone, null)
             }
-        } catch (e: ApiError) {
-            // A plugin from before group chats has no such route: hide rooms, never show an error for them.
-            if (e.code == 404) { supported.value = false; list.value = emptyMap(); loaded.value = true } else throw e
+            bots.value = o.optJSONArray("bots").objs().map { RoomBot(it.str("profile"), it.str("name").ifBlank { it.str("profile") }) }
+            loaded.value = true
         }
     }
 
@@ -235,6 +269,8 @@ object Rooms {
         val from = synchronized(through) { through[rid] }
         if (from == null) {
             call({ Api.get("/v1/rooms/${enc(rid)}/events?limit=80") }) { page -> absorb(rid, page, older = false) }
+            // The newest page can be driver bookkeeping only: walk back a few pages for something to show.
+            repeat(5) { if (events.value[rid].isNullOrEmpty() && !older(rid)) return }
             return
         }
         var after: Long = from
@@ -291,13 +327,17 @@ object Rooms {
 
     suspend fun stop(rid: String) { call({ Api.post("/v1/rooms/${enc(rid)}/stop") }) { } }
 
-    suspend fun markRead(rid: String, seq: Long) {
+    /** Clears the badge at once; the cursor post runs on the app scope, so the recomposition this causes
+     *  (the effect that called it is keyed on the room) cannot cancel it before the gateway saves it. */
+    fun markRead(rid: String, seq: Long) {
         val r = list.value[rid] ?: return
         if (seq <= r.readSeq && r.unread == 0) return
         put(r.copy(readSeq = maxOf(seq, r.readSeq), unread = 0))
         Notify.cancelRoom(Hub.app, rid)
-        try { call({ Api.post("/v1/rooms/${enc(rid)}/read", JSONObject().put("seq", seq)) }) { } }
-        catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { }
+        Hub.scope.launch {
+            try { call({ Api.post("/v1/rooms/${enc(rid)}/read", JSONObject().put("seq", seq)) }) { } }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { }
+        }
     }
 
     suspend fun act(rid: String, a: RoomAction, choice: String = "", headers: Map<String, String> = emptyMap()) {

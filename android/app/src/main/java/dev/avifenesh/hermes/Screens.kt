@@ -164,7 +164,7 @@ fun InboxScreen(initialFilter: String = "all") {
                 }
                 items(entries, key = { it.first }) { (_, v) ->
                     if (v is Chat) ChatRow(v, v.id in work, v.id in need)
-                    else (v as Room).let { r -> RoomRow(r, { Ui.openRoom(r.id) }) { scope.launch { Rooms.markRead(r.id, r.latestSeq) } } }
+                    else (v as Room).let { r -> RoomRow(r, { Ui.openRoom(r.id) }) { Rooms.markRead(r.id, r.latestSeq) } }
                 }
             }
         }
