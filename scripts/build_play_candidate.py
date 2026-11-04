@@ -9,6 +9,15 @@ import os
 from pathlib import Path
 import subprocess
 
+
+class QualificationError(AssertionError):
+    """A failed gate. Raised explicitly so `python -O` cannot strip the check."""
+
+
+def require(ok: object, message: str) -> None:
+    if not ok:
+        raise QualificationError(message)
+
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_COMMAND = ['./gradlew', '--offline', '--max-workers=2', ':app:testPlayDebugUnitTest', ':app:lintPlayRelease', ':app:assemblePlayRelease', ':app:bundlePlayRelease']
 APK = 'android/app/build/outputs/apk/play/release/app-play-release.apk'
@@ -31,17 +40,17 @@ def source_snapshot(root: Path) -> dict[str, str]:
 
 def output_snapshot(root: Path) -> dict[str, str]:
     reports = sorted((root / 'android/app/build/test-results/testPlayDebugUnitTest').glob('TEST-*.xml'))
-    assert reports, 'Missing Play unit reports'
+    require(reports, 'Missing Play unit reports')
     paths = [root / name for name in (APK, BUNDLE, LINT)] + reports
-    assert all(path.is_file() for path in paths), 'Missing build artifact or report'
+    require(all(path.is_file() for path in paths), 'Missing build artifact or report')
     return {str(path.relative_to(root)): digest(path) for path in paths}
 
 
 def validate_provenance(record: dict, sources: dict[str, str], outputs: dict[str, str]) -> None:
-    assert record.get('format') == 1 and record.get('return_code') == 0, 'Missing successful build provenance'
-    assert record.get('command') == BUILD_COMMAND, 'Unexpected provenance build command'
-    assert record.get('sources') == sources, 'Build provenance source snapshot differs; rerun build'
-    assert record.get('outputs') == outputs, 'Build provenance artifact/report hashes differ; rerun build'
+    require(record.get('format') == 1 and record.get('return_code') == 0, 'Missing successful build provenance')
+    require(record.get('command') == BUILD_COMMAND, 'Unexpected provenance build command')
+    require(record.get('sources') == sources, 'Build provenance source snapshot differs; rerun build')
+    require(record.get('outputs') == outputs, 'Build provenance artifact/report hashes differ; rerun build')
 
 
 def main() -> None:
@@ -51,13 +60,13 @@ def main() -> None:
     before = source_snapshot(ROOT)
     started = datetime.now(timezone.utc).isoformat()
     env = dict(os.environ)
-    assert env.get('JAVA_HOME'), 'Set JAVA_HOME to a supported JDK 21 installation'
+    require(env.get('JAVA_HOME'), 'Set JAVA_HOME to a supported JDK 21 installation')
     try:
         with (ROOT / 'dist/build-play-gradle.log').open('w') as log:
             result = subprocess.run(BUILD_COMMAND, cwd=ROOT / 'android', env=env, stdout=log, stderr=subprocess.STDOUT, timeout=540)
-        assert result.returncode == 0, 'Gradle failed; see dist/build-play-gradle.log'
+        require(result.returncode == 0, 'Gradle failed; see dist/build-play-gradle.log')
         after = source_snapshot(ROOT)
-        assert before == after, 'Source changed during build; rerun after changes finish'
+        require(before == after, 'Source changed during build; rerun after changes finish')
         record = {'format': 1, 'command': BUILD_COMMAND, 'return_code': result.returncode,
                   'started_at': started, 'finished_at': datetime.now(timezone.utc).isoformat(),
                   'build_head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
@@ -68,7 +77,7 @@ def main() -> None:
     finally:
         stopped = subprocess.run(['./gradlew', '--stop'], cwd=ROOT / 'android', env=env, capture_output=True, text=True, timeout=60)
         (ROOT / 'dist/build-play-gradle-stop.log').write_text(stopped.stdout + stopped.stderr)
-        assert stopped.returncode == 0, 'Gradle daemon shutdown failed'
+        require(stopped.returncode == 0, 'Gradle daemon shutdown failed')
 
 
 if __name__ == '__main__':
