@@ -39,6 +39,7 @@ from . import selfcheck as SC
 from . import usage as U
 from . import sig as SG
 from . import store as S
+from . import transcripts as TR
 from . import wake as W
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,17 @@ def _origin(url: Any) -> Optional[Tuple[str, str, int, str]]:
 
 class ReadOnlyChat(Exception):
     """A phone send into a chat the plugin mirrors read-only (a group conversation on another surface)."""
+
+
+def _stt_clips(event: MessageEvent) -> List[int]:
+    """Indexes into ``event.media_urls`` that Hermes transcribes, by the core's own media predicates."""
+    try:
+        from gateway.run import _event_media_is_audio, _event_media_is_stt_input
+    except ImportError:
+        return [i for i, m in enumerate(event.media_types or []) if event.message_type == MessageType.VOICE
+                and str(m).startswith("audio/")]
+    return [i for i in range(len(event.media_urls or []))
+            if _event_media_is_audio(event, i) and _event_media_is_stt_input(event, i)]
 
 
 def _copy_media(src: str) -> Dict[str, str]:
@@ -385,6 +397,7 @@ class MobileAdapter(BasePlatformAdapter):
             for cid, w in list(self._working.items()):
                 if now - w["last"] > 14:
                     self._working.pop(cid, None)
+                    self._stt.run_ended(cid, w["since"])
                     self._emit({"type": "working", "chat_id": cid, "working": False})
 
     # ------------------------------------------------------------ outbound (gateway -> phone)
@@ -400,6 +413,13 @@ class MobileAdapter(BasePlatformAdapter):
                    metadata: Optional[Dict[str, Any]] = None) -> SendResult:
         try:
             route = route_delivery(self.store, chat_id, content, self._home, str((metadata or {}).get("job_id") or ""))
+            transcript = TR.echo_text(content) if route["kind"] == "chat" else None
+            if transcript is not None:
+                paired = self._attach_transcript(route["chat_id"], content, transcript)
+                if paired:
+                    return SendResult(success=True, message_id=paired["id"])
+            elif reply_to:
+                self._stt.replied(route["chat_id"], reply_to)
             kind, meta = self._classify(route["chat_id"], content, metadata)
             if kind == "text" and (route["kind"] == "digest" or (metadata or {}).get("job_id")):
                 meta["delivery"] = True
@@ -421,6 +441,33 @@ class MobileAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.exception("[mobile] send failed")
             return SendResult(success=False, error=str(e))
+
+    # ------------------------------------------------------------ voice transcripts
+    @property
+    def _stt(self) -> TR.Pairing:
+        p = self.__dict__.get("_stt_pairing")
+        if p is None:
+            p = self.__dict__["_stt_pairing"] = TR.Pairing()
+        return p
+
+    def _attach_transcript(self, chat_id: str, echo: str, transcript: str) -> Optional[Dict[str, Any]]:
+        """Stamp Hermes' STT echo into the voice attachment it transcribes (``meta.attachments[i].transcript``)
+        and keep the echo itself as a quiet status linked by ``meta.transcript_of``: no unread, no push, and
+        the app shows the text under the voice bubble. None when the pairing is not certain."""
+        hit = self._stt.take(chat_id)
+        if not hit:
+            return None
+        msg = self.store.get_message(hit[0])
+        atts = list(((msg or {}).get("meta") or {}).get("attachments") or [])
+        if not msg or msg["chat_id"] != chat_id or not (0 <= hit[1] < len(atts)) or not isinstance(atts[hit[1]], dict):
+            return None
+        atts[hit[1]] = {**atts[hit[1]], "transcript": transcript}
+        voice = self.store.edit_message(msg["id"], meta={"attachments": atts})
+        if voice:
+            self._emit({"type": "message", "seq": voice["seq"], "message": voice, "chat": self.store.get_chat(chat_id)})
+        note = self.store.add_message(chat_id, "agent", echo, kind="status", meta={"quiet": True, "transcript_of": msg["id"]})
+        self._emit_msg(note, push=None)
+        return note
 
     # ------------------------------------------------------------ recall pairing
     _RECALL_TTL = 300.0
@@ -474,7 +521,9 @@ class MobileAdapter(BasePlatformAdapter):
         self._emit({"type": "working", "chat_id": chat_id, "working": True, "since": now})
 
     async def stop_typing(self, chat_id: str) -> None:
-        if self._working.pop(chat_id, None):
+        w = self._working.pop(chat_id, None)
+        if w:
+            self._stt.run_ended(chat_id, w["since"])
             self._emit({"type": "working", "chat_id": chat_id, "working": False})
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
@@ -860,17 +909,21 @@ class MobileAdapter(BasePlatformAdapter):
         self._emit_msg(msg, push=None)
         wire = {"steer": f"/steer {text}", "queue": f"/queue {text}"}.get(mode, text)
         media_urls, media_types, mtype = [], [], MessageType.COMMAND if wire.startswith("/") else MessageType.TEXT
-        for a in atts:
+        media_atts: List[int] = []  # meta.attachments index of each media_urls entry
+        for i, a in enumerate(atts):
             p = S.data_dir() / "media" / Path(str(a.get("id", ""))).name
             if p.exists():
                 media_urls.append(str(p))
                 media_types.append(a.get("mime") or mimetypes.guess_type(p.name)[0] or "application/octet-stream")
+                media_atts.append(i)
                 k = a.get("kind")
                 mtype = {"voice": MessageType.VOICE, "image": MessageType.PHOTO}.get(k, MessageType.DOCUMENT)
         source = self.build_source(chat_id=cid, chat_name=chat.get("title"), chat_type="dm", user_id=OWNER,
                                    user_name=ID.user_name() or None, message_id=msg["id"])
         event = MessageEvent(text=wire, message_type=mtype, source=source, message_id=msg["id"],
                              raw_message=body, media_urls=media_urls, media_types=media_types)
+        if not prof:  # profile chats run the CLI, whose STT never echoes through this adapter
+            self._stt.expect(cid, msg["id"], msg["ts"], [media_atts[i] for i in _stt_clips(event)])
         if quoted:
             event.reply_to_message_id = quoted["id"]
             event.reply_to_text = quoted["content"]
