@@ -29,6 +29,8 @@ SRC = ROOT / "android/app/src"
 A = "{http://schemas.android.com/apk/res/android}"
 T = "{http://schemas.android.com/tools}"
 PACKAGE = "dev.avifenesh.hermes"
+# Kotlin namespace of the app's components in both flavors (the Play application ID adds ".play", the classes do not).
+NAMESPACE = "dev.avifenesh.hermes"
 FULL_ONLY_PERMISSIONS = {
     "android.permission.REQUEST_INSTALL_PACKAGES",
     "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
@@ -46,7 +48,8 @@ FGS_BITS = {
     "systemExempted": 0x400, "shortService": 0x800, "fileManagement": 0x1000, "mediaProcessing": 0x2000,
     "specialUse": 0x40000000,
 }
-# Every typed foreground service in the merged manifest, by class short name. Any other typed service fails.
+# Every typed foreground service in the merged manifest, by class name under NAMESPACE. Any other typed service,
+# including a library class with the same short name, fails.
 FGS_TYPES = {
     "full": {"LiveService": "dataSync", "WakeService": "mediaPlayback", "TalkService": "microphone", "WakeListenService": "microphone"},
     "play": {"LiveService": "dataSync", "WakeService": "systemExempted", "TalkService": "microphone", "WakeListenService": "microphone"},
@@ -102,13 +105,25 @@ def fgs_bits(value: str) -> int:
     return bits
 
 
+def component(name: str) -> str:
+    """Fully qualified component name; source manifests may use the ".Class" shorthand."""
+    return NAMESPACE + name if name.startswith(".") else name
+
+
 def foreground_services(app: ET.Element) -> dict:
+    names = [component(s.get(A + "name", "")) for s in app.findall("service")]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    require(not duplicates, f"duplicate service declarations: {duplicates}")
     found = {}
     for service in app.findall("service"):
         kind = service.get(A + "foregroundServiceType")
         if kind is not None:
-            found[service.get(A + "name", "").rsplit(".", 1)[-1]] = fgs_bits(kind)
+            found[component(service.get(A + "name", ""))] = fgs_bits(kind)
     return found
+
+
+def expected_foreground_services(flavor: str) -> dict:
+    return {f"{NAMESPACE}.{name}": fgs_bits(kind) for name, kind in FGS_TYPES[flavor].items()}
 
 
 def source_check(root: Path = ROOT) -> dict:
@@ -194,7 +209,7 @@ def manifest_check(xml: str, flavor: str, debug: bool = False) -> dict:
         require(FULL_ONLY_PERMISSIONS <= permissions.keys(), "full permissions lost")
         require(not (PLAY_ONLY_PERMISSIONS & permissions.keys()), "full includes Play-only permissions")
     services = foreground_services(app)
-    expected_services = {name: fgs_bits(kind) for name, kind in FGS_TYPES[flavor].items()}
+    expected_services = expected_foreground_services(flavor)
     require(services == expected_services, f"wrong foreground service type set: {services} != {expected_services}")
     provider = [p for p in app.findall("provider") if p.get(A + "name") == "androidx.core.content.FileProvider"]
     require(len(provider) == 1 and provider[0].get(A + "authorities") == expected + ".files", "wrong FileProvider authority")

@@ -102,9 +102,9 @@ def validate_play_boundary(distribution: dict) -> dict[str, str]:
     permissions = set(distribution.get('permissions', []))
     require(not (permissions & boundary.FULL_ONLY_PERMISSIONS), 'Play artifact requests full-only permissions')
     require(boundary.PLAY_ONLY_PERMISSIONS <= permissions, 'Play artifact lacks FOREGROUND_SERVICE_SYSTEM_EXEMPTED')
-    expected = {name: boundary.fgs_bits(kind) for name, kind in boundary.FGS_TYPES['play'].items()}
+    expected = boundary.expected_foreground_services('play')
     require(distribution.get('foreground_services') == expected, f"Unexpected foreground service types: {distribution.get('foreground_services')}")
-    return dict(boundary.FGS_TYPES['play'])
+    return {f'{boundary.NAMESPACE}.{name}': kind for name, kind in boundary.FGS_TYPES['play'].items()}
 
 
 def validate_test_counts(counts: dict[str, int]) -> None:

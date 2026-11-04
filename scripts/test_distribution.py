@@ -132,7 +132,23 @@ class DistributionGuardTests(unittest.TestCase):
 
     def test_manifest_report_lists_foreground_service_types(self):
         report = check.manifest_check(manifest(), "play")
-        self.assertEqual(report["foreground_services"], {n: check.fgs_bits(t) for n, t in check.FGS_TYPES["play"].items()})
+        self.assertEqual(report["foreground_services"],
+                         {f"{check.NAMESPACE}.{n}": check.fgs_bits(t) for n, t in check.FGS_TYPES["play"].items()})
+
+    def test_typed_services_are_matched_by_full_component_name(self):
+        # A library service that shares a short name must not stand in for, or hide behind, the app's own.
+        for extra in ('<service android:name="com.vendor.LiveService" android:foregroundServiceType="0x1" />',
+                      '<service android:name="com.vendor.WakeService" android:foregroundServiceType="0x400" />'):
+            for flavor in ("full", "play"):
+                with self.subTest(extra=extra, flavor=flavor), self.assertRaisesRegex(ValueError, "foreground service"):
+                    check.manifest_check(manifest(flavor, extra=extra), flavor)
+        absolute = manifest().replace('android:name=".LiveService"', f'android:name="{check.NAMESPACE}.LiveService"')
+        self.assertIn(f"{check.NAMESPACE}.LiveService", check.manifest_check(absolute, "play")["foreground_services"])
+
+    def test_duplicate_service_declarations_are_rejected(self):
+        twice = f'<service android:name="{check.NAMESPACE}.LiveService" android:foregroundServiceType="0x1" />'
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            check.manifest_check(manifest(extra=twice), "play")
 
     def test_dex_full_contract(self):
         classes = {f"Ldev/avifenesh/hermes/{name};" for name in check.FULL_CLASSES}
