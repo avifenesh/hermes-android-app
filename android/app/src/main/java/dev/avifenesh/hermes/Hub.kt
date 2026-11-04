@@ -278,6 +278,8 @@ object Hub {
             "phone" -> PhoneService.pull()
             "session_event" -> sessionEvents.tryEmit(e)
             "hello", "seq" -> {
+                // A hello from a restarted gateway: its restart state (and anything else in /v1/me) is new.
+                if (e.optString("type") == "hello" && bootChanged(meta.value, e.optString("boot"))) scope.launch { runCatching { refreshMe() } }
                 if (Prefs.phoneArmed) PhoneService.pull()
                 e.optJSONArray("working")?.let { setWorking(it) }
                 if (e.optLong("seq") > Prefs.seq) scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }

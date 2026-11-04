@@ -598,7 +598,7 @@ fun HubPluginScreen(name: String) {
             }.onSuccess { j ->
                 if (j.str("state") == "ok") {
                     val res = j.optJSONObject("result")
-                    if (res?.optBoolean("restart_required") == true || action != "install") Ctl.needRestart.value = true
+                    if (res?.optBoolean("restart_required") == true || action != "install") Ctl.restartChanged()
                     reload()
                 } else if (j.str("state") == "consent") ask = "consent"
             }.onFailure { if (it.message != "Cancelled") job = JSONObject().put("state", "failed").put("error", it.message ?: "failed").put("profile", Mk.gateway.value) }
@@ -776,7 +776,7 @@ fun HubMcpScreen(name: String) {
             runCatching {
                 val r = Mk.guarded(act, HubLogic.guardKey("mcp", action, name), "${if (action == "install") "Install" else "Remove"} MCP $name") { h -> Api.post(path, body, h) }
                 Mk.follow(r.getJSONObject("job")) { job = it }
-            }.onSuccess { j -> if (j.str("state") == "ok") { Ctl.needRestart.value = true; env.clear(); reload() } }
+            }.onSuccess { j -> if (j.str("state") == "ok") { Ctl.restartChanged(); env.clear(); reload() } }
                 .onFailure { if (it.message != "Cancelled") job = JSONObject().put("state", "failed").put("error", it.message ?: "failed").put("profile", Mk.gateway.value) }
         }
     }

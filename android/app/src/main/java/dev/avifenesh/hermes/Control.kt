@@ -61,12 +61,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-/** Model / reasoning / fast per chat, plus the restart-needed flag shared by Settings and Skills & plugins. */
+/** Model / reasoning / fast per chat, plus the app's own restart flags for old servers. */
 object Ctl {
     val models = MutableStateFlow<JSONObject?>(null)
     val loadingModels = MutableStateFlow(false)
     val chat = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
-    val needRestart = MutableStateFlow(false)
+    /** Machines (base URL) where this app saved a restart-flagged change. Shown only for servers whose /v1/me has
+     *  no `restart` state (older plugins); a current server's own state wins. */
+    val restartFlagged = MutableStateFlow<Set<String>>(emptySet())
 
     suspend fun loadModels(refresh: Boolean = false) {
         if (!refresh && models.value != null) return
@@ -90,6 +92,18 @@ object Ctl {
         val o = Api.post("/v1/chats/${Uri.encode(cid)}/confirm", JSONObject().put("id", id).put("choice", choice))
         o.optJSONObject("state")?.let { s -> chat.update { it + (cid to s) } }
         return o
+    }
+
+    /** A restart-flagged change succeeded on the active machine: flag it for old servers, re-read the server's state. */
+    fun restartChanged() {
+        Prefs.base?.let { b -> restartFlagged.update { it + b } }
+        Hub.scope.launch { runCatching { Hub.refreshMe() } }
+    }
+
+    /** /v1/restart accepted on the active machine. */
+    fun restartRequested() {
+        Prefs.base?.let { b -> restartFlagged.update { it - b } }
+        Hub.scope.launch { runCatching { Hub.refreshMe() } }
     }
 
     fun providerName(slug: String): String =
@@ -322,6 +336,28 @@ fun ComposeModelControl(pick: JSONObject?, onPick: (JSONObject?) -> Unit) {
 const val NEW_CHAT = "_new"
 
 // ---------------------------------------------------------------- restart
+/** Show "Restart to apply" for [machine]? /v1/me `restart` is authoritative (a restart from any surface clears it);
+ *  without it (older server) the app's own per-machine flag decides. A restart already draining hides it. */
+internal fun restartBanner(me: JSONObject, machine: String?, flagged: Set<String>): Boolean {
+    val r = me.optJSONObject("restart") ?: return machine != null && machine in flagged
+    return r.optBoolean("needed") && !r.optBoolean("pending")
+}
+
+/** The event stream's hello came from another gateway process than the loaded /v1/me: it restarted. */
+internal fun bootChanged(me: JSONObject, boot: String): Boolean {
+    val known = me.optJSONObject("restart")?.optString("boot").orEmpty()
+    return boot.isNotBlank() && known.isNotBlank() && boot != known
+}
+
+/** What /v1/restart did. Older servers send no state. */
+internal fun restartToast(res: JSONObject): String {
+    val n = res.optInt("active")
+    return when (res.optString("state")) {
+        "draining" -> if (n == 1) "Hermes restarts after 1 running task finishes" else if (n > 1) "Hermes restarts after $n running tasks finish" else "Restarting Hermes…"
+        "in_progress" -> "A restart is already under way"
+        else -> "Restarting Hermes…"
+    }
+}
 @Composable
 fun RestartDialog(onDismiss: () -> Unit) {
     val p = P
@@ -332,7 +368,7 @@ fun RestartDialog(onDismiss: () -> Unit) {
             Btn("Cancel", primary = false, onClick = onDismiss)
             Btn("Restart") {
             onDismiss()
-            co.launch { runCatching { Api.post("/v1/restart") }.onSuccess { Ctl.needRestart.value = false; Ui.say("Restarting Hermes…") }.onFailure { Ui.say(it.message) } }
+            co.launch { runCatching { Api.post("/v1/restart") }.onSuccess { Ctl.restartRequested(); Ui.say(restartToast(it)) }.onFailure { Ui.say(it.message) } }
         }
         }
 }
@@ -340,9 +376,10 @@ fun RestartDialog(onDismiss: () -> Unit) {
 @Composable
 fun RestartBanner() {
     val p = P
-    val need by Ctl.needRestart.collectAsState()
+    val me by Hub.meta.collectAsState()
+    val flagged by Ctl.restartFlagged.collectAsState()
     var ask by remember { mutableStateOf(false) }
-    if (!need) return
+    if (!restartBanner(me, Prefs.base, flagged)) return
     Panel(Modifier.padding(top = 8.dp, bottom = 4.dp), border = p.att.copy(alpha = 0.45f), bg = p.attd) {
         Row(Modifier.padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icn(Ic.power, p.att, 18.dp)
@@ -412,7 +449,7 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
                 val o = Guard.call(act, "config", key, nv, "Change ${labelOf(f)}") { h -> Api.put("/v1/settings", b, h) }
                 if (key == "model.default") { v = o.str("model"); prov = o.str("provider"); Ctl.chat.value = emptyMap(); runCatching { Hub.refreshMe() } }
                 else v = o.opt("value").takeIf { it != JSONObject.NULL }
-                if (f.optBoolean("restart")) Ctl.needRestart.value = true
+                if (f.optBoolean("restart")) Ctl.restartChanged()
                 Ui.say("Saved")
             } catch (e: Exception) { if (e.message != "Cancelled") Ui.say(e.message) } finally { busy = false }
         }
@@ -673,7 +710,7 @@ fun PluginsTab() {
             co.launch {
                 val nm = pl.str("key").ifBlank { pl.str("name") }
                 runCatching { Guard.call(act, "plugin", nm, v, (if (v) "Enable " else "Disable ") + nm) { h -> Api.post("/v1/plugins/toggle", JSONObject().put("name", nm).put("enabled", v), h) } }
-                    .onSuccess { Ctl.needRestart.value = true; load() }.onFailure { if (it.message != "Cancelled") Ui.say(it.message); load() }
+                    .onSuccess { Ctl.restartChanged(); load() }.onFailure { if (it.message != "Cancelled") Ui.say(it.message); load() }
             }
         } }
         if (auto.isNotEmpty()) item {
