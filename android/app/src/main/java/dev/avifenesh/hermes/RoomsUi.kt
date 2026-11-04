@@ -2,6 +2,7 @@
 
 package dev.avifenesh.hermes
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -504,21 +505,23 @@ fun RoomAttachment(rid: String, e: RoomEvent, a: JSONObject, mine: Boolean) {
     val aid = a.str("attachment_id")
     val name = a.str("name").ifBlank { "attachment" }
     val mime = a.str("mime")
-    val url = Rooms.fileUrl(rid, e.id, aid)
+    // The image key and the download path: the room's own file route, fetched as is.
+    val url = "/v1/rooms/${Uri.encode(rid)}/files/${Uri.encode(e.id)}/${Uri.encode(aid)}"
     if (rid.isBlank() || aid.isBlank() || e.id.isBlank()) return
     if (a.str("kind") == "image" || mime.startsWith("image/")) { RemoteImage(url); return }
     val size = a.optLong("size", -1).takeIf { it >= 0 }
     var prog by remember(url) { mutableStateOf<Float?>(null) }
-    fun get(then: suspend (File) -> Unit) {
-        if (prog != null) return
-        prog = 0f
-        scope.launch {
-            runCatching {
-                val f = File(mediaDir(ctx), "room_" + aid + "_" + name.replace('/', '_'))
-                if (!f.exists() || (size != null && f.length() != size)) Api.download(url, f, size) { prog = it }
-                then(f)
-            }.onFailure { if (it !is CancellationException) Ui.say("Download failed: " + it.message) }
-            prog = null
+    val get: (suspend (File) -> Unit) -> Unit = { then ->
+        if (prog == null) {
+            prog = 0f
+            scope.launch {
+                runCatching {
+                    val f = File(mediaDir(ctx), "room_" + aid + "_" + name.replace('/', '_'))
+                    if (!f.exists() || (size != null && f.length() != size)) Api.download(url, f, size) { prog = it }
+                    then(f)
+                }.onFailure { if (it !is CancellationException) Ui.say("Download failed: " + it.message) }
+                prog = null
+            }
         }
     }
     Row(Modifier.clip(RoundedCornerShape(16.dp)).background(if (mine) P.s4 else P.s2).clickable { get { openFile(ctx, it, mime) } }

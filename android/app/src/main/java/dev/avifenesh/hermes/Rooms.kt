@@ -364,9 +364,6 @@ object Rooms {
         call({ Api.post("/v1/rooms/${enc(rid)}/actions", body, headers) }) { }
     }
 
-    fun fileUrl(rid: String, eventId: String, attachmentId: String) =
-        "/v1/rooms/${enc(rid)}/files/${enc(eventId)}/${enc(attachmentId)}"
-
     /** SSE `room`: the plugin's poll saw this room change. */
     fun onRoom(c: Context, o: JSONObject) {
         val next = RoomLogic.room(o)
