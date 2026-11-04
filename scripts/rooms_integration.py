@@ -13,6 +13,9 @@ signed like the app's create a room, send, page history, receive the SSE room ev
 answer through Hermes' own room driver. Requests without a token, without a signature or from a revoked
 device are refused. The gateway runs in the committed dependency environment, so the disposable home
 installs nothing. ``--server-source`` points both parts at another plugin tree (red runs against main).
+
+``--serve [SECONDS]`` runs no checks: it brings the same disposable gateway up with one seeded room and
+prints a one-use pairing link for an emulator (http://10.0.2.2:PORT), then removes everything.
 """
 import atexit
 import os
@@ -426,11 +429,11 @@ class RoomsGateway(unittest.TestCase):
         wait_until(lambda: cls.phone.request("GET", "/v1/rooms")[1].get("driver"), 90, "the hosted room driver")
 
     @classmethod
-    def pair_code(cls):
+    def pair_code(cls, ttl=300):
         """A one-use code written by the plugin's own Store into the gateway home's mobile.db."""
         code = subprocess.run([cls.python, "-c", "import sys; sys.path.insert(0, sys.argv[1]);"
-                               " from mobile import store; print(store.Store().create_pair_code(300))",
-                               str(cls.base / "home" / "plugins")], env=cls.env, cwd=str(CHECKOUT),
+                               " from mobile import store; print(store.Store().create_pair_code(int(sys.argv[2])))",
+                               str(cls.base / "home" / "plugins"), str(ttl)], env=cls.env, cwd=str(CHECKOUT),
                               capture_output=True, text=True, check=True, timeout=60)
         return code.stdout.strip().splitlines()[-1]
 
@@ -583,5 +586,33 @@ class RoomsGateway(unittest.TestCase):
         self.assertEqual(self.phone.request("GET", "/v1/rooms")[0], 200)
 
 
+def serve(seconds: float) -> None:
+    """Keep the disposable gateway up for an emulator: a seeded room, a pairing link, then full cleanup."""
+    RoomsGateway.setUpClass()
+    try:
+        g = RoomsGateway
+        status, body = g.phone.request("POST", "/v1/rooms", {"name": "Release crew", "members": ["default", "helper"]})
+        assert status == 200, body
+        rid = body["room"]["id"]
+        g.phone.request("POST", f"/v1/rooms/{rid}/messages", {"text": "Plan the release, team.", "client_id": "seed-1"})
+        port = g.url.rsplit(":", 1)[1]
+        link = f"hermes://pair?u=http%3A%2F%2F10.0.2.2%3A{port}&c={g.pair_code(900)}&n=rooms-test"
+        print(f"\nDisposable gateway: {g.url} (emulator: http://10.0.2.2:{port})\nPair link (one use, 15 minutes):\n{link}\n"
+              f"Gateway log: {g.base / 'home/logs/gateway.log'}\nUp for {seconds:.0f} s; Ctrl-C stops it and removes the home.",
+              flush=True)
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline and g.proc.poll() is None:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        RoomsGateway.tearDownClass()
+
+
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    if "--serve" in sys.argv:
+        at = sys.argv.index("--serve")
+        tail = sys.argv[at + 1:at + 2]
+        serve(float(tail[0]) if tail and tail[0].replace(".", "", 1).isdigit() else 1800)
+    else:
+        unittest.main(verbosity=2)
