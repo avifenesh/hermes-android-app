@@ -872,28 +872,30 @@ class MobileAdapter(BasePlatformAdapter):
 
     def readonly_chat(self, cid: str) -> str:
         """"telegram:group" for a chat mirrored read-only, else "". A mirrored chat whose flag is still empty is
-        checked against its source session's chat type right now; "unverified" when that can't be done."""
+        checked against its source session's chat type right now (MR.check_source): "unverified" while its source
+        can't be read, "gone" when its source database no longer exists."""
         ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
         if ro or not cid.startswith("h-"):
             return ro
-        if getattr(self, "_mirror", None) is None:
-            # The mirror is created lazily (/health, /sync, /events), but a write can come first after a start, e.g.
-            # a notification's Reply. Create it now: that also runs the one-time read-only backfill.
-            self._ensure_mirror()
-            ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
-            if ro:
-                return ro
+        # The mirror is created lazily (/health, /sync, /events), but a write can come first after a start, e.g. a
+        # notification's Reply. Creating it runs the one-time read-only backfill and lets a private mirror's reply
+        # resume its conversation. The check below does not depend on it: it reads the persisted source directly.
+        self._ensure_mirror()
+        ro = str((self.store.get_chat(cid) or {}).get("readonly") or "")
+        if ro:
+            return ro
         mirror = getattr(self, "_mirror", None)
-        if not mirror:
-            return "unverified"  # no mirror to read the source with: refuse rather than guess
-        live = mirror.source_readonly(cid)
-        return "unverified" if live is None else live
+        profiles = mirror.profiles if mirror else MR.discover_profiles(S.hermes_home())
+        return MR.check_source(self.store, profiles, cid)
 
     @staticmethod
     def readonly_error(readonly: str) -> str:
         if readonly == "unverified":
             return ("This conversation is mirrored from another app and its source can't be read right now, so it "
                     "can't be checked for a group chat. Try again shortly.")
+        if readonly == "gone":
+            return ("This conversation was mirrored from a profile or app whose history is no longer on this machine, "
+                    "so it can't be replied to from the phone.")
         surface = readonly.split(":", 1)[0].capitalize() if ":" in readonly else "the app it came from"
         return f"This is a group conversation mirrored from {surface}. It is read-only here: reply in {surface}."
 
@@ -1350,17 +1352,23 @@ class MobileAdapter(BasePlatformAdapter):
 
     # ------------------------------------------------------------ mirror of other surfaces
     def _ensure_mirror(self) -> None:
-        if getattr(self, "_mirror", None) is not None:
+        """Create the mirror once. A failed start is retried after a backoff (MR.RETRY_FIRST doubling to
+        MR.RETRY_MAX) instead of leaving mirroring off until a restart. CLI mode sets _mirror False with no retry."""
+        cur = getattr(self, "_mirror", None)
+        if cur or (cur is False and time.time() < getattr(self, "_mirror_retry_at", float("inf"))):
             return
         try:
-            self._mirror = MR.Mirror(self.store, S.hermes_home() / "state.db")
-            self._mirror.busy = lambda cid: bool(self._working.get(cid))
-            n = len(self._mirror.sync_once())
+            mirror = MR.Mirror(self.store, S.hermes_home() / "state.db")
+            mirror.busy = lambda cid: bool(self._working.get(cid))
+            self._mirror = mirror
+            n = len(mirror.sync_once())
             logger.info("[mobile] mirrored %d messages from other surfaces", n)
             self._mirror_task = asyncio.get_running_loop().create_task(self._mirror_loop())
+            self._mirror_retry_at = self._mirror_delay = None
         except Exception as e:
-            logger.warning("[mobile] mirror init failed: %s", e)
-            self._mirror = False
+            delay = min((getattr(self, "_mirror_delay", None) or MR.RETRY_FIRST / 2) * 2, MR.RETRY_MAX)
+            self._mirror, self._mirror_delay, self._mirror_retry_at = False, delay, time.time() + delay
+            logger.warning("[mobile] mirror init failed (retry in %ds): %s", delay, e)
 
     async def _mirror_loop(self) -> None:
         while True:

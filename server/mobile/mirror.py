@@ -35,6 +35,12 @@ _DELIVERY = re.compile(r"\[(Cron|Webhook) delivery: [^\n]*\]\n")
 # its own DM lane.
 SHARED_CHAT_TYPES = ("group", "forum", "channel", "supergroup")
 SHARED_PASS = "mirror_shared_flagged"  # kv: the one-time read-only backfill over every mirror row ran
+SHARED_PROFILES = "mirror_shared_profiles"  # kv: profiles ("" = default) the backfill has finished
+# Backoff for a profile whose state.db can't be read during the backfill: a writer's lock clears in seconds, a damaged
+# file does not. Sends into its chats are checked live meanwhile, so waiting only delays the read-only notices.
+RETRY_FIRST, RETRY_MAX = 30.0, 900.0
+# Bound parameters per IN (...) query: SQLite's limit was 999 before 3.32.
+_IN_CHUNK = 900
 
 
 def _delivery(row, text: str, shared: str) -> Optional[Tuple[str, str]]:
@@ -113,10 +119,92 @@ def _label(prof: str) -> str:
     return prof[:1].upper() + prof[1:]
 
 
+def _open(home: Path) -> sqlite3.Connection:
+    """A read-only connection to a profile's state.db (the mirror never writes there)."""
+    c = sqlite3.connect(f"file:{home / 'state.db'}?mode=ro", uri=True, timeout=5)
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def profile_home(profiles: List[Tuple[str, Path]], prof: str) -> Optional[Path]:
+    """The state.db home of profile ``prof`` ("" = default), also for a profile no longer mirrored."""
+    homes = dict(profiles)
+    if prof in homes:
+        return homes[prof]
+    base = homes.get("")
+    return base / "profiles" / prof if base is not None else None
+
+
+def source_types(home: Path, tips: List[str]) -> Optional[Dict[str, str]]:
+    """Chat type per source session id, over one read-only connection (a missing id or column: absent). None: the
+    database can't be read."""
+    try:
+        c = _open(home)
+        try:
+            if not _has_chat_type(c):
+                return {}
+            out: Dict[str, str] = {}
+            for i in range(0, len(tips), _IN_CHUNK):
+                part = tips[i:i + _IN_CHUNK]
+                for r in c.execute("SELECT id, LOWER(COALESCE(chat_type,'')) FROM sessions"
+                                   f" WHERE id IN ({','.join('?' * len(part))})", part):
+                    out[r[0]] = r[1]
+            return out
+        finally:
+            c.close()
+    except Exception as e:
+        logger.debug("[mobile] mirror source %s unreadable: %s", home, e)
+        return None
+
+
+def set_readonly(store: "S.Store", flags: Dict[str, str], kv: Optional[Dict[str, Any]] = None) -> None:
+    """Set chats' read-only flags (with a seq bump, so the phone syncs them) and kv entries in one transaction."""
+    with store._lock:
+        db = store._db
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            for cid, ro in flags.items():
+                if db.execute("SELECT 1 FROM chats WHERE id=? AND COALESCE(readonly,'')!=?", (cid, ro)).fetchone():
+                    db.execute("UPDATE chats SET readonly=?, seq=? WHERE id=?", (ro, store._next_seq(), cid))
+            for k, v in (kv or {}).items():
+                db.execute("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, json.dumps(v)))
+            db.execute("COMMIT")
+        except Exception:
+            db.execute("ROLLBACK")
+            raise
+
+
+def check_source(store: "S.Store", profiles: List[Tuple[str, Path]], cid: str) -> str:
+    """A mirrored chat's read-only state from its source session now, before a write. Needs no Mirror object.
+
+    "" a private conversation (or no mirror at all); "telegram:group" a group (kept as the chat's flag from then on);
+    "unverified" the source database exists but can't be read now; "gone" it no longer exists (a deleted profile),
+    so nothing can be checked or delivered there.
+    """
+    try:
+        row = store._db.execute("SELECT tip, source, COALESCE(profile,'') FROM mirror WHERE chat_id=?", (cid,)).fetchone()
+    except sqlite3.OperationalError:
+        return ""  # no mirror table: nothing was ever mirrored here
+    if not row:
+        return ""
+    home = profile_home(profiles, row[2])
+    if home is None or not (home / "state.db").exists():
+        return "gone"
+    types = source_types(home, [row[0]])
+    if types is None:
+        return "unverified"
+    ct = types.get(row[0], "")
+    ro = f"{row[1]}:{ct}" if ct in SHARED_CHAT_TYPES else ""
+    if ro:
+        set_readonly(store, {cid: ro})
+    return ro
+
+
 class Mirror:
     def __init__(self, store: "S.Store", state_db, profiles: Optional[List[Tuple[str, Path]]] = None) -> None:
         self.st = store
         self.profiles = profiles or discover_profiles(Path(state_db).parent)
+        self._pass_retry: Dict[str, Tuple[float, float]] = {}  # profile -> (next attempt, current delay)
         self._tx("CREATE TABLE IF NOT EXISTS mirror (chat_id TEXT PRIMARY KEY, root TEXT, tip TEXT, source TEXT,"
                  " last_id INTEGER DEFAULT 0, taken INTEGER DEFAULT 0)")
         if "profile" not in [r[1] for r in self.st._db.execute("PRAGMA table_info(mirror)")]:
@@ -145,9 +233,7 @@ class Mirror:
 
     @staticmethod
     def _src(home: Path) -> sqlite3.Connection:
-        c = sqlite3.connect(f"file:{home / 'state.db'}?mode=ro", uri=True, timeout=5)
-        c.row_factory = sqlite3.Row
-        return c
+        return _open(home)
 
     # ---------------------------------------------------------------- conversations
     def chains(self, c: sqlite3.Connection, sources=SOURCES) -> List[Dict[str, Any]]:
@@ -418,80 +504,44 @@ class Mirror:
             c.close()
         return new
 
-    def _home(self, prof: str) -> Optional[Path]:
-        """The state.db home of profile ``prof`` ("" = default), also for a profile no longer mirrored."""
-        homes = dict(self.profiles)
-        if prof in homes:
-            return homes[prof]
-        base = homes.get("")
-        return base / "profiles" / prof if base is not None else None
-
-    def _source_type(self, prof: str, tip: str) -> Optional[str]:
-        """Chat type of a mirrored chat's source session ("" when unknown or the column predates it). None: unreadable."""
-        home = self._home(prof)
-        if home is None or not (home / "state.db").exists():
-            return None
-        try:
-            c = self._src(home)
-            try:
-                if not _has_chat_type(c):
-                    return ""
-                r = c.execute("SELECT LOWER(COALESCE(chat_type,'')) FROM sessions WHERE id=?", (tip,)).fetchone()
-                return r[0] if r else ""
-            finally:
-                c.close()
-        except Exception as e:
-            logger.debug("[mobile] mirror source of %s unreadable: %s", tip, e)
-            return None
-
-    def _set_readonly(self, flags: Dict[str, str], done_key: Optional[str] = None) -> None:
-        with self.st._lock:
-            db = self.st._db
-            db.execute("BEGIN IMMEDIATE")
-            try:
-                for cid, ro in flags.items():
-                    if db.execute("SELECT 1 FROM chats WHERE id=? AND COALESCE(readonly,'')!=?", (cid, ro)).fetchone():
-                        db.execute("UPDATE chats SET readonly=?, seq=? WHERE id=?", (ro, self.st._next_seq(), cid))
-                if done_key:
-                    db.execute("INSERT INTO kv(k,v) VALUES(?,'true') ON CONFLICT(k) DO UPDATE SET v=excluded.v", (done_key,))
-                db.execute("COMMIT")
-            except Exception:
-                db.execute("ROLLBACK")
-                raise
-
     def _flag_shared_mirrors(self) -> None:
         """Once per mobile.db: every chat mirrored from a group, forum, channel or supergroup session becomes
         read-only, whatever its age (conversation import visits only the newest MAX_CHATS chains), taken or not, in
-        any profile. Recorded as done only when every source that still exists was read; sends also check live."""
+        any profile. One read-only connection per profile. A finished profile is remembered, so one that can't be
+        read does not restart the others; it is retried with backoff (RETRY_FIRST doubling to RETRY_MAX). A profile
+        whose state.db is gone has nothing left to read; sends into its chats are refused live."""
         if self.st.kv_get(SHARED_PASS):
             return
-        flags: Dict[str, str] = {}
+        done = set(self.st.kv_get(SHARED_PROFILES) or [])
+        by: Dict[str, List[Tuple[str, str, str]]] = {}
         for cid, tip, source, prof in self.st._db.execute(
                 "SELECT chat_id, tip, source, COALESCE(profile,'') FROM mirror").fetchall():
-            ct = self._source_type(prof, tip)
-            if ct is None:
-                home = self._home(prof)
-                if home is not None and (home / "state.db").exists():
-                    return  # unreadable now: try the whole pass again later
-                continue  # its profile is gone; a send into it is checked live and refused
-            if ct in SHARED_CHAT_TYPES:
-                flags[cid] = f"{source}:{ct}"
-        self._set_readonly(flags, SHARED_PASS)
-
-    def source_readonly(self, cid: str) -> Optional[str]:
-        """The read-only flag a mirrored chat should carry, from its source session now (defense in depth before a
-        send). "" for a private conversation or a chat that is no mirror; None when the source can't be read.
-        A group found here keeps the flag."""
-        row = self.st._db.execute("SELECT tip, source, COALESCE(profile,'') FROM mirror WHERE chat_id=?", (cid,)).fetchone()
-        if not row:
-            return ""
-        ct = self._source_type(row[2], row[0])
-        if ct is None:
-            return None
-        ro = f"{row[1]}:{ct}" if ct in SHARED_CHAT_TYPES else ""
-        if ro:
-            self._set_readonly({cid: ro})
-        return ro
+            if prof not in done:
+                by.setdefault(prof, []).append((cid, tip, source))
+        now = time.time()
+        pending = False
+        for prof, items in by.items():
+            home = profile_home(self.profiles, prof)
+            if home is not None and (home / "state.db").exists():
+                retry = self._pass_retry.get(prof)
+                if retry and now < retry[0]:
+                    pending = True
+                    continue
+                types = source_types(home, [tip for _, tip, _ in items])
+                if types is None:
+                    delay = min(retry[1] * 2, RETRY_MAX) if retry else RETRY_FIRST
+                    self._pass_retry[prof] = (now + delay, delay)
+                    pending = True
+                    continue
+                self._pass_retry.pop(prof, None)
+                flags = {cid: f"{source}:{types[tip]}" for cid, tip, source in items
+                         if types.get(tip, "") in SHARED_CHAT_TYPES}
+            else:
+                flags = {}  # its profile is gone
+            done.add(prof)
+            set_readonly(self.st, flags, {SHARED_PROFILES: sorted(done)})
+        if not pending:
+            set_readonly(self.st, {}, {SHARED_PASS: True})
 
     def _readonly_stale(self, cid: str, readonly: str) -> bool:
         row = self.st._db.execute("SELECT COALESCE(readonly,'') FROM chats WHERE id=?", (cid,)).fetchone()

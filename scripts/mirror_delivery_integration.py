@@ -15,6 +15,7 @@ import atexit
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import sys
 import tempfile
 import time
@@ -215,6 +216,55 @@ class MirrorDelivery(Fixture, unittest.TestCase):
         rows = [r for r in self.rows("h-" + sid) if "Two PRs merged." in r[1]]
         self.assertEqual([(r[0], r[1], r[2].get("delivery_mirror")) for r in rows], [("agent", "Two PRs merged.", "cron")])
         self.assertFalse([r for r in self.rows("h-" + sid) if "[Cron delivery" in r[1]])
+
+    def test_the_read_only_pass_reads_each_profile_once_and_backs_off(self):
+        # Many old rows, one profile unreadable. One connection per profile, a finished profile is not read again,
+        # and the unreadable one is retried after a backoff rather than restarting the whole pass every cycle.
+        lab = HOME / "profiles" / "lab"
+        lab.mkdir(parents=True, exist_ok=True)
+        ldb = SessionDB(lab / "state.db")
+        self.addCleanup(ldb.close)
+        mirror = MR.Mirror(self.store, STATE, profiles=[("", HOME), ("lab", lab)])
+        groups = [self.session("telegram", uid("grp"), chat_type="group", user_id="member",
+                               turns=[("user", "Lunch?"), ("assistant", "Noon."), ("user", "Ok")]) for _ in range(3)]
+        lab_group = uid("s")
+        ldb.create_session(lab_group, "telegram", chat_id=uid("grp"), chat_type="group", user_id="member",
+                           session_key="agent:main:telegram:group:z")
+        for sid, prof in [(g, "") for g in groups] + [(lab_group, "lab")]:
+            cid = f"h-{prof}-{sid}" if prof else "h-" + sid
+            self.store.ensure_chat(cid, title="Old")
+            mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,0,?)",
+                       (cid, sid, sid, "telegram", prof))
+        opens = {"": 0, "lab": 0}
+        broken = {"lab": True}
+        real_open = getattr(MR, "_open", MR.Mirror._src)
+
+        def counted(home):
+            prof = "lab" if Path(home) == lab else ""
+            opens[prof] += 1
+            if broken.get(prof):
+                raise sqlite3.OperationalError("database disk image is malformed")
+            return real_open(home)
+
+        real = time.time
+        clock = [real()]
+        # The read-only opener under both names (Mirror._src delegates to _open; older code had only Mirror._src).
+        with patch.object(MR, "_open", counted, create=True), patch.object(MR.Mirror, "_src", staticmethod(counted)), \
+                patch.object(MR, "time", SimpleNamespace(time=lambda: clock[0])):
+            mirror._flag_shared_mirrors()
+            self.assertEqual([self.store.get_chat("h-" + g)["readonly"] for g in groups], ["telegram:group"] * 3,
+                             "a readable profile is flagged although another one is not")
+            self.assertEqual(opens, {"": 1, "lab": 1}, "one connection per profile, not one per row")
+            self.assertFalse(self.store.kv_get(MR.SHARED_PASS))
+            clock[0] += 8  # the next mirror pass
+            mirror._flag_shared_mirrors()
+            self.assertEqual(opens, {"": 1, "lab": 1}, "the finished profile is remembered; the broken one backs off")
+            broken["lab"] = False
+            clock[0] += 3600
+            mirror._flag_shared_mirrors()
+        self.assertEqual(self.store.get_chat(f"h-lab-{lab_group}")["readonly"], "telegram:group")
+        self.assertEqual(opens, {"": 1, "lab": 2})
+        self.assertTrue(self.store.kv_get(MR.SHARED_PASS))
 
     def test_every_existing_group_mirror_is_flagged_once(self):
         # After an upgrade: group mirrors an older plugin left writable, aged out of chains()'s newest entries,
@@ -428,12 +478,90 @@ class FirstRequestAfterStart(Fixture, unittest.IsolatedAsyncioTestCase):
         self.ad.handle_message.assert_not_called()
         self.assertEqual(self.store.get_chat(self.cid)["readonly"], "telegram:group")
 
-    async def test_no_mirror_to_verify_with_means_no_send(self):
-        with patch.object(MR, "Mirror", side_effect=RuntimeError("state.db unreadable")):
+    async def test_a_failed_mirror_start_still_checks_the_source(self):
+        # No mirror object is needed to read the source session: the group is refused for what it is.
+        with patch.object(MR, "Mirror", side_effect=RuntimeError("mirror init failed")):
             status, body = await self.send()
         self.assertEqual(status, 409, body)
-        self.assertIn("can't be checked", body.get("error", ""))
+        self.assertIn("Telegram", body.get("error", ""))
         self.assertNotIn("On my way", [r[1] for r in self.rows(self.cid)])
+        self.ad.handle_message.assert_not_called()
+        self.assertEqual(self.store.get_chat(self.cid)["readonly"], "telegram:group")
+
+
+class MirrorSourceFailures(Fixture, unittest.IsolatedAsyncioTestCase):
+    """Private mirrors keep an empty flag. A failed mirror start or a source that is briefly unreadable must not
+    block their replies for good; a source that is gone is refused with words that don't promise a retry."""
+
+    async def asyncSetUp(self):
+        self.ad = object.__new__(AD.MobileAdapter)
+        self.ad.store = self.store
+        self.ad._working = {}
+        self.ad._profiles = SimpleNamespace(profile_of=lambda cid: "", busy=lambda cid: False, send=AsyncMock(),
+                                            stop=AsyncMock(return_value=False))
+        self.ad._emit_msg = lambda *a, **kw: None
+        self.ad.build_source = lambda **kw: SimpleNamespace(platform="mobile", **kw)
+        self.ad.handle_message = AsyncMock()
+
+        @web.middleware
+        async def as_device(request, handler):
+            request["device"] = {"id": "d-synthetic"}
+            return await handler(request)
+
+        app = web.Application(middlewares=[as_device])
+        app.router.add_post("/v1/chats/{cid}/messages", self.ad.h_post_message)
+        self.client = TestClient(TestServer(app))
+        await self.client.start_server()
+
+    async def asyncTearDown(self):
+        await self.client.close()
+        task = getattr(self.ad, "_mirror_task", None)
+        if task:
+            task.cancel()
+
+    def old_mirror(self, sid: str, prof: str = "") -> str:
+        cid = f"h-{prof}-{sid}" if prof else "h-" + sid
+        self.store.ensure_chat(cid, title="Mirrored")
+        self.mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,0,?)",
+                        (cid, sid, sid, "telegram", prof))
+        return cid
+
+    async def send(self, cid: str, text: str):
+        async with self.client.post(f"/v1/chats/{cid}/messages", json={"text": text}) as r:
+            return r.status, await r.json()
+
+    async def test_a_failed_mirror_start_does_not_block_private_replies_for_good(self):
+        dm = self.old_mirror(self.session("telegram", uid("dm"), turns=[("user", "Hi"), ("assistant", "Ok."), ("user", "Thanks")]))
+        with patch.object(MR, "Mirror", side_effect=RuntimeError("mirror init failed")):
+            status, body = await self.send(dm, "Reply one")
+        self.assertEqual(status, 200, body)
+        self.assertFalse(self.ad._mirror)
+        # The source is briefly unreadable (a writer's lock, a sync tool): refused with a retry hint ...
+        def locked(home):
+            raise sqlite3.OperationalError("database is locked")
+
+        with patch.object(MR, "_open", locked):
+            status, body = await self.send(dm, "Reply two")
+        self.assertEqual(status, 409, body)
+        self.assertIn("Try again shortly", body.get("error", ""))
+        # ... and it recovers by itself, no restart.
+        status, body = await self.send(dm, "Reply three")
+        self.assertEqual(status, 200, body)
+        # The mirror is created again after its backoff, so replies resume the conversation again.
+        real = time.time
+        with patch.object(AD, "time", SimpleNamespace(time=lambda: real() + 3600)):
+            status, body = await self.send(dm, "Reply four")
+        self.assertEqual(status, 200, body)
+        self.assertIsInstance(self.ad._mirror, MR.Mirror)
+
+    async def test_a_mirror_whose_profile_was_deleted_does_not_promise_a_retry(self):
+        gone = self.old_mirror(uid("s"), prof="deleted")
+        self.assertFalse((HOME / "profiles" / "deleted" / "state.db").exists())
+        status, body = await self.send(gone, "Anyone?")
+        self.assertEqual(status, 409, body)
+        self.assertNotIn("shortly", body.get("error", ""))
+        self.assertIn("no longer", body.get("error", ""))
+        self.assertNotIn("Anyone?", [r[1] for r in self.rows(gone)])
         self.ad.handle_message.assert_not_called()
 
 
