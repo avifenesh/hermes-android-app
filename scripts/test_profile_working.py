@@ -43,13 +43,16 @@ IDLE_S = 0.3  # the adapter reaper's 14 s idle limit, scaled down with the keepa
 class FakeStore:
     def __init__(self):
         self.seq = 0
+        self.texts = []
 
     def add_message(self, cid, role, text, kind="text", meta=None):
         self.seq += 1
+        self.texts.append(text)
         return {"id": f"m{self.seq}", "chat_id": cid, "seq": self.seq, "role": role, "kind": kind, "content": text}
 
     def edit_message(self, mid, content=None, meta=None):
         self.seq += 1
+        self.texts.append(content)
         return {"id": mid, "seq": self.seq, "content": content}
 
     def get_chat(self, cid):
@@ -83,10 +86,10 @@ class FakeAdapter:
                     self._emit({"type": "working", "chat_id": cid, "working": False})
 
 
-def chats(ad, silent_s):
+def chats(ad, silent_s, child=None):
     pc = P.ProfileChats(ad)
     pc.KEEPALIVE_S = IDLE_S / 4
-    child = f"import time, json; time.sleep({silent_s}); print(json.dumps({{'type': 'result', 'text': 'done'}}), flush=True)"
+    child = child or f"import time, json; time.sleep({silent_s}); print(json.dumps({{'type': 'result', 'text': 'done'}}), flush=True)"
     pc._argv = lambda profile, text, resume, image=None: [sys.executable, "-c", child]
     pc._env = lambda profile: {"PATH": os.environ.get("PATH", ""), "HOME": HOME}
     pc._resume_id = lambda cid: ""
@@ -119,6 +122,54 @@ class ProfileWorkingTests(unittest.TestCase):
             return ad.events
         events = asyncio.run(run())
         self.assertEqual([e[:2] for e in events], [("working", True), ("working", False)], events)
+
+    def test_a_hung_child_ends_after_cores_inactivity_limit(self):
+        # Core stops a gateway turn after agent.gateway_timeout (HERMES_AGENT_TIMEOUT) without activity; a profile
+        # child that prints nothing for as long is stopped the same way, so the chat cannot show working forever.
+        hung = "import time, json; print(json.dumps({'type': 'text', 'text': 'thinking'}), flush=True); time.sleep(120)"
+
+        async def run():
+            ad = FakeAdapter()
+            stop = asyncio.Event()
+            reaper = asyncio.create_task(ad.reap(stop))
+            pc = chats(ad, silent_s=0, child=hung)
+            await pc.send("c1", "seller", "hello")
+            try:
+                await asyncio.wait_for(drained(pc, "c1"), timeout=5)
+            finally:
+                for proc in list(pc.procs.values()):
+                    if proc.returncode is None:
+                        proc.kill()
+                stop.set(); await reaper
+            return ad, pc
+
+        previous = os.environ.get("HERMES_AGENT_TIMEOUT")
+        os.environ["HERMES_AGENT_TIMEOUT"] = str(IDLE_S * 3)
+        try:
+            ad, pc = asyncio.run(run())
+        finally:
+            if previous is None:
+                os.environ.pop("HERMES_AGENT_TIMEOUT", None)
+            else:
+                os.environ["HERMES_AGENT_TIMEOUT"] = previous
+        self.assertEqual([e[:2] for e in ad.events], [("working", True), ("working", False)], ad.events)
+        self.assertNotIn("c1", ad._working)
+        self.assertFalse(pc.procs)
+        self.assertTrue(any("no output" in (t or "") for t in ad.store.texts), ad.store.texts)
+
+    def test_inactivity_limit_follows_core(self):
+        pc = P.ProfileChats(FakeAdapter())
+        for raw, expected in ((None, 1800.0), ("600", 600.0), ("0", None), ("-1", None), ("junk", 1800.0)):
+            previous = os.environ.pop("HERMES_AGENT_TIMEOUT", None)
+            if raw is not None:
+                os.environ["HERMES_AGENT_TIMEOUT"] = raw
+            try:
+                with self.subTest(raw=raw):
+                    self.assertEqual(pc._idle_limit(), expected)
+            finally:
+                os.environ.pop("HERMES_AGENT_TIMEOUT", None)
+                if previous is not None:
+                    os.environ["HERMES_AGENT_TIMEOUT"] = previous
 
     def test_queued_turns_share_one_working_span(self):
         async def run():

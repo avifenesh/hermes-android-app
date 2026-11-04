@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import mimetypes
+import os
 import sys
 import time
 from pathlib import Path
@@ -135,6 +136,18 @@ class ProfileChats:
             if self.ad._working.pop(cid, None):
                 self.ad._emit({"type": "working", "chat_id": cid, "working": False})
 
+    @staticmethod
+    def _idle_limit() -> Optional[float]:
+        """Core's own turn inactivity limit: agent.gateway_timeout, which the gateway bridges to HERMES_AGENT_TIMEOUT
+        (30 min by default, 0 = unlimited). A child that prints nothing for that long is stopped the way core stops a
+        stuck gateway turn, so the keepalive cannot show a hung child as working forever."""
+        raw = os.environ.get("HERMES_AGENT_TIMEOUT", "").strip()
+        try:
+            limit = float(raw) if raw else 1800.0
+        except ValueError:
+            limit = 1800.0
+        return limit if limit > 0 else None
+
     async def _keepalive(self, cid: str) -> None:
         while True:
             await asyncio.sleep(self.KEEPALIVE_S)
@@ -235,7 +248,16 @@ class ProfileChats:
                                                         limit=8 * 1024 * 1024)
             self.procs[cid] = proc
             assert proc.stdout
-            async for raw in proc.stdout:
+            idle, hung = self._idle_limit(), False
+            while True:
+                try:
+                    raw = await (asyncio.wait_for(proc.stdout.readline(), idle) if idle else proc.stdout.readline())
+                except asyncio.TimeoutError:
+                    hung = True
+                    proc.kill()
+                    break
+                if not raw:
+                    break
                 ad._working.setdefault(cid, {"since": started})["last"] = time.time()
                 try:
                     ev = json.loads(raw.decode(errors="replace"))
@@ -261,11 +283,14 @@ class ProfileChats:
             if sid:
                 self.bind(cid, profile, sid)
             text_out = (final if isinstance(final, str) and final.strip() else buf).strip()
-            if rc < 0:
+            if hung:
+                quiet = f"{round(idle / 60)} min" if idle >= 60 else f"{idle:g} s"
+                text_out = (text_out + "\n\n" if text_out else "") + f"_Stopped: {profile} produced no output for {quiet}._"
+            elif rc < 0:
                 text_out = (text_out + "\n\n" if text_out else "") + "_Stopped._"
             elif not text_out:
                 text_out = f"{profile} returned nothing (exit {rc}). {err.strip()[-300:]}".strip()
-            msg = self._upsert(cid, msg, text_out, profile, tools, partial=False, failed=bool(code or rc > 0))
+            msg = self._upsert(cid, msg, text_out, profile, tools, partial=False, failed=bool(code or rc > 0 or hung))
         except Exception as e:
             logger.exception("[mobile] profile run failed")
             note = ad.store.add_message(cid, "agent", f"Couldn't run {profile}: {e}", kind="status")
