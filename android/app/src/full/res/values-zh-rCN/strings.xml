@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes 手机控制</string>
+    <string name="phone_service_desc">让你的 Hermes 智能体读取屏幕，并在此手机上点按、输入和滑动。只有在应用中开启“控制”时它才会操作（我、此手机、控制）。</string>
+    <string name="phone_control_notice_title">手机控制已开启</string>
+    <string name="phone_control_notice_text">你的智能体可以读取并操作这台已解锁的手机。</string>
+    <string name="phone_control_stop">停止控制</string>
+    <string name="phone_control_accessibility_service">无障碍服务</string>
+    <string name="phone_control_service_enabled">已在 Android 设置中启用。</string>
+    <string name="phone_control_service_disabled">请在 Android 无障碍设置中启用 %1$s 手机控制。</string>
+    <string name="phone_control_allow">允许智能体控制</string>
+    <string name="phone_control_allow_on">已开启。智能体可以读取、点按、输入、滑动和打开应用。</string>
+    <string name="phone_control_allow_off">已关闭。不会发送任何屏幕内容或命令。</string>
+    <string name="phone_control_enable_service_first">请先启用无障碍服务</string>
+    <string name="phone_control_server_unavailable">服务器尚不支持手机控制</string>
+    <string name="phone_control_enable_channel">请启用“实时运行和连接”通知类别，确保“停止控制”始终可用</string>
+    <string name="phone_control_confirm_title">允许手机控制</string>
+    <string name="phone_control_activation_cancelled">由于控制、配对或无障碍设置发生变化，激活已取消</string>
+    <string name="phone_control_not_armed">服务器未为此手机启用控制，或激活已被取代</string>
+    <string name="phone_control_sideload_help">侧载 APK 的首次设置：Android 可能会阻止无障碍功能。请打开 Android 设置 → 应用 → %1$s → ⋮ → 允许受限制的设置，然后在这里启用该服务。此操作只需进行一次。</string>
+    <string name="phone_control_limits">只有在屏幕亮起且已解锁时才能控制。Android 不允许截取受保护的屏幕。密码字段保持私密。你随时可以在这里或通知中关闭控制。</string>
+    <string name="phone_control_confirming">请用指纹或 PIN 确认…</string>
+    <string name="channel_tab_control">控制</string>
+    <string name="channel_control_section">智能体手机控制</string>
+    <string name="channel_battery_title">电池优化</string>
+    <string name="channel_battery_body">有些手机会终止后台连接。请允许 %1$s 不受限制地运行。</string>
+    <string name="channel_allow_unknown_apps">请为 %1$s 开启“安装未知应用”，然后再次点按该文件</string>
+</resources>

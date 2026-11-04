@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Herms 舰队</string>
+    <string name="channel_control_unavailable_title">此版本不可用</string>
+    <string name="channel_control_unavailable_body">此 Play 版本无法读取或操作其他应用。远程命令也无法启用此功能。</string>
+    <string name="channel_background_title">后台送达</string>
+    <string name="channel_background_body">Android 电池优化保持开启。推送（如已配置）和定期同步仍然可用；后台送达可能会延迟。</string>
+    <string name="channel_apk_unavailable">此 Play 版本无法安装 APK 附件。你仍可将文件保存到“下载”。</string>
+</resources>
