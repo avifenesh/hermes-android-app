@@ -303,6 +303,10 @@ class Mirror:
 
     def sync_once(self) -> List[str]:
         """Import new chats/messages/reports. Returns ids of newly stored messages."""
+        try:
+            self._flag_taken_groups()
+        except Exception as e:
+            logger.debug("[mobile] mirror read-only pass failed: %s", e)
         known = {r[0]: (r[1], r[2], r[3]) for r in self.st._db.execute("SELECT chat_id, tip, last_id, taken FROM mirror")}
         new: List[str] = []
         for prof, home in self.profiles:
@@ -405,6 +409,39 @@ class Mirror:
         finally:
             c.close()
         return new
+
+    def _flag_taken_groups(self) -> None:
+        """Once per mobile.db: group chats an older plugin let the phone take over become read-only too. Conversation
+        import skips taken chats for good, so it never marks them; take_over already refuses new ones."""
+        if self.st.kv_get("mirror_taken_groups_flagged"):
+            return
+        home = next((h for p, h in self.profiles if not p), None)
+        if home is None or not (home / "state.db").exists():
+            return  # try again on a later pass
+        taken = self.st._db.execute("SELECT chat_id, tip, source FROM mirror WHERE taken=1 AND COALESCE(profile,'')=''").fetchall()
+        c = self._src(home)
+        try:
+            shared = {}
+            if _has_chat_type(c):
+                for cid, tip, source in taken:
+                    r = c.execute("SELECT LOWER(COALESCE(chat_type,'')) FROM sessions WHERE id=?", (tip,)).fetchone()
+                    if r and r[0] in SHARED_CHAT_TYPES:
+                        shared[cid] = f"{source}:{r[0]}"
+        finally:
+            c.close()
+        with self.st._lock:
+            db = self.st._db
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                for cid, ro in shared.items():
+                    if db.execute("SELECT 1 FROM chats WHERE id=? AND COALESCE(readonly,'')!=?", (cid, ro)).fetchone():
+                        db.execute("UPDATE chats SET readonly=?, seq=? WHERE id=?", (ro, self.st._next_seq(), cid))
+                db.execute("INSERT INTO kv(k,v) VALUES('mirror_taken_groups_flagged','true')"
+                           " ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+                db.execute("COMMIT")
+            except Exception:
+                db.execute("ROLLBACK")
+                raise
 
     def _readonly_stale(self, cid: str, readonly: str) -> bool:
         row = self.st._db.execute("SELECT COALESCE(readonly,'') FROM chats WHERE id=?", (cid,)).fetchone()

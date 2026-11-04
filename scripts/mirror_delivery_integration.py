@@ -202,6 +202,24 @@ class MirrorDelivery(Fixture, unittest.TestCase):
         self.assertEqual(chats["h-" + dm].get("readonly"), "")
         self.assertIn("Noon works.", [r[1] for r in self.rows("h-" + group)])
 
+    def test_group_chats_taken_over_earlier_become_read_only_once(self):
+        group = self.session("telegram", uid("grp"), chat_type="group", user_id="member",
+                             turns=[("user", "Team lunch?"), ("assistant", "Noon works."), ("user", "Booked")])
+        dm = self.session("telegram", uid("dm"), turns=[("user", "Private"), ("assistant", "Ok."), ("user", "Thanks")])
+        for sid in (group, dm):
+            # Taken over by an older plugin: a phone chat now, which conversation import skips for good.
+            self.store.ensure_chat("h-" + sid, title="Taken")
+            self.mirror._tx("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,0,1,'')",
+                            ("h-" + sid, sid, sid, "telegram"))
+        seq = self.store.seq()
+        self.mirror.sync_once()
+        chat = self.store.get_chat("h-" + group)
+        self.assertEqual(chat["readonly"], "telegram:group")
+        self.assertGreater(chat["seq"], seq, "the phone must sync the flag")
+        self.assertEqual(self.store.get_chat("h-" + dm)["readonly"], "")
+        self.mirror.sync_once()
+        self.assertEqual(self.store.get_chat("h-" + group)["seq"], chat["seq"], "a one-time pass: nothing churns later")
+
     def test_a_previously_mirrored_group_chat_keeps_updating_read_only(self):
         sid = self.session("telegram", uid("grp"), chat_type="group", user_id="member",
                            turns=[("user", "Team lunch?"), ("assistant", "Noon works."), ("user", "Booked")])
