@@ -44,6 +44,22 @@ class MarkdownProbeActivity : FragmentActivity() {
 
             > Quote with **[quoted link](https://example.com/quote)**.
 
+            ## רשימה בעברית
+
+            שורה קצרה.
+
+            - פריט ראשון עם **הדגשה**
+            - פריט שני עם [קישור](https://example.com/he)
+              - פריט מקונן
+            1. צעד ראשון
+            2. צעד שני: 3 קבצים, deploy ב-10:00
+
+            > ציטוט קצר בעברית.
+
+            🎉 12 משימות הושלמו
+
+            Short English line after Hebrew.
+
             | Type | Action |
             | --- | --- |
             | Update | **[Table download](https://example.com/table)** |

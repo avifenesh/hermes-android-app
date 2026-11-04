@@ -54,6 +54,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,6 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -92,6 +94,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.core.content.FileProvider
@@ -647,26 +650,62 @@ fun inline(s: String, p: Pal): AnnotatedString = buildAnnotatedString {
     render(s)
 }
 
+/**
+ * A block's own direction from its first strong character, the FIRSTSTRONG rule Android and Compose use for the
+ * text itself: Hebrew/Arabic -> Rtl, Latin -> Ltr. Digits, emoji and punctuation are not strong; text inside an
+ * isolate (LRI/RLI/FSI ... PDI) is skipped. Null: nothing strong, keep the surrounding direction.
+ */
+fun mdDirection(text: String): LayoutDirection? {
+    var isolates = 0
+    var i = 0
+    while (i < text.length) {
+        val cp = text.codePointAt(i)
+        i += Character.charCount(cp)
+        when (cp) {
+            0x2066, 0x2067, 0x2068 -> isolates++
+            0x2069 -> if (isolates > 0) isolates--
+            else -> if (isolates == 0) when (Character.getDirectionality(cp)) {
+                Character.DIRECTIONALITY_LEFT_TO_RIGHT, Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING,
+                Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE -> return LayoutDirection.Ltr
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING, Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE -> return LayoutDirection.Rtl
+            }
+        }
+    }
+    return null
+}
+
 @Composable
 fun Md(text: String, color: Color = P.tx, size: Float = 15.5f) {
     val p = P
     val blocks = remember(text) { parseMd(text) }
+    val ambient = LocalLayoutDirection.current
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        for (b in blocks) when (b) {
-            is BPara -> Text(inline(b.t, p), style = sans(size, 400, color, size * 1.5f))
-            is BHead -> Text(inline(b.t, p), style = if (b.lvl <= 2) serif(if (b.lvl == 1) 28f else 24f, color) else sans(size + 1f, 650, color))
-            is BItem -> Row(Modifier.padding(start = (b.depth * 14).dp)) {
-                Text(b.mark, style = sans(size, 500, p.mu, size * 1.5f), modifier = Modifier.width(if (b.mark == "•") 16.dp else 26.dp))
-                Text(inline(b.t, p), style = sans(size, 400, color, size * 1.5f))
+        for (b in blocks) {
+            val a = when (b) { is BPara -> b.t; is BHead -> b.t; is BItem -> b.t; is BQuote -> b.t; else -> null }?.let { inline(it, p) }
+            // Each text block lays out in its own direction, so a Hebrew list on an English phone keeps its bullet and
+            // quote bar on the right, and full-width text aligns to its start. Code, tables and rules stay LTR.
+            val dir = if (a == null) LayoutDirection.Ltr else mdDirection(a.text) ?: ambient
+            CompositionLocalProvider(LocalLayoutDirection provides dir) {
+                when {
+                    b is BCode -> CodeBlock(b.t, b.lang)
+                    b is BTable -> TableBlock(b.rows)
+                    b is BRule -> Box(Modifier.fillMaxWidth().height(1.dp).background(p.line2))
+                    a == null -> {}
+                    b is BPara -> Text(a, style = sans(size, 400, color, size * 1.5f), modifier = Modifier.fillMaxWidth())
+                    b is BHead -> Text(a, style = if (b.lvl <= 2) serif(if (b.lvl == 1) 28f else 24f, color) else sans(size + 1f, 650, color),
+                        modifier = Modifier.fillMaxWidth())
+                    b is BItem -> Row(Modifier.fillMaxWidth().padding(start = (b.depth * 14).dp)) {
+                        Text(b.mark, style = sans(size, 500, p.mu, size * 1.5f), modifier = Modifier.width(if (b.mark == "•") 16.dp else 26.dp))
+                        Text(a, style = sans(size, 400, color, size * 1.5f), modifier = Modifier.weight(1f))
+                    }
+                    b is BQuote -> Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                        Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(p.line2))
+                        Spacer(Modifier.width(10.dp))
+                        Text(a, style = sans(size, 400, p.tx2, size * 1.5f), modifier = Modifier.weight(1f))
+                    }
+                }
             }
-            is BQuote -> Row(Modifier.height(IntrinsicSize.Min)) {
-                Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(p.line2))
-                Spacer(Modifier.width(10.dp))
-                Text(inline(b.t, p), style = sans(size, 400, p.tx2, size * 1.5f))
-            }
-            is BCode -> CodeBlock(b.t, b.lang)
-            is BTable -> TableBlock(b.rows)
-            is BRule -> Box(Modifier.fillMaxWidth().height(1.dp).background(p.line2))
         }
     }
 }
