@@ -430,8 +430,16 @@ fun ChatScreen(cid: String) {
             }
         }
         }
-        // ---- composer
-        Column(Modifier.fillMaxWidth().background(p.bg).navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
+        // ---- composer (a read-only mirror of a group conversation elsewhere has none: the server refuses replies)
+        val readOnly = chat?.readonly?.let(::readOnlyNotice)
+        if (readOnly != null) Row(Modifier.fillMaxWidth().background(p.bg).navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(16.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icn(Ic.shield, p.mu, 18.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(readOnly, style = sans(14f, 500, p.tx2, 20f), modifier = Modifier.weight(1f))
+        }
+        else Column(Modifier.fillMaxWidth().background(p.bg).navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
             if (running) Row(Modifier.padding(start = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Seg(listOf("steer" to "Steer", "queue" to "Queue"), mode) { mode = it }
                 Spacer(Modifier.width(10.dp))

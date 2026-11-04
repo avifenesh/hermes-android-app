@@ -135,6 +135,10 @@ def _origin(url: Any) -> Optional[Tuple[str, str, int, str]]:
         return None
 
 
+class ReadOnlyChat(Exception):
+    """A phone send into a chat the plugin mirrors read-only (a group conversation on another surface)."""
+
+
 def _copy_media(src: str) -> Dict[str, str]:
     p = Path(src)
     name = S.new_id("f") + (p.suffix.lower() or "")
@@ -773,14 +777,29 @@ class MobileAdapter(BasePlatformAdapter):
         atts = body.get("attachments") or []
         if not text and not atts:
             return self._json({"error": "empty"}, 400)
-        msg = await self.post_from_app(cid, text, body.get("mode") or "send", atts, raw=body)
+        try:
+            msg = await self.post_from_app(cid, text, body.get("mode") or "send", atts, raw=body)
+        except ReadOnlyChat as e:
+            return self._json({"error": str(e), "readonly": self.readonly_chat(cid)}, 409)
         return self._json({"message": msg})
+
+    def readonly_chat(self, cid: str) -> str:
+        """"telegram:group" for a chat mirrored read-only, else ""."""
+        return str((self.store.get_chat(cid) or {}).get("readonly") or "")
+
+    @staticmethod
+    def readonly_error(readonly: str) -> str:
+        surface = readonly.split(":", 1)[0].capitalize() if ":" in readonly else "the app it came from"
+        return f"This is a group conversation mirrored from {surface}. It is read-only here: reply in {surface}."
 
     async def post_from_app(self, cid: str, text: str, mode: str = "send", atts: Optional[List[Dict[str, Any]]] = None,
                             raw: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """A message typed on the phone (chat composer, fleet steer, notification reply, voice): store, echo, dispatch."""
         atts = atts or []
         body = raw or {"text": text, "mode": mode}
+        if ro := self.readonly_chat(cid):
+            # Never store it, resume the group session into this DM lane, or start a private session in its place.
+            raise ReadOnlyChat(self.readonly_error(ro))
         chat = self.store.get_chat(cid)
         if not chat:
             chat = self.store.ensure_chat(cid, title=(text[:48] or "New chat"))

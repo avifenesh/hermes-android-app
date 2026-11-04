@@ -82,8 +82,9 @@ object Notify {
             .setSmallIcon(R.drawable.ic_stat).setColor(LIME).setStyle(style)
             .setContentIntent(openIntent(c, m.chatId)).setAutoCancel(true).setOnlyAlertOnce(false)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .addAction(NotificationCompat.Action.Builder(0, "Reply", replyPi).addRemoteInput(reply)
-                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setShowsUserInterface(false).build())
+            // A read-only mirror (group chat elsewhere) takes no replies from the phone; the server refuses them.
+            .apply { if (chat?.readonly.isNullOrBlank()) addAction(NotificationCompat.Action.Builder(0, "Reply", replyPi).addRemoteInput(reply)
+                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setShowsUserInterface(false).build()) }
             .addAction(NotificationCompat.Action.Builder(0, "Mark read", readPi)
                 .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ).setShowsUserInterface(false).build())
         post(c, nid("c${m.chatId}"), b.build())

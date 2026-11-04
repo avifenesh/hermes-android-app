@@ -580,6 +580,11 @@ def routes(r, ctl: Control, j) -> None:
     def ok_or(res: Dict[str, Any], status_err=400):
         return j(res, 200 if res.get("ok", True) else status_err)
 
+    def readonly(cid: str):
+        """A /model or confirmation sent for a read-only group mirror would run in a private session of its own."""
+        ro = ctl.ad.readonly_chat(cid) if hasattr(ctl.ad, "readonly_chat") else ""
+        return j({"ok": False, "error": ctl.ad.readonly_error(ro), "readonly": ro}, 409) if ro else None
+
     async def h_models(request):
         try:
             return j(await ctl.models(refresh=request.query.get("refresh") == "1"))
@@ -600,6 +605,8 @@ def routes(r, ctl: Control, j) -> None:
 
     async def h_set_chat_model(request):
         cid = request.match_info["cid"]
+        if (refused := readonly(cid)) is not None:
+            return refused
         body = await request.json()
         replies: List[str] = []
         scope = "--global" if body.get("scope") == "global" else "--session"
@@ -744,6 +751,8 @@ def routes(r, ctl: Control, j) -> None:
     async def h_confirm(request):
         """Resolve a pending slash confirmation (e.g. the cost guard on /model) raised by a control call."""
         cid = request.match_info["cid"]
+        if (refused := readonly(cid)) is not None:
+            return refused
         body = await request.json()
         choice = str(body.get("choice") or "")
         if choice not in ("once", "always", "cancel"):

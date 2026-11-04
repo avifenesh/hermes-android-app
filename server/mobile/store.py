@@ -130,7 +130,7 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.executescript(_SCHEMA)
         for tbl, col in (("devices", "pub"), ("devices", "apub"), ("chats", "profile"), ("approvals", "request_id"), ("devices", "nolock"),
-                         ("pair_codes", "device_id"), ("devices", "token_used")):
+                         ("pair_codes", "device_id"), ("devices", "token_used"), ("chats", "readonly")):
             try:
                 self._db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} TEXT DEFAULT ''")
             except sqlite3.OperationalError:
@@ -266,6 +266,10 @@ class Store:
             msg = self.get_message(reply_to) if isinstance(reply_to, str) else None
             return msg if usable(msg) else None
         chat = self.get_chat(chat_id) or {}
+        if chat_id.startswith("h-"):
+            # A mirrored conversation from another surface has no report thread of its own: never volunteer one
+            # of its rows (a delivery seen there included) as the report a phone reply answers.
+            return None
         # Ignore presentation-only rows; don't page through/limit long report bodies.
         rows = self._db.execute(
             "SELECT * FROM messages WHERE chat_id=? AND role='agent' AND kind='text' ORDER BY ts DESC, rowid DESC",

@@ -25,8 +25,23 @@ import okhttp3.sse.EventSources
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** [readonly]: "telegram:group" for a group conversation mirrored from another surface; the phone can't reply into it. */
 data class Chat(val id: String, val title: String, val kind: String, val updated: Double, val unread: Int,
-                val pinned: Boolean, val archived: Boolean, val preview: String, val lastRole: String, val profile: String = "")
+                val pinned: Boolean, val archived: Boolean, val preview: String, val lastRole: String, val profile: String = "",
+                val readonly: String = "")
+/** The line shown instead of the composer in a read-only chat ("surface:chat type" from the server), else null. */
+fun readOnlyNotice(readonly: String): String? {
+    val r = readonly.trim()
+    if (r.isEmpty()) return null
+    val surface = r.substringBefore(':', "").takeIf { it.isNotBlank() && ':' in r }?.replaceFirstChar { it.uppercase() }
+    val kind = when (r.substringAfter(':', "")) {
+        "group", "supergroup", "forum" -> "Group chat"
+        "channel" -> "Channel"
+        else -> "Shared chat"
+    }
+    return "$kind · read-only. Reply ${if (surface != null) "in $surface" else "where it started"}."
+}
+
 data class Msg(val id: String, val chatId: String, val role: String, val kind: String, val content: String,
                val meta: JSONObject, val ts: Double, val seq: Long)
 data class Act(val label: String, val choice: String, val style: String)
@@ -135,7 +150,7 @@ object Hub {
 
     // ---- parsing
     fun chat(o: JSONObject) = Chat(o.getString("id"), o.str("title").ifBlank { "Chat" }, o.str("kind", "chat"), o.optDouble("updated", 0.0),
-        o.optInt("unread"), o.optInt("pinned") == 1, o.optInt("archived") == 1, o.str("preview"), o.str("last_role"), o.str("profile"))
+        o.optInt("unread"), o.optInt("pinned") == 1, o.optInt("archived") == 1, o.str("preview"), o.str("last_role"), o.str("profile"), o.str("readonly"))
     fun msg(o: JSONObject) = Msg(o.getString("id"), o.getString("chat_id"), o.str("role"), o.str("kind", "text"), o.str("content"),
         o.optJSONObject("meta") ?: JSONObject(), o.optDouble("ts", 0.0), o.optLong("seq"))
     fun appr(o: JSONObject): Appr {

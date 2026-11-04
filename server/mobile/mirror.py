@@ -27,21 +27,37 @@ BACK_WINDOW = 48 * 3600
 SETTLE = 20
 INJECTED = ("[PRIOR CONTEXT", "[OUT-OF-BAND", "[ASYNC DELEGATION", "[System", "[SYSTEM", "[CONTEXT COMPACTION")
 DROP_PREFIX = ("[CONTEXT COMPACTION", "You've reached the maximum number of tool-calling")
-# Core mirrors a delivered cron brief or webhook result into the target session as a USER turn with this label
-# (cron/scheduler_delivery.py, gateway/platforms/webhook.py) to keep strict role alternation. It is not the user.
-_DELIVERY = re.compile(r"\[(Cron|Webhook) delivery: [^\]\n]*\]\n?")
-# Session chat types that are not the owner's private chat. The phone resumes a mirrored chat in its own DM lane.
+# Core mirrors a delivered cron brief or webhook result into the target session as a USER turn,
+# f"[Cron delivery: {name}]\n{text}" / f"[Webhook delivery: {route}]\n{content}" (cron/scheduler_delivery.py,
+# gateway/platforms/webhook.py), to keep strict role alternation. It is not the user. The name may contain "]".
+_DELIVERY = re.compile(r"\[(Cron|Webhook) delivery: [^\n]*\]\n")
+# Session chat types that are not the owner's private chat. Mirrored read-only: the phone would resume a reply in
+# its own DM lane.
 SHARED_CHAT_TYPES = ("group", "forum", "channel", "supergroup")
 
 
-def _delivery(role: str, text: str) -> Optional[Tuple[str, str]]:
-    """("cron" | "webhook", body without the label) for a core delivery-mirror row, else None."""
-    m = _DELIVERY.match(text) if role == "user" else None
+def _delivery(row, text: str, shared: str) -> Optional[Tuple[str, str]]:
+    """("cron" | "webhook", body without the label) for a row core's delivery mirror wrote, else None.
+
+    Core writes it with role, content and nothing else (gateway/mirror.py _append_to_sqlite). A message a person
+    sent carries the platform's message id, so a typed label is never a delivery; nor is anything in a shared chat.
+    """
+    if row["role"] != "user" or shared or row["pmid"]:
+        return None
+    m = _DELIVERY.match(text)
     return (m.group(1).lower(), text[m.end():].strip()) if m else None
 
 
+def _columns(c: sqlite3.Connection, table: str) -> set:
+    return {r[1] for r in c.execute(f"PRAGMA table_info({table})")}
+
+
 def _has_chat_type(c: sqlite3.Connection) -> bool:
-    return "chat_type" in {r[1] for r in c.execute("PRAGMA table_info(sessions)")}
+    return "chat_type" in _columns(c, "sessions")
+
+
+def _pmid_col(c: sqlite3.Connection) -> str:
+    return "platform_message_id" if "platform_message_id" in _columns(c, "messages") else "NULL"
 
 
 def _clean(role: str, text: Any) -> str:
@@ -134,14 +150,11 @@ class Mirror:
 
     # ---------------------------------------------------------------- conversations
     def chains(self, c: sqlite3.Connection, sources=SOURCES) -> List[Dict[str, Any]]:
+        ct = "LOWER(COALESCE(chat_type,''))" if _has_chat_type(c) else "''"
         q = ("SELECT id, source, parent_session_id AS p, end_reason, title, message_count, started_at,"
-             " COALESCE(last_activity_at, started_at) AS la FROM sessions"
+             f" COALESCE(last_activity_at, started_at) AS la, {ct} AS ct FROM sessions"
              f" WHERE source IN ({','.join('?' * len(sources))}) AND COALESCE(hidden,0)=0")
-        args = tuple(sources)
-        if _has_chat_type(c):  # group conversations stay where they are: replying would resume them in a DM lane
-            q += f" AND LOWER(COALESCE(chat_type,'')) NOT IN ({','.join('?' * len(SHARED_CHAT_TYPES))})"
-            args += SHARED_CHAT_TYPES
-        rows = [dict(r) for r in c.execute(q, args)]
+        rows = [dict(r) for r in c.execute(q, tuple(sources))]
         by = {r["id"]: r for r in rows}
         groups: Dict[str, List[Dict[str, Any]]] = {}
         for r in rows:
@@ -154,23 +167,27 @@ class Mirror:
             ss.sort(key=lambda s: s["started_at"] or 0)
             if sum(s["message_count"] or 0 for s in ss) <= 2:
                 continue  # one-shot pings ("Reply with exactly ...")
-            out.append({"root": root, "ids": [s["id"] for s in ss], "tip": ss[-1]["id"], "source": ss[-1]["source"],
+            tip = ss[-1]
+            out.append({"root": root, "ids": [s["id"] for s in ss], "tip": tip["id"], "source": tip["source"],
                         "title": next((s["title"] for s in reversed(ss) if s["title"]), None),
-                        "la": max(float(s["la"] or 0) for s in ss)})
+                        "la": max(float(s["la"] or 0) for s in ss),
+                        # "telegram:group": mirrored read-only (the phone refuses to reply into it)
+                        "shared": f"{tip['source']}:{tip['ct']}" if tip["ct"] in SHARED_CHAT_TYPES else ""})
         out.sort(key=lambda g: -g["la"])
         return out[:MAX_CHATS]
 
     @staticmethod
     def _rows(c: sqlite3.Connection, ids: List[str], after: int):
-        q = ("SELECT id, role, content, timestamp FROM messages"
+        q = (f"SELECT id, role, content, timestamp, {_pmid_col(c)} AS pmid FROM messages"
              f" WHERE session_id IN ({','.join('?' * len(ids))}) AND id>? AND role IN ('user','assistant')"
              " AND COALESCE(content,'')!='' AND COALESCE(_compressed_summary,0)=0"
              " AND (display_kind IS NULL OR display_kind='steer') ORDER BY id")
         return c.execute(q, (*ids, after)).fetchall()
 
     def _store(self, cid: str, title: Optional[str], kind: str, cand, first: bool, bump: int,
-               mirror_row: tuple) -> List[str]:
-        """cand: [(role, text, ts, meta)]. mirror_row: (root, tip, source, last_id, profile)."""
+               mirror_row: tuple, readonly: str = "") -> List[str]:
+        """cand: [(role, text, ts, meta)]. mirror_row: (root, tip, source, last_id, profile).
+        readonly: "telegram:group" for a shared conversation the phone may read but not reply to."""
         new: List[str] = []
         with self.st._lock:
             db = self.st._db
@@ -178,8 +195,8 @@ class Mirror:
             try:
                 if cand:
                     if not db.execute("SELECT 1 FROM chats WHERE id=?", (cid,)).fetchone():
-                        db.execute("INSERT INTO chats(id,title,kind,created,updated,unread,seq,profile) VALUES(?,?,?,?,?,0,?,?)",
-                                   (cid, title, kind, cand[0][2], cand[-1][2], self.st._next_seq(), mirror_row[4] or ""))
+                        db.execute("INSERT INTO chats(id,title,kind,created,updated,unread,seq,profile,readonly) VALUES(?,?,?,?,?,0,?,?,?)",
+                                   (cid, title, kind, cand[0][2], cand[-1][2], self.st._next_seq(), mirror_row[4] or "", readonly))
                     for role, t, ts, meta in cand:
                         mid = S.new_id("m")
                         db.execute("INSERT INTO messages(id,chat_id,role,kind,content,meta,ts,seq) VALUES(?,?,?,?,?,?,?,?)",
@@ -188,6 +205,9 @@ class Mirror:
                     db.execute("UPDATE chats SET updated=MAX(COALESCE(updated,0),?), title=COALESCE(?,title),"
                                " unread=unread+?, seq=? WHERE id=?", (cand[-1][2], title, 0 if first else bump,
                                                                        self.st._next_seq(), cid))
+                # A chat mirrored before it was marked (older plugin) gets the flag too, and syncs it to the phone.
+                if db.execute("SELECT 1 FROM chats WHERE id=? AND COALESCE(readonly,'')!=?", (cid, readonly)).fetchone():
+                    db.execute("UPDATE chats SET readonly=?, seq=? WHERE id=?", (readonly, self.st._next_seq(), cid))
                 db.execute("INSERT INTO mirror(chat_id,root,tip,source,last_id,taken,profile) VALUES(?,?,?,?,?,0,?)"
                            " ON CONFLICT(chat_id) DO UPDATE SET tip=excluded.tip, last_id=excluded.last_id",
                            (cid, *mirror_row))
@@ -207,7 +227,7 @@ class Mirror:
                 if k and k[2]:
                     continue
                 rows = self._rows(c, ch["ids"], k[1] if k else 0)
-                if k and not rows and k[0] == ch["tip"]:
+                if k and not rows and k[0] == ch["tip"] and not self._readonly_stale(cid, ch["shared"]):
                     continue
                 last_id = rows[-1]["id"] if rows else (k[1] if k else 0)
                 first = k is None
@@ -216,10 +236,11 @@ class Mirror:
                 for r in rows:
                     role = "agent" if r["role"] == "assistant" else "user"
                     t = _clean(r["role"], r["content"])
-                    origin = ch["source"]
-                    if (d := _delivery(role, t)) is not None:
+                    meta = {"mirror": ch["source"]}
+                    if (d := _delivery(r, t, ch["shared"])) is not None:
                         # Delivered by cron/webhook on that surface: the phone has no copy, so show what was sent.
-                        origin, role, t = d[0], "agent", d[1]
+                        # Its own tag: mirror=="cron" means this plugin's own report threads (reply context).
+                        meta["delivery_mirror"], role, t = d[0], "agent", d[1]
                     if not t:
                         continue
                     h = _hash(role, t)
@@ -227,7 +248,7 @@ class Mirror:
                         continue
                     if h:
                         hs.add(h)
-                    meta = {"mirror": origin, "h": h}
+                    meta["h"] = h
                     if prof:
                         meta["profile"] = prof
                     cand.append((role, t, _ts(r["timestamp"], ch["la"] or time.time()), meta))
@@ -240,7 +261,7 @@ class Mirror:
                     title = f"{_label(prof)} \u00b7 {title}"
                 bump = sum(1 for x in cand if x[0] == "agent")
                 new += self._store(cid, title, "chat", cand, first, bump,
-                                   (ch["root"], ch["tip"], ch["source"], last_id, prof))
+                                   (ch["root"], ch["tip"], ch["source"], last_id, prof), readonly=ch["shared"])
         finally:
             c.close()
         return new
@@ -314,6 +335,7 @@ class Mirror:
         c = self._src(home)
         new: List[str] = []
         try:
+            pmid = _pmid_col(c)
             pairs = [(r["id"], r["chat_id"]) for r in c.execute(
                 "SELECT id, chat_id FROM sessions WHERE source='mobile' AND COALESCE(chat_id,'')!=''"
                 " AND COALESCE(last_activity_at, started_at) > ?", (now - BACK_WINDOW,))]
@@ -323,7 +345,7 @@ class Mirror:
                 if cid not in chats or self.busy(cid):
                     continue
                 last = cur.get(sid, (cid, 0))[1]
-                rows = c.execute("SELECT id, role, content, timestamp FROM messages WHERE session_id=? AND id>?"
+                rows = c.execute(f"SELECT id, role, content, timestamp, {pmid} AS pmid FROM messages WHERE session_id=? AND id>?"
                                  " AND role IN ('user','assistant') AND COALESCE(content,'')!=''"
                                  " AND COALESCE(_compressed_summary,0)=0"
                                  " AND (display_kind IS NULL OR display_kind='steer') ORDER BY id", (sid, last)).fetchall()
@@ -345,7 +367,7 @@ class Mirror:
                     role = "agent" if r["role"] == "assistant" else "user"
                     t = _clean(r["role"], r["content"])
                     # A delivery into a phone chat: the phone already holds the delivered message itself.
-                    if not t or t.startswith(INJECTED) or _delivery(role, t) is not None:
+                    if not t or t.startswith(INJECTED) or _delivery(r, t, "") is not None:
                         continue
                     ts = _ts(r["timestamp"], now)
                     n = self._norm(t)
@@ -383,6 +405,10 @@ class Mirror:
         finally:
             c.close()
         return new
+
+    def _readonly_stale(self, cid: str, readonly: str) -> bool:
+        row = self.st._db.execute("SELECT COALESCE(readonly,'') FROM chats WHERE id=?", (cid,)).fetchone()
+        return bool(row) and row[0] != readonly
 
     def profile_of(self, cid: str) -> str:
         row = self.st._db.execute("SELECT profile FROM mirror WHERE chat_id=?", (cid,)).fetchone()
