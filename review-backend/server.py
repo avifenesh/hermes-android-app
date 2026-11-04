@@ -43,7 +43,7 @@ C = module('catalog', Path(__file__).resolve().with_name('catalog.py'))
 BASE = Path.home() / '.cache/hermes-play-prep'
 SECURITY = {'signature_replay': SG.REPLAY_VERSION}
 # Every optional surface is simulated, so every client gate is on (absent would also mean on).
-FEATURES = {'fleet': True, 'radar': True, 'projects': True, 'wake_wa': True}
+FEATURES = {'fleet': True, 'radar': True, 'projects': True, 'wake_wa': True, 'rooms': True}
 # Reachable surfaces with no reviewable behaviour. Empty: every Play-reachable API path has a synthetic answer.
 UNSUPPORTED: list = []
 # Honest limits that are not app surfaces: nothing here is reachable as a screen or action.
@@ -60,6 +60,70 @@ GATED_FIRST = 'Synthetic plan: archive 12 example notes. That step needs your ap
 GATED_COMMAND = 'demo: archive 12 example notes (not executed)'
 GATED_DESCRIPTION = 'Synthetic approval. The run waits for you; Approve lets it finish, Deny stops it. Nothing runs either way.'
 GATED_RESULT = 'Approved, so the run continued. Synthetic result: 12 example notes archived. Nothing ran on any machine.'
+# Group chats: what a Bot says after you answer its command approval.
+ROOM_APPROVED = 'Approved, so I continued. Synthetic result: 3 example notes tagged. Nothing ran on any machine.'
+ROOM_DENIED = 'Denied, so I stopped before the command. Nothing ran. (synthetic)'
+
+# ---------------------------------------------------------------- group chat rules (production copies)
+# Copied verbatim from server/mobile/rooms.py, which this file cannot import (package-relative imports), so a
+# phone's room action and its room-approve proof mean exactly what they mean in production. A test keeps them equal.
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@+=-]{0,199}$")  # task and request ids: no space, no newline
+MAX_PAGE = 200
+MAX_ATTACHMENTS = 8
+# Production's message and status for the action refusals the sandbox gives, by reason.
+ROOM_REFUSALS = {'stale_generation': ('That action is no longer pending', 409),
+                 'unknown_execution': ("That turn's outcome is unknown; discard it instead", 409)}
+
+
+class RoomError(Exception):
+    def __init__(self, message: str, status: int = 400, reason: str = "", detail: str = ""):
+        super().__init__(message)
+        self.message, self.status, self.reason, self.detail = message, status, reason, detail
+
+    def body(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {"error": self.message}
+        if self.reason:
+            out["reason"] = self.reason
+        if self.detail:
+            out["detail"] = self.detail
+        return out
+
+
+def identifier(value: Any, label: str) -> str:
+    text = str(value or "").strip()
+    if not _ID_RE.fullmatch(text):
+        raise RoomError(f"invalid {label}", 400)
+    return text
+
+
+def exact(value: Any, label: str, pattern: "re.Pattern[str]" = _ID_RE) -> str:
+    """A value that must already be canonical: what a proof covers is exactly what runs, never a trimmed copy."""
+    if not isinstance(value, str) or not pattern.fullmatch(value):
+        raise RoomError(f"invalid {label}", 400)
+    return value
+
+
+def parse_action(room_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    exact(room_id, "room id")
+    kind = body.get("kind")
+    if kind not in ("approval", "retry", "discard"):
+        raise RoomError("unknown action")
+    generation = body.get("generation")
+    if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
+        raise RoomError("invalid generation")
+    action = {"kind": kind, "member": exact(body.get("member"), "member"),
+              "task_id": exact(body.get("task_id"), "task id", _TOKEN_RE), "generation": generation}
+    if kind == "approval":
+        if body.get("choice") not in ("once", "deny"):
+            raise RoomError("room approvals answer once or deny")
+        action.update(choice=body["choice"], request_id=exact(body.get("request_id"), "request id", _TOKEN_RE))
+    return action
+
+
+def approval_proof(room_id: str, action: Dict[str, Any], ts: str) -> bytes:
+    """What the biometric key signs for a room member's command: its own domain, one field per line."""
+    return f"room-approve\n{room_id}\n{action['member']}\n{action['request_id']}\n{action['choice']}\n{ts}".encode()
 
 
 def state_root(path):
@@ -242,6 +306,17 @@ def reject_constant(name):
     raise ValueError(f'{name} is not a number this sandbox accepts')
 
 
+def room_route(fn):
+    """A group chat handler answers a RoomError with its status and body, as production's room routes do."""
+    async def handler(self, r):
+        try:
+            return await fn(self, r)
+        except RoomError as e:
+            return J(e.body(), e.status)
+    handler.__name__, handler.__doc__ = fn.__name__, fn.__doc__
+    return handler
+
+
 class Backend:
     REPLY_STEP = 0.35   # seconds between streamed edits of a scripted reply
     JOB_SECONDS = 1.2   # synthetic Hub jobs finish after this long
@@ -260,6 +335,9 @@ class Backend:
     MAX_PW_TRIES = 10             # alarm password checks per enrollment per minute
     TENANT_QUOTA = TENANT_QUOTA   # disk per enrollment (database and uploads)
     GATE_TIMEOUT = None           # seconds an approval-gated run waits; None follows the approvals.timeout setting
+    MAX_ROOMS = 20                # group chats per enrollment, the seeded ones included
+    MAX_ROOM_EVENTS = 500         # events kept per group chat; the oldest fall off its start
+    ROOM_QUEUE = 3                # scripted group chat turns waiting or running per room; later messages stay unanswered
 
     def __init__(self, home, public_url, client_header=None):
         self.home = state_root(home)
@@ -344,7 +422,8 @@ class Backend:
     def tenant_tasks(self, did):
         rt = self.rt.get(did) or {}
         return [*rt.get('tasks', {}).values(), *(t for g in rt.get('all', {}).values() for t in g),
-                *(t for g in rt.get('session_tasks', {}).values() for t in g)]
+                *(t for g in rt.get('session_tasks', {}).values() for t in g),
+                *(t for g in rt.get('room_tasks', {}).values() for t in g)]
 
     def busy(self, did):
         return self.inuse.get(did, 0) > 0 or bool(self.listeners.get(did)) or any(not t.done() for t in self.tenant_tasks(did))
@@ -453,7 +532,7 @@ class Backend:
     # Uploads and exports check storage themselves, with their size.
     GROWS = {('POST', '/v1/chats'), ('POST', '/v1/chats/{cid}/messages'), ('PUT', '/v1/sessions/{sid}/messages'),
              ('PUT', '/v1/sessions/{sid}/prompts/{pid}'), ('POST', '/v1/cronjob'), ('PUT', '/v1/cronjob/{jid}'),
-             ('POST', '/v1/memory'), ('POST', '/v1/fleet/{aid}/send')}
+             ('POST', '/v1/memory'), ('POST', '/v1/fleet/{aid}/send'), ('POST', '/v1/rooms'), ('POST', '/v1/rooms/{rid}/messages')}
 
     def grows(self, r):
         route = r.match_info.route
@@ -495,6 +574,7 @@ class Backend:
                    '| Try | Where |\n|---|---|\n| Chat, streaming replies, steer and stop | any chat |\n'
                    '| Approvals with your fingerprint | send a message with the word *approval* |\n'
                    '| A run that waits for your approval, then finishes | send *approval please* |\n'
+                   '| Group chats with two Bots, their approvals and turns | Rooms in the inbox |\n'
                    '| Model, reasoning, session actions | composer chip and ⋯ menu |\n| Cron jobs and the alarm clock | Cron tab |\n'
                    '| Settings, skills, plugins, Hub, memory, usage | Me tab |\n| Radar, projects, fleet | Me and Pulse |\n\n'
                    f'Alarm emergency-stop password: `{REVIEW_PASSWORD}`')
@@ -660,7 +740,7 @@ class Backend:
         try:
             resp = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache'})
             await resp.prepare(r)
-            last = None
+            last, rooms = None, None
             # Event driven: requests and scripted replies wake the stream; otherwise one keepalive per KEEPALIVE seconds.
             while not self.shutting and did not in self.closing and self.auth.device_active(did):
                 ev.clear()
@@ -669,6 +749,15 @@ class Backend:
                 if now != last:
                     await resp.write(('data: ' + json.dumps({'type': 'hello' if last is None else 'seq', 'seq': now[0], 'working': work}) + '\n\n').encode())
                     last = now
+                # Group chats, as the plugin's room poll sends them: a summary for each room that changed since this
+                # stream's hello (the app loads the list on hello) and a removal for each one deleted.
+                current = self.room_keys(s, did)
+                for rid, (key, summary) in current.items() if rooms is not None else ():
+                    if rooms.get(rid, (None,))[0] != key:
+                        await resp.write(('data: ' + json.dumps({'type': 'room', 'room': summary}) + '\n\n').encode())
+                for rid in (rooms.keys() - current.keys()) if rooms is not None else ():
+                    await resp.write(('data: ' + json.dumps({'type': 'room_removed', 'room_id': rid}) + '\n\n').encode())
+                rooms = current
                 try:
                     await asyncio.wait_for(ev.wait(), self.KEEPALIVE)
                 except asyncio.TimeoutError:
@@ -1478,6 +1567,427 @@ class Backend:
 
     async def h_session_close(self, r):
         return J({'ok': True})
+
+    # ------------------------------------------------------------ group chats (gateway-hosted rooms)
+    # Each room is one kv value (roster, events, read cursor, pending actions); `rooms` lists their ids. Events are
+    # what production's projection sends the phone (messages and notices), with dense seqs. Who is answering lives
+    # in the runtime only, as the room driver's activity does: a restart ends every scripted turn.
+    @staticmethod
+    def bot_member(profile):
+        bot = next(b for b in C.ROOM_BOTS if b['profile'] == profile)
+        return {'id': profile, 'profile': profile, 'handle': profile, 'name': bot['name']}
+
+    def room_ids(self, s):
+        """Seeded on first use, so enrollments made before group chats gain them without a reseed."""
+        return self.kv(s, 'rooms', lambda: self.seed_rooms(s))
+
+    def seed_rooms(self, s):
+        now, ids = time.time(), []
+        for spec in C.ROOMS:
+            start = now - spec['age']
+            room = {'id': spec['id'], 'name': spec['name'], 'members': [self.bot_member(b['profile']) for b in C.ROOM_BOTS],
+                    'created': start, 'updated': start, 'seq': 0, 'read': spec['read'], 'blocked': spec.get('blocked', False),
+                    'events': [], 'pending': []}
+            thread = ''
+            for i, e in enumerate(spec['events']):
+                ev = {'id': f"{spec['id']}-{i + 1}", 'ts': start + 20 * i}
+                if 'notice' in e:
+                    ev.update(kind='notice', notice=e['notice'], member=e['member'], name=self.bot_member(e['member'])['name'], detail=e['detail'])
+                else:
+                    who = self.bot_member(e['member']) if e['role'] == 'member' else {'id': '', 'name': ''}
+                    thread = ev['id'] if e['role'] == 'user' else thread
+                    ev.update(kind='message', role=e['role'], member=who['id'], name=who['name'], text=e['text'], thread=thread)
+                    if e.get('file'):
+                        ev['attachments'] = [{'attachment_id': f'ra-seed-{i + 1}', 'kind': 'file', 'name': e['file'], 'mime': 'text/plain',
+                                              'size': len(C.ROOM_FILE), 'file': 'seed'}]
+                self.room_append(room, ev)
+            for a in spec['pending']:
+                a = dict(a)
+                if 'prompt' in a:  # the message the waiting turn answers when it runs again
+                    a['prompt'] = room['events'][a['prompt'] - 1]['text']
+                room['pending'].append(a)
+            self.room_save(s, room)
+            ids.append(room['id'])
+        return ids
+
+    def rooms(self, s):
+        return [room for room in (s.kv_get('room:' + rid) for rid in self.room_ids(s)) if room]
+
+    def room(self, s, rid):
+        return s.kv_get('room:' + rid) if rid in self.room_ids(s) else None
+
+    def room_or_404(self, s, rid):
+        room = self.room(s, identifier(rid, 'room id'))
+        if room is None:
+            raise RoomError('Group chat not found', 404, 'not_found')
+        return room
+
+    def room_save(self, s, room):
+        s.kv_put('room:' + room['id'], room)
+
+    def room_append(self, room, ev):
+        room['seq'] += 1
+        ev = {'seq': room['seq'], **ev}
+        ev.setdefault('id', S.new_id('re'))
+        ev.setdefault('ts', time.time())
+        room['events'] = (room['events'] + [ev])[-self.MAX_ROOM_EVENTS:]
+        room['updated'] = ev['ts']
+        return ev
+
+    def room_note(self, s, room, notice, member='', detail=''):
+        """A notice from a control that keeps working at capacity (stop, rename, discard): written only while there
+        is room, like note(), so a full sandbox stops growing."""
+        did = getattr(s, 'did', None)
+        if did is not None and self.storage_error(did):
+            return None
+        name = next((m['name'] for m in room['members'] if m['id'] == member), member)
+        return self.room_append(room, {'kind': 'notice', 'notice': notice, 'member': member, 'name': name, 'detail': detail})
+
+    @staticmethod
+    def room_event_view(ev):
+        out = {k: v for k, v in ev.items() if k != 'attachments'}
+        if ev.get('attachments'):  # the manifest production sends; where the bytes live stays here
+            out['attachments'] = [{k: a[k] for k in ('attachment_id', 'kind', 'name', 'mime', 'size')} for a in ev['attachments']]
+        return out
+
+    def room_activity(self, did, rid):
+        return dict(self.runtime(did).get('room_working', {}).get(rid, {}))
+
+    @staticmethod
+    def room_summary_action(a):
+        """A pending action as production's summary carries it: enough to badge and notify; approving reads the detail."""
+        out = {k: a[k] for k in ('kind', 'member', 'task_id', 'generation')}
+        if a['kind'] == 'approval':
+            out.update(request_id=a['request_id'], command=a['command'][:300], command_truncated=len(a['command']) > 300)
+        return out
+
+    def room_summary(self, did, room):
+        working = self.room_activity(did, room['id'])
+        said = [e for e in room['events'] if e['kind'] == 'message']
+        out = {'id': room['id'], 'name': room['name'], 'members': room['members'], 'latest_seq': room['seq'], 'read_seq': room['read'],
+               'unread': sum(1 for e in said if e['role'] == 'member' and e['seq'] > room['read']),
+               'updated': room['updated'], 'created': room['created'],
+               'working': [m for m, status in working.items() if status != 'queued'],
+               'pending': [self.room_summary_action(a) for a in room['pending']]}
+        if said:
+            last = said[-1]
+            text = last['text'].strip() or ('Attachment' if last.get('attachments') else '')
+            out['preview'] = {'seq': last['seq'], 'role': last['role'], 'name': last['name'], 'text': ' '.join(text.split())[:160], 'ts': last['ts']}
+        return out
+
+    def room_driver(self, did, room):
+        working = self.room_activity(did, room['id'])
+        pending = []
+        for a in room['pending']:
+            item = {k: a[k] for k in ('kind', 'member', 'task_id', 'generation')}
+            if a['kind'] == 'approval':
+                item.update(request_id=a['request_id'], command=a['command'], description=a['description'][:1000])
+            pending.append(item)
+        return {'running': True, 'working': bool(working), 'blocked': bool(room.get('blocked')),
+                'members': [{'id': m, 'status': status} for m, status in working.items()], 'pending': pending}
+
+    def room_keys(self, s, did):
+        """Per room, what the event stream compares (production's _key) and the summary it sends."""
+        out = {}
+        for room in self.rooms(s):
+            x = self.room_summary(did, room)
+            out[room['id']] = ((x['latest_seq'], x['name'], x['unread'], x['read_seq'], tuple(x['working']), tuple(m['id'] for m in x['members']),
+                                tuple((p['kind'], p['task_id'], p['generation'], p.get('request_id', '')) for p in x['pending'])), x)
+        return out
+
+    @staticmethod
+    def room_refusal(reason):
+        text, status = ROOM_REFUSALS[reason]
+        return RoomError(text, status, reason)
+
+    def room_file(self, did, client_id, a):
+        """A file a message attaches, by the upload id the app got from /v1/upload (production reads its media store)."""
+        if not isinstance(a, dict):
+            raise RoomError('invalid attachment')
+        name = Path(str(a.get('id') or a.get('media') or '')).name
+        path = self.home / did / name
+        if not name.startswith('u-') or any(c not in 'u-0123456789abcdef' for c in name) or not path.is_file():
+            raise RoomError('Attachment is no longer on the gateway; attach it again')
+        file_name = Path(str(a.get('file_name') or a.get('name') or name)).name[:200] or name
+        mime = str(a.get('mime') or '')
+        mime = mime if re.fullmatch(r'[\w.+-]+/[\w.+-]+', mime) else 'application/octet-stream'
+        kind = 'image' if mime.startswith('image/') else 'pdf' if mime == 'application/pdf' else 'file'
+        return {'attachment_id': 'ra-' + hashlib.sha256(f'{client_id}\n{name}'.encode()).hexdigest()[:16], 'kind': kind,
+                'name': file_name, 'mime': mime, 'size': path.stat().st_size, 'file': name}
+
+    @staticmethod
+    def room_turns(room, text):
+        """The Bots a message addresses, in roster order: the ones it @mentions, else every member."""
+        named = [m for m in room['members'] if re.search(r'(?:^|\s)@' + re.escape(m['handle']) + r'(?![\w.-])', text)]
+        return named or list(room['members'])
+
+    def room_compose(self, room, m, prompt, asks):
+        """A Bot's deterministic scripted answer. Nothing is read, opened, transcribed or run."""
+        text = (prompt.get('text') or '').strip()
+        quoted = text if len(text) <= 160 else text[:157] + '…'
+        if m['profile'] == 'research':
+            lines = [f"Synthetic second look from {m['name']}: I checked the message against the example notes."]
+            if any(w in text.lower() for w in ('plan', 'checklist', 'list')):
+                lines.append('- [x] Read the message\n- [ ] Pick the first step\n- [ ] Check back')
+        else:
+            lines = [f"Synthetic reply from {m['name']}: message received." + (f'\n\n> {quoted}' if quoted else '')]
+        for a in prompt.get('attachments') or []:
+            size = f" ({a['size'] // 1024 or 1} KB)"
+            lines.append(f'Photo received{size}. The sandbox does not look at images.' if a['kind'] == 'image'
+                         else f"File received: **{a['name']}**{size}. Stored in this sandbox only; never opened.")
+        lines.append(f"That step runs a command (`{C.ROOM_APPROVAL['command']}`), so I asked for your approval first." if asks
+                     else 'No tools, shell commands, providers or external requests were used.')
+        return '\n\n'.join(lines)
+
+    def room_spawn(self, did, rid, turn):
+        """Run a turn after the room's previous one, as the room driver serializes a room; tracked for idle(), revoke and shutdown."""
+        rt = self.runtime(did)
+        depth = rt.setdefault('room_depth', {})
+        depth[rid] = depth.get(rid, 0) + 1
+        prev = rt.setdefault('room_last', {}).get(rid)
+        task = asyncio.get_running_loop().create_task(self.room_run(did, rid, prev, turn))
+        rt['room_last'][rid] = task
+        group = rt.setdefault('room_tasks', {}).setdefault(rid, set())
+        group.add(task)
+        task.add_done_callback(group.discard)
+        return task
+
+    async def room_run(self, did, rid, prev, turn):
+        rt = self.runtime(did)
+        try:
+            if prev is not None and not prev.done():
+                try:
+                    await asyncio.shield(prev)
+                except asyncio.CancelledError:
+                    if asyncio.current_task().cancelling():
+                        raise
+                except Exception:
+                    pass
+            await turn()
+        except asyncio.CancelledError:
+            pass  # stopped, or the room was deleted: Stop writes its own notice
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            pass  # the sandbox was closed under the turn (revoke or shutdown)
+        finally:
+            rt['room_depth'][rid] = max(0, rt['room_depth'].get(rid, 1) - 1)
+            if rt['room_last'].get(rid) is asyncio.current_task():
+                rt['room_last'].pop(rid, None)
+            self.notify(did)
+
+    async def room_turn(self, did, s, rid, members, prompt, asks=False, reply=None, quiet=False):
+        """Bots answer one after another, as the room driver runs them: each shows as answering, then its whole message
+        lands (a room log appends; it never edits). `reply` is a fixed answer; `quiet` writes nothing while storage is
+        full (the answer to a control that keeps working at capacity)."""
+        work = self.runtime(did).setdefault('room_working', {}).setdefault(rid, {})
+        try:
+            for m in members:
+                work[m['id']] = 'queued'
+            for i, m in enumerate(members):
+                work[m['id']] = 'running'
+                self.notify(did)
+                await asyncio.sleep(self.REPLY_STEP * 2)
+                room = self.room(s, rid)
+                if room is None:
+                    return
+                if not (quiet and self.storage_error(did)):
+                    ask = asks and i == len(members) - 1
+                    self.room_append(room, {'kind': 'message', 'role': 'member', 'member': m['id'], 'name': m['name'],
+                                            'text': reply or self.room_compose(room, m, prompt, ask), 'thread': prompt.get('thread') or ''})
+                    if ask:
+                        room['pending'].append({'kind': 'approval', 'member': m['id'], 'task_id': S.new_id('t'), 'generation': 1,
+                                                'request_id': S.new_id('req'), **C.ROOM_APPROVAL})
+                    self.room_save(s, room)
+                work.pop(m['id'], None)
+                self.notify(did)
+        finally:
+            for m in members:
+                work.pop(m['id'], None)
+            if not work:
+                self.runtime(did).get('room_working', {}).pop(rid, None)
+
+    def room_cancel(self, did, rid):
+        tasks = [t for t in self.runtime(did).get('room_tasks', {}).get(rid, ()) if not t.done()]
+        for t in tasks:
+            t.cancel()
+        return len(tasks)
+
+    def room_create(self, s, did, b):
+        name = str(b.get('name') or '').strip()
+        if not name or len(name) > 200:
+            raise RoomError('A group chat needs a name')
+        profiles = b.get('members')
+        if not isinstance(profiles, list) or not all(isinstance(p, str) for p in profiles):
+            raise RoomError('members must be a list of Bot profiles')
+        if not 2 <= len(profiles) <= 6 or len({p.casefold() for p in profiles}) != len(profiles):
+            raise RoomError('Pick two to six different Bots')
+        seatable = {b['profile'] for b in C.ROOM_BOTS}
+        unknown = next((p for p in profiles if p not in seatable), None)
+        if unknown is not None:
+            raise RoomError(f'{unknown[:80]} is not a Bot this gateway can seat')
+        rid = identifier(b.get('room_id') or S.new_id('room'), 'room id')
+        ids = self.room_ids(s)
+        if rid in ids:  # the app sends its own room id, so a retried create answers with the room it made
+            return self.room_summary(did, self.room(s, rid))
+        if len(ids) >= self.MAX_ROOMS:
+            raise Refused(f'This sandbox holds at most {self.MAX_ROOMS} group chats. Get a fresh pairing link for a clean sandbox.', 409)
+        now = time.time()
+        room = {'id': rid, 'name': name, 'members': [self.bot_member(p) for p in profiles], 'created': now, 'updated': now,
+                'seq': 0, 'read': 0, 'blocked': False, 'events': [], 'pending': []}
+        self.room_save(s, room)
+        s.kv_put('rooms', [rid, *ids])
+        return self.room_summary(did, room)
+
+    @room_route
+    async def h_rooms(self, r):
+        s, did = r['store'], r['device']['id']
+        if r.method == 'POST':
+            return J({'room': self.room_create(s, did, await self.body(r))})
+        rooms = sorted((self.room_summary(did, x) for x in self.rooms(s)), key=lambda x: -x['updated'])
+        return J({'supported': True, 'rooms': rooms, 'driver': True, 'bots': [dict(b) for b in C.ROOM_BOTS],
+                  'max_members': 6, 'min_members': 2, 'demo': True})
+
+    @room_route
+    async def h_room(self, r):
+        s, did = r['store'], r['device']['id']
+        room = self.room_or_404(s, r.match_info['rid'])
+        if r.method == 'GET':
+            return J({'room': self.room_summary(did, room), 'driver': self.room_driver(did, room)})
+        if r.method == 'DELETE':
+            self.room_cancel(did, room['id'])
+            s.kv_put('rooms', [x for x in self.room_ids(s) if x != room['id']])
+            with s._lock:
+                s._db.execute('DELETE FROM kv WHERE k=?', ('room:' + room['id'],))
+            return J({'ok': True, 'tombstone': {'room_id': room['id'], 'disbanded_at': time.time()}, 'demo': True})
+        name = str((await self.body(r)).get('name') or '').strip()
+        if not name or len(name) > 200:
+            raise RoomError('A group chat needs a name')
+        room['name'] = name
+        self.room_note(s, room, 'room.renamed', detail=name)
+        self.room_save(s, room)
+        return J({'room': self.room_summary(did, room)})
+
+    @room_route
+    async def h_room_events(self, r):
+        room = self.room_or_404(r['store'], r.match_info['rid'])
+        q = r.query
+        limit = int(q.get('limit') or 60)
+        if not 1 <= limit <= MAX_PAGE:
+            raise RoomError(f'limit must be between 1 and {MAX_PAGE}')
+        before = int(q['before']) if q.get('before') else None
+        after = int(q['after']) if q.get('after') else None
+        latest = room['seq']
+        floor = room['events'][0]['seq'] - 1 if room['events'] else latest  # the kept log starts after this seq
+        if after is not None:
+            if after < 0:
+                raise RoomError('invalid page cursor')
+            start = min(after, latest)
+            end = min(latest, start + limit)
+        else:
+            end = latest if before is None else max(0, min(before - 1, latest))
+            start = max(0, end - limit)
+        return J({'room_id': room['id'], 'events': [self.room_event_view(e) for e in room['events'] if start < e['seq'] <= end],
+                  'latest_seq': latest, 'from_seq': start, 'to_seq': end, 'before': start + 1 if start > floor else None,
+                  'has_more_after': end < latest, 'members': room['members']})
+
+    @room_route
+    async def h_room_send(self, r):
+        s, did = r['store'], r['device']['id']
+        room = self.room_or_404(s, r.match_info['rid'])
+        b = await self.body(r)
+        client_id = identifier(b.get('client_id') or S.new_id('m'), 'client id')
+        text = str(b.get('text') or '')
+        if len(text.encode('utf-8')) > 64 * 1024:
+            raise RoomError('Message is too long')
+        thread = identifier(b.get('thread_id') or client_id, 'thread id')
+        atts = b.get('attachments') or []
+        if not isinstance(atts, list) or len(atts) > MAX_ATTACHMENTS:
+            raise RoomError(f'At most {MAX_ATTACHMENTS} attachments per message')
+        files = [self.room_file(did, client_id, a) for a in atts]
+        text = text.strip()
+        if not text and not files:
+            raise RoomError('empty message')
+        dup = next((e for e in room['events'] if e['id'] == client_id), None)
+        if dup is not None:  # sends are idempotent by event id, as production's: a retry is the same message, answered once
+            return J({'event': self.room_event_view(dup), 'accepted': False, 'client_id': client_id})
+        ev = self.room_append(room, {'id': client_id, 'kind': 'message', 'role': 'user', 'member': '', 'name': '',
+                                     'text': text[:8000], 'thread': thread, **({'attachments': files} if files else {})})
+        room['read'] = max(room['read'], ev['seq'])  # writing in the room is reading it
+        self.room_save(s, room)
+        if self.runtime(did).get('room_depth', {}).get(room['id'], 0) < self.ROOM_QUEUE:
+            members, asks = self.room_turns(room, text), 'approval' in text.lower()
+            self.room_spawn(did, room['id'], lambda: self.room_turn(did, s, room['id'], members, ev, asks=asks))
+        return J({'event': self.room_event_view(ev), 'accepted': True, 'client_id': client_id})
+
+    @room_route
+    async def h_room_read(self, r):
+        s = r['store']
+        room = self.room_or_404(s, r.match_info['rid'])
+        seq = int((await self.body(r)).get('seq') or 0)
+        read = max(room['read'], max(0, min(seq, room['seq'])))
+        if read != room['read']:
+            room['read'] = read
+            self.room_save(s, room)
+        return J({'ok': True, 'read_seq': read})
+
+    @room_route
+    async def h_room_stop(self, r):
+        s, did = r['store'], r['device']['id']
+        room = self.room_or_404(s, r.match_info['rid'])
+        cancelled = self.room_cancel(did, room['id'])
+        # A stopped turn's approval can no longer be answered. Retry and discard stay: they wait on your decision.
+        asks = [a for a in room['pending'] if a['kind'] == 'approval']
+        room['pending'] = [a for a in room['pending'] if a['kind'] != 'approval']
+        self.room_note(s, room, 'room.stop_requested')
+        self.room_save(s, room)
+        return J({'ok': True, 'cancelled': cancelled + len(asks), 'demo': True})
+
+    @room_route
+    async def h_room_action(self, r):
+        s, did = r['store'], r['device']['id']
+        rid = r.match_info['rid']
+        # Validated first and exactly, then the proof over those same values, in production's own domain and scope.
+        action = parse_action(rid, await self.body(r))
+        if action['kind'] == 'approval' and action['choice'] != 'deny':
+            if not SG.approval_ok(r, approval_proof(rid, action, r.headers.get('X-HM-Ts', '')), scope='room-approval'):
+                return J({'error': 'biometric signature required', 'need_sig': True}, 403)
+        room = self.room_or_404(s, rid)
+        a = next((p for p in room['pending'] if p['member'] == action['member'] and p['task_id'] == action['task_id']), None)
+        if a is None or a['generation'] != action['generation']:
+            raise self.room_refusal('stale_generation')
+        if action['kind'] == 'retry' and a['kind'] == 'discard':
+            raise self.room_refusal('unknown_execution')  # an unknown outcome is never run again
+        if a['kind'] != action['kind'] or (a['kind'] == 'approval' and a['request_id'] != action['request_id']):
+            raise self.room_refusal('stale_generation')
+        if action['kind'] == 'retry':
+            full = self.storage_error(did)  # Run again adds a turn, as sending does
+            if full:
+                return J({'error': full[0]}, full[1])
+        room['pending'].remove(a)
+        member = next((m for m in room['members'] if m['id'] == a['member']), {'id': a['member'], 'name': a['member'], 'profile': a['member']})
+        if action['kind'] == 'discard':
+            room['blocked'] = False
+            self.room_note(s, room, 'turn.cancelled', a['member'], 'discarded')
+        self.room_save(s, room)
+        if action['kind'] == 'retry':
+            prompt = {'text': a.get('prompt') or ''}
+            self.room_spawn(did, rid, lambda: self.room_turn(did, s, rid, [member], prompt))
+        elif action['kind'] == 'approval':
+            reply = ROOM_APPROVED if action['choice'] == 'once' else ROOM_DENIED
+            self.room_spawn(did, rid, lambda: self.room_turn(did, s, rid, [member], {}, reply=reply, quiet=True))
+        return J({'ok': True, 'demo': True})
+
+    @room_route
+    async def h_room_file(self, r):
+        did = r['device']['id']
+        room = self.room_or_404(r['store'], r.match_info['rid'])
+        ev = next((e for e in room['events'] if e['id'] == r.match_info['eid']), None)
+        att = next((a for a in (ev or {}).get('attachments') or [] if a['attachment_id'] == r.match_info['aid']), None)
+        path = None if att is None or att['file'] == 'seed' else self.home / did / att['file']
+        if att is None or (path is not None and not path.is_file()):
+            raise RoomError('attachment not found', 404, 'not_found')
+        safe = ''.join(c for c in att['name'] if 32 <= ord(c) < 127 and c != '"') or 'attachment'
+        return web.Response(body=C.ROOM_FILE if path is None else path.read_bytes(), content_type=att['mime'],
+                            headers={'Content-Disposition': f'attachment; filename="{safe}"'})
 
     # ------------------------------------------------------------ cron
     def default_jobs(self, now):
@@ -3055,6 +3565,11 @@ class Backend:
             ('GET', '/v1/sessions/{sid}/messages', self.h_session_messages), ('PUT', '/v1/sessions/{sid}/messages', self.h_session_send),
             ('PUT', '/v1/sessions/{sid}/prompts/{pid}', self.h_session_prompt), ('POST', '/v1/sessions/{sid}/stop', self.h_session_stop),
             ('DELETE', '/v1/sessions/{sid}/viewer', self.h_session_close),
+            ('GET', '/v1/rooms', self.h_rooms), ('POST', '/v1/rooms', self.h_rooms), ('GET', '/v1/rooms/{rid}', self.h_room),
+            ('PATCH', '/v1/rooms/{rid}', self.h_room), ('DELETE', '/v1/rooms/{rid}', self.h_room),
+            ('GET', '/v1/rooms/{rid}/events', self.h_room_events), ('POST', '/v1/rooms/{rid}/messages', self.h_room_send),
+            ('POST', '/v1/rooms/{rid}/read', self.h_room_read), ('POST', '/v1/rooms/{rid}/stop', self.h_room_stop),
+            ('POST', '/v1/rooms/{rid}/actions', self.h_room_action), ('GET', '/v1/rooms/{rid}/files/{eid}/{aid}', self.h_room_file),
             ('GET', '/v1/cron', self.h_cron), ('POST', '/v1/cron/{jid}/{action}', self.h_cron_action),
             ('GET', '/v1/cron/{jid}/output', self.h_cron_output), ('GET', '/v1/cronjob/{jid}', self.h_cronjob_get),
             ('POST', '/v1/cronjob', self.h_cronjob_create), ('PUT', '/v1/cronjob/{jid}', self.h_cronjob_update),

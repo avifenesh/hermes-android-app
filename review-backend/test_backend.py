@@ -140,8 +140,10 @@ def is_api(template):
 
 
 # Every helper the app sends requests through. Path is the first argument except Wake.request(ticket, path, method).
-CALL = re.compile(r'\b(?:Api\.(get|post|put|patch|delete|upload|download|bytes|request|pair)|(Wake\.request|(?<![.\w])request))\s*\(')
-VERB = {'get': 'GET', 'download': 'GET', 'bytes': 'GET', 'request': 'GET', 'post': 'POST', 'put': 'PUT', 'patch': 'PATCH', 'delete': 'DELETE'}
+# Api.buildPost builds a POST now and sends it later (a group chat read bound to its machine).
+CALL = re.compile(r'\b(?:Api\.(get|post|put|patch|delete|upload|download|bytes|request|pair|buildPost)|(Wake\.request|(?<![.\w])request))\s*\(')
+VERB = {'get': 'GET', 'download': 'GET', 'bytes': 'GET', 'request': 'GET', 'post': 'POST', 'put': 'PUT', 'patch': 'PATCH', 'delete': 'DELETE',
+        'buildPost': 'POST'}
 FIXED = {'upload': ('POST', '/v1/upload?name={}&mime={}'), 'pair': ('POST', '/v1/pair')}  # paths built inside Net.kt
 
 
@@ -312,6 +314,16 @@ CLIENT_CALLS = {
     '/v1/radar/notes/{}/ack': [('POST', '/v1/radar/notes/n/ack')],
     '/v1/radar?view={}': [('GET', '/v1/radar?view=current')],
     '/v1/restart': [('POST', '/v1/restart')],
+    '/v1/rooms': [('GET', '/v1/rooms'), ('POST', '/v1/rooms')],
+    '/v1/rooms/{}': [('GET', '/v1/rooms/r-release'), ('PATCH', '/v1/rooms/r-release'), ('DELETE', '/v1/rooms/r-release')],
+    '/v1/rooms/{}/actions': [('POST', '/v1/rooms/r-release/actions')],
+    '/v1/rooms/{}/events?after={}&limit=200': [('GET', '/v1/rooms/r-release/events?after=0&limit=200')],
+    '/v1/rooms/{}/events?before={}&limit=80': [('GET', '/v1/rooms/r-release/events?before=2&limit=80')],
+    '/v1/rooms/{}/events?limit=80': [('GET', '/v1/rooms/r-release/events?limit=80')],
+    '/v1/rooms/{}/files/{}/{}': [('GET', '/v1/rooms/r-release/files/e/a')],
+    '/v1/rooms/{}/messages': [('POST', '/v1/rooms/r-release/messages')],
+    '/v1/rooms/{}/read': [('POST', '/v1/rooms/r-release/read')],
+    '/v1/rooms/{}/stop': [('POST', '/v1/rooms/r-release/stop')],
     '/v1/search?q=': [('GET', '/v1/search?q=x')],
     '/v1/sessions': [('GET', '/v1/sessions')],
     '/v1/sessions/{}': [],  # only the base of the {base}/... calls below
@@ -1704,6 +1716,279 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.call('POST', '/v1/approvals/' + aid, {'choice': 'once'}, dev=nolock, key=key, approval=(aid, 'once'), apr=apr))[0], 200)
         await self.idle(nolock)
 
+    # ---------------------------------------------------------------- group chats (gateway-hosted rooms)
+    async def room_events(self, rid, dev=None, key=None):
+        _, d = await self.call('GET', f'/v1/rooms/{rid}/events?limit=200', dev=dev, key=key)
+        return d['events']
+
+    async def room_pending(self, rid):
+        return (await self.call('GET', f'/v1/rooms/{rid}'))[1]['driver']['pending']
+
+    @staticmethod
+    def room_action(a, kind, **extra):
+        return {'kind': kind, 'member': a['member'], 'task_id': a['task_id'], 'generation': a['generation'], **extra}
+
+    async def test_group_chats_list_detail_pages_and_files(self):
+        """Seeded rooms list with unread replies and a pending approval; detail, paged history and files answer."""
+        self.assertTrue((await self.call('GET', '/v1/me'))[1]['features']['rooms'])
+        status, d = await self.call('GET', '/v1/rooms')
+        self.assertEqual(status, 200)
+        self.assertTrue(d['supported'] and d['driver'])
+        self.assertEqual((d['min_members'], d['max_members']), (2, 6))
+        self.assertEqual([(b['profile'], b['name']) for b in d['bots']], [(b['profile'], b['name']) for b in server.C.ROOM_BOTS])
+        rooms = {x['id']: x for x in d['rooms']}
+        self.assertEqual(set(rooms), {'r-release', 'r-digest'})
+        rel = rooms['r-release']
+        self.assertEqual((rel['latest_seq'], rel['read_seq'], rel['unread'], rel['working']), (3, 1, 2, []))
+        self.assertEqual([(m['id'], m['handle']) for m in rel['members']], [('default', 'default'), ('research', 'research')])
+        self.assertEqual((rel['preview']['role'], rel['preview']['name']), ('member', 'Research Bot'))
+        [ask] = rel['pending']
+        self.assertEqual((ask['kind'], ask['member'], ask['request_id'], ask['command_truncated']), ('approval', 'research', 'req-seed-tag', False))
+        self.assertEqual(sorted(p['kind'] for p in rooms['r-digest']['pending']), ['discard', 'retry'])
+        self.assertEqual(rooms['r-digest']['unread'], 0)
+        _, det = await self.call('GET', '/v1/rooms/r-release')
+        self.assertEqual(det['room']['id'], 'r-release')
+        [full] = det['driver']['pending']
+        self.assertEqual((full['command'], full['description']), (server.C.ROOM_APPROVAL['command'], server.C.ROOM_APPROVAL['description']))
+        self.assertFalse(det['driver']['blocked'])
+        self.assertTrue((await self.call('GET', '/v1/rooms/r-digest'))[1]['driver']['blocked'])
+        # Pages follow production: the newest page, older pages through `before`, newer ones through `after`.
+        _, page = await self.call('GET', '/v1/rooms/r-digest/events?limit=2')
+        self.assertEqual(([e['seq'] for e in page['events']], page['before'], page['to_seq'], page['has_more_after']), ([4, 5], 4, 5, False))
+        _, older = await self.call('GET', f"/v1/rooms/r-digest/events?before={page['before']}&limit=80")
+        self.assertEqual(([e['seq'] for e in older['events']], older['before']), ([1, 2, 3], None))
+        _, after = await self.call('GET', '/v1/rooms/r-digest/events?after=1&limit=2')
+        self.assertEqual(([e['seq'] for e in after['events']], after['to_seq'], after['has_more_after']), ([2, 3], 3, True))
+        notice = older['events'][2]
+        self.assertEqual((notice['kind'], notice['notice'], notice['member'], notice['name']), ('notice', 'turn.deferred', 'default', 'Hermes Demo'))
+        for bad in ('limit=0', 'limit=201', 'after=-1&limit=5', 'before=x'):
+            self.assertEqual((await self.call('GET', '/v1/rooms/r-digest/events?' + bad))[0], 400, bad)
+        # A seeded reply carries a file the room serves.
+        ev = next(e for e in await self.room_events('r-release') if e.get('attachments'))
+        [att] = ev['attachments']
+        self.assertEqual(set(att), {'attachment_id', 'kind', 'name', 'mime', 'size'})
+        status, data = await self.call('GET', f"/v1/rooms/r-release/files/{ev['id']}/{att['attachment_id']}")
+        self.assertEqual((status, data, att['size']), (200, server.C.ROOM_FILE, len(server.C.ROOM_FILE)))
+        self.assertEqual((await self.call('GET', f"/v1/rooms/r-release/files/{ev['id']}/nope"))[0], 404)
+        self.assertEqual((await self.call('GET', '/v1/rooms/nope'))[0], 404)
+        self.assertEqual((await self.call('GET', '/v1/rooms/%21bad'))[0], 400)
+
+    async def test_group_chat_sends_are_idempotent_and_bots_answer_in_turn(self):
+        rid = 'r-release'
+        body = {'text': 'Plan the launch', 'client_id': 'c-launch-1'}
+        status, d = await self.call('POST', f'/v1/rooms/{rid}/messages', body)
+        self.assertEqual((status, d['accepted'], d['client_id']), (200, True, 'c-launch-1'))
+        sent = d['event']
+        self.assertEqual((sent['id'], sent['role'], sent['text'], sent['thread']), ('c-launch-1', 'user', 'Plan the launch', 'c-launch-1'))
+        _, again = await self.call('POST', f'/v1/rooms/{rid}/messages', body)
+        self.assertEqual((again['accepted'], again['event']), (False, sent))  # a retried send is the same message
+        self.assertEqual((await self.call('GET', f'/v1/rooms/{rid}'))[1]['room']['read_seq'], sent['seq'])  # writing is reading
+        await self.idle()
+        events = await self.room_events(rid)
+        self.assertEqual([e['text'] for e in events].count('Plan the launch'), 1)
+        replies = [e for e in events if e['seq'] > sent['seq']]
+        self.assertEqual([(e['role'], e['member'], e['thread']) for e in replies], [('member', 'default', 'c-launch-1'), ('member', 'research', 'c-launch-1')])
+        self.assertIn('Plan the launch', replies[0]['text'])
+        self.assertIn('synthetic', replies[1]['text'].lower())
+        _, lst = await self.call('GET', '/v1/rooms')
+        self.assertEqual(next(x for x in lst['rooms'] if x['id'] == rid)['unread'], 2)
+        # An @mention addresses one Bot.
+        _, d = await self.call('POST', f'/v1/rooms/{rid}/messages', {'text': '@research only you', 'client_id': 'c-launch-2'})
+        await self.idle()
+        self.assertEqual([e['member'] for e in await self.room_events(rid) if e['seq'] > d['event']['seq']], ['research'])
+        # Files: an upload goes in by its id, the message carries the manifest, the room serves the bytes.
+        p, data = '/v1/upload?name=plan.txt&mime=text%2Fplain', b'Synthetic plan'
+        _, up = await self.raw('POST', p, data, self.headers('POST', p, data))
+        _, d = await self.call('POST', f'/v1/rooms/{rid}/messages', {'text': '', 'client_id': 'c-launch-3', 'attachments': [{**up, 'kind': 'file'}]})
+        [att] = d['event']['attachments']
+        self.assertEqual((att['name'], att['mime'], att['size'], att['kind']), ('plan.txt', 'text/plain', len(data), 'file'))
+        self.assertEqual((await self.call('GET', f"/v1/rooms/{rid}/files/c-launch-3/{att['attachment_id']}"))[1], data)
+        await self.idle()
+        self.assertIn('plan.txt', (await self.room_events(rid))[-2]['text'])
+        other, key, _ = await self.other()
+        self.assertEqual((await self.call('GET', f"/v1/rooms/{rid}/files/c-launch-3/{att['attachment_id']}", dev=other, key=key))[0], 404)
+        self.assertNotIn('c-launch-1', [e['id'] for e in await self.room_events(rid, dev=other, key=key)])
+        for bad in ({'text': '', 'client_id': 'c-x1'}, {'text': 'x' * (64 * 1024 + 1)}, {'text': 'x', 'attachments': [{'id': 'u-0000'}]},
+                    {'text': 'x', 'attachments': [up] * 9}, {'text': 'x', 'client_id': 'bad id'}, {'text': 'x', 'attachments': 'u-1'}):
+            self.assertEqual((await self.call('POST', f'/v1/rooms/{rid}/messages', bad))[0], 400, str(bad)[:60])
+        self.assertEqual((await self.call('POST', '/v1/rooms/nope/messages', body))[0], 404)
+
+    async def test_group_chat_approval_needs_the_room_proof(self):
+        """A member's command approval takes the room-approve proof production checks, and only that proof."""
+        rid, path = 'r-release', '/v1/rooms/r-release/actions'
+        [a] = await self.room_pending(rid)
+        body = self.room_action(a, 'approval', request_id=a['request_id'], choice='once')
+
+        def proof(rid=rid, req=a['request_id'], choice='once', member=a['member']):
+            return lambda ts: f'room-approve\n{rid}\n{member}\n{req}\n{choice}\n{ts}'.encode()
+        status, d = await self.call('POST', path, body)
+        self.assertEqual((status, d.get('need_sig')), (403, True))
+        # Another domain, room, request, member or choice is not this approval; nor is the request key.
+        for amsg in (lambda ts: f"approve\n{a['request_id']}\nonce\n{ts}".encode(), proof(req='req-other'), proof(rid='r-digest'),
+                     proof(choice='deny'), proof(member='default')):
+            self.assertEqual((await self.call('POST', path, body, amsg=amsg))[0], 403)
+        self.assertEqual((await self.call('POST', path, body, amsg=proof(), apr=self.key))[0], 403)
+        # Not canonical: the proof covers exactly what runs, never a trimmed or coerced copy.
+        for k, v in (('member', ' research'), ('generation', '1'), ('generation', True), ('choice', 'session'), ('request_id', 'a b'), ('kind', 'run')):
+            self.assertEqual((await self.call('POST', path, {**body, k: v}, amsg=proof()))[0], 400, k)
+        self.assertEqual((await self.call('POST', path, body, amsg=proof()))[0], 200)
+        await self.idle()
+        self.assertEqual(await self.room_pending(rid), [])
+        last = (await self.room_events(rid))[-1]
+        self.assertEqual((last['member'], last['text']), ('research', server.ROOM_APPROVED))
+        status, d = await self.call('POST', path, body, amsg=proof())
+        self.assertEqual((status, d['reason']), (409, 'stale_generation'))  # answered: no longer pending
+        # "approval" in a message makes the last Bot to answer ask; Deny needs no proof and ends its turn.
+        await self.call('POST', f'/v1/rooms/{rid}/messages', {'text': 'Tag them, approval please', 'client_id': 'c-ask-1'})
+        await self.idle()
+        [a2] = await self.room_pending(rid)
+        self.assertEqual((a2['kind'], a2['member'], a2['command']), ('approval', 'research', server.C.ROOM_APPROVAL['command']))
+        self.assertEqual(next(x for x in (await self.call('GET', '/v1/rooms'))[1]['rooms'] if x['id'] == rid)['pending'][0]['request_id'], a2['request_id'])
+        self.assertEqual((await self.call('POST', path, self.room_action(a2, 'approval', request_id=a2['request_id'], choice='deny')))[0], 200)
+        await self.idle()
+        self.assertEqual((await self.room_events(rid))[-1]['text'], server.ROOM_DENIED)
+        self.assertEqual(await self.room_pending(rid), [])
+
+    async def test_group_chat_retry_discard_stop_rename_create_delete(self):
+        rid, path = 'r-digest', '/v1/rooms/r-digest/actions'
+        p = {a['kind']: a for a in await self.room_pending(rid)}
+        # An unknown outcome is never run again: retry refuses it, discard resolves it. Each action matches its task.
+        status, d = await self.call('POST', path, self.room_action(p['discard'], 'retry'))
+        self.assertEqual((status, d['reason']), (409, 'unknown_execution'))
+        for bad in (self.room_action(p['retry'], 'discard'), {**self.room_action(p['discard'], 'discard'), 'generation': 9},
+                    self.room_action(p['retry'], 'approval', request_id='req-x', choice='deny')):
+            status, d = await self.call('POST', path, bad)
+            self.assertEqual((status, d['reason']), (409, 'stale_generation'), bad)
+        self.assertEqual((await self.call('POST', path, self.room_action(p['discard'], 'discard')))[0], 200)
+        _, det = await self.call('GET', f'/v1/rooms/{rid}')
+        self.assertFalse(det['driver']['blocked'])
+        self.assertEqual([a['kind'] for a in det['driver']['pending']], ['retry'])
+        self.assertEqual(((await self.room_events(rid))[-1]['notice']), 'turn.cancelled')
+        # Run again: the deferred turn answers now.
+        self.assertEqual((await self.call('POST', path, self.room_action(p['retry'], 'retry')))[0], 200)
+        await self.idle()
+        last = (await self.room_events(rid))[-1]
+        self.assertEqual((last['role'], last['member']), ('member', 'default'))
+        self.assertEqual(await self.room_pending(rid), [])
+        # Stop cancels a running reply and says so; nothing answers after it.
+        self.backend.REPLY_STEP = 0.2
+        _, d = await self.call('POST', f'/v1/rooms/{rid}/messages', {'text': 'a long one', 'client_id': 'c-stop-1'})
+        for _ in range(100):
+            if (await self.call('GET', f'/v1/rooms/{rid}'))[1]['room']['working']:
+                break
+            await asyncio.sleep(0.01)
+        status, s = await self.call('POST', f'/v1/rooms/{rid}/stop')
+        self.backend.REPLY_STEP = 0.01
+        self.assertEqual((status, s['cancelled']), (200, 1))
+        await self.idle()
+        tail = [e for e in await self.room_events(rid) if e['seq'] > d['event']['seq']]
+        self.assertEqual([(e['kind'], e.get('notice')) for e in tail], [('notice', 'room.stop_requested')])
+        self.assertEqual((await self.call('GET', f'/v1/rooms/{rid}'))[1]['room']['working'], [])
+        # Rename, with a notice in the log.
+        status, d = await self.call('PATCH', f'/v1/rooms/{rid}', {'name': 'Renamed digest'})
+        self.assertEqual((status, d['room']['name']), (200, 'Renamed digest'))
+        self.assertEqual(((await self.room_events(rid))[-1]['notice'], (await self.room_events(rid))[-1]['detail']), ('room.renamed', 'Renamed digest'))
+        self.assertEqual((await self.call('PATCH', f'/v1/rooms/{rid}', {'name': '  '}))[0], 400)
+        # Create (a retried create answers with the same room), per enrollment; then delete.
+        made = {'name': 'Launch crew', 'members': ['default', 'research'], 'room_id': 'room-launch'}
+        status, d = await self.call('POST', '/v1/rooms', made)
+        self.assertEqual((status, d['room']['id'], d['room']['name'], d['room']['latest_seq']), (200, 'room-launch', 'Launch crew', 0))
+        self.assertEqual((await self.call('POST', '/v1/rooms', made))[1]['room']['id'], 'room-launch')
+        self.assertEqual(len((await self.call('GET', '/v1/rooms'))[1]['rooms']), 3)
+        for bad in ({**made, 'name': ''}, {**made, 'members': ['default']}, {**made, 'members': ['default', 'Default']},
+                    {**made, 'members': ['default', 'nobody']}, {**made, 'members': 'default'}, {**made, 'room_id': 'bad id'}):
+            self.assertEqual((await self.call('POST', '/v1/rooms', bad))[0], 400, bad)
+        other, key, _ = await self.other()
+        self.assertEqual((await self.call('GET', '/v1/rooms/room-launch', dev=other, key=key))[0], 404)
+        status, d = await self.call('DELETE', '/v1/rooms/room-launch')
+        self.assertEqual((status, d['ok'], d['tombstone']['room_id']), (200, True, 'room-launch'))
+        self.assertEqual((await self.call('GET', '/v1/rooms/room-launch'))[0], 404)
+        self.assertNotIn('room-launch', [x['id'] for x in (await self.call('GET', '/v1/rooms'))[1]['rooms']])
+        self.assertEqual((await self.call('DELETE', '/v1/rooms/room-launch'))[0], 404)
+
+    async def test_group_chat_sse_announces_changes_and_removals(self):
+        """The event stream carries room summaries as they change (working Bots, new replies) and removals."""
+        await self.call('POST', '/v1/rooms', {'name': 'Short-lived', 'members': ['default', 'research'], 'room_id': 'room-gone'})
+        h = self.headers('GET', '/v1/events')
+        async with self.http.get(self.url + '/v1/events', headers=h) as r:
+            self.assertIn(b'"type": "hello"', await asyncio.wait_for(r.content.readline(), 2))
+            self.backend.REPLY_STEP = 0.05
+            _, d = await self.call('POST', '/v1/rooms/r-release/messages', {'text': 'stream it', 'client_id': 'c-sse-1'})
+            seen = []
+            for _ in range(300):
+                line = await asyncio.wait_for(r.content.readline(), 3)
+                e = json.loads(line[6:]) if line.startswith(b'data: ') else {}
+                if e.get('type') == 'room' and e['room']['id'] == 'r-release':
+                    seen.append(e['room'])
+                    if e['room']['latest_seq'] == d['event']['seq'] + 2 and not e['room']['working']:
+                        break
+            self.assertEqual(seen[-1]['latest_seq'], d['event']['seq'] + 2)
+            self.assertEqual({tuple(x['working']) for x in seen if x['working']}, {('default',), ('research',)})  # one Bot at a time
+            self.assertEqual(seen[-1]['preview']['name'], 'Research Bot')
+            self.backend.REPLY_STEP = 0.01
+            await self.call('DELETE', '/v1/rooms/room-gone')
+            for _ in range(50):
+                line = await asyncio.wait_for(r.content.readline(), 3)
+                if line.startswith(b'data: ') and json.loads(line[6:]).get('type') == 'room_removed':
+                    self.assertEqual(json.loads(line[6:])['room_id'], 'room-gone')
+                    break
+            else:
+                self.fail('no room_removed event')
+
+    async def test_full_storage_refuses_room_writes_but_keeps_room_controls(self):
+        """At capacity, creating rooms, sending and Run again refuse; read, rename, stop, deny and discard work and add no events."""
+        [a] = await self.room_pending('r-release')
+        p = {x['kind']: x for x in await self.room_pending('r-digest')}
+        count = lambda: sum(len(self.backend.room(self.tenant(), x)['events']) for x in ('r-release', 'r-digest'))
+        controls = {413: [('POST', '/v1/rooms/r-release/actions', self.room_action(a, 'approval', request_id=a['request_id'], choice='deny')),
+                          ('POST', '/v1/rooms/r-digest/actions', self.room_action(p['discard'], 'discard'))],
+                    507: [('POST', '/v1/rooms/r-release/stop', {})]}
+        for limit, status in (('TENANT_QUOTA', 413), ('DISK_CAP', 507)):
+            setattr(self.backend, limit, 1)
+            try:
+                before = count()
+                self.assertEqual((await self.call('POST', '/v1/rooms', {'name': 'More', 'members': ['default', 'research']}))[0], status)
+                self.assertEqual((await self.call('POST', '/v1/rooms/r-release/messages', {'text': 'more', 'client_id': 'c-full'}))[0], status)
+                self.assertEqual((await self.call('POST', '/v1/rooms/r-digest/actions', self.room_action(p['retry'], 'retry')))[0], status)
+                for method, path, body in [*controls[status], ('POST', '/v1/rooms/r-release/read', {'seq': 3}),
+                                           ('PATCH', '/v1/rooms/r-release', {'name': 'Still renames'}), ('GET', '/v1/rooms/r-release', None)]:
+                    self.assertEqual((await self.call(method, path, body))[0], 200, (limit, path))
+                await self.idle()
+                self.assertEqual(count(), before, limit)  # a full sandbox stops growing
+            finally:
+                setattr(self.backend, limit, getattr(server.Backend, limit))
+        _, d = await self.call('GET', '/v1/rooms/r-release')
+        self.assertEqual((d['room']['name'], d['room']['read_seq'], d['driver']['pending']), ('Still renames', 3, []))
+        self.assertEqual([x['kind'] for x in await self.room_pending('r-digest')], ['retry'])
+        self.assertEqual((await self.call('POST', '/v1/rooms/r-release/messages', {'text': 'room again', 'client_id': 'c-again'}))[0], 200)
+        await self.idle()
+        self.assertEqual(count(), before + 3)
+
+    async def test_group_chat_caps(self):
+        """Per enrollment: a room count, a bounded reply queue per room, and a bounded log that pages to its start."""
+        self.backend.MAX_ROOMS = 3
+        self.assertEqual((await self.call('POST', '/v1/rooms', {'name': 'Third', 'members': ['default', 'research'], 'room_id': 'room-3'}))[0], 200)
+        status, d = await self.call('POST', '/v1/rooms', {'name': 'Fourth', 'members': ['default', 'research'], 'room_id': 'room-4'})
+        self.assertEqual(status, 409)
+        self.assertIn('fresh pairing link', d['error'])
+        self.backend.REPLY_STEP = 0.05
+        for i in range(5):
+            self.assertEqual((await self.call('POST', '/v1/rooms/room-3/messages', {'text': f'm{i}', 'client_id': f'c-q{i}'}))[0], 200)
+        self.backend.REPLY_STEP = 0.01
+        await self.idle()
+        events = await self.room_events('room-3')
+        self.assertEqual(sum(1 for e in events if e['role'] == 'user'), 5)
+        self.assertEqual(sum(1 for e in events if e['role'] == 'member'), 2 * self.backend.ROOM_QUEUE)  # the rest wait unanswered
+        self.backend.MAX_ROOM_EVENTS = 6
+        await self.call('POST', '/v1/rooms/room-3/messages', {'text': 'trim', 'client_id': 'c-trim'})
+        await self.idle()
+        events = await self.room_events('room-3')
+        self.assertEqual(len(events), 6)
+        _, page = await self.call('GET', f"/v1/rooms/room-3/events?before={events[0]['seq']}&limit=80")
+        self.assertEqual((page['events'], page['before']), ([], None))  # the kept log's start is the start
+        _, page = await self.call('GET', '/v1/rooms/room-3/events?limit=3')
+        self.assertEqual(page['before'], events[3]['seq'])
+
     # ---------------------------------------------------------------- coverage and drift guards
     async def test_every_play_reachable_api_answers(self):
         """Every client call answers with its expected status and the fields the app reads; any other status fails."""
@@ -1849,6 +2134,24 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         await check('POST', '/v1/projects/example-site/commit', {'message': 'm'}, keys=('ok', 'result'))
         await check('POST', '/v1/projects/example-site/push', {}, lambda ts: f'git\nexample-site\npush\n{ts}'.encode(), keys=('ok', 'result'))
         await check('POST', '/v1/projects/example-site/create-pr', {}, lambda ts: f'git\nexample-site\ncreate-pr\n{ts}'.encode(), keys=('ok', 'result'))
+        await check('GET', '/v1/rooms', keys=('supported', 'rooms', 'driver', 'bots'))
+        await check('POST', '/v1/rooms', {'name': 'Coverage', 'members': ['default', 'research'], 'room_id': 'room-coverage'}, keys=('room',))
+        det = await check('GET', '/v1/rooms/r-release', keys=('room', 'driver'))
+        await check('PATCH', '/v1/rooms/room-coverage', {'name': 'Coverage two'}, keys=('room',))
+        page = await check('GET', '/v1/rooms/r-release/events?limit=80', keys=('events', 'to_seq', 'has_more_after', 'before'))
+        await check('GET', '/v1/rooms/r-release/events?before=2&limit=80', keys=('events', 'before'))
+        await check('GET', '/v1/rooms/r-release/events?after=0&limit=200', keys=('events', 'to_seq', 'has_more_after'))
+        filed = next((e for e in page.get('events', []) if e.get('attachments')), {'id': 'e', 'attachments': [{'attachment_id': 'a'}]})
+        await check('GET', f"/v1/rooms/r-release/files/{filed['id']}/{filed['attachments'][0]['attachment_id']}", keys='bytes')
+        ask = ((det.get('driver') or {}).get('pending') or [{}])[0]
+        await check('POST', '/v1/rooms/r-release/actions', {'kind': 'approval', 'member': ask.get('member'), 'task_id': ask.get('task_id'),
+                                                             'generation': ask.get('generation'), 'request_id': ask.get('request_id'),
+                                                             'choice': 'deny'}, keys=('ok',))
+        await check('POST', '/v1/rooms/r-release/messages', {'text': 'hi', 'client_id': 'c-coverage'}, keys=('event', 'accepted', 'client_id'))
+        await check('POST', '/v1/rooms/r-release/read', {'seq': 1}, keys=('ok', 'read_seq'))
+        await check('POST', '/v1/rooms/r-release/stop', keys=('ok', 'cancelled'))
+        await self.idle()
+        await check('DELETE', '/v1/rooms/room-coverage', keys=('ok',))
         await check('GET', '/v1/push-config', keys=('enabled', 'config'))
         await check('POST', '/v1/fcm', {'token': 'discarded'}, keys=('ok', 'push'))
         await check('GET', '/v1/devices', keys=('devices', 'this'))
@@ -1910,6 +2213,20 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         keys = next(n for n in term.body if isinstance(n, ast.Assign) and getattr(n.targets[0], 'id', '') == 'KEYS')
         scope = {'__builtins__': {}, 'frozenset': frozenset, 'str': str, 'range': range}
         self.assertEqual(eval(compile(ast.Expression(keys.value), 'terminal.py', 'eval'), scope), server.C.TERMINAL_KEYS)
+        # Group chat actions: the same exact parsing and the same room-approve proof, so a phone's proof means the same.
+        prod = ast.parse((REPO / 'server/mobile/rooms.py').read_text())
+        ours = ast.parse(Path(server.__file__).read_text())
+        defs = lambda tree: {n.name: ast.dump(n) for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+        for name in ('RoomError', 'identifier', 'exact', 'parse_action', 'approval_proof'):
+            self.assertEqual(defs(ours)[name], defs(prod)[name], name)
+        values = {n.targets[0].id: n.value for n in prod.body if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)}
+        for name in ('_ID_RE', '_TOKEN_RE'):
+            self.assertEqual(ast.literal_eval(values[name].args[0]), getattr(server, name).pattern, name)
+        for name in ('MAX_PAGE', 'MAX_ATTACHMENTS'):
+            self.assertEqual(ast.literal_eval(values[name]), getattr(server, name), name)
+        messages, statuses = ast.literal_eval(values['_MESSAGES']), ast.literal_eval(values['_STATUS'])
+        for reason, (text, status) in server.ROOM_REFUSALS.items():
+            self.assertEqual((messages[reason], statuses[reason]), (text, status), reason)
 
 
 if __name__ == '__main__':

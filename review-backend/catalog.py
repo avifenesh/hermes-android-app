@@ -398,3 +398,31 @@ PROJECTS = [
 # Mirrors server/mobile/terminal.py KEYS; a test keeps them equal.
 TERMINAL_KEYS = frozenset(('escape enter tab up down left right home end page_up page_down backspace space ' +
                            ' '.join(str(i) for i in range(1, 10))).split())
+
+# ---------------------------------------------------------------- Group chats (gateway-hosted rooms)
+# The sandbox profiles, seated as Bots. A Bot's member id and @handle are its profile, as production seats them.
+ROOM_BOTS = [{'profile': 'default', 'name': 'Hermes Demo'}, {'profile': 'research', 'name': 'Research Bot'}]
+ROOM_FILE = b'SYNTHETIC RELEASE NOTES\n1. Example change one\n2. Example change two\n3. Example change three\n'
+ROOM_APPROVAL = {'command': 'demo: tag 3 example notes (not executed)',
+                 'description': 'Synthetic approval. Approve lets the Bot finish its turn; Deny stops it. Nothing runs either way.'}
+# Seeded rooms, oldest event first (20 s apart). `read` is the read cursor; `pending` what the room waits on.
+ROOMS = [
+    {'id': 'r-release', 'name': 'Release review · synthetic group', 'age': 1800, 'read': 1,
+     'events': [{'role': 'user', 'text': '@default @research Draft the release notes and check the changelog.'},
+                {'role': 'member', 'member': 'default', 'file': 'release-notes.txt',
+                 'text': 'Synthetic draft: three example changes, one line each. The file is attached. Nothing was read from any repository.'},
+                {'role': 'member', 'member': 'research',
+                 'text': 'Synthetic check: the changelog lists the same three changes. Tagging them runs a command, so I asked for your approval first.'}],
+     'pending': [{'kind': 'approval', 'member': 'research', 'task_id': 't-seed-tag', 'generation': 1, 'request_id': 'req-seed-tag',
+                  **ROOM_APPROVAL}]},
+    {'id': 'r-digest', 'name': 'Weekly digest · synthetic group', 'age': 7200, 'read': 5, 'blocked': True,
+     'events': [{'role': 'user', 'text': "Summarize this week's example notes, both of you."},
+                {'role': 'member', 'member': 'research', 'text': 'Synthetic summary: five example notes this week; two need a follow-up.'},
+                {'notice': 'turn.deferred', 'member': 'default', 'detail': 'member.unavailable'},
+                {'role': 'user', 'text': '@research list the two follow-ups.'},
+                {'notice': 'turn.failed', 'member': 'research',
+                 'detail': "Synthetic: the worker stopped mid-turn, so this turn's outcome is unknown."}],
+     # A deferred turn waits to run again; a turn with an unknown outcome can only be discarded (it blocks the room).
+     'pending': [{'kind': 'retry', 'member': 'default', 'task_id': 't-seed-deferred', 'generation': 1, 'prompt': 1},
+                 {'kind': 'discard', 'member': 'research', 'task_id': 't-seed-unknown', 'generation': 2, 'prompt': 4}]},
+]

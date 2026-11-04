@@ -69,10 +69,11 @@ No account. The app pairs with a self-hosted server; we host a synthetic sandbox
 4. Allow notifications when asked. The inbox shows synthetic chats; "Welcome · synthetic review sandbox" lists what to try.
 5. Chat: open any chat and send a message. The reply is scripted and streams like a real one. Nothing executes anywhere.
 6. Approvals: send a message containing the word "approval". Approve the card with the fingerprint or PIN prompt, or deny it.
-7. Alarm clock: open the Cron tab and switch to **Alarm clock**. Allow exact alarms and full-screen alarms when the screen asks. Tap **Test the alarm now**. Pass a proof, or use **Emergency stop** with the password `review-sandbox`.
-8. Voice: tap the microphone on the inbox header to open Talk. Allow the microphone. Wake word: Me > This phone > Voice > Wake word.
-9. Content report: long-press any reply in a chat, tap **Report**, then **Review report**, then **Send report**. Me > Report a problem works without a message.
-10. A fresh sandbox: repeat steps 2 and 3. Each enrollment is a separate synthetic tenant. Do not enter personal data.
+7. Group chats: tap **Rooms** in the inbox and open "Release review". Two Bots answer a message one after another. Approve the waiting command with the fingerprint or PIN prompt; in "Weekly digest", run the deferred turn again or discard the one with an unknown outcome.
+8. Alarm clock: open the Cron tab and switch to **Alarm clock**. Allow exact alarms and full-screen alarms when the screen asks. Tap **Test the alarm now**. Pass a proof, or use **Emergency stop** with the password `review-sandbox`.
+9. Voice: tap the microphone on the inbox header to open Talk. Allow the microphone. Wake word: Me > This phone > Voice > Wake word.
+10. Content report: long-press any reply in a chat, tap **Report**, then **Review report**, then **Send report**. Me > Report a problem works without a message.
+11. A fresh sandbox: repeat steps 2 and 3. Each enrollment is a separate synthetic tenant. Do not enter personal data.
 
 Source: [Requirements for providing sign in details](https://support.google.com/googleplay/android-developer/answer/15748846), [Policy declarations question text](https://developers.google.com/android-publisher/app-store-review/policy-declarations).
 

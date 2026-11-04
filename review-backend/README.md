@@ -105,7 +105,8 @@ Request limits: 1 MiB for every request; only uploads (12 MiB, a camera photo is
 several MB) and alarm photo proofs (3 MiB) go higher. JSON `NaN`/`Infinity` are
 refused. Per enrollment: 64 MiB on disk (database and uploads), 300 uploads, 200
 chats, 50 Radar spawns, 40 cron jobs, three queued scripted replies per chat, 500
-messages per other-app session, three live event streams, 10 old-format alarm
+messages per other-app session, 20 group chats, 500 events per group chat (the oldest fall off
+its start), three queued scripted turns per group chat, three live event streams, 10 old-format alarm
 password checks a minute. Search reads at most the newest 1000 chat messages and
 200-character queries of up to 8 words. Schedules run from 1 minute to 366 days.
 MCP credential values typed into the Hub are discarded; only their names are kept.
@@ -131,11 +132,12 @@ ends open streams first, so it does not wait out the shutdown timeout.
 | Disk, one sandbox | 64 MiB | A full afternoon of uploads; the next request that adds data answers 413 with "get a fresh pairing link" |
 
 "Adds data" means messages, chats, other-app messages and answers, cron jobs and runs, memory entries, Fleet
-replies, Radar notes, feedback and spawns, uploads, and the session actions that add a line or a file (new session,
-compress, undo, export). Everything else keeps working on a full sandbox or a full shared disk: the alarm's
-emergency stop, proofs, cancel and test, stopping a reply or an agent, approving and denying, restart, settings and
-toggles. While storage is full they do their job but write no new rows: their status lines (restart, stop, deny,
-the Wake summary, scheduled-run digests) are skipped, so repeating them cannot grow a full sandbox, and one reviewer
+replies, Radar notes, feedback and spawns, uploads, group chats, their messages and Run again, and the session
+actions that add a line or a file (new session, compress, undo, export). Everything else keeps working on a full
+sandbox or a full shared disk: the alarm's emergency stop, proofs, cancel and test, stopping a reply, an agent or a
+group chat, approving and denying, discarding a turn, reading, renaming and deleting a group chat, restart, settings
+and toggles. While storage is full they do their job but write no new rows: their status lines (restart, stop, deny,
+the Wake summary, scheduled-run digests, group chat notices and a Bot's answer to an approval) are skipped, so repeating them cannot grow a full sandbox, and one reviewer
 filling the disk can never stop another from silencing an alarm or a run.
 | Retention | 14 days unused | Long enough for a review and its follow-ups; reviewers can always enroll again from `/review`. An hourly sweep revokes expired enrollments and deletes their sandboxes, revoked and orphaned sandboxes, and device rows revoked longer than 14 days |
 | Unpair or revoke | immediate | The sandbox is deleted as soon as its last request, stream and reply end |
@@ -152,8 +154,8 @@ operator removes that dedicated state; do not enter real personal data.
 
 ## Surfaces
 
-`/v1/me` advertises `fleet`, `radar`, `projects` and `wake_wa` as available, so the
-Play build shows every screen. Each row below is per enrollment and persists in
+`/v1/me` advertises `fleet`, `radar`, `projects`, `wake_wa` and `rooms` as available, so
+the Play build shows every screen. Each row below is per enrollment and persists in
 that enrollment's SQLite file.
 
 | Surface | Sandbox behaviour |
@@ -162,6 +164,7 @@ that enrollment's SQLite file.
 | Chats, sync, SSE | Seeded chats with markdown, table, code, checklist, file, an activity card and an approval card; create (per profile), rename, pin, archive, read; incremental sync; SSE `hello`/`seq` with the working list |
 | Send, steer, queue, stop | Inert user text; a scripted reply that streams like the adapter (working flag, a growing message, final usage footer); steer folds into the running reply; up to three queued replies; stop cancels the run and the queue with a status line. Slash commands, voice notes, photos and files get explained scripted answers; nothing is transcribed, viewed, opened or run |
 | Run, usage, activity | Run screen steps of the scripted turn; per-turn and per-session token counts derived from text length, cost `$0.00`; activity detail with calls and a file diff |
+| Group chats | Two seeded rooms with two Bots from the sandbox profiles (Hermes Demo on `default`, Research Bot on `research`): unread replies, a file, a pending command approval, a deferred turn and a turn with an unknown outcome. List, detail with the driver's pending actions, paged history (`before`/`after`), create (two to six different Bots; a retried create with the same room id answers with that room), rename, delete, read cursor, files. Sending is idempotent by `client_id`; the @mentioned Bots, else every Bot, answer one after another with scripted text (each shows as answering, then its whole message lands, as a room log appends). A message containing "approval" makes the last Bot to answer ask for a command approval. Approving needs production's `room-approve` proof (own domain and replay scope, bound to room, member and request); Deny needs none. Run again answers a deferred turn; an unknown outcome refuses Run again (`unknown_execution`) and can only be discarded; a stale action answers `stale_generation`. Stop cancels the running turns and pending approvals with a notice. The event stream sends `room` summaries as they change and `room_removed` |
 | Approvals | Seeded card and a new one for any message containing "approval"; approve choices need the exact-content proof; deny does not; resolving records the choice only. A message containing "approval please" starts an approval-gated run: it streams a first part, then waits in the working state with a pending card (the wait is on the server, so the phone may background meanwhile). Approve resumes and finishes the reply with its usage footer; Deny ends it with a short note; Stop or no answer within `approvals.timeout` (300 s by default) expires the card |
 | Model and reasoning | Synthetic provider catalogue; per-chat and default model, reasoning and fast mode persist; `synthetic-large` raises the cost-confirmation dialog; switching while a reply runs is refused, as in production |
 | Session actions | Status and context sheets, rename, export as a markdown file in the chat, undo (returns the text, greys the turn), new session and compress status lines |
@@ -204,7 +207,7 @@ pass.
 ## Test scope
 
 `test_backend.py` uses real aiohttp HTTP sockets (paths sent byte-for-byte, as
-OkHttp does), SQLite databases and P-256 request and approval keys. Its 45 unittest
+OkHttp does), SQLite databases and P-256 request and approval keys. Its 52 unittest
 cases cover:
 
 - enrollment, signatures, replay, tamper, restart persistence, storage failure
@@ -222,7 +225,10 @@ cases cover:
   approval-gated run: pause, backgrounding, approve, deny, stop, timeout, screen-lock
   rule;
 - one test per surface above, with the request shapes the app sends, the fields it
-  parses, persistence across calls and tenant isolation;
+  parses, persistence across calls and tenant isolation; group chats have one per route
+  group (list, detail, pages and files; idempotent sends and Bots in turn; the room-approve
+  proof; Run again, discard, stop, rename, create and delete; event stream summaries and
+  removals; a full sandbox; per-enrollment caps);
 - `test_every_play_reachable_api_answers`: calls every client API in order and
   fails on any status other than the expected one (a handler error turned into
   `400 invalid request` included) or a missing response field the app reads, then
@@ -232,13 +238,15 @@ cases cover:
 - `test_client_calls_are_all_served_with_their_methods`: lexes the Play build's
   Kotlin sources (`src/main`, `src/play`) and pins every string template that names
   an API path, including the session screen's `$base/...` calls. It then reads every
-  request call site (`Api.get/post/put/patch/delete/download/bytes/request/upload/pair`
+  request call site (`Api.get/post/put/patch/delete/download/bytes/request/upload/pair/buildPost`
   and `Wake.request`), resolving `path` variables from their assignments, and
   requires its method and template to match the listed calls both ways; each listed
   call resolves, with its HTTP method, to a sandbox handler. A planted method-only
   change (`Api.get("/v1/memory")` to `Api.delete`) must fail it;
-- `test_sandbox_copies_match_production`: the guard pattern, curated settings keys
-  and terminal keys equal the production source (parsed, never imported).
+- `test_sandbox_copies_match_production`: the guard pattern, curated settings keys,
+  terminal keys and the group chat action rules (exact parsing, the `room-approve` proof,
+  id patterns, limits and refusal reasons) equal the production source (parsed, never
+  imported).
 
 These are focused backend checks, **not** production security certification or
 Android UI tests.
