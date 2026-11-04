@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">שליטה בטלפון של Hermes</string>
+    <string name="phone_service_desc">מאפשרת לסוכן Hermes שלך לקרוא את המסך ולהקיש, להקליד ולהחליק בטלפון הזה. היא פועלת רק כשהשליטה מופעלת באפליקציה (אני, הטלפון הזה, שליטה).</string>
+
+    <string name="phone_control_notice_title">השליטה בטלפון פועלת</string>
+    <string name="phone_control_notice_text">הסוכן שלך יכול לקרוא ולהפעיל את הטלפון הזה כשהוא לא נעול.</string>
+    <string name="phone_control_stop">עצירת השליטה</string>
+
+    <string name="phone_control_accessibility_service">שירות נגישות</string>
+    <string name="phone_control_service_enabled">מופעל בהגדרות Android.</string>
+    <string name="phone_control_service_disabled">צריך להפעיל את השליטה בטלפון של %1$s בהגדרות הנגישות של Android.</string>
+    <string name="phone_control_allow">מתן שליטה לסוכן</string>
+    <string name="phone_control_allow_on">פועל. הסוכן יכול לקרוא, להקיש, להקליד, להחליק ולפתוח אפליקציות.</string>
+    <string name="phone_control_allow_off">כבוי. לא נשלחים תוכן מסך או פקודות.</string>
+    <string name="phone_control_enable_service_first">צריך להפעיל קודם את שירות הנגישות</string>
+    <string name="phone_control_server_unavailable">השליטה בטלפון עדיין לא זמינה בשרת</string>
+    <string name="phone_control_enable_channel">צריך להפעיל את ערוץ ההתראות \"ריצות פעילות וחיבור\", כדי ש\"עצירת השליטה\" תישאר נגישה</string>
+    <string name="phone_control_confirm_title">מתן שליטה בטלפון</string>
+    <string name="phone_control_activation_cancelled">ההפעלה בוטלה כי השליטה, הצימוד או הנגישות השתנו</string>
+    <string name="phone_control_not_armed">השרת לא הכין את הטלפון הזה לשליטה, או שהפעלה חדשה יותר החליפה את הזו</string>
+    <string name="phone_control_sideload_help">הגדרה ראשונה ל-APK שהותקן ידנית: ייתכן ש-Android יחסום את הנגישות. צריך לפתוח את הגדרות Android ← אפליקציות ← %1$s ← ⋮ ← התרת הגדרות מוגבלות, ואז להפעיל כאן את השירות. צריך לעשות את זה רק פעם אחת.</string>
+    <string name="phone_control_limits">השליטה פועלת רק כשהמסך דלוק ולא נעול. Android חוסם צילומי מסך של מסכים מוגנים. שדות סיסמה נשארים פרטיים. אפשר לכבות את השליטה כאן או מההתראה בכל רגע.</string>
+    <string name="phone_control_confirming">אישור בטביעת אצבע או PIN…</string>
+
+    <string name="channel_tab_control">שליטה</string>
+    <string name="channel_control_section">שליטה של הסוכן בטלפון</string>
+    <string name="channel_battery_title">אופטימיזציית סוללה</string>
+    <string name="channel_battery_body">בחלק מהטלפונים החיבור ברקע מתנתק. כדאי לאפשר ל-%1$s לפעול ללא הגבלה.</string>
+
+    <string name="channel_allow_unknown_apps">צריך לאפשר \"התקנת אפליקציות לא מוכרות\" עבור %1$s, ואז להקיש שוב על הקובץ</string>
+</resources>

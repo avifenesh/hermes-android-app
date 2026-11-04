@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">צי Herms</string>
+    <string name="channel_control_unavailable_title">לא זמין במהדורה הזו</string>
+    <string name="channel_control_unavailable_body">מהדורת Play הזו לא יכולה לקרוא אפליקציות אחרות או להפעיל אותן. פקודות מרחוק לא יכולות להפעיל את היכולת הזו.</string>
+    <string name="channel_background_title">קבלת עדכונים ברקע</string>
+    <string name="channel_background_body">אופטימיזציית הסוללה של Android נשארת פעילה. Push (אם הוגדר) וסנכרון תקופתי ממשיכים לפעול; קבלת עדכונים ברקע עלולה להתעכב.</string>
+
+    <string name="channel_apk_unavailable">התקנת קובצי APK מצורפים לא זמינה במהדורת Play הזו. עדיין אפשר לשמור את הקובץ בהורדות.</string>
+</resources>
