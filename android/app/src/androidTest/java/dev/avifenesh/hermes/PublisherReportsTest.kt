@@ -31,7 +31,9 @@ class PublisherReportsTest {
         PublisherReports.send(draft)
     }
 
-    private class Server(val reply: String?) : AutoCloseable {
+    /** Loopback HTTP/1.1 fixture. [replyFor] gets the listener port and the zero-based request index. */
+    private class Server(private val replyFor: (port: Int, index: Int) -> String?) : AutoCloseable {
+        constructor(reply: String?) : this({ _, _ -> reply })
         val listener = ServerSocket(0, 4, InetAddress.getByName("127.0.0.1"))
         val requests = CopyOnWriteArrayList<Pair<String, String>>()
         val connected = CountDownLatch(1)
@@ -57,6 +59,7 @@ class PublisherReportsTest {
                     }
                     requests.add(header.toString() to body.toString(Charsets.UTF_8))
                     connected.countDown()
+                    val reply = replyFor(listener.localPort, requests.size - 1)
                     if (reply != null) {
                         s.getOutputStream().apply { write(reply.toByteArray()); flush() }
                     } else while (input.read() != -1) { }
@@ -136,10 +139,16 @@ class PublisherReportsTest {
                 200 to "{\"received\":\"true\",\"id\":\"${draft.id}\"}",
                 202 to "{\"received\":false,\"id\":\"${draft.id}\"}",
                 202 to "{\"received\":true,\"id\":\"wrong\"}",
-                200 to "{}", 200 to "invalid", 200 to " ".repeat(4097)
+                200 to "{}", 200 to "invalid"
             )
             for ((code, ack) in bad) Server(response(code, ack)).use { server ->
                 try { send(client, server, draft); fail("Accepted $code / $ack") } catch (_: IOException) { }
+            }
+            // A valid, matching receipt that only the 4 KiB acknowledgement cap can reject.
+            val padded = "{\"received\":true,\"id\":\"${draft.id}\",\"pad\":\"" + "x".repeat(4096) + "\"}"
+            JSONObject(padded).also { assertEquals(true, it.get("received")); assertEquals(draft.id, it.get("id")) }
+            Server(response(200, padded)).use { server ->
+                try { send(client, server, draft); fail("Oversized acknowledgement accepted") } catch (_: IOException) { }
             }
         } finally { shutdown(client) }
     }
@@ -148,7 +157,12 @@ class PublisherReportsTest {
         val draft = PublisherReportDraft("unchanged")
         val client = PublisherReports.newClient()
         try {
-            Server(response(302, "", "Location: http://127.0.0.1:1/never\r\n")).use { server ->
+            // The redirect targets this same server, which would accept the follow-up: only a client that
+            // refuses redirects ends with one request and a failure.
+            Server { port, index ->
+                if (index == 0) response(302, "", "Location: http://127.0.0.1:$port/v1/reports\r\n")
+                else response(200, "{\"received\":true,\"id\":\"${draft.id}\"}")
+            }.use { server ->
                 try { send(client, server, draft); fail("Redirect accepted") } catch (_: IOException) { }
                 assertEquals(1, server.requests.size)
             }
