@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes-foonbeheer</string>
+    <string name="phone_service_desc">Laat jou Hermes-agent die skerm lees, en op hierdie foon tik, teks invoer en swiep. Dit tree net op terwyl Beheer in die program aan is (Ek, Hierdie foon, Beheer).</string>
+    <string name="phone_control_notice_title">Foonbeheer is aan</string>
+    <string name="phone_control_notice_text">Jou agent kan hierdie ontsluite foon lees en bedien.</string>
+    <string name="phone_control_stop">Stop beheer</string>
+    <string name="phone_control_accessibility_service">Toeganklikheidsdiens</string>
+    <string name="phone_control_service_enabled">In Android-instellings geaktiveer.</string>
+    <string name="phone_control_service_disabled">Aktiveer %1$s-foonbeheer in Android se Toeganklikheid-instellings.</string>
+    <string name="phone_control_allow">Laat agentbeheer toe</string>
+    <string name="phone_control_allow_on">Aan. Die agent kan lees, tik, teks invoer, swiep en programme oopmaak.</string>
+    <string name="phone_control_allow_off">Af. Geen skerminhoud of opdragte word gestuur nie.</string>
+    <string name="phone_control_enable_service_first">Aktiveer eers die Toeganklikheidsdiens</string>
+    <string name="phone_control_server_unavailable">Foonbeheer is nog nie op die bediener beskikbaar nie</string>
+    <string name="phone_control_enable_channel">Aktiveer die kennisgewingkanaal Lewendige uitvoerings &amp; verbinding sodat Stop beheer toeganklik bly</string>
+    <string name="phone_control_confirm_title">Laat foonbeheer toe</string>
+    <string name="phone_control_activation_cancelled">Aktivering gekanselleer omdat beheer, saambinding of Toeganklikheid verander het</string>
+    <string name="phone_control_not_armed">Bediener het hierdie foon nie gewapen nie, of die aktivering is vervang</string>
+    <string name="phone_control_sideload_help">Eerste opstelling vir \'n APK wat buite die winkel geïnstalleer is: Android kan Toeganklikheid blokkeer. Gaan na Android-instellings → Programme → %1$s → ⋮ → Laat beperkte instellings toe, en aktiveer dan die diens hier. Jy hoef dit net een keer te doen.</string>
+    <string name="phone_control_limits">Beheer werk net terwyl die skerm aan en ontsluit is. Android blokkeer skermkiekies van beskermde skerms. Wagwoordvelde bly privaat. Skakel beheer enige tyd hier of vanaf die kennisgewing af.</string>
+    <string name="phone_control_confirming">Bevestig met vingerafdruk of PIN…</string>
+    <string name="channel_tab_control">Beheer</string>
+    <string name="channel_control_section">Foonbeheer deur agent</string>
+    <string name="channel_battery_title">Batteryoptimering</string>
+    <string name="channel_battery_body">Sommige fone maak die agtergrondverbinding dood. Laat %1$s onbeperk loop.</string>
+    <string name="channel_allow_unknown_apps">Laat \"Installeer onbekende programme\" vir %1$s toe en tik dan weer op die lêer</string>
+</resources>

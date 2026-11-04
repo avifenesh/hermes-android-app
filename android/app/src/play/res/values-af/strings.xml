@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Herms-vloot</string>
+    <string name="channel_control_unavailable_title">Nie beskikbaar in hierdie uitgawe nie</string>
+    <string name="channel_control_unavailable_body">Hierdie Play-uitgawe kan nie ander programme lees of bedien nie. Afstandopdragte kan nie hierdie vermoë aktiveer nie.</string>
+    <string name="channel_background_title">Agtergrondaflewering</string>
+    <string name="channel_background_body">Android-batteryoptimering bly aan. Push (wanneer opgestel) en periodieke sinkronisering bly beskikbaar; agtergrondaflewering kan vertraag word.</string>
+    <string name="channel_apk_unavailable">Die installering van APK-aanhegsels is nie in hierdie Play-uitgawe beskikbaar nie. Jy kan steeds die lêer in Aflaaie stoor.</string>
+</resources>
