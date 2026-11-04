@@ -83,6 +83,9 @@ object Locales {
     /** Application.onConfigurationChanged hook: Android 13+ delivers a per-app or system language change here. */
     fun configurationChanged(app: Context, conf: Configuration) {
         val tags = conf.locales.toLanguageTags()
+        // Android 12: a system language change resets the process default; put the app's choice back first, so Talk
+        // (Locale.getDefault for recognition and local TTS) keeps following the app language. A no-op on 13+.
+        applyDefault(app)
         if (seen != null && tags != seen) relocalized(app)
         seen = tags
     }

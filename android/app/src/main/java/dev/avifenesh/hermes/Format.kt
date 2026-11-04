@@ -31,9 +31,12 @@ object Fmt {
 
     /** Time of day ("14:05" or "2:05 PM"). */
     fun time(ms: Long): String = date(ms, withTime(""))
-    /** A wall-clock time given as hour and minute (alarm times stored as "07:30"). */
-    fun time(hour: Int, minute: Int): String =
-        time(java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, hour); set(java.util.Calendar.MINUTE, minute) }.timeInMillis)
+    /** A wall-clock time given as hour and minute (alarm times stored as "07:30"). Formatted at a fixed UTC instant,
+     * not today's date in the phone's zone: on a daylight-saving gap day 02:30 would otherwise show as 03:30. */
+    fun time(hour: Int, minute: Int): String = locale().let { l ->
+        SimpleDateFormat(pattern(withTime(""), l), l).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            .format(Date((hour * 60L + minute) * 60_000L))
+    }
     fun weekday(ms: Long): String = date(ms, "EEE")
     fun dayMonth(ms: Long): String = date(ms, "dMMM")
     fun weekdayDayMonth(ms: Long): String = date(ms, "EEEdMMM")

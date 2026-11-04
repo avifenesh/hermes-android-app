@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,8 +47,11 @@ private fun LanguageRow() {
     val ctx = LocalContext.current
     val ui = LocalConfiguration.current.locales[0] ?: Locale.ROOT
     var open by rememberSaveable { mutableStateOf(false) }
-    val chosen = remember(ui) { Locales.current(ctx) }
-    val current = remember(ui) { Locales.currentOffered(ctx) }
+    // Re-read after every pick: on 13+ switching between System default and an explicit language with the same
+    // effective locale changes no configuration, so keying on the UI locale alone would keep a stale choice.
+    var picks by remember { mutableIntStateOf(0) }
+    val chosen = remember(ui, picks) { Locales.current(ctx) }
+    val current = remember(ui, picks) { Locales.currentOffered(ctx) }
     // A language set elsewhere that the app does not offer still shows by name, with no radio selected.
     val sub = (current ?: chosen)?.let { Locales.nativeName(it.substringBefore(',')) } ?: stringResource(R.string.language_system_default)
     SettingRow(stringResource(R.string.language_title), sub) {
@@ -56,6 +60,7 @@ private fun LanguageRow() {
     if (open) LanguageDialog(current, chosen == null, ui, onDismiss = { open = false }) { tag ->
         open = false
         if (tag != current || (tag == null) != (chosen == null)) Locales.set(ctx, tag)
+        picks++
     }
 }
 
