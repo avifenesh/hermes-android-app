@@ -55,7 +55,10 @@ DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "BatteryPollingActivity", "BatteryPollingProbe",
                  "WakeIsolationProbeActivity", "MachineStorageProbeActivity",
                  "DownloadIntegrityProbeActivity", "RedirectIsolationProbeActivity",
-                 "PublisherReportProbeActivity", "PublisherReportsTest", "PublisherReportFenceTest")
+                 "PublisherReportProbeActivity", "PublisherReportsTest", "PublisherReportFenceTest",
+                 "VoiceProbeActivity")
+# Debug-only fixture payload (the voice probe's bundled clip) lives under this asset folder.
+DEBUG_ASSET_DIR = "assets/probe/"
 
 
 def require(ok: bool, message: str) -> None:
@@ -85,6 +88,8 @@ def source_check(root: Path = ROOT) -> dict:
         for p in (src / source_set / "res").rglob("*"):
             if p.is_file() and p.suffix == ".xml":
                 require("phone_service" not in p.read_text(), f"full-only resource in Play: {p}")
+    for source_set in ("main", "full", "play", "release", "fullRelease", "playRelease"):
+        require(not (src / source_set / DEBUG_ASSET_DIR).exists(), f"debug fixture assets outside debug: {source_set}")
     for name in ("PhoneService.kt", "PhoneControl.kt"):
         require((src / "full/java/dev/avifenesh/hermes" / name).is_file(), f"full implementation lost: {name}")
     require((src / "full/res/xml/phone_service.xml").is_file(), "full service resource lost")
@@ -182,6 +187,11 @@ def dex_check(strings: set[str], classes: set[str], flavor: str, debug: bool = F
         require(not any(has(n) for n in DEBUG_CLASSES), "debug fixture in release DEX")
 
 
+def payload_check(names: list[str], debug: bool = False) -> None:
+    if not debug:
+        require(not any(n.startswith(DEBUG_ASSET_DIR) for n in names), "debug fixture asset in release")
+
+
 def sdk_tool(name: str) -> str:
     if found := shutil.which(name):
         return found
@@ -199,6 +209,7 @@ def artifact_check(apk: Path, flavor: str, cert: str | None, debug: bool) -> dic
     with zipfile.ZipFile(apk) as archive:
         dex = [n for n in archive.namelist() if re.fullmatch(r"classes(?:\d+)?\.dex", n)]
         require(bool(dex), "APK contains no DEX")
+        payload_check(archive.namelist(), debug)
         for name in dex:
             s, c = dex_tables(archive.read(name)); strings.update(s); classes.update(c)
         # AAPT2 shortens ZIP resource paths (for example res/wA.xml). Inspect

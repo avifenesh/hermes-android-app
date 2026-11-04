@@ -32,6 +32,20 @@ class DistributionGuardTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     check.manifest_check(xml, 'play')
 
+    def test_voice_probe_never_ships(self):
+        for flavor in ("full", "play"):
+            with self.subTest(flavor=flavor):
+                check.manifest_check(manifest(flavor), flavor)
+                xml = manifest(flavor).replace('</application>', '<activity android:name="dev.avifenesh.hermes.VoiceProbeActivity" /></application>')
+                with self.assertRaises(ValueError):
+                    check.manifest_check(xml, flavor)
+        with self.assertRaises(ValueError):
+            check.dex_check(set(), {f"Ldev/avifenesh/hermes/{n};" for n in check.FULL_CLASSES} | {"Ldev/avifenesh/hermes/VoiceProbeActivity;"}, "full")
+        with self.assertRaises(ValueError):
+            check.payload_check(["classes.dex", "assets/probe/voice-fixture.ogg"])
+        check.payload_check(["classes.dex", "assets/probe/voice-fixture.ogg"], debug=True)
+        check.payload_check(["classes.dex", "assets/legal/NOTICE.txt"])
+
     def test_current_source_boundary(self):
         self.assertEqual(check.source_check()["source"], "PASS")
 
