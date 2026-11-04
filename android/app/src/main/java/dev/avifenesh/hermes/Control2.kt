@@ -241,12 +241,14 @@ fun UsageScreen() {
                     DayBars(o.optJSONArray("series").objs())
                 }
                 val models = o.optJSONArray("models").objs()
+                // Same family on several providers/regions ("global." vs "us." vs direct) must not read as one row.
+                val labels = labelsFor(models.map { it.str("model") })
                 val top = models.maxOfOrNull { it.optDouble("cost", 0.0) }?.coerceAtLeast(0.0001) ?: 1.0
                 item { Section("By model", models.size.toString()) }
                 items(models) { m ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(shortModel(m.str("model")), style = mono(13.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Text(labels[m.str("model")] ?: shortModel(m.str("model")), style = mono(13.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             Text(when { m.optBoolean("included") && m.optDouble("cost", 0.0) == 0.0 -> "included"; m.optInt("unpriced") >= m.optInt("sessions") && m.optDouble("cost", 0.0) == 0.0 -> "n/a"; else -> money(m.optDouble("cost", 0.0)) }, style = mono(13f, 600, p.tx2))
                         }
                         Spacer(Modifier.height(5.dp))
@@ -346,6 +348,7 @@ fun MemoryEditor(target: String, entry: String?, onDone: () -> Unit) {
 fun CronEditScreen(id: String?) {
     val p = P
     val co = rememberCoroutineScope()
+    val label = modelLabeler()
     var loaded by rememberSaveable(id) { mutableStateOf(id == null) }
     var name by rememberSaveable(id) { mutableStateOf("") }
     var schedule by rememberSaveable(id) { mutableStateOf("") }
@@ -409,7 +412,7 @@ fun CronEditScreen(id: String?) {
             }
             Field("Model", "Blank follows your default model, also when you change it later.") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SettingPick(model.str("model").ifBlank { "Default" }.let { if (it == "Default") it else shortModel(it) }, Modifier.weight(1f)) { pickModel = true }
+                    SettingPick(model.str("model").ifBlank { "Default" }.let { if (it == "Default") it else label(it) }, Modifier.weight(1f)) { pickModel = true }
                     if (model.str("model").isNotBlank()) { Spacer(Modifier.width(8.dp)); Btn("Clear", primary = false) { model = JSONObject() } }
                 }
                 Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

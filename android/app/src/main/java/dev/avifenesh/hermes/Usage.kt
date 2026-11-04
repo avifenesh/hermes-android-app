@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,49 @@ fun shortModel(m: String): String {
     return s
 }
 
+/** Provider/region segments in front of the part [shortModel] keeps: "global.anthropic.claude-x" -> [global, anthropic]. */
+private fun modelPrefix(m: String): List<String> {
+    val rest = m.substringAfterLast('/')
+    val dot = rest.substringAfterLast('.', rest)
+    val tail = if (dot.firstOrNull()?.isDigit() == true || dot.length < 4) rest else dot
+    return (m.substringBeforeLast('/', "").split('/') + rest.removeSuffix(tail).split('.')).filter { it.isNotBlank() }
+}
+
+/**
+ * A label per model id that is unique within [ids]: the [shortModel] label when no other id shares it, else the
+ * shortest qualifier that tells them apart ("opus 5.5 (global)", "opus 5.5 (us)", "opus 5.5" for the bare id),
+ * else the full id (dated variants).
+ */
+fun labelsFor(ids: Collection<String>): Map<String, String> {
+    val all = ids.filter { it.isNotBlank() }.distinct()
+    val out = LinkedHashMap<String, String>()
+    for ((short, group) in all.groupBy(::shortModel)) {
+        if (group.size == 1) { out[group[0]] = short; continue }
+        val pre = group.associateWith(::modelPrefix)
+        val shared = pre.values.filter { it.isNotEmpty() }.map { it.toSet() }.reduceOrNull { a, b -> a intersect b }.orEmpty()
+        fun qualify(q: (List<String>) -> List<String>) = group.associateWith { id ->
+            q(pre.getValue(id)).joinToString(".").let { if (it.isEmpty()) short else "$short ($it)" }
+        }
+        // Fewest collisions wins, shortest form first; whatever still collides shows its full id.
+        val tries = listOf(qualify { it.filter { s -> s !in shared } }, qualify { it.take(1) }, qualify { it })
+        val best = tries.minBy { t -> t.values.groupingBy { it }.eachCount().values.filter { it > 1 }.sum() }
+        val counts = best.values.groupingBy { it }.eachCount()
+        for (id in group) out[id] = best.getValue(id).takeIf { counts.getValue(it) == 1 } ?: id
+    }
+    val taken = out.values.groupingBy { it }.eachCount()
+    return out.mapValues { (id, label) -> if (taken.getValue(label) > 1) id else label }
+}
+
+/** [id]'s label among the machine's known models (/v1/me `models`): short unless another known id reads the same. */
+fun modelLabel(id: String, known: Collection<String>): String = if (id.isBlank()) "" else labelsFor(known + id).getValue(id)
+
+/** [modelLabel] against the active machine's recent models; recomputed when /v1/me changes (machine switch). */
+@Composable
+fun modelLabeler(): (String) -> String {
+    val known = Hub.meta.collectAsState().value.optJSONArray("models").strs()
+    return remember(known) { { id: String -> modelLabel(id, known) } }
+}
+
 private fun JSONObject.dbl(k: String): Double? = if (has(k) && !isNull(k)) optDouble(k).takeIf { !it.isNaN() } else null
 private fun JSONObject.lng(k: String): Long = if (has(k) && !isNull(k)) optLong(k, 0) else 0
 
@@ -56,8 +100,8 @@ fun costStr(u: JSONObject): String? = when {
 }
 
 /** One-line digest: "opus-5.5 · 92.5k in · 1.0k out · 90% cache · 53 tok/s · $0.12". */
-fun usageLine(u: JSONObject, withModel: Boolean = true): String = buildList {
-    if (withModel) shortModel(u.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
+fun usageLine(u: JSONObject, withModel: Boolean = true, label: (String) -> String = ::shortModel): String = buildList {
+    if (withModel) label(u.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
     costStr(u)?.let { add(it) }
     val prompt = u.lng("prompt_tokens").takeIf { it > 0 } ?: (u.lng("input_tokens") + u.lng("cache_read_tokens") + u.lng("cache_write_tokens"))
     if (prompt > 0) add("${tok(prompt)} in")
@@ -72,14 +116,15 @@ fun usageLine(u: JSONObject, withModel: Boolean = true): String = buildList {
 fun UsageFooter(u: JSONObject, ts: Double) {
     val p = P
     var open by remember { mutableStateOf(false) }
+    val label = modelLabeler()
     Column(Modifier.padding(horizontal = 8.dp, vertical = 2.dp).clip(RoundedCornerShape(8.dp)).clickable { open = !open }.padding(vertical = 2.dp)) {
         // Collapsed: time and cost only. Tokens, cache and speed live behind the tap.
-        Text(if (open) clock(ts) + " · " + usageLine(u) else listOfNotNull(clock(ts), costStr(u), shortModel(u.str("model")).takeIf { it.isNotBlank() }).joinToString(" · "),
+        Text(if (open) clock(ts) + " · " + usageLine(u, label = label) else listOfNotNull(clock(ts), costStr(u), label(u.str("model")).takeIf { it.isNotBlank() }).joinToString(" · "),
             style = mono(10.5f, 500, p.dim), maxLines = if (open) 3 else 1, overflow = TextOverflow.Ellipsis)
         if (open) {
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                shortModel(u.str("model")).takeIf { it.isNotBlank() }?.let { Chip(it) }
+                label(u.str("model")).takeIf { it.isNotBlank() }?.let { Chip(it) }
                 Chip("in ${tok(u.lng("input_tokens"))}")
                 Chip("cache read ${tok(u.lng("cache_read_tokens"))}")
                 if (u.lng("cache_write_tokens") > 0) Chip("cache write ${tok(u.lng("cache_write_tokens"))}")
@@ -121,7 +166,7 @@ fun ContextBar(u: JSONObject, modifier: Modifier = Modifier) {
 @Composable
 fun RunUsage(turn: JSONObject?, sess: JSONObject?, host: String) {
     val p = P
-    val model = shortModel(turn?.str("model")?.ifBlank { null } ?: sess?.str("model") ?: "")
+    val model = modelLabeler()(turn?.str("model")?.ifBlank { null } ?: sess?.str("model") ?: "")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (model.isNotBlank()) Chip(model)
         sess?.let { s -> Chip("${tok(s.lng("prompt_tokens") + s.lng("output_tokens"))} tok") }
@@ -160,10 +205,10 @@ fun RunUsage(turn: JSONObject?, sess: JSONObject?, host: String) {
 }
 
 /** Chat header subtitle per the design: "opus-5.5 · 48.2k tok · $0.61". */
-fun headerLine(sess: JSONObject?, turn: JSONObject?): String? {
-    val s = sess ?: return turn?.let { usageLine(it) }?.ifBlank { null }
+fun headerLine(sess: JSONObject?, turn: JSONObject?, label: (String) -> String = ::shortModel): String? {
+    val s = sess ?: return turn?.let { usageLine(it, label = label) }?.ifBlank { null }
     return buildList {
-        shortModel(turn?.str("model")?.ifBlank { null } ?: s.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
+        label(turn?.str("model")?.ifBlank { null } ?: s.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
         val t = s.lng("prompt_tokens") + s.lng("output_tokens")
         if (t > 0) add("${tok(t)} tok")
         costStr(s)?.let { add(it) }

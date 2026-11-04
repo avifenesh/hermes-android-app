@@ -371,11 +371,12 @@ fun ChatScreen(cid: String) {
         val use = Hub.usage.collectAsState().value[cid]
     val live = use?.optJSONObject("turn")?.takeIf { running && it.optDouble("updated", 0.0) >= (since ?: 0.0) - 1 }
     LaunchedEffect(cid, msgs.size, running) { runCatching { Hub.loadUsage(cid) }; if (!running) runCatching { Ctl.loadChat(cid) } }
+    val label = modelLabeler()
     val sub = when {
         // While working: model and cost only. The full token line is one tap away in the run screen.
-        running -> "working" + (live?.let { l -> listOfNotNull(shortModel(l.str("model")).takeIf { it.isNotBlank() }, costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
+        running -> "working" + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }, costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
         chat?.kind == "digest" -> "digest"
-        else -> headerLine(use?.optJSONObject("session"), use?.optJSONObject("turn"))
+        else -> headerLine(use?.optJSONObject("session"), use?.optJSONObject("turn"), label)
     }
     TopBar(chat?.title ?: "Chat", sub, if (running) p.acct else p.mu) {
             if (running) {

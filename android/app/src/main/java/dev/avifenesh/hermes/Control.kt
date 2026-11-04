@@ -56,12 +56,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-/** Model / reasoning / fast per chat, plus the app's own restart flags for old servers. */
+/** Model / reasoning / fast per chat for the active machine, plus the app's own restart flags for old servers. */
 object Ctl {
     val models = MutableStateFlow<JSONObject?>(null)
     val loadingModels = MutableStateFlow(false)
@@ -70,29 +72,34 @@ object Ctl {
      *  no `restart` state (older plugins); a current server's own state wins. */
     val restartFlagged = MutableStateFlow<Set<String>>(emptySet())
 
+    /** Machine caches publish only for the machine they were fetched from (a switch resets them meanwhile). */
+    private suspend fun <T> scoped(fetch: suspend () -> T, publish: (T) -> Unit): T {
+        val ticket = Api.epoch.capture()
+        val o = fetch()
+        currentCoroutineContext().ensureActive()
+        Api.epoch.commit(ticket) { publish(o) }
+        return o
+    }
+
+    /** Hub.reset(): the next machine has its own providers, models and chat states. */
+    fun reset() { models.value = null; chat.value = emptyMap(); loadingModels.value = false }
+
     suspend fun loadModels(refresh: Boolean = false) {
         if (!refresh && models.value != null) return
         loadingModels.value = true
-        try { models.value = Api.get("/v1/models" + if (refresh) "?refresh=1" else "") } finally { loadingModels.value = false }
+        try { scoped({ Api.get("/v1/models" + if (refresh) "?refresh=1" else "") }) { models.value = it } } finally { loadingModels.value = false }
     }
 
-    suspend fun loadChat(cid: String): JSONObject {
-        val o = Api.get("/v1/chats/${Uri.encode(cid)}/model")
-        chat.update { it + (cid to o) }
-        return o
-    }
+    suspend fun loadChat(cid: String): JSONObject =
+        scoped({ Api.get("/v1/chats/${Uri.encode(cid)}/model") }) { o -> chat.update { it + (cid to o) } }
 
-    suspend fun apply(cid: String, body: JSONObject): JSONObject {
-        val o = Api.post("/v1/chats/${Uri.encode(cid)}/model", body)
-        o.optJSONObject("state")?.let { s -> chat.update { it + (cid to s) } }
-        return o
-    }
+    suspend fun apply(cid: String, body: JSONObject): JSONObject =
+        scoped({ Api.post("/v1/chats/${Uri.encode(cid)}/model", body) }) { o -> o.optJSONObject("state")?.let { s -> chat.update { it + (cid to s) } } }
 
-    suspend fun confirm(cid: String, id: String, choice: String): JSONObject {
-        val o = Api.post("/v1/chats/${Uri.encode(cid)}/confirm", JSONObject().put("id", id).put("choice", choice))
-        o.optJSONObject("state")?.let { s -> chat.update { it + (cid to s) } }
-        return o
-    }
+    suspend fun confirm(cid: String, id: String, choice: String): JSONObject =
+        scoped({ Api.post("/v1/chats/${Uri.encode(cid)}/confirm", JSONObject().put("id", id).put("choice", choice)) }) { o ->
+            o.optJSONObject("state")?.let { s -> chat.update { it + (cid to s) } }
+        }
 
     /** A restart-flagged change succeeded on the active machine: flag it for old servers, re-read the server's state. */
     fun restartChanged() {
@@ -117,11 +124,12 @@ object Ctl {
 @Composable
 fun ModelChip(model: String, reasoning: String, fast: Boolean, changed: Boolean = false, busy: Boolean = false, onClick: () -> Unit) {
     val p = P
+    val label = modelLabeler()
     Row(Modifier.clip(RoundedCornerShape(14.dp)).background(if (changed) p.accd else p.s2).border(1.dp, if (changed) p.acct.copy(alpha = 0.5f) else p.line, RoundedCornerShape(14.dp))
         .clickable(enabled = !busy, onClick = onClick).padding(start = 9.dp, end = 7.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (busy) LiveDot(8.dp) else Icn(Ic.cpu, p.acct, 14.dp)
         Spacer(Modifier.width(6.dp))
-        Text(shortModel(model).ifBlank { "model" }, style = mono(12.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
+        Text(label(model).ifBlank { "model" }, style = mono(12.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
         if (reasoning.isNotBlank()) Text(" · $reasoning", style = mono(12.5f, 500, p.mu), maxLines = 1)
         if (fast) { Spacer(Modifier.width(4.dp)); Icn(Ic.zap, p.att, 13.dp) }
         Spacer(Modifier.width(2.dp))
@@ -247,7 +255,7 @@ fun ModelRow(model: String, provider: String?, selected: Boolean, caps: JSONObje
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).background(if (selected) p.accd else androidx.compose.ui.graphics.Color.Transparent)
         .padding(start = 32.dp, end = 18.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(model, style = mono(13.5f, if (selected) 600 else 500, if (selected) p.acct else p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(model, style = mono(13.5f, if (selected) 600 else 500, if (selected) p.acct else p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (provider != null) Text(provider, style = sans(12f, 400, p.mu), maxLines = 1)
         }
         if (caps?.optBoolean("fast") == true) { Spacer(Modifier.width(6.dp)); Icn(Ic.zap, p.mu, 13.dp) }
@@ -261,6 +269,7 @@ fun ChatModelControl(cid: String) {
     val p = P
     val st = Ctl.chat.collectAsState().value[cid]
     val meta by Hub.meta.collectAsState()
+    val label = modelLabeler()
     val co = rememberCoroutineScope()
     var open by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -291,7 +300,7 @@ fun ChatModelControl(cid: String) {
         }
     }
     if (open) ModelSheet("Model", st ?: JSONObject().put("model", model), true, true, scope, { scope = it },
-        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), "Switched to ${shortModel(m)}") },
+        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), "Switched to ${label(m)}") },
         onReasoning = { e -> run(JSONObject().put("reasoning", e), "Reasoning: $e") },
         onFast = { f -> run(JSONObject().put("fast", f), if (f) "Fast mode on" else "Fast mode off") },
         onDismiss = { open = false })
@@ -414,12 +423,12 @@ fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose
 }
 
 // ---------------------------------------------------------------- settings
-private fun shown(f: JSONObject, v: Any?): String {
+private fun shown(f: JSONObject, v: Any?, label: (String) -> String): String {
     val key = f.str("key")
     return when {
         v == null || v == JSONObject.NULL || v.toString().isEmpty() -> "default"
         v == false && key.endsWith("reasoning_effort") -> "none"
-        key == "model.default" -> shortModel(v.toString())
+        key == "model.default" -> label(v.toString())
         else -> v.toString() + f.str("unit").let { if (it.isNotBlank()) " $it" else "" }
     }
 }
@@ -469,7 +478,7 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
             "bool" -> Toggle(v == true, { save(it) }, enabled = !busy)
             else -> Row(verticalAlignment = Alignment.CenterVertically) {
                 if (busy) { LiveDot(8.dp); Spacer(Modifier.width(6.dp)) }
-                Text(shown(f, v), style = mono(13f, 500, if (v == null) p.mu else p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
+                Text(shown(f, v, modelLabeler()), style = mono(13f, 500, if (v == null) p.mu else p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
                 Icn(Ic.chevR, p.mu, 16.dp)
             }
         }
