@@ -29,6 +29,10 @@ import org.json.JSONObject
 data class Chat(val id: String, val title: String, val kind: String, val updated: Double, val unread: Int,
                 val pinned: Boolean, val archived: Boolean, val preview: String, val lastRole: String, val profile: String = "",
                 val readonly: String = "")
+/** The chat menu's session commands (new, undo, compress, rename, export, context, status) apply here. Not in a digest,
+ *  and not in a read-only mirror: they would run in a private session for it, and the server refuses them. */
+fun Chat.takesSessionCommands(): Boolean = kind != "digest" && readonly.isBlank()
+
 /** The line shown instead of the composer in a read-only chat ("surface:chat type" from the server), else null. */
 fun readOnlyNotice(readonly: String): String? {
     val r = readonly.trim()

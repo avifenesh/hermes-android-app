@@ -889,10 +889,16 @@ class MobileAdapter(BasePlatformAdapter):
         return msg
 
     async def h_stop(self, request):
-        await self.stop_chat(request.match_info["cid"])
+        cid = request.match_info["cid"]
+        try:
+            await self.stop_chat(cid)
+        except ReadOnlyChat as e:
+            return self._json({"ok": False, "error": str(e), "readonly": self.readonly_chat(cid)}, 409)
         return self._json({"ok": True})
 
     async def stop_chat(self, cid: str) -> None:
+        if ro := self.readonly_chat(cid):
+            raise ReadOnlyChat(self.readonly_error(ro))  # /stop would run in a private session for this chat id
         if await self._profiles.stop(cid):
             return
         chat = self.store.get_chat(cid) or {}

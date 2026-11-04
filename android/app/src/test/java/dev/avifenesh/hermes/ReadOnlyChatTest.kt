@@ -23,4 +23,13 @@ class ReadOnlyChatTest {
         assertNull(readOnlyNotice(""))
         assertNull(readOnlyNotice("   "))
     }
+
+    @Test fun readOnlyChatsOfferNoSessionCommands() {
+        // New session, Undo, Compress, Rename would run in a private session (and post into the mirror); the server
+        // refuses them and the reads, so the menu is not offered at all.
+        fun chat(kind: String = "chat", readonly: String = "") = Chat("h-1", "Team", kind, 0.0, 0, false, false, "", "", readonly = readonly)
+        assertEquals(true, chat().takesSessionCommands())
+        assertEquals(false, chat(readonly = "telegram:group").takesSessionCommands())
+        assertEquals(false, chat(kind = "digest").takesSessionCommands())
+    }
 }

@@ -386,7 +386,7 @@ fun ChatScreen(cid: String) {
                 }
                 Spacer(Modifier.width(6.dp))
             } else IconBtn(Ic.tool, p.tx2) { Ui.push(Route.RunR(cid)) }
-            if (chat?.kind != "digest") ChatMenu(cid, running) { t -> text = t }
+            if (chat?.takesSessionCommands() ?: true) ChatMenu(cid, running) { t -> text = t }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {

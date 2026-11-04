@@ -307,6 +307,10 @@ def routes(r, ctl, j) -> None:
         posted into the chat as a status line, so the timeline shows where a session was reset, undone or compressed.
         /retry is not here: it re-runs a turn, so the app sends it as a normal message."""
         cid = request.match_info["cid"]
+        # A read-only group mirror has no session of its own here: every one of these would run in a private session
+        # for this chat id (/new, /undo, /compress and /title change it; /status, /context and /save describe it).
+        if ro := ctl.ad.readonly_chat(cid):
+            return j({"ok": False, "error": ctl.ad.readonly_error(ro), "readonly": ro}, 409)
         body = await request.json()
         action = str(body.get("action") or "")
         if action not in SESSION_CMDS:

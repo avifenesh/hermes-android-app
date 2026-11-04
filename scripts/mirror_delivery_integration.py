@@ -47,6 +47,8 @@ from gateway.platforms.webhook import WebhookAdapter  # noqa: E402
 from hermes_state import SessionDB  # noqa: E402
 from mobile import adapter as AD  # noqa: E402
 from mobile import control as C  # noqa: E402
+from mobile import control2 as C2  # noqa: E402
+from mobile import fleet as FL  # noqa: E402
 from mobile import mirror as MR  # noqa: E402
 from mobile import store as S  # noqa: E402
 
@@ -236,7 +238,8 @@ class ReadOnlySends(Fixture, unittest.IsolatedAsyncioTestCase):
         self.ad.store = self.store
         self.ad._mirror = self.mirror
         self.ad._working = {}
-        self.ad._profiles = SimpleNamespace(profile_of=lambda cid: "", busy=lambda cid: False, send=AsyncMock())
+        self.ad._profiles = SimpleNamespace(profile_of=lambda cid: "", busy=lambda cid: False, send=AsyncMock(),
+                                            stop=AsyncMock(return_value=False))
         self.ad._emit_msg = lambda *a, **kw: None
         self.ad.build_source = lambda **kw: SimpleNamespace(platform="mobile", **kw)
         self.ad.handle_message = AsyncMock()
@@ -249,7 +252,11 @@ class ReadOnlySends(Fixture, unittest.IsolatedAsyncioTestCase):
 
         app = web.Application(middlewares=[as_device])
         app.router.add_post("/v1/chats/{cid}/messages", self.ad.h_post_message)
-        C.routes(app.router, C.Control(self.ad), self.ad._json)
+        app.router.add_post("/v1/chats/{cid}/stop", self.ad.h_stop)
+        ctl = C.Control(self.ad)
+        C.routes(app.router, ctl, self.ad._json)
+        C2.routes(app.router, ctl, self.ad._json)
+        FL.routes(app.router, FL.Fleet(self.ad), self.ad._json)
         self.client = TestClient(TestServer(app))
         await self.client.start_server()
 
@@ -264,7 +271,14 @@ class ReadOnlySends(Fixture, unittest.IsolatedAsyncioTestCase):
         for path, body in ((f"/v1/chats/{cid}/messages", {"text": "On my way"}),
                            (f"/v1/chats/{cid}/messages", {"text": "faster", "mode": "steer"}),
                            (f"/v1/chats/{cid}/model", {"model": "claude-opus-5-5"}),
-                           (f"/v1/chats/{cid}/confirm", {"id": "x", "choice": "once"})):
+                           (f"/v1/chats/{cid}/confirm", {"id": "x", "choice": "once"}),
+                           # Session commands would run in a private session of their own: /new, /undo, /compress
+                           # and /title change it, and even the reads describe that session, not the group's.
+                           *((f"/v1/chats/{cid}/session", {"action": a, "arg": "x" if a == "title" else ""})
+                             for a in ("new", "undo", "compress", "title", "save", "status", "context")),
+                           (f"/v1/chats/{cid}/stop", {}),
+                           (f"/v1/fleet/hm:{cid}/send", {"text": "steer it"}),
+                           (f"/v1/fleet/hm:{cid}/stop", {})):
             with self.subTest(path=path, body=body):
                 async with self.client.post(path, json=body) as r:
                     data = await r.json()

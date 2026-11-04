@@ -354,8 +354,12 @@ class Fleet:
         if not text:
             return {"ok": False, "error": "empty"}
         if aid.startswith("hm:"):
+            from .adapter import ReadOnlyChat
             cid = aid[3:]
-            msg = await self.ad.post_from_app(cid, text, "steer")
+            try:
+                msg = await self.ad.post_from_app(cid, text, "steer")
+            except ReadOnlyChat as e:
+                return {"ok": False, "error": str(e)}  # 409: a group conversation mirrored read-only
             return {"ok": msg is not None, "line": "steered"}
         a = await self.find(aid)
         if not a:
@@ -395,7 +399,11 @@ class Fleet:
 
     async def interrupt(self, aid: str) -> Dict[str, Any]:
         if aid.startswith("hm:"):
-            await self.ad.stop_chat(aid[3:])
+            from .adapter import ReadOnlyChat
+            try:
+                await self.ad.stop_chat(aid[3:])
+            except ReadOnlyChat as e:
+                return {"ok": False, "error": str(e)}
             return {"ok": True}
         a = await self.find(aid)
         if a and a.get("host"):
