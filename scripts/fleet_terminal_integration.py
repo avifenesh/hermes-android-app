@@ -2,14 +2,23 @@
 Run: ~/.hermes/hermes-agent/venv/bin/python scripts/fleet_terminal_integration.py
 No production sessions, gateways, credentials or desktop input are touched.
 """
+import atexit
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
+from types import SimpleNamespace
 
 SCRATCH = Path.home() / '.hermes/cache/scratch'
 SCRATCH.mkdir(parents=True, exist_ok=True)
-HOME = tempfile.TemporaryDirectory(prefix='fleet-terminal-', dir=SCRATCH)
+# hermes_bootstrap may re-exec this script under the managed runtime (os.execv), which skips exit handlers. The
+# re-run adopts the isolated home its first run made instead of orphaning it; either run removes it at exit.
+_prior = Path(os.environ.get("HERMES_HOME") or SCRATCH)
+_home = (str(_prior) if _prior.parent == SCRATCH and _prior.name.startswith('fleet-terminal-') and _prior.is_dir()
+         else tempfile.mkdtemp(prefix='fleet-terminal-', dir=SCRATCH))
+atexit.register(shutil.rmtree, _home, ignore_errors=True)
+HOME = SimpleNamespace(name=_home, cleanup=lambda: shutil.rmtree(_home, ignore_errors=True))
 os.environ['HERMES_HOME'] = HOME.name
 assert Path(HOME.name).resolve() != (Path.home() / '.hermes').resolve()
 sys.path.insert(0, str(Path.home() / '.hermes/hermes-agent'))
@@ -20,11 +29,9 @@ import asyncio
 import base64
 import hashlib
 import json
-import shutil
 import subprocess
 import time
 import unittest
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer

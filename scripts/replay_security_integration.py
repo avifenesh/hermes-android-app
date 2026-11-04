@@ -4,14 +4,23 @@ Run: ~/.hermes/hermes-agent/venv/bin/python scripts/replay_security_integration.
 The harness force-isolates Hermes BEFORE bootstrap or any application import.
 No gateway, real credentials, production requests, or live state are used.
 """
+import atexit
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
+from types import SimpleNamespace
 
 SCRATCH = Path.home() / ".hermes/cache/scratch"
 SCRATCH.mkdir(parents=True, exist_ok=True)
-_HOME = tempfile.TemporaryDirectory(prefix="mobile-replay-", dir=SCRATCH)
+# hermes_bootstrap may re-exec this script under the managed runtime (os.execv), which skips exit handlers. The
+# re-run adopts the isolated home its first run made instead of orphaning it; either run removes it at exit.
+_prior = Path(os.environ.get("HERMES_HOME") or SCRATCH)
+_home = (str(_prior) if _prior.parent == SCRATCH and _prior.name.startswith('mobile-replay-') and _prior.is_dir()
+         else tempfile.mkdtemp(prefix='mobile-replay-', dir=SCRATCH))
+atexit.register(shutil.rmtree, _home, ignore_errors=True)
+_HOME = SimpleNamespace(name=_home, cleanup=lambda: shutil.rmtree(_home, ignore_errors=True))
 os.environ["HERMES_HOME"] = _HOME.name
 assert Path(os.environ["HERMES_HOME"]).resolve() != (Path.home() / ".hermes").resolve()
 sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
