@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path.home() / ".hermes/hermes-agent"))
 import hermes_bootstrap  # noqa: E402,F401
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
+import asyncio  # noqa: E402
 import base64  # noqa: E402
 import json  # noqa: E402
 import logging  # noqa: E402
@@ -88,6 +89,7 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         app = web.Application(middlewares=[auth])
         app.router.add_post("/v1/pair", self.ad.h_pair)
         app.router.add_get("/v1/ping", ping)
+        app.router.add_post("/v1/ping", ping)
         self.client = TestClient(TestServer(app))
         await self.client.start_server()
 
@@ -217,6 +219,43 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         status, body, _ = await self.pair(code, phone, signer=phone.key)
         self.assertEqual(status, 403, body)
         self.assertEqual(await self.ping(first["token"], phone), 200, "the token in use keeps working")
+
+    async def test_a_stale_request_cannot_burn_the_reissued_token(self):
+        # A request with the first token is past the token lookup and still inside `await request.read()` (its body
+        # is slow) when a retry rotates the token. It must not mark the replacement used: if the replacement's
+        # response was lost too, the phone could never recover. The middleware rechecks the token it verified.
+        phone = Phone()
+        code = self.ad.store.create_pair_code()
+        status, first, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200)
+        body = b'{"later":true}'
+        ts = str(int(time.time()))
+        gate = asyncio.Event()
+
+        async def slow_body():
+            yield body[:9]  # headers and the first chunk go out now: the server looks the token up and waits
+            await gate.wait()
+            yield body[9:]
+
+        headers = {"Authorization": "Bearer " + first["token"], "X-HM-Ts": ts, "Content-Type": "application/json",
+                   "X-HM-Sig": sign(phone.key, SG.canonical("POST", "/v1/ping", ts, body))}
+
+        async def stale():
+            async with self.client.post("/v1/ping", data=slow_body(), headers=headers) as r:
+                await r.read()
+                return r.status
+
+        task = asyncio.create_task(stale())
+        for _ in range(100):  # the handler has looked the token up and is waiting for the body
+            await asyncio.sleep(0.01)
+        status, second, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200, "the first token never authenticated: the retry may rotate it")
+        gate.set()
+        self.assertEqual(await task, 401, "rotation won: the stale request's token is gone")
+        # The replacement response was lost as well: the phone retries once more, and can.
+        status, third, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200, third)
+        self.assertEqual(await self.ping(third["token"], phone), 200)
 
     async def test_retry_relayed_by_another_server_is_refused(self):
         # A server the phone was tricked into pairing with forwards the phone's signed retry here. The signed body

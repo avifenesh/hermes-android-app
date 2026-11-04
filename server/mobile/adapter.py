@@ -589,8 +589,10 @@ class MobileAdapter(BasePlatformAdapter):
         if not self._replay.fresh(sig, pub=dev.get("pub"), msg=msg, ts=ts, scope="request", store=self.store):
             logger.warning("[mobile] rejected unsigned/invalid request %s %s from %s", request.method, request.path, dev["id"])
             return web.json_response({"error": "bad signature"}, status=401)
-        if not dev.get("token_used"):
-            self.store.mark_token_used(dev["id"])  # a pairing retry may no longer replace this token
+        # The token's first use: a pairing retry may no longer replace it. If one replaced it while this request was
+        # reading its body, the token this request presented is gone.
+        if not dev.get("token_used") and not self.store.mark_token_used(dev["id"], token):
+            return web.json_response({"error": "unauthorized"}, status=401)
         request["device"] = dev
         request["signature_replay"] = self._replay
         request["signature_store"] = self.store

@@ -504,10 +504,14 @@ class Store:
                 self._db.execute("UPDATE devices SET last_seen=? WHERE id=?", (time.time(), row["id"]))
         return dict(row)
 
-    def mark_token_used(self, device_id: str) -> None:
-        """The device's current token authenticated a request: from now on no pairing retry may replace it."""
+    def mark_token_used(self, device_id: str, token: str) -> bool:
+        """``token`` authenticated a request: from now on no pairing retry may replace it. Bound to that token, not
+        the device: False when a retry re-issued the device's token (or it was revoked) after the request looked it
+        up, so a stale request can't mark the replacement used. One statement, atomic with the re-issue."""
         with self._lock:
-            self._db.execute("UPDATE devices SET token_used='1' WHERE id=? AND COALESCE(token_used,'')=''", (device_id,))
+            cur = self._db.execute("UPDATE devices SET token_used='1' WHERE id=? AND token_hash=? AND revoked=0",
+                                   (device_id, sha(token)))
+        return cur.rowcount == 1
 
     def devices(self) -> List[Dict[str, Any]]:
         return [{k: r[k] for k in ("id", "name", "created", "last_seen", "revoked")}
