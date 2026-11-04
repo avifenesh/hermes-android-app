@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_label">Herms-flotta</string>
+    <string name="channel_control_unavailable_title">Ebben a kiadásban nem érhető el</string>
+    <string name="channel_control_unavailable_body">Ez a Play-kiadás nem tud más alkalmazásokat olvasni vagy kezelni. Távoli parancsokkal sem lehet engedélyezni ezt a képességet.</string>
+    <string name="channel_background_title">Háttérkézbesítés</string>
+    <string name="channel_background_body">Az Android akkumulátor-optimalizálása bekapcsolva marad. A push (ha be van állítva) és az időszakos szinkronizálás továbbra is elérhető; a háttérkézbesítés késhet.</string>
+    <string name="channel_apk_unavailable">APK-mellékletek telepítése nem érhető el ebben a Play-kiadásban. A fájlt továbbra is mentheti a Letöltések mappába.</string>
+</resources>

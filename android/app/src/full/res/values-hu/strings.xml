@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_service_label">Hermes-telefonvezérlés</string>
+    <string name="phone_service_desc">Lehetővé teszi, hogy a Hermes-ügynöke olvassa a képernyőt, és koppintson, gépeljen és húzzon ezen a telefonon. Csak akkor működik, ha az alkalmazásban be van kapcsolva a Vezérlés (Én, Ez a telefon, Vezérlés).</string>
+    <string name="phone_control_notice_title">A telefonvezérlés be van kapcsolva</string>
+    <string name="phone_control_notice_text">Az ügynöke olvashatja és kezelheti ezt a feloldott telefont.</string>
+    <string name="phone_control_stop">Vezérlés leállítása</string>
+    <string name="phone_control_accessibility_service">Kisegítő szolgáltatás</string>
+    <string name="phone_control_service_enabled">Engedélyezve az Android beállításaiban.</string>
+    <string name="phone_control_service_disabled">Engedélyezze az Android Kisegítő lehetőségek beállításaiban: %1$s-telefonvezérlés.</string>
+    <string name="phone_control_allow">Ügynöki vezérlés engedélyezése</string>
+    <string name="phone_control_allow_on">Be. Az ügynök olvashat, koppinthat, gépelhet, húzhat és alkalmazásokat nyithat meg.</string>
+    <string name="phone_control_allow_off">Ki. Sem képernyőtartalom, sem parancs nem kerül elküldésre.</string>
+    <string name="phone_control_enable_service_first">Először engedélyezze a Kisegítő szolgáltatást</string>
+    <string name="phone_control_server_unavailable">A telefonvezérlés még nem érhető el a kiszolgálón</string>
+    <string name="phone_control_enable_channel">Engedélyezze az Élő futtatások és kapcsolat értesítési csatornát, hogy a Vezérlés leállítása elérhető maradjon</string>
+    <string name="phone_control_confirm_title">Telefonvezérlés engedélyezése</string>
+    <string name="phone_control_activation_cancelled">Az aktiválás megszakadt, mert a vezérlés, a párosítás vagy a Kisegítő lehetőségek megváltoztak</string>
+    <string name="phone_control_not_armed">A kiszolgáló nem élesítette ezt a telefont, vagy egy újabb aktiválás felváltotta ezt</string>
+    <string name="phone_control_sideload_help">Első beállítás oldalról telepített APK esetén: az Android letilthatja a Kisegítő lehetőségeket. Nyissa meg az Android Beállítások → Alkalmazások → %1$s → ⋮ → Korlátozott beállítások engedélyezése menüpontot, majd itt engedélyezze a szolgáltatást. Ezt csak egyszer kell megtennie.</string>
+    <string name="phone_control_limits">A vezérlés csak bekapcsolt és feloldott képernyőnél működik. Az Android letiltja a védett képernyőkről készülő képernyőképeket. A jelszómezők privátak maradnak. A vezérlést bármikor kikapcsolhatja itt vagy az értesítésből.</string>
+    <string name="phone_control_confirming">Erősítse meg ujjlenyomattal vagy PIN-kóddal…</string>
+    <string name="channel_tab_control">Vezérlés</string>
+    <string name="channel_control_section">Ügynöki telefonvezérlés</string>
+    <string name="channel_battery_title">Akkumulátor-optimalizálás</string>
+    <string name="channel_battery_body">Egyes telefonok leállítják a háttérkapcsolatot. Engedélyezze, hogy %1$s korlátozás nélkül fusson.</string>
+    <string name="channel_allow_unknown_apps">Engedélyezze az „Ismeretlen alkalmazások telepítése” beállítást ehhez: %1$s, majd koppintson újra a fájlra</string>
+</resources>
