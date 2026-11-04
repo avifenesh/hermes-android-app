@@ -36,13 +36,13 @@ MESSAGE_KINDS = frozenset({"message", "message.user", "message.member"})
 NOTICE_KINDS = frozenset({
     "turn.failed", "turn.cancelled", "turn.deferred", "member.unavailable", "room.stop_requested",
     "room.disbanded", "room.renamed", "authority.lost"})
-TAIL = 40               # displayable events kept per room for previews and unread counts
-TAIL_WINDOW = 200       # raw log events read to rebuild a tail
+UNREAD_SCAN = 2000      # room-log events scanned for unread replies; past that the count is a floor
 POLL_SECONDS = 2.0
 ACTIVE_SECONDS = 600    # rooms that changed this recently also get their driver state polled
 MAX_PAGE = 200
 MAX_ATTACHMENTS = 8
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@+=-]{0,199}$")  # task and request ids: no space, no newline
 _STATUS = {
     "invalid_params": 400, "permission_denied": 403, "profile_mismatch": 404, "room_history_expired": 410,
     "authority_conflict": 409, "stale_generation": 409, "unknown_execution": 409, "session_busy": 409,
@@ -95,6 +95,69 @@ def identifier(value: Any, label: str) -> str:
     if not _ID_RE.fullmatch(text):
         raise RoomError(f"invalid {label}", 400)
     return text
+
+
+def exact(value: Any, label: str, pattern: "re.Pattern[str]" = _ID_RE) -> str:
+    """A value that must already be canonical: what a proof covers is exactly what runs, never a trimmed copy."""
+    if not isinstance(value, str) or not pattern.fullmatch(value):
+        raise RoomError(f"invalid {label}", 400)
+    return value
+
+
+def parse_action(room_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    exact(room_id, "room id")
+    kind = body.get("kind")
+    if kind not in ("approval", "retry", "discard"):
+        raise RoomError("unknown action")
+    generation = body.get("generation")
+    if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
+        raise RoomError("invalid generation")
+    action = {"kind": kind, "member": exact(body.get("member"), "member"),
+              "task_id": exact(body.get("task_id"), "task id", _TOKEN_RE), "generation": generation}
+    if kind == "approval":
+        if body.get("choice") not in ("once", "deny"):
+            raise RoomError("room approvals answer once or deny")
+        action.update(choice=body["choice"], request_id=exact(body.get("request_id"), "request id", _TOKEN_RE))
+    return action
+
+
+def approval_proof(room_id: str, action: Dict[str, Any], ts: str) -> bytes:
+    """What the biometric key signs for a room member's command: its own domain, one field per line."""
+    return f"room-approve\n{room_id}\n{action['member']}\n{action['request_id']}\n{action['choice']}\n{ts}".encode()
+
+
+def _summary_action(a: Dict[str, Any]) -> Dict[str, Any]:
+    """A pending action as the room summary carries it: enough to badge the room and notify."""
+    out = {k: a[k] for k in ("kind", "member", "task_id", "generation") if k in a}
+    if a.get("kind") == "approval":
+        out.update(request_id=str(a.get("request_id") or ""), command=str(a.get("command") or "")[:300])
+    return out
+
+
+def _media_file(a: Any) -> Dict[str, Any]:
+    if not isinstance(a, dict):
+        raise RoomError("invalid attachment")
+    name = Path(str(a.get("id") or a.get("media") or "")).name
+    path = S.data_dir() / "media" / name
+    if not name or not path.is_file():
+        raise RoomError("Attachment is no longer on the gateway; attach it again")
+    file_name = Path(str(a.get("file_name") or a.get("name") or name)).name[:200] or name
+    mime = str(a.get("mime") or mimetypes.guess_type(file_name)[0] or "application/octet-stream")
+    return {"path": path, "name": file_name, "mime": mime, "size": path.stat().st_size}
+
+
+def _check_sizes(files: List[Dict[str, Any]]) -> None:
+    """Hermes' own room limits, applied from file sizes before anything is read or encoded."""
+    if not files:
+        return
+    from gateway.hosted_room_attachments import MAX_ATTACHMENT_BYTES, MAX_MESSAGE_ATTACHMENT_BYTES
+    for f in files:
+        if f["size"] > MAX_ATTACHMENT_BYTES:
+            raise RoomError(f"{f['name']} is over the {MAX_ATTACHMENT_BYTES // 1_000_000} MB group chat file limit",
+                            413, "too_large")
+    if sum(f["size"] for f in files) > MAX_MESSAGE_ATTACHMENT_BYTES:
+        raise RoomError(f"Files are over the {MAX_MESSAGE_ATTACHMENT_BYTES // 1_000_000} MB limit per message",
+                        413, "too_large")
 
 
 def member_view(m: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,9 +239,11 @@ class Rooms:
         self._ids = itertools.count(1)
         self._tails: Dict[str, Dict[str, Any]] = {}
         self._working: Dict[str, List[Dict[str, Any]]] = {}
+        self._pending: Dict[str, List[Dict[str, Any]]] = {}
         self._emitted: Dict[str, Any] = {}
         self._tail_lock = asyncio.Lock()
         self._task: Optional[asyncio.Task] = None
+        self.readonly = False  # `hermes mobile check` reads live state and must write nothing
 
     # ------------------------------------------------------------ core access
     def authority(self):
@@ -241,20 +306,40 @@ class Rooms:
             raise RoomError(message, status, reason, str(data.get("detail") or ""))
         return resp.get("result") or {}
 
+    async def _state(self, room_id: str) -> Dict[str, Any]:
+        """``groups.state`` for a valid id: Hermes reports a deleted or unknown room as bad params; say so."""
+        try:
+            return await self.call("groups.state", {"room_id": room_id})
+        except RoomError as e:
+            if e.reason == "invalid_params":
+                raise RoomError("Group chat not found", 404, "not_found")
+            raise
+
     # ------------------------------------------------------------ projections
-    def _read_seq(self, room_id: str) -> Optional[int]:
+    def _read_seq(self, room_id: str) -> int:
+        """The phone's read cursor; it moves only when a phone reads or sends, never when anything lists."""
         v = self.ad.store.kv_get("room_read:" + room_id)
         try:
-            return int(v) if v is not None else None
+            return max(0, int(v)) if v is not None else 0
         except (TypeError, ValueError):
-            return None
+            return 0
 
     def _set_read(self, room_id: str, seq: int) -> int:
         cur = self._read_seq(room_id)
-        if cur is None or seq > cur:
+        if seq > cur:
             self.ad.store.kv_put("room_read:" + room_id, int(seq))
             return seq
         return cur
+
+    def _baseline(self) -> float:
+        """When this plugin started counting room replies: history written before it is not news."""
+        v = self.ad.store.kv_get("rooms_unread_since")
+        if isinstance(v, (int, float)):
+            return float(v)
+        now = time.time()
+        if not self.readonly:
+            self.ad.store.kv_put("rooms_unread_since", now)
+        return now
 
     async def _log_window(self, room_id: str, start: int, end: int) -> List[Dict[str, Any]]:
         """Raw events with ``start < seq <= end``, following core's byte-bounded pages."""
@@ -271,47 +356,59 @@ class Rooms:
         return out
 
     async def _tail(self, room: Dict[str, Any]) -> Dict[str, Any]:
+        """Per room: (seq, ts) of every member reply in the last UNREAD_SCAN log events, and the last message."""
         rid, latest = str(room["room_id"]), int(room.get("latest_seq") or 0)
         roster = {m["id"]: m for m in map(member_view, room.get("members") or [])}
         async with self._tail_lock:
             cached = self._tails.get(rid)
-            if cached and cached["latest"] == latest and cached["roster"] == roster:
+            usable = cached is not None and cached["roster"] == roster and cached["latest"] <= latest
+            if usable and cached["latest"] == latest:
                 return cached
-            start = cached["latest"] if cached and cached["roster"] == roster and cached["latest"] <= latest else 0
-            start = max(start, latest - TAIL_WINDOW)
-            raw = await self._log_window(rid, start, latest)
-            fresh = [p for p in (project_event(e, roster) for e in raw) if p is not None]
-            events = (cached["events"] if cached and start > 0 and cached["roster"] == roster else []) + fresh
-            tail = {"latest": latest, "roster": roster, "events": events[-TAIL:], "from": start}
+            start = max(cached["latest"] if usable else 0, latest - UNREAD_SCAN)
+            fresh = [p for p in (project_event(e, roster) for e in await self._log_window(rid, start, latest))
+                     if p is not None and p["kind"] == "message"]
+            marks = (cached["marks"] if usable else []) + [(e["seq"], e["ts"]) for e in fresh if e["role"] == "member"]
+            tail = {"latest": latest, "roster": roster, "marks": [m for m in marks if m[0] > latest - UNREAD_SCAN],
+                    "last": fresh[-1] if fresh else (cached["last"] if usable else None)}
             self._tails[rid] = tail
             return tail
 
+    def _bare_summary(self, room: Dict[str, Any]) -> Dict[str, Any]:
+        rid = str(room["room_id"])
+        return {"id": rid, "name": str(room.get("name") or "Group chat"),
+                "members": [member_view(m) for m in room.get("members") or []],
+                "latest_seq": int(room.get("latest_seq") or 0), "read_seq": self._read_seq(rid), "unread": 0,
+                "updated": float(room.get("updated_at") or 0), "created": float(room.get("created_at") or 0),
+                "working": [m["id"] for m in self._working.get(rid, []) if m.get("status") != "queued"],
+                "pending": [_summary_action(a) for a in self._pending.get(rid, [])]}
+
     async def summary(self, room: Dict[str, Any]) -> Dict[str, Any]:
-        rid, latest = str(room["room_id"]), int(room.get("latest_seq") or 0)
+        out = self._bare_summary(room)
         tail = await self._tail(room)
-        read = self._read_seq(rid)
-        if read is None:  # First sight: history written before the phone saw the room is not news.
-            read = self._set_read(rid, latest)
-        messages = [e for e in tail["events"] if e["kind"] == "message"]
-        last = messages[-1] if messages else None
-        unread = sum(1 for e in messages if e["role"] == "member" and e["seq"] > read)
-        out = {"id": rid, "name": str(room.get("name") or "Group chat"),
-               "members": [member_view(m) for m in room.get("members") or []],
-               "latest_seq": latest, "read_seq": read, "unread": unread,
-               "updated": float(room.get("updated_at") or 0), "created": float(room.get("created_at") or 0),
-               "working": [m["id"] for m in self._working.get(rid, []) if m.get("status") != "queued"]}
+        since = self._baseline()
+        out["unread"] = sum(1 for seq, ts in tail["marks"] if seq > out["read_seq"] and ts >= since)
+        last = tail["last"]
         if last:
             text = last["text"].strip() or ("Attachment" if last.get("attachments") else "")
             out["preview"] = {"seq": last["seq"], "role": last["role"], "name": last["name"],
                               "text": " ".join(text.split())[:160], "ts": last["ts"]}
         return out
 
+    async def _safe_summary(self, room: Dict[str, Any]) -> Dict[str, Any]:
+        """One room's log failing must not take the list or the poll down: it shows without a preview."""
+        try:
+            return await self.summary(room)
+        except Exception as e:
+            logger.debug("[mobile] room %s summary failed: %s", room.get("room_id"), e)
+            return self._bare_summary(room)
+
     async def _rooms(self) -> List[Dict[str, Any]]:
         rooms: List[Dict[str, Any]] = []
         offset = 0
         while True:
             page = await self.call("groups.list", {"limit": 100, "offset": offset})
-            rooms += [r for r in page.get("rooms") or [] if isinstance(r, dict) and not r.get("disbanded_at")]
+            rooms += [r for r in page.get("rooms") or [] if isinstance(r, dict) and r.get("room_id")
+                      and not r.get("disbanded_at")]
             nxt = page.get("next_offset")
             if not isinstance(nxt, int) or nxt <= offset or len(rooms) > 1000:
                 return rooms
@@ -323,7 +420,7 @@ class Rooms:
         if not self.supported():  # an empty answer, so the self-check and older clients see no failure
             return {"supported": False, "rooms": [], "driver": False, "bots": [], **limits}
         caps = await self.call("groups.capabilities", {})
-        rooms = [await self.summary(r) for r in await self._rooms()]
+        rooms = [await self._safe_summary(r) for r in await self._rooms()]
         rooms.sort(key=lambda r: r["updated"], reverse=True)
         return {"supported": True, "rooms": rooms, "driver": bool(caps.get("driver")),
                 "bots": await self.bots(caps), **limits}
@@ -341,11 +438,16 @@ class Rooms:
             pass
         return [{"profile": p, "name": names.get(p) or p} for p in seatable]
 
+    def _observe(self, rid: str, status: Any) -> Dict[str, Any]:
+        driver = driver_view(status)
+        self._working[rid] = driver["members"]
+        self._pending[rid] = driver["pending"]
+        return driver
+
     async def detail(self, room_id: str) -> Dict[str, Any]:
-        state = await self.call("groups.state", {"room_id": identifier(room_id, "room id")})
+        state = await self._state(identifier(room_id, "room id"))
         room = state.get("room") or {}
-        driver = driver_view(state.get("driver_status"))
-        self._working[str(room.get("room_id"))] = driver["members"]
+        driver = self._observe(str(room.get("room_id")), state.get("driver_status"))
         return {"room": await self.summary(room), "driver": driver}
 
     async def history(self, room_id: str, *, before: Optional[int] = None, after: Optional[int] = None,
@@ -353,7 +455,7 @@ class Rooms:
         rid = identifier(room_id, "room id")
         if not 1 <= limit <= MAX_PAGE:
             raise RoomError(f"limit must be between 1 and {MAX_PAGE}")
-        state = await self.call("groups.state", {"room_id": rid})
+        state = await self._state(rid)
         room = state.get("room") or {}
         latest = int(room.get("latest_seq") or 0)
         roster = {m["id"]: m for m in map(member_view, room.get("members") or [])}
@@ -380,33 +482,28 @@ class Rooms:
         atts = body.get("attachments") or []
         if not isinstance(atts, list) or len(atts) > MAX_ATTACHMENTS:
             raise RoomError(f"At most {MAX_ATTACHMENTS} attachments per message")
-        if atts:
-            payload["attachments"] = [await self._upload(rid, f"{client_id}.a{i}", a) for i, a in enumerate(atts)]
-        if not payload["text"] and not atts:
+        files = [_media_file(a) for a in atts]
+        _check_sizes(files)  # before any byte is read or sent
+        if files:
+            payload["attachments"] = [await self._upload(rid, f"{client_id}.a{i}", f) for i, f in enumerate(files)]
+        if not payload["text"] and not files:
             raise RoomError("empty message")
         result = await self.call("groups.send", {"room_id": rid, "event_id": client_id, "payload": payload})
         event = result.get("event") or {}
-        state = await self.call("groups.state", {"room_id": rid})
+        state = await self._state(rid)
         roster = {m["id"]: m for m in map(member_view, (state.get("room") or {}).get("members") or [])}
         projected = project_event(event, roster) if event else None
         if projected:
-            self._set_read(rid, projected["seq"])
+            self._set_read(rid, projected["seq"])  # writing in the room is reading it
         await self._announce(state.get("room") or {})
         return {"event": projected, "accepted": bool(result.get("accepted")), "client_id": client_id}
 
-    async def _upload(self, room_id: str, upload_id: str, a: Any) -> Dict[str, Any]:
-        if not isinstance(a, dict):
-            raise RoomError("invalid attachment")
-        name = Path(str(a.get("id") or a.get("media") or "")).name
-        path = S.data_dir() / "media" / name
-        if not name or not path.is_file():
-            raise RoomError("Attachment is no longer on the gateway; attach it again")
-        data = await asyncio.to_thread(path.read_bytes)
-        file_name = Path(str(a.get("file_name") or a.get("name") or name)).name[:200] or name
-        mime = str(a.get("mime") or mimetypes.guess_type(file_name)[0] or "application/octet-stream")
+    async def _upload(self, room_id: str, upload_id: str, f: Dict[str, Any]) -> Dict[str, Any]:
+        data = await asyncio.to_thread(f["path"].read_bytes)
+        mime = f["mime"]
         kind = "image" if mime.startswith("image/") else "pdf" if mime == "application/pdf" else "file"
         stored = await self.call("groups.attachment.upload", {
-            "room_id": room_id, "upload_id": upload_id, "kind": kind, "name": file_name, "mime": mime,
+            "room_id": room_id, "upload_id": upload_id, "kind": kind, "name": f["name"], "mime": mime,
             "data_base64": base64.b64encode(data).decode("ascii")})
         # A message manifest carries exactly these fields; the stored record has more.
         return {k: stored.get(k) for k in ("attachment_id", "kind", "name", "size", "mime")}
@@ -461,42 +558,41 @@ class Rooms:
         self._forget(rid)
         return {"ok": True, "tombstone": result.get("tombstone") or {}}
 
-    async def stop(self, room_id: str) -> Dict[str, Any]:
+    async def stop_room(self, room_id: str) -> Dict[str, Any]:
         result = await self.call("groups.stop", {"room_id": identifier(room_id, "room id"),
                                                  "cancel_id": "mobile-" + uuid.uuid4().hex})
         return {"ok": True, "cancelled": int(result.get("cancelled") or 0)}
 
-    async def act(self, room_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
-        rid = identifier(room_id, "room id")
-        kind = str(body.get("kind") or "")
-        params = {"room_id": rid, "member_id": identifier(body.get("member"), "member"),
-                  "task_id": str(body.get("task_id") or "")[:200],
-                  "execution_generation": int(body.get("generation") or 0)}
-        if kind == "approval":
-            params.update(choice=str(body.get("choice") or ""), request_id=str(body.get("request_id") or "")[:200])
+    async def act(self, room_id: str, action: Dict[str, Any]) -> Dict[str, Any]:
+        """Run one action ``parse_action`` already validated (the approval proof is checked over the same values)."""
+        params = {"room_id": room_id, "member_id": action["member"], "task_id": action["task_id"],
+                  "execution_generation": action["generation"]}
+        if action["kind"] == "approval":
+            params.update(choice=action["choice"], request_id=action["request_id"])
             return await self.call("groups.approve", params)
-        if kind in ("retry", "discard"):
-            return await self.call("groups." + kind, params)
-        raise RoomError("unknown action")
+        return await self.call("groups." + action["kind"], params)
 
     async def mark_read(self, room_id: str, seq: int) -> Dict[str, Any]:
-        state = await self.call("groups.state", {"room_id": identifier(room_id, "room id")})
+        state = await self._state(identifier(room_id, "room id"))
         room = state.get("room") or {}
         read = self._set_read(str(room.get("room_id")), max(0, min(int(seq), int(room.get("latest_seq") or 0))))
         await self._announce(room)
         return {"ok": True, "read_seq": read}
 
     # ------------------------------------------------------------ live updates
+    @staticmethod
+    def _key(summary: Dict[str, Any]) -> tuple:
+        return (summary["latest_seq"], summary["name"], summary["unread"], summary["read_seq"],
+                tuple(summary["working"]), tuple(m["id"] for m in summary["members"]),
+                tuple((p["kind"], p["task_id"], p["generation"], p.get("request_id", "")) for p in summary["pending"]))
+
     def _emit(self, summary: Dict[str, Any]) -> None:
-        key = (summary["latest_seq"], summary["name"], summary["unread"], summary["read_seq"],
-               tuple(summary["working"]), tuple(m["id"] for m in summary["members"]))
-        self._emitted[summary["id"]] = key
+        self._emitted[summary["id"]] = self._key(summary)
         self.ad._emit({"type": "room", "room": summary})
 
     def _forget(self, room_id: str) -> None:
-        self._tails.pop(room_id, None)
-        self._working.pop(room_id, None)
-        self._emitted.pop(room_id, None)
+        for cache in (self._tails, self._working, self._pending, self._emitted):
+            cache.pop(room_id, None)
         self.ad._emit({"type": "room_removed", "room_id": room_id})
 
     async def _announce(self, room: Dict[str, Any]) -> None:
@@ -508,16 +604,16 @@ class Rooms:
         rooms = await self._rooms()
         for room in rooms:
             rid = str(room["room_id"])
-            if float(room.get("updated_at") or 0) > now - ACTIVE_SECONDS or self._working.get(rid):
+            # Recently active, working or waiting on the owner: only then is the driver state worth a read.
+            if float(room.get("updated_at") or 0) > now - ACTIVE_SECONDS or self._working.get(rid) or self._pending.get(rid):
                 try:
                     state = await self.call("groups.state", {"room_id": rid})
-                    self._working[rid] = driver_view(state.get("driver_status"))["members"]
+                    self._observe(rid, state.get("driver_status"))
                 except RoomError:
                     self._working.pop(rid, None)
-            summary = await self.summary(room)
-            key = (summary["latest_seq"], summary["name"], summary["unread"], summary["read_seq"],
-                   tuple(summary["working"]), tuple(m["id"] for m in summary["members"]))
-            if self._emitted.get(rid) != key:
+                    self._pending.pop(rid, None)
+            summary = await self._safe_summary(room)
+            if self._emitted.get(rid) != self._key(summary):
                 self._emit(summary)
         for gone in set(self._emitted) - {str(r["room_id"]) for r in rooms}:
             self._forget(gone)
@@ -537,11 +633,11 @@ class Rooms:
             except Exception as e:
                 logger.debug("[mobile] room poll failed: %s", e)
 
-    def start(self) -> None:
+    def start_polling(self) -> None:
         if self._task is None:
             self._task = asyncio.get_running_loop().create_task(self._loop())
 
-    def stop(self) -> None:
+    def stop_polling(self) -> None:
         if self._task is not None:
             self._task.cancel()
             self._task = None
@@ -608,23 +704,19 @@ def routes(r, rooms: Rooms, j) -> None:
 
     @guarded
     async def h_stop(request):
-        return j(await rooms.stop(request.match_info["rid"]))
+        return j(await rooms.stop_room(request.match_info["rid"]))
 
     @guarded
     async def h_action(request):
-        b = await body(request)
         rid = request.match_info["rid"]
-        if b.get("kind") == "approval":
-            choice = str(b.get("choice") or "")
-            if choice not in ("once", "deny"):
-                return j({"error": "room approvals answer once or deny"}, 400)
-            # Same protected key as Inbox approvals, bound to this room, member and request.
-            if choice != "deny":
-                msg = (f"approve\n{rid}:{b.get('member')}:{b.get('request_id')}\n{choice}\n"
-                       f"{request.headers.get('X-HM-Ts', '')}").encode()
-                if not SG.approval_ok(request, msg):
-                    return j({"error": "biometric signature required", "need_sig": True}, 403)
-        return j(await rooms.act(rid, b))
+        # Validated first and exactly: the proof covers the values that run, never a normalized copy.
+        action = parse_action(rid, await body(request))
+        if action["kind"] == "approval" and action["choice"] != "deny":
+            # The protected key, in its own domain and replay scope, bound to room, member and request.
+            proof = approval_proof(rid, action, request.headers.get("X-HM-Ts", ""))
+            if not SG.approval_ok(request, proof, scope="room-approval"):
+                return j({"error": "biometric signature required", "need_sig": True}, 403)
+        return j(await rooms.act(rid, action))
 
     @guarded
     async def h_file(request):

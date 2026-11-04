@@ -103,6 +103,23 @@ as before.
 "$HERMES_PYTHON" scripts/pair_retry_integration.py
 ```
 
+## Group chat command approvals
+
+`POST /v1/rooms/{room}/actions` with `kind: approval` and `choice: once` needs a
+new approval signature over:
+
+```text
+room-approve\nroom_id\nmember_id\nrequest_id\nchoice\ntimestamp_seconds
+```
+
+The fields are validated against their exact identifier patterns before the
+proof is checked, and the same values reach Hermes; a padded or otherwise
+non-canonical id is refused rather than trimmed. Identifiers never contain a
+newline, so the fields cannot run into each other. The proof is claimed in its
+own `room-approval` replay scope, separate from the `approval` scope that Inbox
+and session-prompt approvals use, so a proof made for one surface never answers
+the other. `deny` needs no approval signature, as elsewhere.
+
 ## Compatibility and limits
 
 No nonce header, canonical-message change, Android edit or key rotation is

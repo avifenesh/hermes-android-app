@@ -250,6 +250,7 @@ class MobileAdapter(BasePlatformAdapter):
         self.store = S.Store()
         if cli:
             self._mirror = False
+            self._rooms.readonly = True
 
         @web.middleware
         async def auth_mw(request, handler):
@@ -323,7 +324,7 @@ class MobileAdapter(BasePlatformAdapter):
             self._reaper = asyncio.create_task(self._reap_loop())
             self._wake.start()
             self._fleet.start()
-            self._rooms.start()
+            self._rooms.start_polling()
             self._selfcheck.start(app)
         self._mobile_loop = asyncio.get_running_loop()
         A.bind(self)
@@ -350,7 +351,7 @@ class MobileAdapter(BasePlatformAdapter):
             self._wake.stop()
         if getattr(self, "_fleet", None):
             self._fleet.stop()
-        self._rooms.stop()
+        self._rooms.stop_polling()
         await self._live_sessions.close_all()
         if self._runner:
             await self._runner.cleanup()

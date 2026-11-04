@@ -82,14 +82,15 @@ class Replay:
         return store.claim_signature(identity, int(ts) + SKEW)
 
 
-def approval_ok(request, msg: bytes) -> bool:
-    """Consume a biometric proof once, independently of its outer request proof."""
+def approval_ok(request, msg: bytes, scope: str = "approval") -> bool:
+    """Consume a biometric proof once, independently of its outer request proof. Each proof domain
+    (``approval`` for Inbox and session prompts, ``room-approval`` for group chats) keeps its own claims."""
     replay, store = request.get("signature_replay"), request.get("signature_store")
     if replay is None or store is None:
         return False
     return replay.fresh(request.headers.get("X-HM-ASig", ""),
                         pub=request["device"].get("apub"), msg=msg,
-                        ts=request.headers.get("X-HM-Ts", ""), scope="approval", store=store)
+                        ts=request.headers.get("X-HM-Ts", ""), scope=scope, store=store)
 
 
 def ts_ok(ts: str) -> bool:
