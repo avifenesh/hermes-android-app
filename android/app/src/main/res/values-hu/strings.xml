@@ -456,7 +456,7 @@
     <string name="session_send_answer">Válasz küldése</string>
     <string name="me_title">Én</string>
     <string name="me_profile_model">profil: %1$s · %2$s</string>
-    <string name="me_status_live">élő</string>
+    <string name="me_status_live">online</string>
     <string name="me_status_offline">offline</string>
     <string name="me_server_problems">Kiszolgálóhibák</string>
     <plurals name="me_server_problems_count">
@@ -1443,6 +1443,7 @@
     <string name="alarm_fullscreen_off_sub">Az Ébresztés csöröghet, de az Android lehet, hogy csak értesítést jelenít meg. Engedélyezze a teljes képernyős ébresztéseket, hogy a bizonyítékok a lezárási képernyőn is megjelenjenek.</string>
     <string name="alarm_battery_on">Az akkumulátoroptimalizálás be van kapcsolva</string>
     <string name="alarm_battery_on_sub">A pontos ébresztések így is megszólalhatnak. A háttérszinkronizálás késhet; ha az emlékeztetők későn érkeznek, nézze át az akkumulátorbeállításokat.</string>
+    <string name="alarm_battery_on_sync_sub">A háttérszinkronizálás késhet; ha az emlékeztetők későn érkeznek, nézze át az akkumulátorbeállításokat.</string>
     <string name="alarm_battery_review">Áttekintés</string>
     <string name="alarm_section_alarms">Ébresztések</string>
     <string name="alarm_once">Egyszer</string>

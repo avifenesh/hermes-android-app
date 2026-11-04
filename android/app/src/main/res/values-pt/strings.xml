@@ -671,9 +671,9 @@
         <item quantity="other">Todas as %1$d tarefas com notificação entregam no app</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">%1$d de %2$d tarefas entrega no app; %3$d ainda vão para o Telegram ou outro lugar</item>
-        <item quantity="many">%1$d de %2$d tarefas entregam no app; %3$d ainda vão para o Telegram ou outro lugar</item>
-        <item quantity="other">%1$d de %2$d tarefas entregam no app; %3$d ainda vão para o Telegram ou outro lugar</item>
+        <item quantity="one">No app: %1$d de %2$d tarefa; Telegram ou outro lugar: %3$d</item>
+        <item quantity="many">No app: %1$d de %2$d tarefas; Telegram ou outro lugar: %3$d</item>
+        <item quantity="other">No app: %1$d de %2$d tarefas; Telegram ou outro lugar: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">Mover</string>
     <string name="cron_delivery_dialog_title">Entregar o cron no app?</string>
@@ -1669,6 +1669,7 @@
     <string name="alarm_fullscreen_off_sub">O Wake pode tocar, mas o Android talvez mostre só uma notificação. Permita alarmes em tela cheia para mostrar as provas sobre a tela de bloqueio.</string>
     <string name="alarm_battery_on">A otimização de bateria está ativada</string>
     <string name="alarm_battery_on_sub">Os alarmes exatos ainda podem disparar. A sincronização em segundo plano pode atrasar; revise as configurações de bateria se os lembretes chegarem tarde.</string>
+    <string name="alarm_battery_on_sync_sub">A sincronização em segundo plano pode atrasar; revise as configurações de bateria se os lembretes chegarem tarde.</string>
     <string name="alarm_battery_review">Revisar</string>
     <string name="alarm_section_alarms">Alarmes</string>
     <string name="alarm_once">Uma vez</string>

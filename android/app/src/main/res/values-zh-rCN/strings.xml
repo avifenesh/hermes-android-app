@@ -1383,6 +1383,7 @@
     <string name="alarm_fullscreen_off_sub">起床闹钟可以响铃，但 Android 可能只显示一条通知。请允许全屏闹钟，以便在锁定屏幕上显示证明界面。</string>
     <string name="alarm_battery_on">电池优化已开启</string>
     <string name="alarm_battery_on_sub">精确闹钟仍可触发。后台同步可能会延迟；如果提醒迟到，请检查电池设置。</string>
+    <string name="alarm_battery_on_sync_sub">后台同步可能会延迟；如果提醒迟到，请检查电池设置。</string>
     <string name="alarm_battery_review">查看</string>
     <string name="alarm_section_alarms">闹钟</string>
     <string name="alarm_once">一次</string>

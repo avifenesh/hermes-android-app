@@ -664,12 +664,12 @@
         <item quantity="other">تُسلَّم كل المهام التي تُرسل إشعارات (%1$d) إلى التطبيق</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="zero">تُسلَّم %1$d إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
-        <item quantity="one">تُسلَّم %1$d من أصل مهمة واحدة إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
-        <item quantity="two">تُسلَّم %1$d من أصل مهمتين إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
-        <item quantity="few">تُسلَّم %1$d من أصل %2$d مهام إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
-        <item quantity="many">تُسلَّم %1$d من أصل %2$d مهمة إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
-        <item quantity="other">تُسلَّم %1$d من أصل %2$d مهمة إلى التطبيق، ولا تزال %3$d تذهب إلى Telegram أو مكان آخر</item>
+        <item quantity="zero">إلى التطبيق: %1$d من أصل %2$d مهمة؛ Telegram أو مكان آخر: %3$d</item>
+        <item quantity="one">إلى التطبيق: %1$d من أصل مهمة واحدة؛ Telegram أو مكان آخر: %3$d</item>
+        <item quantity="two">إلى التطبيق: %1$d من أصل مهمتين؛ Telegram أو مكان آخر: %3$d</item>
+        <item quantity="few">إلى التطبيق: %1$d من أصل %2$d مهام؛ Telegram أو مكان آخر: %3$d</item>
+        <item quantity="many">إلى التطبيق: %1$d من أصل %2$d مهمة؛ Telegram أو مكان آخر: %3$d</item>
+        <item quantity="other">إلى التطبيق: %1$d من أصل %2$d مهمة؛ Telegram أو مكان آخر: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">نقل</string>
     <string name="cron_delivery_dialog_title">هل تريد تسليم Cron إلى التطبيق؟</string>
@@ -1688,6 +1688,7 @@
     <string name="alarm_fullscreen_off_sub">يمكن لـ «الاستيقاظ» أن يرن، لكن قد يعرض Android إشعارًا فقط. اسمح بالمنبّهات بملء الشاشة لعرض الإثباتات فوق شاشة القفل.</string>
     <string name="alarm_battery_on">تحسين البطارية مفعّل</string>
     <string name="alarm_battery_on_sub">لا يزال بإمكان المنبّهات الدقيقة أن تعمل. قد تتأخر المزامنة في الخلفية، فراجِع إعدادات البطارية إذا وصلت التذكيرات متأخرة.</string>
+    <string name="alarm_battery_on_sync_sub">قد تتأخر المزامنة في الخلفية، فراجِع إعدادات البطارية إذا وصلت التذكيرات متأخرة.</string>
     <string name="alarm_battery_review">مراجعة</string>
     <string name="alarm_section_alarms">المنبّهات</string>
     <string name="alarm_once">مرة واحدة</string>

@@ -1383,6 +1383,7 @@
     <string name="alarm_fullscreen_off_sub">起床鬧鐘可以響鈴，但 Android 可能只會顯示通知。請允許全螢幕鬧鐘，才能在螢幕鎖定畫面上顯示證明。</string>
     <string name="alarm_battery_on">電池效能最佳化已開啟</string>
     <string name="alarm_battery_on_sub">精確鬧鐘仍可正常觸發。背景同步可能會延遲；如果提醒太晚送達，請檢查電池設定。</string>
+    <string name="alarm_battery_on_sync_sub">背景同步可能會延遲；如果提醒太晚送達，請檢查電池設定。</string>
     <string name="alarm_battery_review">檢查</string>
     <string name="alarm_section_alarms">鬧鐘</string>
     <string name="alarm_once">單次</string>

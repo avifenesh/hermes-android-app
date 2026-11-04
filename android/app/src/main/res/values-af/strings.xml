@@ -456,7 +456,7 @@
     <string name="session_send_answer">Stuur antwoord</string>
     <string name="me_title">Ek</string>
     <string name="me_profile_model">profiel %1$s · %2$s</string>
-    <string name="me_status_live">lewendig</string>
+    <string name="me_status_live">aanlyn</string>
     <string name="me_status_offline">vanlyn</string>
     <string name="me_server_problems">Bedienerprobleme</string>
     <plurals name="me_server_problems_count">
@@ -578,8 +578,8 @@
         <item quantity="other">Al %1$d take met kennisgewings lewer aan die program</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">%1$d van %2$d taak lewer aan die program; %3$d gaan steeds na Telegram of elders</item>
-        <item quantity="other">%1$d van %2$d take lewer aan die program; %3$d gaan steeds na Telegram of elders</item>
+        <item quantity="one">Na die program: %1$d van %2$d taak; Telegram of elders: %3$d</item>
+        <item quantity="other">Na die program: %1$d van %2$d take; Telegram of elders: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">Skuif</string>
     <string name="cron_delivery_dialog_title">Lewer cron aan die program?</string>
@@ -1443,6 +1443,7 @@
     <string name="alarm_fullscreen_off_sub">Wake kan lui, maar Android wys dalk net \'n kennisgewing. Laat volskermalarms toe om bewyse oor die sluitskerm te wys.</string>
     <string name="alarm_battery_on">Batteryoptimering is aan</string>
     <string name="alarm_battery_on_sub">Presiese alarms kan steeds afgaan. Agtergrondsinkronisering kan vertraag word; hersien batteryinstellings as herinneringe laat opdaag.</string>
+    <string name="alarm_battery_on_sync_sub">Agtergrondsinkronisering kan vertraag word; hersien batteryinstellings as herinneringe laat opdaag.</string>
     <string name="alarm_battery_review">Hersien</string>
     <string name="alarm_section_alarms">Alarms</string>
     <string name="alarm_once">Een keer</string>

@@ -561,7 +561,8 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     }
     val next = ov?.optJSONObject("next")
     Column(modifier.imePadding()) {
-        if (!embedded) TopBar(stringResource(R.string.alarm_title), next?.let { stringResource(R.string.alarm_next, Fmt.weekdayTime((it.getDouble("ts") * 1000).toLong()), until(it.getDouble("ts"))) } ?: stringResource(R.string.alarm_none_set))
+        // Without exact alarm access nothing is scheduled, so the subtitle says that instead of a next ring time.
+        if (!embedded) TopBar(stringResource(R.string.alarm_title), if (!access[0]) stringResource(R.string.alarm_exact_off) else next?.let { stringResource(R.string.alarm_next, Fmt.weekdayTime((it.getDouble("ts") * 1000).toLong()), until(it.getDouble("ts"))) } ?: stringResource(R.string.alarm_none_set))
         LazyColumn(Modifier.fillMaxSize()) {
             if (!access[0]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
@@ -593,7 +594,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             }
             if (!access[3]) item {
                 Panel(Modifier.padding(top = 12.dp)) {
-                    SettingRow(stringResource(R.string.alarm_battery_on), stringResource(R.string.alarm_battery_on_sub)) {
+                    SettingRow(stringResource(R.string.alarm_battery_on), stringResource(if (access[0]) R.string.alarm_battery_on_sub else R.string.alarm_battery_on_sync_sub)) {
                         Btn(stringResource(R.string.alarm_battery_review), primary = false) { settings(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
                     }
                 }

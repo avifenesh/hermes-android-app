@@ -793,7 +793,7 @@
     <string name="me_title">Me</string>
     <!-- %1$s: profile name on the machine; %2$s: model id. -->
     <string name="me_profile_model">profile %1$s · %2$s</string>
-    <!-- Connection state next to the machine name. -->
+    <!-- Connection state next to the machine name: the gateway is reachable now. Translate as "online", not as a live broadcast. -->
     <string name="me_status_live">live</string>
     <!-- Connection state next to the machine name. -->
     <string name="me_status_offline">offline</string>
@@ -978,9 +978,9 @@
         <item quantity="other">All %1$d notifying jobs deliver to the app</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <!-- The quantity follows %2$d. %1$d: jobs delivering to the app; %2$d: all jobs; %3$d: jobs delivering elsewhere. -->
-        <item quantity="one">%1$d of %2$d jobs deliver to the app; %3$d still go to Telegram or elsewhere</item>
-        <item quantity="other">%1$d of %2$d jobs deliver to the app; %3$d still go to Telegram or elsewhere</item>
+        <!-- The quantity follows %2$d. %1$d: jobs delivering to the app; %2$d: all jobs; %3$d: jobs delivering elsewhere. Keep the "label: count" form so only the noun agrees, with %2$d; no verb depends on %1$d or %3$d. -->
+        <item quantity="one">To the app: %1$d of %2$d job; Telegram or elsewhere: %3$d</item>
+        <item quantity="other">To the app: %1$d of %2$d jobs; Telegram or elsewhere: %3$d</item>
     </plurals>
     <!-- Button: move the jobs' delivery to the app (verb). -->
     <string name="cron_delivery_move">Move</string>
@@ -2493,6 +2493,8 @@
     <string name="alarm_fullscreen_off_sub">Wake can ring, but Android may only show a notification. Allow full-screen alarms to show proofs over the lock screen.</string>
     <string name="alarm_battery_on">Battery optimization is on</string>
     <string name="alarm_battery_on_sub">Exact alarms can still fire. Background syncing may be delayed; review battery settings if reminders arrive late.</string>
+    <!-- Battery note when exact alarms are off, so it does not claim they can fire. -->
+    <string name="alarm_battery_on_sync_sub">Background syncing may be delayed; review battery settings if reminders arrive late.</string>
     <!-- Button: opens the battery optimization settings (verb). -->
     <string name="alarm_battery_review">Review</string>
     <!-- Section header; the number of alarms is shown beside it. -->

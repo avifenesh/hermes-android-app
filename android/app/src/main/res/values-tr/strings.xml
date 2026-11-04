@@ -458,7 +458,7 @@
 
     <string name="me_title">Ben</string>
     <string name="me_profile_model">profil %1$s · %2$s</string>
-    <string name="me_status_live">canlı</string>
+    <string name="me_status_live">çevrimiçi</string>
     <string name="me_status_offline">çevrimdışı</string>
     <string name="me_server_problems">Sunucu sorunları</string>
     <plurals name="me_server_problems_count">
@@ -1448,6 +1448,7 @@
     <string name="alarm_fullscreen_off_sub">Uyandırma çalabilir, ancak Android yalnızca bildirim gösterebilir. Kanıtları kilit ekranının üzerinde göstermek için tam ekran alarmlara izin verin.</string>
     <string name="alarm_battery_on">Pil optimizasyonu açık</string>
     <string name="alarm_battery_on_sub">Kesin zamanlı alarmlar yine çalabilir. Arka plan eşitlemesi gecikebilir; hatırlatıcılar geç gelirse pil ayarlarını inceleyin.</string>
+    <string name="alarm_battery_on_sync_sub">Arka plan eşitlemesi gecikebilir; hatırlatıcılar geç gelirse pil ayarlarını inceleyin.</string>
     <string name="alarm_battery_review">İncele</string>
     <string name="alarm_section_alarms">Alarmlar</string>
     <string name="alarm_once">Bir kez</string>

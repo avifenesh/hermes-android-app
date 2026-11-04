@@ -498,7 +498,7 @@
     <string name="session_send_answer">Seol an freagra</string>
     <string name="me_title">Mise</string>
     <string name="me_profile_model">próifíl %1$s · %2$s</string>
-    <string name="me_status_live">beo</string>
+    <string name="me_status_live">ar líne</string>
     <string name="me_status_offline">as líne</string>
     <string name="me_server_problems">Fadhbanna freastalaí</string>
     <plurals name="me_server_problems_count">
@@ -641,11 +641,11 @@
         <item quantity="other">Seachadann na poist ar fad a thugann fógra (%1$d) chuig an aip</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">Seachadann %1$d as %2$d phost chuig an aip; téann %3$d fós chuig Telegram nó áit eile</item>
-        <item quantity="two">Seachadann %1$d as %2$d phost chuig an aip; téann %3$d fós chuig Telegram nó áit eile</item>
-        <item quantity="few">Seachadann %1$d as %2$d phost chuig an aip; téann %3$d fós chuig Telegram nó áit eile</item>
-        <item quantity="many">Seachadann %1$d as %2$d bpost chuig an aip; téann %3$d fós chuig Telegram nó áit eile</item>
-        <item quantity="other">Seachadann %1$d as %2$d post chuig an aip; téann %3$d fós chuig Telegram nó áit eile</item>
+        <item quantity="one">Chuig an aip: %1$d as %2$d phost; Telegram nó áit eile: %3$d</item>
+        <item quantity="two">Chuig an aip: %1$d as %2$d phost; Telegram nó áit eile: %3$d</item>
+        <item quantity="few">Chuig an aip: %1$d as %2$d phost; Telegram nó áit eile: %3$d</item>
+        <item quantity="many">Chuig an aip: %1$d as %2$d bpost; Telegram nó áit eile: %3$d</item>
+        <item quantity="other">Chuig an aip: %1$d as %2$d post; Telegram nó áit eile: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">Bog</string>
     <string name="cron_delivery_dialog_title">Seachaid cron chuig an aip?</string>
@@ -1623,6 +1623,7 @@
     <string name="alarm_fullscreen_off_sub">Is féidir leis an ngné Múscailt bualadh, ach seans nach dtaispeánfaidh Android ach fógra. Ceadaigh aláraim lánscáileáin chun cruthúnais a thaispeáint thar an scáileán glasála.</string>
     <string name="alarm_battery_on">Tá optamú ceallra ar siúl</string>
     <string name="alarm_battery_on_sub">Is féidir le haláraim chruinne bualadh fós. D\'fhéadfadh moill a bheith ar an sioncronú cúlra; athbhreithnigh socruithe an cheallra má thagann meabhrúcháin go déanach.</string>
+    <string name="alarm_battery_on_sync_sub">D\'fhéadfadh moill a bheith ar an sioncronú cúlra; athbhreithnigh socruithe an cheallra má thagann meabhrúcháin go déanach.</string>
     <string name="alarm_battery_review">Athbhreithnigh</string>
     <string name="alarm_section_alarms">Aláraim</string>
     <string name="alarm_once">Uair amháin</string>

@@ -671,9 +671,9 @@
         <item quantity="other">Les %1$d tâches avec notification envoient toutes vers l\'application</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">%1$d tâche sur %2$d envoie vers l\'application ; %3$d vont encore vers Telegram ou ailleurs</item>
-        <item quantity="many">%1$d tâches sur %2$d envoient vers l\'application ; %3$d vont encore vers Telegram ou ailleurs</item>
-        <item quantity="other">%1$d tâches sur %2$d envoient vers l\'application ; %3$d vont encore vers Telegram ou ailleurs</item>
+        <item quantity="one">Vers l\'application : %1$d sur %2$d tâche ; Telegram ou ailleurs : %3$d</item>
+        <item quantity="many">Vers l\'application : %1$d sur %2$d tâches ; Telegram ou ailleurs : %3$d</item>
+        <item quantity="other">Vers l\'application : %1$d sur %2$d tâches ; Telegram ou ailleurs : %3$d</item>
     </plurals>
     <string name="cron_delivery_move">Déplacer</string>
     <string name="cron_delivery_dialog_title">Envoyer le cron vers l\'application ?</string>
@@ -1669,6 +1669,7 @@
     <string name="alarm_fullscreen_off_sub">Wake peut sonner, mais Android risque de n\'afficher qu\'une notification. Autorisez les alarmes plein écran pour afficher les preuves par-dessus l\'écran de verrouillage.</string>
     <string name="alarm_battery_on">L\'optimisation de la batterie est activée</string>
     <string name="alarm_battery_on_sub">Les alarmes exactes peuvent quand même se déclencher. La synchronisation en arrière-plan peut être retardée ; vérifiez les paramètres de batterie si les rappels arrivent en retard.</string>
+    <string name="alarm_battery_on_sync_sub">La synchronisation en arrière-plan peut être retardée ; vérifiez les paramètres de batterie si les rappels arrivent en retard.</string>
     <string name="alarm_battery_review">Vérifier</string>
     <string name="alarm_section_alarms">Alarmes</string>
     <string name="alarm_once">Une fois</string>

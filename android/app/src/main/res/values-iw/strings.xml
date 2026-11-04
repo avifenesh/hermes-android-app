@@ -635,9 +635,9 @@
         <item quantity="other">כל %1$d המשימות עם התראות שולחות את התוצאות לאפליקציה</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">%1$d מתוך %2$d משימות שולחות לאפליקציה; %3$d עדיין נשלחות ל-Telegram או למקום אחר</item>
-        <item quantity="two">%1$d מתוך %2$d משימות שולחות לאפליקציה; %3$d עדיין נשלחות ל-Telegram או למקום אחר</item>
-        <item quantity="other">%1$d מתוך %2$d משימות שולחות לאפליקציה; %3$d עדיין נשלחות ל-Telegram או למקום אחר</item>
+        <item quantity="one">לאפליקציה: %1$d מתוך %2$d משימה; Telegram או מקום אחר: %3$d</item>
+        <item quantity="two">לאפליקציה: %1$d מתוך %2$d משימות; Telegram או מקום אחר: %3$d</item>
+        <item quantity="other">לאפליקציה: %1$d מתוך %2$d משימות; Telegram או מקום אחר: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">העברה</string>
     <string name="cron_delivery_dialog_title">לשלוח את התוצאות של Cron לאפליקציה?</string>
@@ -1583,6 +1583,7 @@
     <string name="alarm_fullscreen_off_sub">ההשכמה יכולה לצלצל, אבל ייתכן ש-Android יציג רק התראה. כדי להציג הוכחות מעל מסך הנעילה, צריך לאפשר התראות במסך מלא.</string>
     <string name="alarm_battery_on">האופטימיזציה של הסוללה פועלת</string>
     <string name="alarm_battery_on_sub">שעונים מעוררים מדויקים עדיין יכולים לפעול. סנכרון ברקע עלול להתעכב; אם תזכורות מגיעות באיחור, כדאי לבדוק את הגדרות הסוללה.</string>
+    <string name="alarm_battery_on_sync_sub">סנכרון ברקע עלול להתעכב; אם תזכורות מגיעות באיחור, כדאי לבדוק את הגדרות הסוללה.</string>
     <string name="alarm_battery_review">בדיקה</string>
     <string name="alarm_section_alarms">שעונים מעוררים</string>
     <string name="alarm_once">פעם אחת</string>

@@ -1383,6 +1383,7 @@
     <string name="alarm_fullscreen_off_sub">기상 알람이 울려도 Android에서 알림만 표시할 수 있습니다. 잠금 화면 위에 증명 화면을 표시하려면 전체 화면 알람을 허용하세요.</string>
     <string name="alarm_battery_on">배터리 최적화가 켜져 있습니다</string>
     <string name="alarm_battery_on_sub">정확한 알람은 계속 울릴 수 있지만 백그라운드 동기화가 지연될 수 있습니다. 알림이 늦게 오면 배터리 설정을 확인하세요.</string>
+    <string name="alarm_battery_on_sync_sub">백그라운드 동기화가 지연될 수 있습니다. 알림이 늦게 오면 배터리 설정을 확인하세요.</string>
     <string name="alarm_battery_review">확인</string>
     <string name="alarm_section_alarms">알람</string>
     <string name="alarm_once">한 번</string>

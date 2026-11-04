@@ -522,7 +522,7 @@
     <!-- ===== Me screen ===== -->
     <string name="me_title">Ich</string>
     <string name="me_profile_model">Profil %1$s · %2$s</string>
-    <string name="me_status_live">live</string>
+    <string name="me_status_live">online</string>
     <string name="me_status_offline">offline</string>
     <string name="me_server_problems">Serverprobleme</string>
     <plurals name="me_server_problems_count">
@@ -650,8 +650,8 @@
         <item quantity="other">Alle %1$d benachrichtigenden Jobs stellen an die App zu</item>
     </plurals>
     <plurals name="cron_delivery_some_elsewhere">
-        <item quantity="one">%1$d von %2$d Jobs stellt an die App zu; %3$d gehen noch an Telegram oder anderswohin</item>
-        <item quantity="other">%1$d von %2$d Jobs stellen an die App zu; %3$d gehen noch an Telegram oder anderswohin</item>
+        <item quantity="one">An die App: %1$d von %2$d Job; Telegram oder anderswohin: %3$d</item>
+        <item quantity="other">An die App: %1$d von %2$d Jobs; Telegram oder anderswohin: %3$d</item>
     </plurals>
     <string name="cron_delivery_move">Verschieben</string>
     <string name="cron_delivery_dialog_title">Cron an die App zustellen?</string>
@@ -1609,6 +1609,7 @@
     <string name="alarm_fullscreen_off_sub">Wake kann klingeln, aber Android zeigt eventuell nur eine Benachrichtigung. Erlaube Vollbild-Wecker, um Nachweise über dem Sperrbildschirm anzuzeigen.</string>
     <string name="alarm_battery_on">Akkuoptimierung ist an</string>
     <string name="alarm_battery_on_sub">Exakte Wecker können trotzdem auslösen. Die Synchronisierung im Hintergrund kann sich verzögern; prüfe die Akkueinstellungen, wenn Erinnerungen spät ankommen.</string>
+    <string name="alarm_battery_on_sync_sub">Die Synchronisierung im Hintergrund kann sich verzögern; prüfe die Akkueinstellungen, wenn Erinnerungen spät ankommen.</string>
     <string name="alarm_battery_review">Prüfen</string>
     <string name="alarm_section_alarms">Wecker</string>
     <string name="alarm_once">Einmal</string>
