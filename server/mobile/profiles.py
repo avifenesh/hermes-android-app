@@ -102,6 +102,7 @@ class ProfileChats:
         self.queues: Dict[str, List[Dict[str, Any]]] = {}
         self._busy: set = set()
         self._stopping: set = set()
+        self._closing = False  # set at adapter disconnect; connect() builds a fresh ProfileChats
 
     # ---------------------------------------------------------------- binding
     def profile_of(self, cid: str) -> str:
@@ -160,13 +161,20 @@ class ProfileChats:
 
     async def close_all(self) -> None:
         """At adapter disconnect: drop queued turns and stop every running child with its group. The child leads its
-        own session, so a gateway that exits outside systemd (launchd, a terminal) no longer takes it down."""
+        own session, so a gateway that exits outside systemd (launchd, a terminal) no longer takes it down. Intake
+        closes first: no send queues and no preparing turn spawns after this."""
+        self._closing = True
         self.queues.clear()
         running = [p for p in self.procs.values() if p.returncode is None]
         await asyncio.gather(*(self._stop_group(p) for p in running), *self._stopping, return_exceptions=True)
 
     async def send(self, cid: str, profile: str, text: str, atts: Optional[List[Dict[str, Any]]] = None) -> None:
         """Run now, or queue behind the current run of this chat."""
+        if self._closing:
+            note = self.ad.store.add_message(cid, "agent", "The gateway is shutting down. Send this again when it is back.",
+                                             kind="status")
+            self.ad._emit_msg(note, push=None)
+            return
         self.queues.setdefault(cid, []).append({"text": text, "atts": list(atts or [])})
         if cid not in self._busy:
             self._busy.add(cid)
@@ -316,11 +324,15 @@ class ProfileChats:
         buf, tools, last_edit, sid, final, code = "", [], 0.0, "", None, 0
         try:
             prompt, image = await self._prepare(text, atts or [])
+            if self._closing:
+                return
             proc = await asyncio.create_subprocess_exec(*self._argv(profile, prompt, resume, image), env=self._env(profile),
                                                         cwd=str(profile_home(profile) or S.hermes_home()),
                                                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                                                         limit=8 * 1024 * 1024, start_new_session=True)
             self.procs[cid] = proc
+            if self._closing:  # close_all ran while the child was being spawned
+                await self._stop_group(proc)
             assert proc.stdout
             idle, hung, open_tools = self._idle_limit(profile), False, Counter()
             while True:

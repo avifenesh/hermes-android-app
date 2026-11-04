@@ -322,5 +322,33 @@ class ProfileWorkingTests(unittest.TestCase):
         self.assertIn("done", ad.store.texts)
 
 
+    def test_no_child_starts_once_the_adapter_closes(self):
+        # A send that lands after close_all, and a turn still preparing its prompt when close_all runs, must not leave
+        # a child running past a gateway that exits outside systemd.
+        async def run():
+            ad = FakeAdapter()
+            pc = chats(ad, silent_s=0, child="import time; time.sleep(120)")
+            spawned = []
+            argv = pc._argv
+            pc._argv = lambda *a, **k: spawned.append(a) or argv(*a, **k)
+            prepare = pc._prepare
+            async def slow_prepare(text, atts):
+                await asyncio.sleep(0.3)
+                return await prepare(text, atts)
+            pc._prepare = slow_prepare
+            await pc.send("c1", "plain", "preparing")
+            await asyncio.sleep(0.05)
+            await pc.close_all()
+            await pc.send("c2", "plain", "late")
+            try:
+                await asyncio.wait_for(asyncio.gather(drained(pc, "c1"), drained(pc, "c2")), timeout=5)
+            finally:
+                for proc in list(pc.procs.values()):
+                    if proc.returncode is None:
+                        proc.kill()
+            return spawned
+        self.assertEqual(asyncio.run(run()), [], "a profile child started after the adapter closed")
+
+
 if __name__ == "__main__":
     unittest.main()
