@@ -52,6 +52,10 @@ def profile_home(name: str) -> Optional[Path]:
 
 
 class ProfileChats:
+    # The adapter's reaper drops a chat from the working set after 14 s without a refresh. A child that is silent in a
+    # slow tool or model step is still running, so the busy period refreshes it well inside that limit.
+    KEEPALIVE_S = 4.0
+
     def __init__(self, ad):
         self.ad = ad
         self.procs: Dict[str, asyncio.subprocess.Process] = {}
@@ -117,13 +121,29 @@ class ProfileChats:
             asyncio.create_task(self._drain(cid, profile))
 
     async def _drain(self, cid: str, profile: str) -> None:
+        """One working span for the whole busy period: queued turns and silent steps never read as a finished run
+        (the phone ends a run's progress on ``working: false``)."""
+        beat = asyncio.create_task(self._keepalive(cid))
         try:
             while self.queues.get(cid):
                 item = self.queues[cid].pop(0)
                 await self._run(cid, profile, item["text"], item["atts"])
         finally:
+            beat.cancel()
             self.queues.pop(cid, None)
             self._busy.discard(cid)
+            if self.ad._working.pop(cid, None):
+                self.ad._emit({"type": "working", "chat_id": cid, "working": False})
+
+    async def _keepalive(self, cid: str) -> None:
+        while True:
+            await asyncio.sleep(self.KEEPALIVE_S)
+            w = self.ad._working.get(cid)
+            now = time.time()
+            if w is None:  # reaped while the loop was stalled: the run is still going
+                self.ad._working[cid] = w = {"since": now}
+                self.ad._emit({"type": "working", "chat_id": cid, "working": True, "since": now})
+            w["last"] = now
 
     # ---------------------------------------------------------------- attachments
     async def _prepare(self, text: str, atts: List[Dict[str, Any]]):
@@ -252,8 +272,6 @@ class ProfileChats:
             ad._emit_msg(note, push=None)
         finally:
             self.procs.pop(cid, None)
-            if ad._working.pop(cid, None):
-                ad._emit({"type": "working", "chat_id": cid, "working": False})
 
     def _upsert(self, cid, msg, text, profile, tools, partial, failed=False):
         st = self.ad.store
