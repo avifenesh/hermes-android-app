@@ -49,9 +49,9 @@ class RoomLogicTest {
         assertEquals(listOf("scout", "writer"), r.members.map { it.profile })
         assertEquals(Triple(9L, 4L, 2), Triple(r.latestSeq, r.readSeq, r.unread))
         assertEquals(listOf("scout"), r.working)
-        assertEquals("Scribe: Done.", RoomLogic.previewLine(r))
+        assertEquals("\u2068Scribe\u2069: \u2068Done.\u2069", RoomLogic.previewLine(r))
         assertNull(RoomLogic.room(JSONObject().put("id", "x").put("preview", JSONObject.NULL)).preview)
-        assertEquals("You: plan it", RoomLogic.previewLine(r.copy(preview = RoomPreview(1, "user", "", "plan it", 0.0))))
+        assertEquals("You: \u2068plan it\u2069", RoomLogic.previewLine(r.copy(preview = RoomPreview(1, "user", "", "plan it", 0.0))))
     }
 
     @Test fun parsesDriverStateAndPendingApproval() {
@@ -103,11 +103,11 @@ class RoomLogicTest {
     }
 
     @Test fun noticesReadAsSentences() {
-        assertEquals("Scout hit an error: provider timeout", RoomLogic.noticeText(
+        assertEquals("\u2068Scout\u2069 hit an error: \u2068provider timeout\u2069", RoomLogic.noticeText(
             ev(1, "", "scout", kind = "notice", notice = "turn.failed", detail = "provider timeout\ntraceback ...")))
-        assertEquals("Scout moved on to your newer message", RoomLogic.noticeText(
+        assertEquals("\u2068Scout\u2069 moved on to your newer message", RoomLogic.noticeText(
             ev(1, "", "scout", kind = "notice", notice = "turn.cancelled", detail = "superseded_by_newer_user_event")))
-        assertEquals("Renamed to Release crew", RoomLogic.noticeText(
+        assertEquals("Renamed to \u2068Release crew\u2069", RoomLogic.noticeText(
             ev(1, "", "", kind = "notice", notice = "room.renamed", detail = "Release crew")))
     }
 
@@ -122,9 +122,9 @@ class RoomLogicTest {
         val members = listOf(RoomMember("a", "a", "a", "Ada"), RoomMember("b", "b", "b", "Bo"), RoomMember("c", "c", "c", "Cy"))
         assertEquals(listOf("Ada", "Cy"), RoomLogic.answering(members, setOf("c", "a")))
         assertEquals("", RoomLogic.workingLine(emptyList()))
-        assertEquals("Ada is answering", RoomLogic.workingLine(listOf("Ada")))
-        assertEquals("Ada and Cy are answering", RoomLogic.workingLine(listOf("Ada", "Cy")))
-        assertEquals("Ada, Bo and Cy are answering", RoomLogic.workingLine(listOf("Ada", "Bo", "Cy")))
+        assertEquals("\u2068Ada\u2069 is answering", RoomLogic.workingLine(listOf("Ada")))
+        assertEquals("\u2068Ada\u2069 and \u2068Cy\u2069 are answering", RoomLogic.workingLine(listOf("Ada", "Cy")))
+        assertEquals("\u2068Ada\u2069, \u2068Bo\u2069 and \u2068Cy\u2069 are answering", RoomLogic.workingLine(listOf("Ada", "Bo", "Cy")))
         val colors = members.map { RoomLogic.colorIndex(members, it.id, 5) }
         assertEquals(listOf(1, 2, 3), colors)  // index 0 is the app accent, kept for the owner's controls
         // A speaker no longer in the roster keeps a color from its id alone, in range.

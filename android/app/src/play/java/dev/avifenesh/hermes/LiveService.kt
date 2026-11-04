@@ -166,7 +166,7 @@ class LiveService : Service(), LiveLifecycle.Instance {
             val since = chat?.let { Hub.working.value[it]?.let { s -> (s * 1000).toLong() } ?: life.runs.startedAt(it) }
             val b = NotificationCompat.Builder(c, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(LIME)
                 .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
-                .setContentTitle(str(R.string.notify_agent_working, Hub.agent.value))
+                .setContentTitle(str(R.string.notify_agent_working, bidiIsolate(Hub.agent.value)))
                 .setContentText(chat?.let { Hub.chats.value[it]?.title } ?: str(R.string.notify_a_run))
                 .setProgress(0, 0, true).setContentIntent(open)
                 .addAction(0, str(R.string.notify_stop_updates), stop)

@@ -94,7 +94,7 @@ object Mk {
         while (job.str("state") == "running") {
             delay(1000)
             job = runCatching { Api.get("/v1/hub/jobs/" + job.str("id")).getJSONObject("job") }.getOrElse { e ->
-                JSONObject(job.toString()).put("state", "failed").put("error", str(R.string.hub_job_lost, e.message))
+                JSONObject(job.toString()).put("state", "failed").put("error", str(R.string.hub_job_lost, bidiIsolate(e.message.orEmpty())))
             }
             tick(job)
         }
@@ -128,13 +128,13 @@ fun HubScreen() {
     val profiles by Mk.profiles.collectAsState()
     LaunchedEffect(Unit) { Mk.loadProfiles() }
     Column(Modifier.fillMaxSize()) {
-        TopBar(stringResource(R.string.hub_title), stringResource(R.string.hub_subtitle, HERMES)) {
+        TopBar(stringResource(R.string.hub_title), stringResource(R.string.hub_subtitle, bidiIsolate(HERMES))) {
             IconBtn(Ic.blocks, P.tx2) { if (Ui.stack.getOrNull(Ui.stack.lastIndex - 1) == Route.ExtR) Ui.pop() else Ui.push(Route.ExtR) }
         }
         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Seg(listOf("skills" to stringResource(R.string.hub_tab_skills), "plugins" to stringResource(R.string.hub_tab_plugins), "mcp" to "MCP"), tab) { Mk.tab.value = it }
             Spacer(Modifier.weight(1f))
-            if (tab == "skills" && profiles.size > 1) Text(Mk.shownProfile() + " ▾", style = mono(12.5f, 600, P.acct),
+            if (tab == "skills" && profiles.size > 1) Text(bidiIsolate(Mk.shownProfile()) + " ▾", style = mono(12.5f, 600, P.acct),
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(P.accd).clickable { pick = true }.padding(horizontal = 10.dp, vertical = 6.dp))
         }
         Box(Modifier.weight(1f)) {
@@ -152,7 +152,7 @@ fun HubScreen() {
 
 @Composable
 private fun Loading(err: String?, onRetry: (() -> Unit)? = null) {
-    if (err != null) { if (onRetry != null) ErrorPanel(err, onRetry) else Text(err, style = sans(14f, 400, P.bad), modifier = Modifier.padding(20.dp)) } else Skeleton()
+    if (err != null) { if (onRetry != null) ErrorPanel(err, content = true, onRetry = onRetry) else Text(err, style = sans(14f, 400, P.bad).content(), modifier = Modifier.padding(20.dp)) } else Skeleton()
 }
 
 // ---------------------------------------------------------------- skills
@@ -233,13 +233,13 @@ fun HubSkillsTab(prof: String) {
             val srcs = b?.optJSONArray("sources").objList().filter { it.str("id") !in setOf("url", "well-known") && it.optBoolean("available", true) }
             if (scope != "installed" && srcs.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(stringResource(R.string.hub_all_sources), source == "all") { source = "all"; category = "all" }
-                for (s in srcs) Chip(s.str("label"), source == s.str("id")) { source = s.str("id"); category = "all" }
+                for (s in srcs) Chip(bidiIsolate(s.str("label")), source == s.str("id")) { source = s.str("id"); category = "all" }
             }
             if (categories.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(stringResource(R.string.hub_all_categories), category == "all") { category = "all" }
-                for (c in categories) Chip(HubLogic.pretty(c), category == c) { category = c }
+                for (c in categories) Chip(bidiIsolate(HubLogic.pretty(c)), category == c) { category = c }
             }
-            Text(if (scope == "discover") stringResource(R.string.hub_discover_hint, Mk.shownProfile()) else stringResource(R.string.hub_installed_hint, Mk.shownProfile()),
+            Text(if (scope == "discover") stringResource(R.string.hub_discover_hint, bidiIsolate(Mk.shownProfile())) else stringResource(R.string.hub_installed_hint, bidiIsolate(Mk.shownProfile())),
                 style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
             Section(if (remote) stringResource(R.string.hub_search_results) else if (scope == "installed") stringResource(R.string.hub_installed_skills) else stringResource(R.string.hub_browse_skills), if (searching) stringResource(R.string.hub_searching) else Fmt.int(list.size))
             if (scope == "installed" && managed.isNotEmpty()) {
@@ -253,11 +253,11 @@ fun HubSkillsTab(prof: String) {
                 updates?.let { u -> val n = u.count { it.str("status") == "update_available" }; Text(pluralStringResource(R.plurals.hub_updates_available, n, n), style = mono(12.5f, 500, p.mu), modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
             }
             val timedOut = results?.optJSONArray("timed_out").strs()
-            if (timedOut.isNotEmpty()) Text(stringResource(R.string.hub_timed_out, timedOut.joinToString(", ")), style = mono(11.5f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp))
+            if (timedOut.isNotEmpty()) Text(stringResource(R.string.hub_timed_out, bidiIsolate(timedOut.joinToString(", "))), style = mono(11.5f, 500, p.att), modifier = Modifier.padding(horizontal = 20.dp))
         }
         when {
             b == null -> item { Loading(err) { retry++ } }
-            remote && searchErr != null -> item { ErrorPanel(searchErr.orEmpty()) { retry++ } }
+            remote && searchErr != null -> item { ErrorPanel(searchErr.orEmpty(), content = true) { retry++ } }
             remote && searching -> item { Skeleton() }
             list.isEmpty() -> item { Empty(stringResource(R.string.hub_no_matching_skills), if (scope == "discover") stringResource(R.string.hub_no_matching_skills_discover) else stringResource(R.string.hub_no_matching_skills_body)) }
         }
@@ -290,9 +290,9 @@ fun SkillCard(s: JSONObject, wide: Boolean) {
             if (s.optBoolean("installed")) Icn(Ic.check, p.good, 16.dp)
         }
         Spacer(Modifier.height(8.dp))
-        Text(s.str("name"), style = sans(16f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(s.str("name"), style = sans(16f, 600, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
-        Text(s.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = if (wide) 3 else 4, overflow = TextOverflow.Ellipsis)
+        Text(s.str("description"), style = sans(13f, 400, p.mu, 18f).content(), maxLines = if (wide) 3 else 4, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -303,12 +303,12 @@ fun SkillRow(s: JSONObject) {
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.str("name"), style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(s.str("name"), style = sans(15f, 600, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(6.dp)); TrustPill(s.str("trust_level"))
                 if (s.optBoolean("installed")) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.hub_status_installed), p.good, p.s3) }
             }
-            Text(s.str("identifier"), style = mono(11f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (s.str("description").isNotBlank()) Text(s.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(s.str("identifier"), style = mono(11f, 500, p.dim).ltr().alignToLayoutStart(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+            if (s.str("description").isNotBlank()) Text(s.str("description"), style = sans(13f, 400, p.mu, 18f).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
         }
         Icn(Ic.chevR, p.mu, 18.dp)
     }
@@ -326,20 +326,20 @@ fun JobPanel(job: JSONObject?, @androidx.annotation.StringRes verb: Int) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (st) { "running" -> LiveDot(); "ok" -> Icn(Ic.check, p.good, 16.dp); else -> Icn(Ic.x, p.bad, 16.dp) }
                 Spacer(Modifier.width(10.dp))
-                Text(when (st) { "running" -> stringResource(verb, job.str("profile")); "ok" -> stringResource(R.string.common_done); "consent" -> stringResource(R.string.hub_job_needs_ok); else -> stringResource(R.string.common_failed) },
+                Text(when (st) { "running" -> stringResource(verb, bidiIsolate(job.str("profile"))); "ok" -> stringResource(R.string.common_done); "consent" -> stringResource(R.string.hub_job_needs_ok); else -> stringResource(R.string.common_failed) },
                     style = sans(15f, 600, p.tx))
                 Spacer(Modifier.weight(1f))
                 if (st == "running") Elapsed(job.optDouble("started", nowS()), mono(11.5f, 500, p.mu))
             }
-            if (job.str("error").isNotBlank()) Text(job.str("error"), style = sans(13.5f, 500, p.bad, 19f), modifier = Modifier.padding(top = 6.dp))
+            if (job.str("error").isNotBlank()) Text(job.str("error"), style = sans(13.5f, 500, p.bad, 19f).content(), modifier = Modifier.padding(top = 6.dp))
             val res = job.optJSONObject("result")
-            res?.optJSONArray("warnings").strs().forEach { Text("⚠ $it", style = sans(13f, 400, p.att, 18f), modifier = Modifier.padding(top = 4.dp)) }
+            res?.optJSONArray("warnings").strs().forEach { Text("⚠ $it", style = sans(13f, 400, p.att, 18f).content(), modifier = Modifier.padding(top = 4.dp)) }
             res?.optJSONArray("missing_env").strs().takeIf { it.isNotEmpty() }?.let {
-                Text(stringResource(R.string.hub_set_on_machine, it.joinToString(", ")), style = mono(12f, 500, p.att), modifier = Modifier.padding(top = 4.dp))
+                Text(stringResource(R.string.hub_set_on_machine, bidiIsolate(it.joinToString(", "))), style = mono(12f, 500, p.att), modifier = Modifier.padding(top = 4.dp))
             }
             res?.str("post_install")?.takeIf { it.isNotBlank() }?.let { Spacer(Modifier.height(6.dp)); Md(it, p.tx2, 13.5f) }
             val log = HubLogic.logTail(job.str("log"))
-            if (log.isNotBlank()) Text(log, style = mono(11f, 400, p.tx2), modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
+            if (log.isNotBlank()) Text(log, style = mono(11f, 400, p.tx2).ltr(), modifier = Modifier.padding(top = 8.dp).fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp)).background(p.s2).padding(10.dp))
         }
     }
@@ -400,7 +400,7 @@ fun HubSkillScreen(ident: String) {
                 else -> { body.put("name", name); path = "/v1/hub/skills/uninstall"; key = null }
             }
             runCatching {
-                val r = if (key != null) Mk.guarded(act, key, if (action == "install") str(R.string.hub_sign_install, name) else str(R.string.hub_sign_update, name)) { h -> Api.post(path, body, h) } else Api.post(path, body)
+                val r = if (key != null) Mk.guarded(act, key, if (action == "install") str(R.string.hub_sign_install, bidiIsolate(name)) else str(R.string.hub_sign_update, bidiIsolate(name))) { h -> Api.post(path, body, h) } else Api.post(path, body)
                 Mk.follow(r.getJSONObject("job")) { job = it }
             }.onSuccess { if (it.str("state") == "ok") { Ui.say(when (action) { "install" -> R.string.hub_installed_toast; "update" -> R.string.hub_updated_toast; else -> R.string.hub_removed_toast }, name); load() } }
                 .onFailure { if (it.message != "Cancelled") job = JSONObject().put("state", "failed").put("error", it.message ?: str(R.string.hub_job_failed)).put("profile", Mk.shownProfile()) }
@@ -408,25 +408,25 @@ fun HubSkillScreen(ident: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(o?.str("name") ?: ident.substringAfterLast('/'), ident)
+        TopBar(o?.str("name") ?: ident.substringAfterLast('/'), ident, contentTitle = true, contentSub = true)
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
             if (o == null) item { Loading(err) { err = null; co.launch { load() } } }
             else {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TrustPill(o.str("trust_level"))
-                        Spacer(Modifier.width(6.dp)); Pill(o.str("source_label").ifBlank { o.str("source") }, p.tx2, p.s3)
-                        if (inst != null || installedLocal) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.hub_installed_in, Mk.shownProfile()), p.good, p.s3) }
+                        Spacer(Modifier.width(6.dp)); Pill(o.str("source_label").ifBlank { o.str("source") }, p.tx2, p.s3, content = true)
+                        if (inst != null || installedLocal) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.hub_installed_in, bidiIsolate(Mk.shownProfile())), p.good, p.s3) }
                     }
                     Spacer(Modifier.height(10.dp))
-                    if (o.str("description").isNotBlank()) Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f))
+                    if (o.str("description").isNotBlank()) Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f).content())
                     Spacer(Modifier.height(10.dp))
-                    KVLine(stringResource(R.string.hub_kv_source), o.str("source_label").ifBlank { o.str("source") })
-                    KVLine(stringResource(R.string.hub_kv_repo), o.str("repo").takeIf { it != "null" })
-                    KVLine(stringResource(R.string.hub_kv_installed), inst?.let { it.str("installed_at").take(16).replace('T', ' ') })
-                    KVLine(stringResource(R.string.hub_kv_scan_then), inst?.str("scan_verdict"))
+                    KVLine(stringResource(R.string.hub_kv_source), bidiIsolate(o.str("source_label").ifBlank { o.str("source") }))
+                    KVLine(stringResource(R.string.hub_kv_repo), o.str("repo").takeIf { it != "null" }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_installed), inst?.let { bidiIsolate(it.str("installed_at").take(16).replace('T', ' ')) })
+                    KVLine(stringResource(R.string.hub_kv_scan_then), inst?.str("scan_verdict")?.let(::bidiIsolate))
                     val tags = o.optJSONArray("tags").strs()
-                    if (tags.isNotEmpty()) FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (t in tags) Chip(t) }
+                    if (tags.isNotEmpty()) FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (t in tags) Chip(bidiIsolate(t)) }
                     o.str("repo").takeIf { it.startsWith("http") }?.let { r ->
                         Text(stringResource(R.string.hub_open_source), style = sans(13.5f, 600, p.acct), modifier = Modifier.padding(top = 8.dp).clickable { runCatching { uri.openUri(r) } })
                     }
@@ -442,22 +442,22 @@ fun HubSkillScreen(ident: String) {
                                 Text(when (gate) {
                                     HubLogic.Gate.SCANNING -> stringResource(R.string.hub_scan_running)
                                     HubLogic.Gate.SCAN_FAILED -> stringResource(R.string.hub_scan_failed)
-                                    HubLogic.Gate.ALLOW -> stringResource(R.string.hub_scan_allowed, sc?.str("verdict").toString())
-                                    HubLogic.Gate.REFUSED -> stringResource(R.string.hub_scan_refused, sc?.str("verdict").toString(), HERMES)
+                                    HubLogic.Gate.ALLOW -> stringResource(R.string.hub_scan_allowed, bidiIsolate(sc?.str("verdict").toString()))
+                                    HubLogic.Gate.REFUSED -> stringResource(R.string.hub_scan_refused, bidiIsolate(sc?.str("verdict").toString()), bidiIsolate(HERMES))
                                 }, style = sans(15f, 600, p.tx), modifier = Modifier.weight(1f))
                             }
-                            scanErr?.let { Text(it, style = mono(12f, 500, p.bad), modifier = Modifier.padding(top = 6.dp)) }
+                            scanErr?.let { Text(it, style = mono(12f, 500, p.bad).content(), modifier = Modifier.padding(top = 6.dp)) }
                             if (sc != null) {
-                                Text(HubLogic.findingsLine(sc.counts()) + " · " + sc.str("policy_reason"), style = sans(13f, 400, p.mu, 18f), modifier = Modifier.padding(top = 6.dp))
-                                if (sc.str("summary").isNotBlank()) Text(sc.str("summary"), style = sans(13f, 400, p.tx2, 18f), modifier = Modifier.padding(top = 4.dp))
+                                Text(HubLogic.findingsLine(sc.counts()) + " · " + bidiIsolate(sc.str("policy_reason")), style = sans(13f, 400, p.mu, 18f), modifier = Modifier.padding(top = 6.dp))
+                                if (sc.str("summary").isNotBlank()) Text(sc.str("summary"), style = sans(13f, 400, p.tx2, 18f).content(), modifier = Modifier.padding(top = 4.dp))
                                 val f = sc.optJSONArray("findings").objList()
                                 if (f.isNotEmpty()) {
                                     Text(if (showFindings) stringResource(R.string.hub_hide_findings) else pluralStringResource(R.plurals.hub_show_findings, f.size, f.size), style = sans(13.5f, 600, p.acct),
                                         modifier = Modifier.padding(top = 8.dp).clickable { showFindings = !showFindings })
                                     if (showFindings) for (x in f) Column(Modifier.padding(top = 8.dp)) {
-                                        Text("${x.str("severity").uppercase()} · ${x.str("category")} · ${x.str("file")}:${x.optInt("line")}",
+                                        Text(bidiJoin(listOf(x.str("severity").uppercase(), x.str("category"), "${x.str("file")}:${x.optInt("line")}")),
                                             style = mono(11.5f, 600, if (x.str("severity") in setOf("critical", "high")) p.bad else p.att))
-                                        Text(x.str("description"), style = sans(13f, 400, p.tx2, 18f))
+                                        Text(x.str("description"), style = sans(13f, 400, p.tx2, 18f).content())
                                     }
                                 }
                             }
@@ -475,13 +475,13 @@ fun HubSkillScreen(ident: String) {
                             Btn(stringResource(R.string.hub_manage_in_extensions), Modifier.weight(1f), primary = false) { Ui.push(Route.ExtR) }
                         }
                     }
-                    if (inst == null && !installedLocal && gate == HubLogic.Gate.REFUSED) Text(stringResource(R.string.hub_scan_policy_refuses, HERMES),
+                    if (inst == null && !installedLocal && gate == HubLogic.Gate.REFUSED) Text(stringResource(R.string.hub_scan_policy_refuses, bidiIsolate(HERMES)),
                         style = sans(12.5f, 400, p.dim, 17f))
                 }
                 val files = o.optJSONArray("files").strs()
                 if (files.isNotEmpty()) item {
                     Section(stringResource(R.string.hub_files), Fmt.int(files.size))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (f in files.take(60)) Chip(f) }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (f in files.take(60)) Chip(bidiIsolate(f)) }
                 }
                 val md = o.str("skill_md").let { if (it.startsWith("---")) it.substringAfter("\n---", it).removePrefix("\n") else it }
                 if (md.isNotBlank()) item { Section("SKILL.md"); Md(md.take(60000)) }
@@ -490,16 +490,16 @@ fun HubSkillScreen(ident: String) {
         }
     }
     when (ask) {
-        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, o?.str("name").toString()), {
-            Text(stringResource(R.string.hub_skill_install_body, Mk.shownProfile(), HERMES), style = sans(15f, 400, p.tx2, 21f))
-            scan?.let { Text(stringResource(R.string.hub_scan_summary, it.str("verdict"), HubLogic.findingsLine(it.counts())), style = mono(12.5f, 600, p.mu), modifier = Modifier.padding(top = 8.dp)) }
-            Text(stringResource(R.string.hub_source_trust, o?.str("source_label").toString(), HubLogic.trustLabel(o?.str("trust_level").orEmpty())), style = mono(12.5f, 500, p.mu))
+        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, bidiIsolate(o?.str("name").toString())), {
+            Text(stringResource(R.string.hub_skill_install_body, bidiIsolate(Mk.shownProfile()), bidiIsolate(HERMES)), style = sans(15f, 400, p.tx2, 21f))
+            scan?.let { Text(stringResource(R.string.hub_scan_summary, bidiIsolate(it.str("verdict")), HubLogic.findingsLine(it.counts())), style = mono(12.5f, 600, p.mu), modifier = Modifier.padding(top = 8.dp)) }
+            Text(stringResource(R.string.hub_source_trust, bidiIsolate(o?.str("source_label").toString()), HubLogic.trustLabel(o?.str("trust_level").orEmpty())), style = mono(12.5f, 500, p.mu))
         }, stringResource(R.string.common_install), onYes = { ask = null; act("install") }, onNo = { ask = null })
-        "update" -> ConfirmDialog(stringResource(R.string.hub_confirm_update, inst?.str("name").toString()), {
-            Text(stringResource(R.string.hub_skill_update_body, HERMES), style = sans(15f, 400, p.tx2, 21f))
+        "update" -> ConfirmDialog(stringResource(R.string.hub_confirm_update, bidiIsolate(inst?.str("name").toString())), {
+            Text(stringResource(R.string.hub_skill_update_body, bidiIsolate(HERMES)), style = sans(15f, 400, p.tx2, 21f))
         }, stringResource(R.string.common_update), onYes = { ask = null; act("update") }, onNo = { ask = null })
-        "uninstall" -> ConfirmDialog(stringResource(R.string.hub_confirm_uninstall, inst?.str("name").toString()), {
-            Text(stringResource(R.string.hub_skill_uninstall_body, Mk.shownProfile()), style = sans(15f, 400, p.tx2, 21f))
+        "uninstall" -> ConfirmDialog(stringResource(R.string.hub_confirm_uninstall, bidiIsolate(inst?.str("name").toString())), {
+            Text(stringResource(R.string.hub_skill_uninstall_body, bidiIsolate(Mk.shownProfile())), style = sans(15f, 400, p.tx2, 21f))
         }, stringResource(R.string.hub_uninstall), danger = true, onYes = { ask = null; act("uninstall") }, onNo = { ask = null })
     }
 }
@@ -534,7 +534,7 @@ fun HubPluginsTab() {
             val cats = data?.optJSONArray("categories").strs().filter { c -> all.any { it.str("category") == c } }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(stringResource(R.string.hub_all_categories), cat == "all") { cat = "all" }
-                for (c in cats) Chip(HubLogic.pretty(c), cat == c) { cat = c }
+                for (c in cats) Chip(bidiIsolate(HubLogic.pretty(c)), cat == c) { cat = c }
             }
             Section(if (scope == "discover") stringResource(R.string.hub_available_plugins) else if (scope == "installed") stringResource(R.string.hub_installed_plugins) else stringResource(R.string.hub_all_plugins), Fmt.int(list.size))
         }
@@ -545,19 +545,19 @@ fun HubPluginsTab() {
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(e.str("title").ifBlank { e.str("name") }, style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Spacer(Modifier.width(6.dp)); Pill(e.str("tier"), if (e.str("tier") == "official") p.acct else p.tx2, if (e.str("tier") == "official") p.accd else p.s3)
+                        Text(e.str("title").ifBlank { e.str("name") }, style = sans(15f, 600, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Spacer(Modifier.width(6.dp)); Pill(e.str("tier"), if (e.str("tier") == "official") p.acct else p.tx2, if (e.str("tier") == "official") p.accd else p.s3, content = true)
                         if (e.optBoolean("installed")) { Spacer(Modifier.width(6.dp)); Pill(if (e.optBoolean("update_available")) stringResource(R.string.hub_status_update) else stringResource(R.string.hub_status_installed), if (e.optBoolean("update_available")) p.att else p.good, p.s3) }
                     }
-                    Text(listOf(e.str("maintainer"), HubLogic.pretty(e.str("category")), e.str("version")).filter { it.isNotBlank() }.joinToString(" · "), style = mono(11f, 500, p.dim))
-                    Text(e.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(bidiJoin(listOf(e.str("maintainer"), HubLogic.pretty(e.str("category")), e.str("version")).filter { it.isNotBlank() }), style = mono(11f, 500, p.dim))
+                    Text(e.str("description"), style = sans(13f, 400, p.mu, 18f).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
                 }
                 Icn(Ic.chevR, p.mu, 18.dp)
             }
         }
         data?.optJSONArray("removed").objList().takeIf { scope != "discover" && it.isNotEmpty() }?.let { rm ->
             item { Section(stringResource(R.string.hub_pulled_from_catalog), Fmt.int(rm.size)) }
-            items(rm) { r -> Text("${r.str("name")}: ${r.str("reason")}", style = sans(12.5f, 400, p.dim, 17f), modifier = Modifier.padding(horizontal = 20.dp, vertical = 3.dp)) }
+            items(rm) { r -> Text("${r.str("name")}: ${r.str("reason")}", style = sans(12.5f, 400, p.dim, 17f).content(), modifier = Modifier.padding(horizontal = 20.dp, vertical = 3.dp)) }
         }
         item { Spacer(Modifier.height(30.dp)) }
     }
@@ -583,7 +583,7 @@ fun HubPluginScreen(name: String) {
             e = entries.firstOrNull { it.str("name") == name }
             if (e == null) { Mk.plugins.remove(name); loadErr = str(R.string.hub_plugin_gone) }
         } catch (ex: kotlinx.coroutines.CancellationException) { throw ex }
-        catch (ex: Exception) { loadErr = str(R.string.hub_plugin_load_failed, ex.message ?: str(R.string.common_connection_failed)) }
+        catch (ex: Exception) { loadErr = str(R.string.hub_plugin_load_failed, ex.message?.let(::bidiIsolate) ?: str(R.string.common_connection_failed)) }
     }
     LaunchedEffect(name, retry) { if (e == null || retry > 0) reload() }
     val o = e
@@ -596,7 +596,7 @@ fun HubPluginScreen(name: String) {
             val path = "/v1/hub/plugins/$action"
             val body = JSONObject().put("name", if (action == "install") name else local).apply { if (accept) put("accept_capabilities", true) }
             runCatching {
-                val r = Mk.guarded(act, HubLogic.guardKey("plugin", action, body.str("name"), accept), when (action) { "install" -> str(R.string.hub_sign_plugin_install, name); "update" -> str(R.string.hub_sign_plugin_update, name); else -> str(R.string.hub_sign_plugin_remove, name) }) { h -> Api.post(path, body, h) }
+                val r = Mk.guarded(act, HubLogic.guardKey("plugin", action, body.str("name"), accept), when (action) { "install" -> str(R.string.hub_sign_plugin_install, bidiIsolate(name)); "update" -> str(R.string.hub_sign_plugin_update, bidiIsolate(name)); else -> str(R.string.hub_sign_plugin_remove, bidiIsolate(name)) }) { h -> Api.post(path, body, h) }
                 Mk.follow(r.getJSONObject("job")) { job = it }
             }.onSuccess { j ->
                 if (j.str("state") == "ok") {
@@ -609,33 +609,33 @@ fun HubPluginScreen(name: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(o?.str("title")?.ifBlank { null } ?: name, stringResource(R.string.hub_plugin_subtitle, name))
+        TopBar(o?.str("title")?.ifBlank { null } ?: name, stringResource(R.string.hub_plugin_subtitle, bidiIsolate(name)), contentTitle = true)
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
             if (loadErr != null) item { ErrorPanel(loadErr!!) { loadErr = null; retry++ } }
             if (o == null) { if (loadErr == null) item { Skeleton() } }
             else {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Pill(o.str("tier"), if (o.str("tier") == "official") p.acct else p.tx2, if (o.str("tier") == "official") p.accd else p.s3)
-                        Spacer(Modifier.width(6.dp)); Pill(HubLogic.pretty(o.str("category")), p.tx2, p.s3)
-                        if (o.optBoolean("installed")) { Spacer(Modifier.width(6.dp)); Pill(o.str("runtime_status").ifBlank { stringResource(R.string.hub_status_installed) }, p.good, p.s3) }
+                        Pill(o.str("tier"), if (o.str("tier") == "official") p.acct else p.tx2, if (o.str("tier") == "official") p.accd else p.s3, content = true)
+                        Spacer(Modifier.width(6.dp)); Pill(HubLogic.pretty(o.str("category")), p.tx2, p.s3, content = true)
+                        if (o.optBoolean("installed")) { Spacer(Modifier.width(6.dp)); Pill(o.str("runtime_status").ifBlank { stringResource(R.string.hub_status_installed) }, p.good, p.s3, content = o.str("runtime_status").isNotBlank()) }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f))
+                    Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f).content())
                     Spacer(Modifier.height(10.dp))
-                    KVLine(stringResource(R.string.hub_kv_maintainer), o.str("maintainer"))
-                    KVLine(stringResource(R.string.hub_kv_version), o.str("version"))
-                    KVLine(stringResource(R.string.hub_kv_pinned), o.str("sha_short"))
-                    KVLine(stringResource(R.string.hub_kv_installed), o.str("installed_sha").take(7).ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_needs), o.str("requires_hermes").ifBlank { null }?.let { "$HERMES $it" })
-                    KVLine(stringResource(R.string.hub_kv_platforms), o.optJSONArray("platforms").strs().joinToString(", ").ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_adds), o.str("capability_summary"))
+                    KVLine(stringResource(R.string.hub_kv_maintainer), bidiIsolate(o.str("maintainer")))
+                    KVLine(stringResource(R.string.hub_kv_version), bidiIsolate(o.str("version")))
+                    KVLine(stringResource(R.string.hub_kv_pinned), bidiIsolate(o.str("sha_short")))
+                    KVLine(stringResource(R.string.hub_kv_installed), o.str("installed_sha").take(7).ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_needs), o.str("requires_hermes").ifBlank { null }?.let { bidiIsolate("$HERMES $it") })
+                    KVLine(stringResource(R.string.hub_kv_platforms), o.optJSONArray("platforms").strs().joinToString(", ").ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_adds), bidiIsolate(o.str("capability_summary")))
                     val caps = o.optJSONObject("capabilities")
-                    KVLine(stringResource(R.string.hub_kv_tools), caps?.optJSONArray("provides_tools").strs().joinToString(", ").ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_hooks), caps?.optJSONArray("provides_hooks").strs().joinToString(", ").ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_middleware), caps?.optJSONArray("provides_middleware").strs().joinToString(", ").ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_env), caps?.optJSONArray("requires_env").strs().joinToString(", ").ifBlank { null })
-                    o.optJSONArray("known_issues").strs().forEach { Text("⚠ $it", style = sans(13f, 400, p.att, 18f), modifier = Modifier.padding(top = 4.dp)) }
+                    KVLine(stringResource(R.string.hub_kv_tools), caps?.optJSONArray("provides_tools").strs().joinToString(", ").ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_hooks), caps?.optJSONArray("provides_hooks").strs().joinToString(", ").ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_middleware), caps?.optJSONArray("provides_middleware").strs().joinToString(", ").ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_env), caps?.optJSONArray("requires_env").strs().joinToString(", ").ifBlank { null }?.let(::bidiIsolate))
+                    o.optJSONArray("known_issues").strs().forEach { Text("⚠ $it", style = sans(13f, 400, p.att, 18f).content(), modifier = Modifier.padding(top = 4.dp)) }
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         o.str("repo").takeIf { it.startsWith("https://") }?.let { r -> Text(stringResource(R.string.hub_repository), style = sans(13.5f, 600, p.acct), modifier = Modifier.clickable { runCatching { uri.openUri(r) } }) }
                         o.str("docs_url").takeIf { it.startsWith("https://") }?.let { r -> Text(stringResource(R.string.hub_docs), style = sans(13.5f, 600, p.acct), modifier = Modifier.clickable { runCatching { uri.openUri(r) } }) }
@@ -643,7 +643,7 @@ fun HubPluginScreen(name: String) {
                 }
                 item {
                     Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.hub_plugin_note, HERMES),
+                    Text(stringResource(R.string.hub_plugin_note, bidiIsolate(HERMES)),
                         style = sans(12.5f, 400, p.dim, 17f))
                     JobPanel(job, when (job?.str("action")) { "remove" -> R.string.hub_job_removing; "update" -> R.string.hub_job_updating; else -> R.string.hub_job_installing })
                     Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -660,18 +660,18 @@ fun HubPluginScreen(name: String) {
     }
     val caps = o?.str("capability_summary").orEmpty()
     when (ask) {
-        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, o?.str("title")?.ifBlank { null } ?: name), {
-            Text(stringResource(R.string.hub_plugin_install_body, o?.str("sha_short").toString(), gateway), style = sans(15f, 400, p.tx2, 21f))
-            if (caps.isNotBlank()) Text(stringResource(R.string.hub_adds, caps), style = mono(12.5f, 600, p.mu), modifier = Modifier.padding(top = 8.dp))
+        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, bidiIsolate(o?.str("title")?.ifBlank { null } ?: name)), {
+            Text(stringResource(R.string.hub_plugin_install_body, bidiIsolate(o?.str("sha_short").toString()), bidiIsolate(gateway)), style = sans(15f, 400, p.tx2, 21f))
+            if (caps.isNotBlank()) Text(stringResource(R.string.hub_adds, bidiIsolate(caps)), style = mono(12.5f, 600, p.mu), modifier = Modifier.padding(top = 8.dp))
         }, stringResource(R.string.common_install), onYes = { ask = null; run("install") }, onNo = { ask = null })
-        "update" -> ConfirmDialog(stringResource(R.string.hub_confirm_update, name), { Text(stringResource(R.string.hub_plugin_update_body), style = sans(15f, 400, p.tx2, 21f)) },
+        "update" -> ConfirmDialog(stringResource(R.string.hub_confirm_update, bidiIsolate(name)), { Text(stringResource(R.string.hub_plugin_update_body), style = sans(15f, 400, p.tx2, 21f)) },
             stringResource(R.string.common_update), onYes = { ask = null; run("update") }, onNo = { ask = null })
-        "consent" -> ConfirmDialog(stringResource(R.string.hub_update_widens, name), {
+        "consent" -> ConfirmDialog(stringResource(R.string.hub_update_widens, bidiIsolate(name)), {
             val res = job?.optJSONObject("result")
-            for (l in res?.optJSONArray("delta_lines").strs()) Text(l, style = mono(12.5f, 500, p.att))
+            for (l in res?.optJSONArray("delta_lines").strs()) Text(l, style = mono(12.5f, 500, p.att).content())
             Text(stringResource(R.string.hub_accept_and_update), style = sans(15f, 400, p.tx2, 21f), modifier = Modifier.padding(top = 8.dp))
         }, stringResource(R.string.hub_accept), onYes = { ask = null; run("update", accept = true) }, onNo = { ask = null })
-        "remove" -> ConfirmDialog(stringResource(R.string.hub_confirm_remove, name), { Text(stringResource(R.string.hub_plugin_remove_body, HERMES), style = sans(15f, 400, p.tx2, 21f)) },
+        "remove" -> ConfirmDialog(stringResource(R.string.hub_confirm_remove, bidiIsolate(name)), { Text(stringResource(R.string.hub_plugin_remove_body, bidiIsolate(HERMES)), style = sans(15f, 400, p.tx2, 21f)) },
             stringResource(R.string.common_remove), danger = true, onYes = { ask = null; run("remove") }, onNo = { ask = null })
     }
 }
@@ -715,12 +715,12 @@ fun HubMcpTab() {
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(e.str("name"), style = sans(15f, 600, p.tx))
-                        Spacer(Modifier.width(6.dp)); Pill(e.str("transport"), p.tx2, p.s3)
-                        if (e.str("auth_type") != "none") { Spacer(Modifier.width(6.dp)); Pill(e.str("auth_type"), p.att, p.attd) }
+                        Text(e.str("name"), style = sans(15f, 600, p.tx).content())
+                        Spacer(Modifier.width(6.dp)); Pill(e.str("transport"), p.tx2, p.s3, content = true)
+                        if (e.str("auth_type") != "none") { Spacer(Modifier.width(6.dp)); Pill(e.str("auth_type"), p.att, p.attd, content = true) }
                         if (e.optBoolean("installed")) { Spacer(Modifier.width(6.dp)); Pill(if (e.optBoolean("enabled")) stringResource(R.string.hub_status_installed) else stringResource(R.string.hub_status_off), p.good, p.s3) }
                     }
-                    Text(e.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(e.str("description"), style = sans(13f, 400, p.mu, 18f).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
                 }
                 Icn(Ic.chevR, p.mu, 18.dp)
             }
@@ -735,10 +735,11 @@ private fun SecretField(v: String, on: (String) -> Unit, ph: String, secret: Boo
     BasicTextField(v, on, singleLine = true, modifier = Modifier.fillMaxWidth(),
         visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = if (secret) KeyboardType.Password else KeyboardType.Text, autoCorrectEnabled = false),
-        textStyle = mono(14f, 500, p.tx), cursorBrush = SolidColor(p.acct),
+        // Keys and tokens are left-to-right syntax, and so is the variable name shown as the hint.
+        textStyle = mono(14f, 500, p.tx).ltr(), cursorBrush = SolidColor(p.acct),
         decorationBox = { inner ->
             Box(Modifier.clip(RoundedCornerShape(16.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 11.dp)) {
-                if (v.isEmpty()) Text(ph, style = mono(14f, 400, p.dim)); inner()
+                if (v.isEmpty()) Text(ph, style = mono(14f, 400, p.dim).ltr(), modifier = Modifier.fillMaxWidth()); inner()
             }
         })
 }
@@ -763,7 +764,7 @@ fun HubMcpScreen(name: String) {
             e = entries.firstOrNull { it.str("name") == name }
             if (e == null) { Mk.mcp.remove(name); loadErr = str(R.string.hub_mcp_gone) }
         } catch (ex: kotlinx.coroutines.CancellationException) { throw ex }
-        catch (ex: Exception) { loadErr = str(R.string.hub_mcp_load_failed, ex.message ?: str(R.string.common_connection_failed)) }
+        catch (ex: Exception) { loadErr = str(R.string.hub_mcp_load_failed, ex.message?.let(::bidiIsolate) ?: str(R.string.common_connection_failed)) }
     }
     LaunchedEffect(name, retry) { if (e == null || retry > 0) reload() }
     val o = e
@@ -777,7 +778,7 @@ fun HubMcpScreen(name: String) {
             if (action == "install") body.put("env", JSONObject(env.filterValues { it.isNotBlank() }.toMap()))
             val path = if (action == "install") "/v1/hub/mcp/install" else "/v1/hub/mcp/uninstall"
             runCatching {
-                val r = Mk.guarded(act, HubLogic.guardKey("mcp", action, name), if (action == "install") str(R.string.hub_sign_mcp_install, name) else str(R.string.hub_sign_mcp_remove, name)) { h -> Api.post(path, body, h) }
+                val r = Mk.guarded(act, HubLogic.guardKey("mcp", action, name), if (action == "install") str(R.string.hub_sign_mcp_install, bidiIsolate(name)) else str(R.string.hub_sign_mcp_remove, bidiIsolate(name))) { h -> Api.post(path, body, h) }
                 Mk.follow(r.getJSONObject("job")) { job = it }
             }.onSuccess { j -> if (j.str("state") == "ok") { Ctl.restartChanged(); env.clear(); reload() } }
                 .onFailure { if (it.message != "Cancelled") job = JSONObject().put("state", "failed").put("error", it.message ?: str(R.string.hub_job_failed)).put("profile", Mk.gateway.value) }
@@ -785,23 +786,23 @@ fun HubMcpScreen(name: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(name, stringResource(R.string.hub_mcp_subtitle, o?.str("transport") ?: ""))
+        TopBar(name, stringResource(R.string.hub_mcp_subtitle, bidiIsolate(o?.str("transport") ?: "")), contentTitle = true)
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
             if (loadErr != null) item { ErrorPanel(loadErr!!) { loadErr = null; retry++ } }
             if (o == null) { if (loadErr == null) item { Skeleton() } }
             else {
                 item {
-                    Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f))
+                    Text(o.str("description"), style = sans(15.5f, 400, p.tx2, 22f).content())
                     Spacer(Modifier.height(10.dp))
-                    KVLine(stringResource(R.string.hub_kv_source), o.str("source"))
-                    KVLine(stringResource(R.string.hub_kv_auth), o.str("auth_type"))
-                    KVLine(stringResource(R.string.hub_kv_url), o.str("url").takeIf { it != "null" })
-                    KVLine(stringResource(R.string.hub_kv_runs), (listOf(o.str("command")) + o.optJSONArray("args").strs()).filter { it.isNotBlank() && it != "null" }.joinToString(" ").ifBlank { null })
-                    KVLine(stringResource(R.string.hub_kv_clones), o.str("install_url").takeIf { it != "null" })
+                    KVLine(stringResource(R.string.hub_kv_source), bidiIsolate(o.str("source")))
+                    KVLine(stringResource(R.string.hub_kv_auth), bidiIsolate(o.str("auth_type")))
+                    KVLine(stringResource(R.string.hub_kv_url), o.str("url").takeIf { it != "null" }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_runs), (listOf(o.str("command")) + o.optJSONArray("args").strs()).filter { it.isNotBlank() && it != "null" }.joinToString(" ").ifBlank { null }?.let(::bidiIsolate))
+                    KVLine(stringResource(R.string.hub_kv_clones), o.str("install_url").takeIf { it != "null" }?.let(::bidiIsolate))
                     val boot = o.optJSONArray("bootstrap").strs()
                     if (boot.isNotEmpty()) {
                         Text(stringResource(R.string.hub_build_steps), style = sans(13f, 600, p.att), modifier = Modifier.padding(top = 8.dp))
-                        Text(boot.joinToString("\n"), style = mono(11.5f, 500, p.tx2), modifier = Modifier.padding(top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(p.s2).padding(10.dp))
+                        Text(boot.joinToString("\n"), style = mono(11.5f, 500, p.tx2).ltr(), modifier = Modifier.padding(top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(p.s2).padding(10.dp))
                     }
                     if (o.str("auth_type") == "oauth") Text(stringResource(R.string.hub_oauth_note), style = sans(13f, 400, p.att, 18f), modifier = Modifier.padding(top = 8.dp))
                 }
@@ -809,8 +810,8 @@ fun HubMcpScreen(name: String) {
                     item { Section(stringResource(R.string.hub_credentials), stringResource(R.string.hub_credentials_saved)) }
                     items(req, key = { "env:" + it.str("name") }) { r ->
                         Column(Modifier.padding(vertical = 5.dp)) {
-                            Text(if (r.optBoolean("required", true)) r.str("name") else stringResource(R.string.hub_env_optional, r.str("name")), style = mono(12f, 600, p.mu))
-                            if (r.str("prompt").isNotBlank()) Text(r.str("prompt"), style = sans(12.5f, 400, p.dim, 17f))
+                            Text(if (r.optBoolean("required", true)) bidiIsolate(r.str("name")) else stringResource(R.string.hub_env_optional, bidiIsolate(r.str("name"))), style = mono(12f, 600, p.mu))
+                            if (r.str("prompt").isNotBlank()) Text(r.str("prompt"), style = sans(12.5f, 400, p.dim, 17f).content())
                             Spacer(Modifier.height(4.dp))
                             SecretField(env[r.str("name")].orEmpty(), { env[r.str("name")] = it }, r.str("name"), r.optBoolean("secret", true))
                         }
@@ -822,7 +823,7 @@ fun HubMcpScreen(name: String) {
                         if (!o.optBoolean("installed")) Btn(stringResource(R.string.common_install), Modifier.weight(1f), enabled = !running && missing.isEmpty()) { ask = "install" }
                         else Btn(stringResource(R.string.common_remove), Modifier.weight(1f), danger = true, enabled = !running) { ask = "remove" }
                     }
-                    if (!o.optBoolean("installed") && missing.isNotEmpty()) Text(stringResource(R.string.hub_fill_in_first, missing.joinToString(", ")), style = sans(12.5f, 400, p.dim, 17f))
+                    if (!o.optBoolean("installed") && missing.isNotEmpty()) Text(stringResource(R.string.hub_fill_in_first, bidiIsolate(missing.joinToString(", "))), style = sans(12.5f, 400, p.dim, 17f))
                     if (o.str("post_install").isNotBlank() && o.optBoolean("installed")) { Spacer(Modifier.height(8.dp)); Md(o.str("post_install"), p.tx2, 13.5f) }
                 }
             }
@@ -830,11 +831,11 @@ fun HubMcpScreen(name: String) {
         }
     }
     when (ask) {
-        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, name), {
-            Text(if (o?.optBoolean("needs_install") == true) stringResource(R.string.hub_mcp_install_build_body, gateway, HERMES)
-                else stringResource(R.string.hub_mcp_install_body, gateway, HERMES), style = sans(15f, 400, p.tx2, 21f))
+        "install" -> ConfirmDialog(stringResource(R.string.hub_confirm_install, bidiIsolate(name)), {
+            Text(if (o?.optBoolean("needs_install") == true) stringResource(R.string.hub_mcp_install_build_body, bidiIsolate(gateway), bidiIsolate(HERMES))
+                else stringResource(R.string.hub_mcp_install_body, bidiIsolate(gateway), bidiIsolate(HERMES)), style = sans(15f, 400, p.tx2, 21f))
         }, stringResource(R.string.common_install), onYes = { ask = null; run("install") }, onNo = { ask = null })
-        "remove" -> ConfirmDialog(stringResource(R.string.hub_confirm_remove, name), { Text(stringResource(R.string.hub_mcp_remove_body), style = sans(15f, 400, p.tx2, 21f)) },
+        "remove" -> ConfirmDialog(stringResource(R.string.hub_confirm_remove, bidiIsolate(name)), { Text(stringResource(R.string.hub_mcp_remove_body), style = sans(15f, 400, p.tx2, 21f)) },
             stringResource(R.string.common_remove), danger = true, onYes = { ask = null; run("remove") }, onNo = { ask = null })
     }
 }

@@ -237,7 +237,7 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, sightings: Momentum
         if (rep == null) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(stringResource(R.string.momentum_no_report), style = sans(14.5f, 600, p.tx2))
-                Text(o.str("error").ifBlank { stringResource(R.string.momentum_no_report_detail) }, style = mono(11.5f, 500, p.mu),
+                Text(o.str("error").ifBlank { stringResource(R.string.momentum_no_report_detail) }, style = mono(11.5f, 500, p.mu).let { if (o.str("error").isBlank()) it else it.content() },
                     maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             return@Panel
@@ -252,7 +252,7 @@ fun MomentumPanel(o: JSONObject, open: Map<String, Boolean>, sightings: Momentum
         val why = phoneFailed ?: o.str("error").takeIf { o.optBoolean("stale") }
         if (why != null) {
             Line()
-            Text(stringResource(R.string.momentum_refresh_failed, why.ifBlank { stringResource(R.string.momentum_no_reason) }), style = mono(11.5f, 500, p.mu),
+            Text(stringResource(R.string.momentum_refresh_failed, why.takeIf { it.isNotBlank() }?.let(::bidiIsolate) ?: stringResource(R.string.momentum_no_reason)), style = mono(11.5f, 500, p.mu),
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
         }
     }
@@ -309,7 +309,7 @@ private fun MomentumItem(o: JSONObject, section: String, row: String, fresh: Boo
     fun line(text: String) {
         if (text.isBlank()) return
         val isEffect = text == effect
-        Text(text, style = if (isEffect) mono(12f, 500, p.goodt) else sans(13f, 400, p.tx2, 18f), maxLines = if (full) 8 else 1,
+        Text(text, style = (if (isEffect) mono(12f, 500, p.goodt) else sans(13f, 400, p.tx2, 18f)).content(), maxLines = if (full) 8 else 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
     }
     val expandable = lead.isNotBlank() || rest.isNotBlank()
@@ -325,7 +325,7 @@ private fun MomentumItem(o: JSONObject, section: String, row: String, fresh: Boo
         }
         Column(Modifier.weight(1f)) {
             Row {
-                Text(o.str("title"), style = sans(14.5f, 500, p.tx, 20f), maxLines = if (full) 4 else 2, overflow = TextOverflow.Ellipsis,
+                Text(o.str("title"), style = sans(14.5f, 500, p.tx, 20f).contentLine(), maxLines = if (full) 4 else 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f))
                 if (ts != null) {
                     Spacer(Modifier.width(10.dp))
@@ -351,6 +351,6 @@ private fun LinkChip(label: String, url: String) {
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url.toUri().normalizeScheme()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             .onFailure { Ui.say(R.string.momentum_no_app_for_link) }
     }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
-        Pill(label.ifBlank { url.toUri().host ?: url }, p.acct, p.accd)
+        Pill(label.ifBlank { url.toUri().host ?: url }, p.acct, p.accd, content = true)
     }
 }

@@ -81,7 +81,7 @@ fun ActivityCard(m: Msg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (live) LiveDot(8.dp) else Icn(Ic.tool, p.mu, 15.dp)
             Spacer(Modifier.width(9.dp))
-            Text(m.content.ifBlank { stringResource(R.string.activity_tool_activity) }, style = sans(14.5f, 600, p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(m.content.ifBlank { stringResource(R.string.activity_tool_activity) }, style = sans(14.5f, 600, p.tx).let { if (m.content.isBlank()) it else it.contentLine() }, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
             Icn(Ic.chevR, p.mu, 16.dp)
         }
@@ -92,7 +92,7 @@ fun ActivityCard(m: Msg) {
                 withStyle(SpanStyle(color = p.good)) { append("+$added") }
                 append(" ")
                 withStyle(SpanStyle(color = p.bad)) { append("-$removed") }
-            }, style = mono(12f, 600, p.mu))
+            }, style = mono(12f, 600, p.mu).ltr())
             if (errors > 0) Text(pluralStringResource(R.plurals.activity_failed, errors, errors), style = mono(12f, 600, p.bad))
             val started = meta.optDouble("started", 0.0)
             val ended = meta.optDouble("ended", 0.0)
@@ -100,7 +100,7 @@ fun ActivityCard(m: Msg) {
         }
         if (live) {
             Spacer(Modifier.height(4.dp))
-            Text(running, style = mono(12f, 500, p.acct), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(running, style = mono(12f, 500, p.acct).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -121,12 +121,13 @@ fun ActivityScreen(mid: String, cid: String) {
     var tab by remember { mutableStateOf("calls") }
     val open = remember { mutableStateMapOf<String, Boolean>() }
     Column(Modifier.fillMaxSize()) {
-        TopBar(msg?.content ?: stringResource(R.string.activity_tool_activity), if (live) stringResource(R.string.chat_status_working) else msg?.let { clock(it.ts) }, if (live) p.acct else p.mu)
+        TopBar(msg?.content ?: stringResource(R.string.activity_tool_activity), if (live) stringResource(R.string.chat_status_working) else msg?.let { clock(it.ts) }, if (live) p.acct else p.mu,
+            contentTitle = msg != null)
         if (files.isNotEmpty()) Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
             Seg(listOf("calls" to stringResource(R.string.activity_tab_calls, calls.size), "files" to stringResource(R.string.activity_tab_files, files.size)), tab) { tab = it }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
-            if (err != null) item { ErrorPanel(stringResource(R.string.activity_load_failed, err.orEmpty())) { retry++ } }
+            if (err != null) item { ErrorPanel(stringResource(R.string.activity_load_failed, bidiIsolate(err.orEmpty()))) { retry++ } }
             else if (data == null) item { Skeleton() }
             else if (calls.isEmpty() && files.isEmpty()) item { Empty(stringResource(R.string.activity_empty_title), stringResource(R.string.activity_empty_body)) }
             if (tab == "files" && files.isNotEmpty()) {
@@ -153,19 +154,20 @@ private fun CallRow(c: JSONObject, expanded: Boolean, toggle: () -> Unit) {
             if (st == "running") LiveDot(8.dp) else Dot(color, 8.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(c.str("label").ifBlank { c.str("tool") }, style = mono(13f, 500, p.tx), maxLines = if (expanded) 6 else 2, overflow = TextOverflow.Ellipsis)
+                Text(c.str("label").ifBlank { c.str("tool") }, style = mono(13f, 500, p.tx).contentLine(), maxLines = if (expanded) 6 else 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(c.str("tool"), style = mono(11f, 500, p.mu))
+                    Text(c.str("tool"), style = mono(11f, 500, p.mu).content())
                     val ms = c.optLong("ms", 0)
                     if (ms > 0) Text(if (ms < 1000) narrowDuration(Measure(ms, MeasureUnit.MILLISECOND)) else durStr(ms / 1000.0), style = mono(11f, 500, p.dim))
                     val a = c.optInt("added", 0); val r = c.optInt("removed", 0)
-                    if (a + r > 0) Text("+$a -$r", style = mono(11f, 600, p.mu))
+                    if (a + r > 0) Text("+$a -$r", style = mono(11f, 600, p.mu).ltr())
                 }
             }
             Icn(if (expanded) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
         if (expanded) Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            c.str("error").takeIf { it.isNotBlank() }?.let { Text(it, style = mono(12f, 500, p.bad)) }
+            c.str("error").takeIf { it.isNotBlank() }?.let { Text(it, style = mono(12f, 500, p.bad).content()) }
             c.str("detail").takeIf { it.isNotBlank() }?.let { Pane(if (c.str("tool") == "terminal") stringResource(R.string.activity_pane_command) else stringResource(R.string.activity_pane_input), it) }
             c.str("diff").takeIf { it.isNotBlank() }?.let { DiffPane(it) }
             c.str("output").takeIf { it.isNotBlank() }?.let { Pane(stringResource(R.string.activity_pane_output), it) }
@@ -183,10 +185,13 @@ private fun Pane(label: String, text: String) {
             Spacer(Modifier.weight(1f))
             Text(stringResource(R.string.parts_code_copy), style = mono(10.5f, 500, p.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(text)); Ui.say(R.string.common_copied) }.padding(8.dp))
         }
-        SelectionContainer {
-            Text(text, style = mono(12f, 400, p.tx), softWrap = false,
-                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp))
+        // Commands and tool output: left to right, scrolled and clipped from the left in any app language.
+        LtrLayout {
+            SelectionContainer {
+                Text(text, style = mono(12f, 400, p.tx).ltr(), softWrap = false,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+                        .padding(start = 10.dp, end = 10.dp, bottom = 10.dp))
+            }
         }
     }
 }
@@ -202,14 +207,14 @@ fun FileDiff(f: JSONObject) {
             Spacer(Modifier.width(8.dp))
             val path = f.str("path")
             Column(Modifier.weight(1f)) {
-                Text(path.substringAfterLast('/'), style = mono(13f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(path.substringBeforeLast('/', ""), style = mono(10.5f, 400, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(path.substringAfterLast('/'), style = mono(13f, 600, p.tx).ltr(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(path.substringBeforeLast('/', ""), style = mono(10.5f, 400, p.dim).ltr(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(color = p.good)) { append("+${f.optInt("added", 0)}") }
                 append(" ")
                 withStyle(SpanStyle(color = p.bad)) { append("-${f.optInt("removed", 0)}") }
-            }, style = mono(12f, 600, p.mu))
+            }, style = mono(12f, 600, p.mu).ltr())
             Spacer(Modifier.width(6.dp))
             Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
@@ -228,6 +233,7 @@ fun DiffPane(diff: String) {
     val lines = remember(diff) { diff.trimEnd('\n').lines().filterNot { it.startsWith("--- ") || it.startsWith("+++ ") } }
     BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(p.s2)) {
     val paneW = maxWidth
+    LtrLayout {
     Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
         .widthIn(min = paneW).width(IntrinsicSize.Max).padding(vertical = 6.dp)) {
         for (ln in lines) {
@@ -237,8 +243,9 @@ fun DiffPane(diff: String) {
                 ln.startsWith("-") -> p.bad to p.bad.copy(alpha = 0.10f)
                 else -> p.tx2 to Color.Transparent
             }
-            Text(ln.ifEmpty { " " }, style = mono(12f, 400, fg), softWrap = false, modifier = Modifier.fillMaxWidth().background(bg).padding(horizontal = 10.dp, vertical = 1.dp))
+            Text(ln.ifEmpty { " " }, style = mono(12f, 400, fg).ltr(), softWrap = false, modifier = Modifier.fillMaxWidth().background(bg).padding(horizontal = 10.dp, vertical = 1.dp))
         }
+    }
     }
     }
 }

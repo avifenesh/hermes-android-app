@@ -99,9 +99,10 @@ fun costStr(u: JSONObject): String? = when {
     else -> u.dbl("cost")?.let { money(it) }
 }
 
-/** One-line digest: "opus-5.5 · 92.5k in · 1.0k out · 90% cache · 53 tok/s · $0.12". */
+/** One-line digest: "opus-5.5 · 92.5k in · 1.0k out · 90% cache · 53 tok/s · $0.12". The model name is isolated: the
+ * line is UI copy and reads in the app's direction. */
 fun usageLine(u: JSONObject, withModel: Boolean = true, label: (String) -> String = ::shortModel): String = buildList {
-    if (withModel) label(u.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
+    if (withModel) label(u.str("model")).takeIf { it.isNotBlank() }?.let { add(bidiIsolate(it)) }
     costStr(u)?.let { add(it) }
     val prompt = u.lng("prompt_tokens").takeIf { it > 0 } ?: (u.lng("input_tokens") + u.lng("cache_read_tokens") + u.lng("cache_write_tokens"))
     if (prompt > 0) add(str(R.string.meter_tokens_in, tok(prompt)))
@@ -119,12 +120,12 @@ fun UsageFooter(u: JSONObject, ts: Double) {
     val label = modelLabeler()
     Column(Modifier.padding(horizontal = 8.dp, vertical = 2.dp).clip(RoundedCornerShape(8.dp)).clickable { open = !open }.padding(vertical = 2.dp)) {
         // Collapsed: time and cost only. Tokens, cache and speed live behind the tap.
-        Text(if (open) clock(ts) + " · " + usageLine(u, label = label) else listOfNotNull(clock(ts), costStr(u), label(u.str("model")).takeIf { it.isNotBlank() }).joinToString(" · "),
+        Text(if (open) clock(ts) + " · " + usageLine(u, label = label) else listOfNotNull(clock(ts), costStr(u), label(u.str("model")).takeIf { it.isNotBlank() }?.let(::bidiIsolate)).joinToString(" · "),
             style = mono(10.5f, 500, p.dim), maxLines = if (open) 3 else 1, overflow = TextOverflow.Ellipsis)
         if (open) {
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                label(u.str("model")).takeIf { it.isNotBlank() }?.let { Chip(it) }
+                label(u.str("model")).takeIf { it.isNotBlank() }?.let { Chip(bidiIsolate(it)) }
                 Chip(stringResource(R.string.meter_chip_in, tok(u.lng("input_tokens"))))
                 Chip(stringResource(R.string.meter_chip_cache_read, tok(u.lng("cache_read_tokens"))))
                 if (u.lng("cache_write_tokens") > 0) Chip(stringResource(R.string.meter_chip_cache_write, tok(u.lng("cache_write_tokens"))))
@@ -138,6 +139,18 @@ fun UsageFooter(u: JSONObject, ts: Double) {
             }
             ContextBar(u, Modifier.padding(top = 8.dp))
         }
+    }
+}
+
+/**
+ * A row's facts ("sandbox · 17 sessions · 84 calls · 51K tokens") as a flow: each fact stays whole on one line and the
+ * row wraps between facts, so a long translation is never cut and a fact never splits. Content facts come isolated.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun Facts(parts: List<String>, style: androidx.compose.ui.text.TextStyle, modifier: Modifier = Modifier) {
+    FlowRow(modifier.fillMaxWidth()) {
+        parts.forEachIndexed { i, t -> Text(if (i < parts.lastIndex) "$t · " else t, style = style, softWrap = false) }
     }
 }
 
@@ -170,10 +183,10 @@ fun RunUsage(turn: JSONObject?, sess: JSONObject?, host: String) {
     val p = P
     val model = modelLabeler()(turn?.str("model")?.ifBlank { null } ?: sess?.str("model") ?: "")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (model.isNotBlank()) Chip(model)
+        if (model.isNotBlank()) Chip(bidiIsolate(model))
         sess?.let { s -> Chip(stringResource(R.string.meter_tokens, tok(s.lng("prompt_tokens") + s.lng("output_tokens")))) }
         sess?.let { s -> costStr(s)?.let { Chip(it) } }
-        if (host.isNotBlank()) Chip(host)
+        if (host.isNotBlank()) Chip(bidiIsolate(host))
     }
     if (turn != null) {
         ContextBar(turn, Modifier.padding(top = 12.dp))
@@ -207,11 +220,11 @@ fun RunUsage(turn: JSONObject?, sess: JSONObject?, host: String) {
     }
 }
 
-/** Chat header subtitle per the design: "opus-5.5 · 48.2k tok · $0.61". */
+/** Chat header subtitle per the design: "opus-5.5 · 48.2k tok · $0.61", in the app's direction with the model isolated. */
 fun headerLine(sess: JSONObject?, turn: JSONObject?, label: (String) -> String = ::shortModel): String? {
     val s = sess ?: return turn?.let { usageLine(it, label = label) }?.ifBlank { null }
     return buildList {
-        label(turn?.str("model")?.ifBlank { null } ?: s.str("model")).takeIf { it.isNotBlank() }?.let { add(it) }
+        label(turn?.str("model")?.ifBlank { null } ?: s.str("model")).takeIf { it.isNotBlank() }?.let { add(bidiIsolate(it)) }
         val t = s.lng("prompt_tokens") + s.lng("output_tokens")
         if (t > 0) add(str(R.string.meter_tokens, tok(t)))
         costStr(s)?.let { add(it) }

@@ -149,7 +149,8 @@ fun TerminalViewport(snapshot: JSONObject, onClick: (Int, Int) -> Unit, modifier
                         })
                 }
             }
-            if (notice != null) Text(notice!!, style = sans(12f, 600, p.att), modifier = Modifier
+            // UI copy inside the left-to-right terminal: it takes its own (the app language's) direction.
+            if (notice != null) Text(notice!!, style = sans(12f, 600, p.att).content(), modifier = Modifier
                 .align(Alignment.BottomStart).background(p.s1).padding(8.dp))
         }
     }
@@ -197,6 +198,8 @@ fun TerminalControls(onInput: (JSONObject) -> Unit, busy: Boolean, modifier: Mod
         TerminalButton(stringResource(R.string.terminal_key_home), !busy) { key("home") }
         TerminalButton(stringResource(R.string.terminal_key_end), !busy) { key("end") }
     }
+    // A keyboard: the keys keep their left-to-right order (Esc first, then the arrows ← →) in any app language.
+    LtrLayout {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -210,6 +213,7 @@ fun TerminalControls(onInput: (JSONObject) -> Unit, busy: Boolean, modifier: Mod
             if (compact) extras()
         }
         if (!compact) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) { extras() }
+    }
     }
 }
 

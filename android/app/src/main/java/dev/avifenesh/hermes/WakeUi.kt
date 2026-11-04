@@ -182,7 +182,7 @@ fun WakeScreen(act: WakeActivity) {
         if (ok && photoFile.length() > 0) {
             busy = true
             scope.launch {
-                val b64 = runCatching { withContext(Dispatchers.Default) { shrink(photoFile) } }.getOrElse { busy = false; err = str(R.string.wake_photo_read_failed, it.message); return@launch }
+                val b64 = runCatching { withContext(Dispatchers.Default) { shrink(photoFile) } }.getOrElse { busy = false; err = str(R.string.wake_photo_read_failed, it.message?.let(::bidiIsolate)); return@launch }
                 photoFile.delete()
                 submit(JSONObject().put("kind", "photo").put("image", b64))
             }
@@ -191,7 +191,7 @@ fun WakeScreen(act: WakeActivity) {
     fun openCamera() {
         act.unlockThen {
             val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".files", photoFile)
-            runCatching { camera.launch(uri) }.onFailure { err = str(R.string.wake_camera_failed, it.message) }
+            runCatching { camera.launch(uri) }.onFailure { err = str(R.string.wake_camera_failed, it.message?.let(::bidiIsolate)) }
         }
     }
     // Full asks for its declared CAMERA grant first; Play declares none and opens the camera app directly.
@@ -210,7 +210,8 @@ fun WakeScreen(act: WakeActivity) {
             // Give proofs and safety actions the space when landscape + IME leaves little height.
             if (showClock) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(Fmt.time(tick), style = serif(if (compact) 24f else if (mode == "home") 64f else 36f, p.tx))
+                val now = Fmt.time(tick)
+                Text(now, style = serif(if (compact) 24f else if (mode == "home") 64f else 36f, p.tx).trackFor(now))
                 val tag = when (phase) { "ring" -> R.string.wake_tag_alarm; "checkin" -> R.string.wake_tag_checkin; "wait" -> R.string.wake_tag_up; "done" -> R.string.wake_tag_done; "offline" -> R.string.wake_tag_offline; else -> 0 }
                 if (tag != 0) Pill(stringResource(tag), if (phase == "ring" || phase == "offline") p.att else p.acct, if (phase == "ring" || phase == "offline") p.attd else p.accd)
             }
@@ -226,7 +227,7 @@ fun WakeScreen(act: WakeActivity) {
                     phase == "checkin" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
                         Text(stringResource(R.string.wake_checkin), style = sans(15f, 600, p.mu))
                         Spacer(Modifier.height(8.dp))
-                        Text(s?.str("logic").orEmpty().ifBlank { stringResource(R.string.wake_loading_puzzle) }, style = sans(20f, 500, p.tx, 27f))
+                        Text(s?.str("logic").orEmpty().ifBlank { stringResource(R.string.wake_loading_puzzle) }, style = sans(20f, 500, p.tx, 27f).let { if (s?.str("logic").isNullOrBlank()) it else it.content() })
                         Spacer(Modifier.height(16.dp))
                         val go = { if (!busy && logicAns.isNotBlank()) submit(JSONObject().put("kind", "logic").put("answer", logicAns)) }
                         AnswerBox(logicAns, { logicAns = it; Wake.touch() }, Modifier.fillMaxWidth(), onDone = go)
@@ -238,14 +239,14 @@ fun WakeScreen(act: WakeActivity) {
                         Btn(stringResource(R.string.wake_emergency_stop), Modifier.fillMaxWidth(), primary = false, danger = true) { mode = "override" }
                     }
                     phase == "wait" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-                        Text(stringResource(R.string.wake_youre_up), style = serif(40f, p.tx))
+                        Text(stringResource(R.string.wake_youre_up), style = serif(40f, p.tx).trackFor(stringResource(R.string.wake_youre_up)))
                         Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.wake_checkin_at_stay_up, hhmm(s?.optDouble("checkin_due") ?: 0.0)), style = sans(16f, 400, p.tx2, 23f))
                         Spacer(Modifier.height(22.dp))
                         Btn(stringResource(R.string.common_close), Modifier.fillMaxWidth(), primary = false) { act.finish() }
                     }
                     phase == "done" || phase == "idle" -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-                        Text(stringResource(R.string.wake_good_morning), style = serif(40f, p.tx))
+                        Text(stringResource(R.string.wake_good_morning), style = serif(40f, p.tx).trackFor(stringResource(R.string.wake_good_morning)))
                         Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.wake_all_done), style = sans(16f, 400, p.tx2, 23f))
                         Spacer(Modifier.height(22.dp))
@@ -257,7 +258,7 @@ fun WakeScreen(act: WakeActivity) {
                         val left = 45 - ((tick - readStart) / 1000).toInt()
                         Column(Modifier.fillMaxSize()) {
                             Column(Modifier.weight(1f).verticalScroll(sc).padding(horizontal = 22.dp, vertical = 12.dp)) {
-                                Text(content.str("title"), style = serif(32f, p.tx))
+                                Text(content.str("title"), style = serif(32f, p.tx).trackFor(content.str("title")).content())
                                 Spacer(Modifier.height(12.dp))
                                 Md(content.str("reading"), size = 16.5f)
                                 Spacer(Modifier.height(30.dp))
@@ -273,7 +274,7 @@ fun WakeScreen(act: WakeActivity) {
                             item { Text(stringResource(R.string.wake_answer_own_words), style = sans(14f, 500, p.mu, 20f), modifier = Modifier.padding(vertical = 10.dp)) }
                             qs.forEachIndexed { i, q ->
                                 item {
-                                    Text("${i + 1}. $q", style = sans(16f, 600, p.tx, 22f), modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+                                    Text("${i + 1}. $q", style = sans(16f, 600, p.tx, 22f).content(), modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
                                     InputBox(answers[i], { answers[i] = it }, stringResource(R.string.wake_your_answer), Modifier.fillMaxWidth(), minLines = 2)
                                 }
                             }
@@ -328,7 +329,7 @@ fun OverrideView(act: WakeActivity, onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-        Text(stringResource(R.string.wake_override_title), style = serif(36f, p.att))
+        Text(stringResource(R.string.wake_override_title), style = serif(36f, p.att).trackFor(stringResource(R.string.wake_override_title)))
         Spacer(Modifier.height(6.dp))
         Text(stringResource(R.string.wake_override_body), style = sans(15f, 400, p.tx2, 21f))
         Spacer(Modifier.height(18.dp))
@@ -338,7 +339,7 @@ fun OverrideView(act: WakeActivity, onBack: () -> Unit) {
             androidx.compose.foundation.text.BasicTextField(pw, { pw = it; err = null }, singleLine = true, modifier = Modifier.fillMaxWidth().semantics { contentDescription = str(R.string.wake_override_password_desc) },
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-                textStyle = mono(18f, 500, p.tx), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
+                textStyle = mono(18f, 500, p.tx).ltr(), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
                 decorationBox = { inner -> Box(Modifier.clip(RoundedCornerShape(16.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(16.dp)).padding(14.dp)) { inner() } })
             err?.let { Spacer(Modifier.height(8.dp)); Text(it, style = sans(14f, 500, p.att)) }
             Spacer(Modifier.height(14.dp))
@@ -398,7 +399,7 @@ fun StepsView(need: Int, busy: Boolean, onBack: () -> Unit, onDone: (List<Double
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(30.dp))
-        Text(Fmt.int(steps.size), style = serif(120f, p.tx))
+        Text(Fmt.int(steps.size), style = serif(120f, p.tx).trackFor(Fmt.int(steps.size)))
         Text(pluralStringResource(R.plurals.wake_steps_of, need, need), style = sans(18f, 500, p.mu))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(p.s2)) {
@@ -429,10 +430,11 @@ fun ResultView(r: JSONObject, s: JSONObject?, onBack: () -> Unit) {
     val ok = r.optBoolean("ok")
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
         item {
-            Text(stringResource(if (ok) R.string.wake_result_accepted else R.string.wake_result_not_yet), style = serif(40f, if (ok) p.tx else p.att), modifier = Modifier.padding(top = 8.dp))
+            val verdict = stringResource(if (ok) R.string.wake_result_accepted else R.string.wake_result_not_yet)
+            Text(verdict, style = serif(40f, if (ok) p.tx else p.att).trackFor(verdict), modifier = Modifier.padding(top = 8.dp))
             Spacer(Modifier.height(6.dp))
-            Text(r.str("reason"), style = sans(15f, 400, p.tx2, 21f))
-            if (r.has("note")) { Spacer(Modifier.height(10.dp)); Text(r.str("note"), style = sans(15f, 500, p.tx, 21f)) }
+            Text(r.str("reason"), style = sans(15f, 400, p.tx2, 21f).content())
+            if (r.has("note")) { Spacer(Modifier.height(10.dp)); Text(r.str("note"), style = sans(15f, 500, p.tx, 21f).content()) }
         }
         val fb = r.optJSONArray("feedback").objs()
         val qs = s?.optJSONObject("content")?.optJSONArray("questions").strs()
@@ -443,10 +445,10 @@ fun ResultView(r: JSONObject, s: JSONObject?, onBack: () -> Unit) {
                         val v = f.str("verdict")
                         Pill(verdictLabel(v), if (v == "correct") p.good else if (v == "partial") p.acct else p.att, if (v == "correct") p.s2 else if (v == "partial") p.accd else p.attd)
                         Spacer(Modifier.width(8.dp))
-                        Text(qs.getOrNull(i).orEmpty(), style = sans(14f, 600, p.tx, 19f), modifier = Modifier.weight(1f))
+                        Text(qs.getOrNull(i).orEmpty(), style = sans(14f, 600, p.tx, 19f).contentLine(), modifier = Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(5.dp))
-                    Text(f.str("note"), style = sans(14.5f, 400, p.tx2, 20f))
+                    Text(f.str("note"), style = sans(14.5f, 400, p.tx2, 20f).content())
                 }
             }
         }
@@ -467,10 +469,10 @@ fun OfflineView() {
     var pz by remember { mutableStateOf(Wake.localPuzzle()) }
     var a by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)) {
-        Text(stringResource(R.string.wake_offline_title, HERMES), style = sans(18f, 600, p.tx))
+        Text(stringResource(R.string.wake_offline_title, bidiIsolate(HERMES)), style = sans(18f, 600, p.tx))
         Text(stringResource(R.string.wake_offline_body), style = sans(14f, 400, p.mu, 20f))
         Spacer(Modifier.height(18.dp))
-        Text(pz.first, style = mono(30f, 600, p.tx))
+        Text(pz.first, style = mono(30f, 600, p.tx).ltr()) // arithmetic reads left to right
         Spacer(Modifier.height(12.dp))
         InputBox(a, { a = it.filter(Char::isDigit) }, stringResource(R.string.wake_offline_answer), Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
@@ -573,7 +575,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
             }
             if (!access[1]) item {
                 Panel(Modifier.padding(top = 12.dp), border = p.att) {
-                    SettingRow(stringResource(R.string.alarm_notifications_attention), stringResource(R.string.alarm_notifications_attention_sub, APP_NAME)) {
+                    SettingRow(stringResource(R.string.alarm_notifications_attention), stringResource(R.string.alarm_notifications_attention_sub, bidiIsolate(APP_NAME))) {
                         Btn(stringResource(R.string.common_settings), primary = false) {
                             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
                             settings(if (!nm.areNotificationsEnabled()) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -673,15 +675,15 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
                 }
             }
             if (feat.wakeWa) {
-            item { Section(stringResource(R.string.alarm_section_escalation), if (wa.isBlank()) null else stringResource(R.string.alarm_whatsapp_status, wa), if (wa == "connected") p.good else p.mu) }
+            item { Section(stringResource(R.string.alarm_section_escalation), if (wa.isBlank()) null else stringResource(R.string.alarm_whatsapp_status, bidiIsolate(wa)), if (wa == "connected") p.good else p.mu) }
             item {
                 Panel {
                     contacts.forEachIndexed { i, c ->
                         if (i > 0) Line()
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(c.str("name").ifBlank { stringResource(R.string.alarm_contact_fallback) }, style = sans(15f, 600, p.tx))
-                                Text(c.str("phone"), style = mono(12f, 500, p.mu))
+                                Text(c.str("name").ifBlank { stringResource(R.string.alarm_contact_fallback) }, style = sans(15f, 600, p.tx).let { if (c.str("name").isBlank()) it else it.content() })
+                                Text(c.str("phone"), style = mono(12f, 500, p.mu).ltr())
                             }
                             IconBtn(Ic.x, p.mu, 40.dp) { save { o -> o.getJSONArray("contacts").remove(i) } }
                         }
@@ -763,11 +765,11 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
 private fun BasicPhone(v: String, on: (String) -> Unit, ph: String) {
     val p = P
     androidx.compose.foundation.text.BasicTextField(v, { on(it.filter { c -> c.isDigit() || c in "+- " }) }, singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), textStyle = mono(16f, 500, p.tx),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), textStyle = mono(16f, 500, p.tx).ltr(),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct), modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
             Box(Modifier.clip(RoundedCornerShape(22.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(22.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
-                if (v.isEmpty()) Text(ph, style = mono(16f, 400, p.dim)); inner()
+                if (v.isEmpty()) Text(ph, style = mono(16f, 400, p.dim), modifier = Modifier.fillMaxWidth()); inner()
             }
         })
 }
@@ -778,10 +780,10 @@ private fun AnswerBox(v: String, on: (String) -> Unit, modifier: Modifier, onDon
     androidx.compose.foundation.text.BasicTextField(v, on, singleLine = true, modifier = modifier,
         keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
         keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onDone() }),
-        textStyle = sans(17f, 500, p.tx), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
+        textStyle = sans(17f, 500, p.tx).content(), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
         decorationBox = { inner ->
             Box(Modifier.clip(RoundedCornerShape(16.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
-                if (v.isEmpty()) Text(stringResource(R.string.wake_your_answer), style = sans(17f, 400, p.dim)); inner()
+                if (v.isEmpty()) Text(stringResource(R.string.wake_your_answer), style = sans(17f, 400, p.dim), modifier = Modifier.fillMaxWidth()); inner()
             }
         })
 }
@@ -792,10 +794,10 @@ private fun PwField(v: String, on: (String) -> Unit, ph: String) {
     androidx.compose.foundation.text.BasicTextField(v, on, singleLine = true, modifier = Modifier.fillMaxWidth(),
         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-        textStyle = mono(16f, 500, p.tx), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
+        textStyle = mono(16f, 500, p.tx).ltr(), cursorBrush = androidx.compose.ui.graphics.SolidColor(p.acct),
         decorationBox = { inner ->
             Box(Modifier.clip(RoundedCornerShape(22.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(22.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
-                if (v.isEmpty()) Text(ph, style = mono(16f, 400, p.dim)); inner()
+                if (v.isEmpty()) Text(ph, style = mono(16f, 400, p.dim), modifier = Modifier.fillMaxWidth()); inner()
             }
         })
 }

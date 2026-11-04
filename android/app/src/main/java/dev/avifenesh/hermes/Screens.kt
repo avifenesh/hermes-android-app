@@ -115,7 +115,7 @@ fun InboxScreen(initialFilter: String = "all") {
             .thenByDescending { (_, v) -> if (v is Chat) v.updated else (v as Room).updated })
     Column(Modifier.fillMaxSize()) {
         val me by Hub.meta.collectAsState()
-        val metaLine = listOf("name", "profile", "model").map { me.str(it).trim() }.filter { it.isNotBlank() }.joinToString(" · ")
+        val metaLine = bidiJoin(listOf("name", "profile", "model").map { me.str(it).trim() }.filter { it.isNotBlank() })
         Header(stringResource(R.string.inbox_title), if (online) null else stringResource(R.string.inbox_offline), meta = {
             Row(Modifier.padding(top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Dot(if (online) p.good else p.mu, 7.dp)
@@ -136,7 +136,7 @@ fun InboxScreen(initialFilter: String = "all") {
                 .border(1.dp, p.line, RoundedCornerShape(20.dp)).clickable { Ui.tab.value = "pulse" }.padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 LiveDot(8.dp); Spacer(Modifier.width(10.dp))
-                Text(pluralStringResource(R.plurals.inbox_agent_busy, n, n, agentName()), style = sans(14f, 600, p.tx), modifier = Modifier.weight(1f))
+                Text(pluralStringResource(R.plurals.inbox_agent_busy, n, n, bidiIsolate(agentName())), style = sans(14f, 600, p.tx), modifier = Modifier.weight(1f))
                 Icn(Ic.chevR, p.mu, 16.dp)
             }
         }
@@ -158,10 +158,10 @@ fun InboxScreen(initialFilter: String = "all") {
                 if (filter == "rooms" && q.isBlank()) item(key = "new-room") { NewRoomRow { newRoom = true } }
                 if (entries.isEmpty()) item {
                     when {
-                        q.isNotBlank() -> Empty(stringResource(R.string.inbox_search_empty_title), stringResource(R.string.inbox_search_empty_body, q))
+                        q.isNotBlank() -> Empty(stringResource(R.string.inbox_search_empty_title), stringResource(R.string.inbox_search_empty_body, bidiIsolate(q)))
                         filter == "rooms" && !roomsLoaded -> Skeleton(2)
-                        filter == "rooms" -> Empty(stringResource(R.string.inbox_rooms_empty_title), stringResource(R.string.inbox_rooms_empty_body, HERMES_DESKTOP))
-                        else -> Empty(stringResource(R.string.inbox_empty_title), stringResource(R.string.inbox_empty_body, agentName()))
+                        filter == "rooms" -> Empty(stringResource(R.string.inbox_rooms_empty_title), stringResource(R.string.inbox_rooms_empty_body, bidiIsolate(HERMES_DESKTOP)))
+                        else -> Empty(stringResource(R.string.inbox_empty_title), stringResource(R.string.inbox_empty_body, bidiIsolate(agentName())))
                     }
                 }
                 items(entries, key = { it.first }) { (_, v) ->
@@ -188,7 +188,7 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
                 when {
                     needs -> Icn(Ic.shield, p.att, 21.dp)
                     digest -> Icn(Ic.digest, p.tx2, 21.dp)
-                    else -> Text(c.title.trim().take(1).uppercase().ifBlank { "H" }, style = serif(24f, p.tx))
+                    else -> c.title.trim().take(1).uppercase().ifBlank { "H" }.let { Text(it, style = serif(24f, p.tx).trackFor(it)) }
                 }
                 if (live) Box(Modifier.align(Alignment.BottomEnd).size(14.dp).clip(CircleShape).background(p.bg), contentAlignment = Alignment.Center) { LiveDot(8.dp) }
             }
@@ -196,19 +196,21 @@ fun ChatRow(c: Chat, live: Boolean, needs: Boolean) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (c.pinned) { Icn(Ic.pin, p.mu, 13.dp); Spacer(Modifier.width(4.dp)) }
-                    if (c.profile.isNotBlank() && c.profile != "default") { Pill(c.profile, p.tx2, p.s2); Spacer(Modifier.width(6.dp)) }
-                    Text(c.title, style = sans(15.5f, if (c.unread > 0) 650 else 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (c.profile.isNotBlank() && c.profile != "default") { Pill(c.profile, p.tx2, p.s2, content = true); Spacer(Modifier.width(6.dp)) }
+                    Text(c.title, style = sans(15.5f, if (c.unread > 0) 650 else 550, p.tx).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
                     Text(rel(c.updated), style = mono(11.5f, 500, if (c.unread > 0) p.acct else p.mu))
                 }
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The agent's own last words are content; the other lines are UI copy with the content isolated.
+                    val preview = !needs && !live && c.lastRole != "user"
                     val sub = when {
                         needs -> stringResource(R.string.inbox_row_waiting_approval)
-                        live -> stringResource(R.string.inbox_row_working, agentName())
-                        else -> if (c.lastRole == "user") stringResource(R.string.inbox_row_you, c.preview) else c.preview
+                        live -> stringResource(R.string.inbox_row_working, bidiIsolate(agentName()))
+                        else -> if (c.lastRole == "user") stringResource(R.string.inbox_row_you, bidiIsolate(c.preview)) else c.preview
                     }
-                    Text(sub, style = sans(14f, 400, when { needs -> p.att; live -> p.acct; else -> p.mu }), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(sub, style = sans(14f, 400, when { needs -> p.att; live -> p.acct; else -> p.mu }).let { if (preview) it.contentLine() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (c.unread > 0) {
                         Spacer(Modifier.width(8.dp))
                         Text(Fmt.int(c.unread.coerceAtMost(99)), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
@@ -402,11 +404,11 @@ fun ChatScreen(cid: String) {
     val label = modelLabeler()
     val sub = when {
         // While working: model and cost only. The full token line is one tap away in the run screen.
-        running -> stringResource(R.string.chat_status_working) + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }, costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
+        running -> stringResource(R.string.chat_status_working) + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }?.let(::bidiIsolate), costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
         chat?.kind == "digest" -> stringResource(R.string.chat_status_digest)
         else -> headerLine(use?.optJSONObject("session"), use?.optJSONObject("turn"), label)
     }
-    TopBar(chat?.title ?: stringResource(R.string.chat_title_fallback), sub, if (running) p.acct else p.mu) {
+    TopBar(chat?.title ?: stringResource(R.string.chat_title_fallback), sub, if (running) p.acct else p.mu, contentTitle = chat?.title != null) {
             if (running) {
                 Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accd).clickable { Ui.push(Route.RunR(cid)) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -418,9 +420,9 @@ fun ChatScreen(cid: String) {
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
-            if (loadErr != null) item { ErrorPanel(stringResource(R.string.chat_load_failed, loadErr.orEmpty())) { retry++ } }
+            if (loadErr != null) item { ErrorPanel(stringResource(R.string.chat_load_failed, bidiIsolate(loadErr.orEmpty()))) { retry++ } }
             else if (msgs.isEmpty()) item {
-                if (loading) Skeleton() else Empty(stringResource(R.string.chat_empty_title), stringResource(R.string.chat_empty_body, agentName()))
+                if (loading) Skeleton() else Empty(stringResource(R.string.chat_empty_title), stringResource(R.string.chat_empty_body, bidiIsolate(agentName())))
             }
             items(msgs.size, key = { msgs[it].id }) { i ->
                 val m = msgs[i]
@@ -493,7 +495,7 @@ fun ChatScreen(cid: String) {
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                InputBox(text, { text = it }, if (running) (if (mode == "steer") stringResource(R.string.chat_placeholder_steer, agentName()) else stringResource(R.string.chat_placeholder_queue)) else stringResource(R.string.chat_placeholder_message, agentName()), Modifier.weight(1f))
+                InputBox(text, { text = it }, if (running) (if (mode == "steer") stringResource(R.string.chat_placeholder_steer, bidiIsolate(agentName())) else stringResource(R.string.chat_placeholder_queue)) else stringResource(R.string.chat_placeholder_message, bidiIsolate(agentName())), Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
                 if (running && text.isBlank() && atts.isEmpty()) StopCircle { scope.launch { runCatching { Hub.stop(cid); Ui.say(R.string.run_stopping) }.onFailure { Ui.say(it.message) } } }
                 else if (text.isBlank() && atts.isEmpty()) IconBtn(Ic.mic, p.tx, 46.dp, p.s2) {
@@ -514,7 +516,7 @@ fun WorkingRow(since: Double, onClick: () -> Unit) {
         Spacer(Modifier.width(AVATAR_GAP))
         Row(Modifier.weight(1f, fill = false).clip(RoundedCornerShape(16.dp)).background(p.accd).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.chat_agent_working, agentName()), style = sans(14f, 600, p.acct), modifier = Modifier.weight(1f, fill = false))
+            Text(stringResource(R.string.chat_agent_working, bidiIsolate(agentName())), style = sans(14f, 600, p.acct), modifier = Modifier.weight(1f, fill = false))
             Spacer(Modifier.width(10.dp))
             Elapsed(since, mono(12.5f, 500, p.acct))
             Spacer(Modifier.width(6.dp))
@@ -547,14 +549,16 @@ fun NoticeRow(run: List<Msg>) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(5.dp).clip(androidx.compose.foundation.shape.CircleShape).background(p.dim))
             Spacer(Modifier.width(8.dp))
-            Text(if (run.size == 1) lastLine else if (open) pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) else pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) + " · " + lastLine, style = mono(11.5f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            // One notice is the gateway's own line; a folded run is a UI count with the latest line isolated in it.
+            Text(if (run.size == 1) lastLine else if (open) pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) else pluralStringResource(R.plurals.chat_notice_count, run.size, run.size) + " · " + bidiIsolate(lastLine),
+                style = mono(11.5f, 500, p.dim).let { if (run.size == 1) it.contentLine() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (expandable) Icn(if (open) Ic.chevU else Ic.chevD, p.dim, 13.dp)
             Text(clock(run.last().ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(start = 6.dp))
         }
         if (open) for (m in run) {
-            if (run.size > 1) Text(Hub.plain(m.content), style = mono(11.5f, 400, p.mu), modifier = Modifier.padding(start = 13.dp, top = 4.dp))
+            if (run.size > 1) Text(Hub.plain(m.content), style = mono(11.5f, 400, p.mu).content(), modifier = Modifier.padding(start = 13.dp, top = 4.dp))
             val recall = m.meta.str("recall")
-            if (recall.isNotEmpty()) Text(recall, style = sans(12.5f, 400, p.mu, 17f), modifier = Modifier.padding(start = 13.dp, top = 4.dp))
+            if (recall.isNotEmpty()) Text(recall, style = sans(12.5f, 400, p.mu, 17f).content(), modifier = Modifier.padding(start = 13.dp, top = 4.dp))
         }
     }
 }
@@ -570,7 +574,7 @@ fun ThinkingRow(text: String) {
             Spacer(Modifier.width(6.dp))
             Icn(if (open) Ic.chevU else Ic.chevD, p.dim, 14.dp)
         }
-        if (open) Text(text, style = sans(13.5f, 400, p.mu, 19f), modifier = Modifier.padding(top = 6.dp))
+        if (open) Text(text, style = sans(13.5f, 400, p.mu, 19f).content(), modifier = Modifier.padding(top = 6.dp))
     }
 }
 
@@ -581,7 +585,7 @@ fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean =
     when (m.kind) {
         "trace" -> TraceRow(m, compact)
         "activity" -> ActivityCard(m)
-        "status" -> Text(Hub.plain(m.content), style = mono(12.5f, 500, p.mu), modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp))
+        "status" -> Text(Hub.plain(m.content), style = mono(12.5f, 500, p.mu).content(), modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp))
         "approval" -> ApprovalCard(appr[m.meta.str("approval_id")], m)
         else -> {
             val atts = m.meta.optJSONArray("attachments").objs() +
@@ -602,7 +606,7 @@ fun MsgBody(m: Msg, appr: Map<String, Appr>, compact: Boolean, footer: Boolean =
                             for (a in atts) AttachmentView(a, mine)
                             if (m.kind == "image" && m.meta.has("url")) TapToLoadImage(m.meta.str("url"))
                             if (m.content.isNotBlank()) {
-                                if (mine) Text(m.content, style = sans(15.5f, 400, p.tx, 23f))
+                                if (mine) Text(m.content, style = sans(15.5f, 400, p.tx, 23f).content())
                                 else {
                                     val think = remember(m.content) { Talker.reasoningOf(m.content) }
                                     if (think != null) ThinkingRow(think)
@@ -639,16 +643,16 @@ fun TraceRow(m: Msg, compact: Boolean) {
             Icn(Ic.tool, p.mu, 15.dp)
             Spacer(Modifier.width(8.dp))
             val names = steps.map { it.str("tool") }.distinct()
-            Text(if (steps.isEmpty()) stringResource(R.string.activity_tool_activity) else pluralStringResource(R.plurals.msg_trace_steps, steps.size, steps.size) + " · " + names.take(3).joinToString(", ") + if (names.size > 3) "…" else "",
+            Text(if (steps.isEmpty()) stringResource(R.string.activity_tool_activity) else pluralStringResource(R.plurals.msg_trace_steps, steps.size, steps.size) + " · " + names.take(3).joinToString(", ") { bidiIsolate(it) } + if (names.size > 3) "…" else "",
                 style = mono(12.5f, 500, p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
         if (open) {
             Spacer(Modifier.height(8.dp))
-            if (steps.isEmpty()) Text(m.content, style = mono(12f, 400, p.tx2))
+            if (steps.isEmpty()) Text(m.content, style = mono(12f, 400, p.tx2).content())
             for (s in steps) Row(Modifier.padding(vertical = 3.dp)) {
-                Text(s.str("tool"), style = mono(12f, 600, p.acct), modifier = Modifier.width(96.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(s.str("what"), style = mono(12f, 400, p.tx2), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(s.str("tool"), style = mono(12f, 600, p.acct).contentLine(), modifier = Modifier.width(96.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.str("what"), style = mono(12f, 400, p.tx2).content(), maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -672,15 +676,15 @@ fun ApprovalContext(meta: JSONObject, pending: Boolean) {
                 style = mono(11.5f, 500, p.tx2), modifier = Modifier.weight(1f))
             Icn(if (open) Ic.chevU else Ic.chevD, p.mu, 16.dp)
         }
-        if (open || (pending && files.isNotEmpty() && files.size <= 3)) for (f in files) Text(f, style = mono(11.5f, 500, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis,
+        if (open || (pending && files.isNotEmpty() && files.size <= 3)) for (f in files) Text(f, style = mono(11.5f, 500, p.tx).ltr(), maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp))
         if (open) {
             for (r in recent.take(6)) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Dot(if (r.str("status") == "error") p.bad else if (r.str("status") == "running") p.acct else p.good, 6.dp)
                 Spacer(Modifier.width(8.dp))
-                Text(r.str("label").ifBlank { r.str("tool") }, style = sans(12.5f, 400, p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(r.str("label").ifBlank { r.str("tool") }, style = sans(12.5f, 400, p.tx2).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 val ad = r.optInt("added"); val rm = r.optInt("removed")
-                if (ad + rm > 0) Text("+$ad −$rm", style = mono(11f, 600, p.mu))
+                if (ad + rm > 0) Text("+$ad −$rm", style = mono(11f, 600, p.mu).ltr())
             }
             if (diff.isNotBlank()) { Spacer(Modifier.height(8.dp)); DiffPane(diff) }
         }
@@ -712,14 +716,14 @@ fun ApprovalCard(a: Appr?, m: Msg) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icn(Ic.shield, if (pending) p.att else p.mu, 18.dp)
             Spacer(Modifier.width(8.dp))
-            Text(when (state) { "pending" -> stringResource(R.string.approval_needs_you); "approved" -> stringResource(R.string.approval_approved) + (a?.choice?.takeIf { it != "once" }?.let { " · " + (approvalChoiceLabel(it)?.let { r -> stringResource(r) } ?: it) } ?: ""); "denied" -> stringResource(R.string.approval_denied); else -> stringResource(R.string.approval_expired) },
+            Text(when (state) { "pending" -> stringResource(R.string.approval_needs_you); "approved" -> stringResource(R.string.approval_approved) + (a?.choice?.takeIf { it != "once" }?.let { " · " + bidiIsolate(approvalChoiceLabel(it)?.let { r -> stringResource(r) } ?: it) } ?: ""); "denied" -> stringResource(R.string.approval_denied); else -> stringResource(R.string.approval_expired) },
                 style = sans(14.5f, 650, if (pending) p.att else p.mu))
             Spacer(Modifier.weight(1f))
             Text(clock(m.ts), style = mono(11f, 500, p.mu))
         }
-        if (desc.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(desc, style = sans(14.5f, 400, p.tx, 21f)) }
+        if (desc.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(desc, style = sans(14.5f, 400, p.tx, 21f).content()) }
         if (cmd.isNotBlank()) { Spacer(Modifier.height(10.dp)); CodeBlock(cmd, stringResource(R.string.approval_command_label)) }
-        if (m.meta.optBoolean("smart_denied")) Text(stringResource(R.string.approval_smart_denied, HERMES),
+        if (m.meta.optBoolean("smart_denied")) Text(stringResource(R.string.approval_smart_denied, bidiIsolate(HERMES)),
             style = sans(13f, 600, p.bad), modifier = Modifier.padding(top = 8.dp))
         ApprovalContext(m.meta, pending)
         // Without a screen lock the approval key can't require a fingerprint: say so on the card itself, and
@@ -766,16 +770,17 @@ fun RunScreen(cid: String) {
     }
     val steps = info?.optJSONArray("steps").objs()
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(stringResource(R.string.run_title), chat?.title)
+        TopBar(stringResource(R.string.run_title), chat?.title, contentSub = true)
         LazyColumn(Modifier.weight(1f)) {
-            if (loadErr != null) item { ErrorPanel(stringResource(R.string.run_load_failed, loadErr.orEmpty())) { retry++ } }
+            if (loadErr != null) item { ErrorPanel(stringResource(R.string.run_load_failed, bidiIsolate(loadErr.orEmpty()))) { retry++ } }
             else if (info == null) item { Skeleton() }
             if (info != null) {
             item {
                 Column(Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (since != null) { LiveDot(10.dp); Spacer(Modifier.width(10.dp)) }
-                        Text(if (since != null) stringResource(R.string.run_state_working) else stringResource(R.string.run_state_idle), style = serif(44f, if (since != null) p.acct else p.tx))
+                        val state = if (since != null) stringResource(R.string.run_state_working) else stringResource(R.string.run_state_idle)
+                        Text(state, style = serif(44f, if (since != null) p.acct else p.tx).trackFor(state))
                         Spacer(Modifier.weight(1f))
                         if (since != null) Elapsed(since, mono(22f, 500, p.tx))
                     }
@@ -796,11 +801,11 @@ fun RunScreen(cid: String) {
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Row {
-                            Text(s.str("tool"), style = mono(13f, 600, if (last) p.acct else p.tx))
+                            Text(s.str("tool"), style = mono(13f, 600, if (last) p.acct else p.tx).content())
                             Spacer(Modifier.weight(1f))
                             Text(clock(s.optDouble("ts", 0.0)), style = mono(11f, 500, p.dim))
                         }
-                        if (s.str("what").isNotBlank()) Text(s.str("what"), style = mono(12.5f, 400, p.tx2), maxLines = 4, overflow = TextOverflow.Ellipsis)
+                        if (s.str("what").isNotBlank()) Text(s.str("what"), style = mono(12.5f, 400, p.tx2).content(), maxLines = 4, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

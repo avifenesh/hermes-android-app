@@ -53,7 +53,7 @@ class WakeListenService : Service() {
             ServiceCompat.startForeground(this, 11, note(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (e: RuntimeException) {
             Log.w(TAG, "foreground start rejected", e)
-            WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME)
+            WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, bidiIsolate(APP_NAME))
             stopSelf(); return START_NOT_STICKY
         }
         // Debug builds: feed a 16 kHz WAV through the live detector instead of the mic (emulators have no mic input).
@@ -64,7 +64,7 @@ class WakeListenService : Service() {
     }
 
     private fun note() = NotificationCompat.Builder(this, WakeListen.CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt())
-        .setContentTitle(str(R.string.wakeword_notif_title, WakeWord.label(Prefs.wakePhrase)))
+        .setContentTitle(str(R.string.wakeword_notif_title, bidiIsolate(WakeWord.label(Prefs.wakePhrase))))
         .setContentText(str(R.string.wakeword_notif_text))
         .setOngoing(true).setSilent(true).setShowWhen(false)
         .setContentIntent(PendingIntent.getActivity(this, 48, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE))
@@ -124,7 +124,7 @@ class WakeListenService : Service() {
                 while (got < buf.size && run) {
                     val n = rec.read(buf, got, buf.size - got)
                     if (!run) break
-                    check(n > 0) { str(R.string.wakeword_mic_stopped, n, APP_NAME) }
+                    check(n > 0) { str(R.string.wakeword_mic_stopped, n, bidiIsolate(APP_NAME)) }
                     got += n
                 }
                 if (!run) break
@@ -196,7 +196,7 @@ class WakeListenService : Service() {
                 PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE, options)
             runCatching { getSystemService(NotificationManager::class.java).notify(12, NotificationCompat.Builder(this, WakeListen.CH_HIT)
                 .setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt()).setContentTitle(str(R.string.wakeword_heard))
-                .setContentText(str(R.string.wakeword_heard_text, Hub.agent.value)).setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentText(str(R.string.wakeword_heard_text, bidiIsolate(Hub.agent.value))).setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true).setContentIntent(pi).build()) }
         }
         // Existing detector mic-pause recovery only; not a deadline for unlocking/tapping.
@@ -255,9 +255,9 @@ object WakeListen {
             else -> null
         }
         if (error != null) { state.value = "error:$error"; c.stopService(i); return }
-        if (!Hub.foreground) { state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME); return }
+        if (!Hub.foreground) { state.value = "error:" + str(R.string.wakeword_open_to_resume, bidiIsolate(APP_NAME)); return }
         runCatching { ContextCompat.startForegroundService(c, i) }
-            .onFailure { state.value = "error:" + str(R.string.wakeword_blocked, APP_NAME) }
+            .onFailure { state.value = "error:" + str(R.string.wakeword_blocked, bidiIsolate(APP_NAME)) }
     }
 
     /** Talk tells the detector when it holds the mic. */

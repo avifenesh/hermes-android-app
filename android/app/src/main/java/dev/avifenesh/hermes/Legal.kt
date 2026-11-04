@@ -71,7 +71,7 @@ fun PrivacyScreen() {
     var retry by remember { mutableStateOf(0) }
     val appContext = remember(context) {
         val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-        "$EDITION_NAME $version\n" + str(R.string.privacy_package, context.packageName)
+        "$EDITION_NAME $version\n" + str(R.string.privacy_package, bidiIsolate(context.packageName))
     }
     LaunchedEffect(context, retry) {
         failed = false
@@ -176,8 +176,8 @@ fun LicensesScreen(document: String? = null) {
                     Column(Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         .clickable(role = Role.Button) { Ui.push(Route.LegalR(entry.file)) }
                         .padding(horizontal = 20.dp, vertical = 14.dp)) {
-                        Text(entry.title, style = sans(15f, 600, P.tx))
-                        Text(entry.file, style = sans(12f, 400, P.mu))
+                        Text(entry.title, style = sans(15f, 600, P.tx).content())
+                        Text(entry.file, style = sans(12f, 400, P.mu).ltr())
                     }
                     Line()
                 }
@@ -186,9 +186,9 @@ fun LicensesScreen(document: String? = null) {
                 item {
                     SelectionContainer {
                         Column {
-                            Text(current.selected.title, style = sans(19f, 600, P.tx), modifier = Modifier.padding(bottom = 12.dp))
-                            if (current.selected.source.isNotBlank()) Text(stringResource(R.string.licenses_source, current.selected.source), style = sans(13f, 400, P.tx2))
-                            Text(stringResource(R.string.licenses_sha256, current.selected.hash), style = sans(12f, 400, P.tx2), modifier = Modifier.padding(vertical = 12.dp))
+                            Text(current.selected.title, style = sans(19f, 600, P.tx).content(), modifier = Modifier.padding(bottom = 12.dp))
+                            if (current.selected.source.isNotBlank()) Text(stringResource(R.string.licenses_source, bidiIsolate(current.selected.source)), style = sans(13f, 400, P.tx2))
+                            Text(stringResource(R.string.licenses_sha256, bidiIsolate(current.selected.hash)), style = sans(12f, 400, P.tx2), modifier = Modifier.padding(vertical = 12.dp))
                         }
                     }
                 }

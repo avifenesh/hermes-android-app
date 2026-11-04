@@ -79,8 +79,8 @@ fun ChatMenu(cid: String, running: Boolean, onUndoText: (String) -> Unit) {
                 val reply = o.str("reply")
                 when (action) {
                     "status", "context" -> info = reply
-                    "undo" -> { o.str("text").takeIf { it.isNotBlank() }?.let(onUndoText); Ui.say(if (o.optBoolean("ok")) str(R.string.chatmenu_undone) else Hub.plain(reply).take(200)) }
-                    "save" -> Ui.say(if (o.optBoolean("ok")) str(R.string.chatmenu_exported) else Hub.plain(reply).take(200))
+                    "undo" -> { o.str("text").takeIf { it.isNotBlank() }?.let(onUndoText); Ui.say(if (o.optBoolean("ok")) str(R.string.chatmenu_undone) else Hub.plain(reply).take(200), content = !o.optBoolean("ok")) }
+                    "save" -> Ui.say(if (o.optBoolean("ok")) str(R.string.chatmenu_exported) else Hub.plain(reply).take(200), content = !o.optBoolean("ok"))
                     else -> Ui.say(Hub.plain(reply).lineSequence().firstOrNull()?.take(160) ?: str(R.string.common_done))
                 }
                 runCatching { Hub.loadChat(cid); Hub.loadUsage(cid) }
@@ -104,8 +104,8 @@ fun ChatMenu(cid: String, running: Boolean, onUndoText: (String) -> Unit) {
     }
     ask?.let { a ->
         HDialog(if (a == "new") stringResource(R.string.chatmenu_new_title) else stringResource(R.string.chatmenu_undo_title), onDismiss = { ask = null }, body = {
-                Text(if (a == "new") stringResource(R.string.chatmenu_new_body, agentName())
-                else stringResource(R.string.chatmenu_undo_body, agentName()),
+                Text(if (a == "new") stringResource(R.string.chatmenu_new_body, bidiIsolate(agentName()))
+                else stringResource(R.string.chatmenu_undo_body, bidiIsolate(agentName())),
                 style = sans(15f, 400, p.tx2, 21f))
             }) {
                 Btn(stringResource(R.string.common_cancel), primary = false) { ask = null }
@@ -160,10 +160,10 @@ fun SearchScreen() {
         LazyColumn(Modifier.weight(1f)) {
             val l = res
             when {
-                err != null -> item { Text(err!!, style = sans(14f, 400, p.bad), modifier = Modifier.padding(20.dp)) }
+                err != null -> item { Text(err!!, style = sans(14f, 400, p.bad).content(), modifier = Modifier.padding(20.dp)) }
                 q.trim().length < 2 -> item { Text(stringResource(R.string.search_intro), style = sans(14f, 400, p.mu, 20f), modifier = Modifier.padding(20.dp)) }
                 l == null || busy && l.isEmpty() -> item { Text(stringResource(R.string.search_searching), style = mono(13f, 500, p.mu), modifier = Modifier.padding(20.dp)) }
-                l.isEmpty() -> item { Empty(stringResource(R.string.search_nothing_found), stringResource(R.string.search_no_mentions, q.trim())) }
+                l.isEmpty() -> item { Empty(stringResource(R.string.search_nothing_found), stringResource(R.string.search_no_mentions, bidiIsolate(q.trim()))) }
                 else -> items(l) { r -> SearchHit(r) }
             }
             item { Spacer(Modifier.height(30.dp)) }
@@ -184,21 +184,26 @@ fun SearchHit(r: JSONObject) {
         if (mobileChat != null) Ui.open(mobileChat) else Ui.push(Route.SessR(r.str("session_id"), title, r.str("source")))
     }.padding(horizontal = 20.dp, vertical = 11.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Pill(r.str("source").ifBlank { "?" }, p.tx2, p.s3)
+            Pill(r.str("source").ifBlank { "?" }, p.tx2, p.s3, content = true)
             Spacer(Modifier.width(8.dp))
-            Text(title, style = sans(14.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(title, style = sans(14.5f, 600, p.tx).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             Text(rel(r.optDouble("timestamp", 0.0)), style = mono(11.5f, 500, p.mu))
         }
         Spacer(Modifier.height(4.dp))
-        Text(snippet(r.str("snippet"), if (mine) youSaid.substringBefore('\u0000') else "", if (mine) youSaid.substringAfter('\u0000', "") else ""), style = sans(13.5f, 400, p.tx2, 19f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+        // An excerpt of someone else's words is content; "You: <excerpt>" is UI copy with the excerpt isolated in it.
+        Text(snippet(r.str("snippet"), if (mine) youSaid.substringBefore('\u0000') else "", if (mine) youSaid.substringAfter('\u0000', "") else ""),
+            style = sans(13.5f, 400, p.tx2, 19f).let { if (mine) it else it.content() }, maxLines = 3, overflow = TextOverflow.Ellipsis)
     }
 }
 
 /** FTS5 snippets mark hits as >>>word<<<; render them bold in the accent color. */
 @Composable
 fun snippet(s: String, prefix: String, suffix: String = "") = buildAnnotatedString {
+    val framed = prefix.isNotEmpty() || suffix.isNotEmpty()
     append(prefix)
+    if (framed) append('\u2068') // the excerpt keeps its own direction inside the template
+
     var rest = s.replace("\n", " ")
     while (true) {
         val a = rest.indexOf(">>>"); if (a < 0) { append(rest); break }
@@ -207,6 +212,7 @@ fun snippet(s: String, prefix: String, suffix: String = "") = buildAnnotatedStri
         withStyle(SpanStyle(color = P.acct, fontWeight = FontWeight.SemiBold)) { append(rest.substring(a + 3, b)) }
         rest = rest.substring(b + 3)
     }
+    if (framed) append('\u2069')
     append(suffix)
 }
 
@@ -228,7 +234,7 @@ fun UsageScreen() {
                 }
             }
             val o = d
-            if (o == null) item { if (err != null) ErrorPanel(stringResource(R.string.usage_load_failed, err.orEmpty())) { retry++ } else Skeleton() }
+            if (o == null) item { if (err != null) ErrorPanel(stringResource(R.string.usage_load_failed, bidiIsolate(err.orEmpty()))) { retry++ } else Skeleton() }
             else {
                 item {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -256,7 +262,8 @@ fun UsageScreen() {
                 items(models) { m ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(labels[m.str("model")] ?: shortModel(m.str("model")), style = mono(13.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Text(labels[m.str("model")] ?: shortModel(m.str("model")), style = mono(13.5f, 600, p.tx).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(12.dp))
                             Text(when { m.optBoolean("included") && m.optDouble("cost", 0.0) == 0.0 -> stringResource(R.string.usage_included); m.optInt("unpriced") >= m.optInt("sessions") && m.optDouble("cost", 0.0) == 0.0 -> stringResource(R.string.usage_na); else -> money(m.optDouble("cost", 0.0)) }, style = mono(13f, 600, p.tx2))
                         }
                         Spacer(Modifier.height(5.dp))
@@ -265,10 +272,10 @@ fun UsageScreen() {
                         }
                         Spacer(Modifier.height(4.dp))
                         val sessions = m.optInt("sessions"); val calls = m.optInt("calls")
-                        Text(listOfNotNull(m.str("provider").ifBlank { null }, pluralStringResource(R.plurals.usage_sessions, sessions, sessions), pluralStringResource(R.plurals.usage_calls, calls, calls),
+                        Facts(listOfNotNull(m.str("provider").ifBlank { null }?.let(::bidiIsolate), pluralStringResource(R.plurals.usage_sessions, sessions, sessions), pluralStringResource(R.plurals.usage_calls, calls, calls),
                             stringResource(R.string.usage_tokens, tok(m.optLong("tokens"))),
-                            m.optDouble("cache_hit").takeIf { !it.isNaN() }?.let { stringResource(R.string.usage_cache_hit, Fmt.percent((it * 100).toInt() / 100.0)) }).joinToString(" · "),
-                            style = mono(11.5f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            m.optDouble("cache_hit").takeIf { !it.isNaN() }?.let { stringResource(R.string.usage_cache_hit, Fmt.percent((it * 100).toInt() / 100.0)) }),
+                            mono(11.5f, 500, p.mu))
                     }
                 }
                 val src = o.optJSONArray("sources").objs()
@@ -278,7 +285,8 @@ fun UsageScreen() {
                         src.forEachIndexed { i, s ->
                             if (i > 0) Line()
                             Row(Modifier.padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(s.str("source"), style = sans(14.5f, 550, p.tx), modifier = Modifier.weight(1f))
+                                Text(s.str("source"), style = sans(14.5f, 550, p.tx).contentLine(), modifier = Modifier.weight(1f))
+                                Spacer(Modifier.width(12.dp))
                                 Text(Fmt.int(s.optInt("sessions")) + " · " + money(s.optDouble("cost", 0.0)), style = mono(12.5f, 500, p.tx2))
                             }
                         }
@@ -340,7 +348,7 @@ fun MemoryEditor(target: String, entry: String?, onDone: () -> Unit) {
         }
     }
     HDialog(if (entry != null) stringResource(R.string.memory_edit_entry)
-        else if (target == "user") stringResource(R.string.memory_add_to_about) else stringResource(R.string.memory_add_to_notes, agentName()), onDismiss = onDone, body = {
+        else if (target == "user") stringResource(R.string.memory_add_to_about) else stringResource(R.string.memory_add_to_notes, bidiIsolate(agentName())), onDismiss = onDone, body = {
             Column {
                 InputBox(t, { t = it }, stringResource(R.string.memory_entry_hint), Modifier.fillMaxWidth().heightIn(min = 90.dp), minLines = 3, maxLines = 8)
                 Text(stringResource(R.string.memory_editor_note), style = sans(12.5f, 400, p.mu, 17f),
@@ -352,7 +360,7 @@ fun MemoryEditor(target: String, entry: String?, onDone: () -> Unit) {
             Btn(if (busy) stringResource(R.string.memory_saving) else stringResource(R.string.common_save), enabled = !busy && t.isNotBlank() && t.trim() != entry) { if (t.isNotBlank()) send(if (entry == null) "add" else "replace", t.trim()) }
         }
     if (confirmDel) HDialog(stringResource(R.string.memory_forget_title), onDismiss = { confirmDel = false }, body = {
-            Text(entry.orEmpty().take(300), style = sans(14.5f, 400, p.tx2, 20f))
+            Text(entry.orEmpty().take(300), style = sans(14.5f, 400, p.tx2, 20f).content())
         }) {
             Btn(stringResource(R.string.memory_keep), primary = false) { confirmDel = false }
             Btn(stringResource(R.string.memory_forget), danger = true) { confirmDel = false; send("remove") }
@@ -406,24 +414,24 @@ fun CronEditScreen(id: String?) {
     }
     Column(Modifier.fillMaxSize().imePadding()) {
         TopBar(if (id == null) stringResource(R.string.cronedit_new_title) else stringResource(R.string.cronedit_edit_title),
-            if (id == null) stringResource(R.string.cronedit_new_sub) else orig.str("schedule_display").ifBlank { null }) {
+            if (id == null) stringResource(R.string.cronedit_new_sub) else orig.str("schedule_display").ifBlank { null }, contentSub = id != null) {
             if (id != null) IconBtn(Ic.trash, p.bad) { confirmDel = true }
         }
         if (!loaded) {
-            if (loadErr != null) ErrorPanel(stringResource(R.string.cronedit_load_failed, loadErr.orEmpty())) { retry++ } else Skeleton()
+            if (loadErr != null) ErrorPanel(stringResource(R.string.cronedit_load_failed, bidiIsolate(loadErr.orEmpty()))) { retry++ } else Skeleton()
             return@Column
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Field(stringResource(R.string.cronedit_name)) { InputBox(name, { name = it }, stringResource(R.string.cronedit_name_hint), Modifier.fillMaxWidth(), maxLines = 1) }
             // Schedule examples and chips are the server's schedule syntax (English); they stay as typed.
-            Field(stringResource(R.string.cronedit_schedule), "30m · every 2h · weekdays at 9am · 0 9 * * * · in 45m (once)") {
-                InputBox(schedule, { schedule = it }, "every day at 9am", Modifier.fillMaxWidth(), maxLines = 1)
+            Field(stringResource(R.string.cronedit_schedule), "30m · every 2h · weekdays at 9am · 0 9 * * * · in 45m (once)", ltrHint = true) {
+                InputBox(schedule, { schedule = it }, "every day at 9am", Modifier.fillMaxWidth(), maxLines = 1, ltr = true)
                 Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (s in listOf("every 1h", "every day at 9am", "weekdays at 9am", "every monday 9am", "0 */6 * * *")) Chip(s, schedule == s) { schedule = s }
+                    for (s in listOf("every 1h", "every day at 9am", "weekdays at 9am", "every monday 9am", "0 */6 * * *")) Chip(bidiIsolate(s), schedule == s) { schedule = s }
                 }
             }
             Field(stringResource(R.string.cronedit_prompt), stringResource(R.string.cronedit_prompt_note)) {
-                InputBox(prompt, { prompt = it }, stringResource(R.string.cronedit_prompt_hint, agentName()), Modifier.fillMaxWidth().heightIn(min = 130.dp), minLines = 5, maxLines = 14)
+                InputBox(prompt, { prompt = it }, stringResource(R.string.cronedit_prompt_hint, bidiIsolate(agentName())), Modifier.fillMaxWidth().heightIn(min = 130.dp), minLines = 5, maxLines = 14)
             }
             Field(stringResource(R.string.cronedit_deliver_to)) {
                 SettingPick(deliverLabel(deliver)) { pickDeliver = true }
@@ -431,18 +439,18 @@ fun CronEditScreen(id: String?) {
             Field(stringResource(R.string.cronedit_model), stringResource(R.string.cronedit_model_note)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val picked = model.str("model")
-                    SettingPick(if (picked.isBlank()) stringResource(R.string.cronedit_model_default) else label(picked), Modifier.weight(1f)) { pickModel = true }
+                    SettingPick(if (picked.isBlank()) stringResource(R.string.cronedit_model_default) else label(picked), Modifier.weight(1f), content = picked.isNotBlank()) { pickModel = true }
                     if (model.str("model").isNotBlank()) { Spacer(Modifier.width(8.dp)); Btn(stringResource(R.string.cronedit_clear), primary = false) { model = JSONObject() } }
                 }
                 Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Chip(stringResource(R.string.cronedit_default_effort), reasoning.isBlank()) { reasoning = "" }
-                    for (e in listOf("none", "low", "medium", "high", "xhigh")) Chip(e, reasoning == e) { reasoning = e }
+                    for (e in listOf("none", "low", "medium", "high", "xhigh")) Chip(bidiIsolate(e), reasoning == e) { reasoning = e }
                 }
             }
             Field(stringResource(R.string.cronedit_skills), stringResource(R.string.cronedit_skills_note)) {
-                InputBox(skills, { skills = it }, stringResource(R.string.cronedit_skills_hint, "github-issues, grounded-citations"), Modifier.fillMaxWidth(), maxLines = 3)
+                InputBox(skills, { skills = it }, stringResource(R.string.cronedit_skills_hint, bidiIsolate("github-issues, grounded-citations")), Modifier.fillMaxWidth(), maxLines = 3)
             }
-            err?.let { Text(Hub.plain(it), style = mono(12.5f, 500, p.bad), modifier = Modifier.padding(vertical = 10.dp)) }
+            err?.let { Text(Hub.plain(it), style = mono(12.5f, 500, p.bad).content(), modifier = Modifier.padding(vertical = 10.dp)) }
             Spacer(Modifier.height(16.dp))
         }
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp)) {
@@ -454,7 +462,7 @@ fun CronEditScreen(id: String?) {
         onReasoning = {}, onFast = null, onDismiss = { pickModel = false })
     if (pickDeliver) OptionSheet(stringResource(R.string.cronedit_deliver_to), listOf("mobile", "telegram,mobile", "telegram", "local"), deliver, onPick = { deliver = it; pickDeliver = false }, onDismiss = { pickDeliver = false })
     if (confirmDel) HDialog(stringResource(R.string.cronedit_delete_title), onDismiss = { confirmDel = false }, body = {
-            Text(stringResource(R.string.cronedit_delete_body, name.ifBlank { id.orEmpty() }), style = sans(15f, 400, p.tx2, 21f))
+            Text(stringResource(R.string.cronedit_delete_body, bidiIsolate(name.ifBlank { id.orEmpty() })), style = sans(15f, 400, p.tx2, 21f))
         }) {
             Btn(stringResource(R.string.common_cancel), primary = false) { confirmDel = false }
             Btn(stringResource(R.string.common_delete), danger = true) {
@@ -472,21 +480,23 @@ fun deliverLabel(d: String): String = when (d.replace(" ", "")) {
     else -> d
 }
 
+/** [ltrHint]: the hint is syntax (schedule expressions), not a sentence, and reads left to right. */
 @Composable
-fun Field(label: String, hint: String? = null, content: @Composable () -> Unit) {
+fun Field(label: String, hint: String? = null, ltrHint: Boolean = false, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
         Text(label.uppercase(L10n.locale()), style = mono(11f, 600, P.mu), modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
         content()
-        if (hint != null) Text(hint, style = sans(12f, 400, P.dim, 16f), modifier = Modifier.padding(start = 4.dp, top = 5.dp))
+        if (hint != null) Text(hint, style = sans(12f, 400, P.dim, 16f).let { if (ltrHint) it.ltr().alignToLayoutStart() else it }, modifier = Modifier.padding(start = 4.dp, top = 5.dp))
     }
 }
 
+/** [content]: [text] is a name from the gateway (a model) rather than UI copy. */
 @Composable
-fun SettingPick(text: String, modifier: Modifier = Modifier, on: () -> Unit) {
+fun SettingPick(text: String, modifier: Modifier = Modifier, content: Boolean = false, on: () -> Unit) {
     val p = P
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.s2).clickable(onClick = on).padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = sans(15f, 500, p.tx), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = sans(15f, 500, p.tx).let { if (content) it.contentLine() else it }, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Icn(Ic.chevD, p.mu, 16.dp)
     }
 }

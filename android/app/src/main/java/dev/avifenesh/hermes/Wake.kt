@@ -203,7 +203,7 @@ object Wake {
     private fun notifyCantRing(c: Context) {
         val open = PendingIntent.getActivity(c, 103, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PI)
         val n = NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
-            .setContentTitle(str(R.string.wake_cant_ring_title)).setContentText(str(R.string.wake_cant_ring_text, APP_NAME))
+            .setContentTitle(str(R.string.wake_cant_ring_title)).setContentText(str(R.string.wake_cant_ring_text, bidiIsolate(APP_NAME)))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_ERROR)
             .setContentIntent(open).setAutoCancel(true).build()
         Notify.post(c, 103, n)
@@ -433,7 +433,7 @@ class WakeBootReceiver : BroadcastReceiver() {
                 Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
         Wake.schedule(c)
         // Android 14+ forbids starting microphone services from boot. Resume only when the user opens Hermes.
-        if (Prefs.wakeWord) WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, APP_NAME)
+        if (Prefs.wakeWord) WakeListen.state.value = "error:" + str(R.string.wakeword_open_to_resume, bidiIsolate(APP_NAME))
         if (Prefs.paired) {
             // Network I/O can outlive a broadcast's deadline. Let WorkManager refresh cached alarm state.
             androidx.work.WorkManager.getInstance(c).enqueueUniqueWork("wake_rearm", androidx.work.ExistingWorkPolicy.KEEP,

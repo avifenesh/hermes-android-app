@@ -53,7 +53,7 @@ object Widget {
             rv.setTextViewText(R.id.w_fleet, str(R.string.widget_fleet))
             val top = agents.firstOrNull { it.str("group") == "waiting" }
             rv.setTextViewText(R.id.w_top, when {
-                !Prefs.paired -> str(R.string.widget_open_to_pair, APP_NAME)
+                !Prefs.paired -> str(R.string.widget_open_to_pair, bidiIsolate(APP_NAME))
                 top != null -> top.str("name").ifBlank { top.str("kind") } + ": " + top.str("detail")
                 agents.any { it.str("group") == "working" } -> agents.first { it.str("group") == "working" }.let { it.str("name") + ": " + it.str("detail") }
                 else -> str(R.string.widget_all_quiet)
@@ -73,7 +73,7 @@ class TalkTile : TileService() {
     override fun onStartListening() {
         qsTile?.apply {
             state = Tile.STATE_ACTIVE
-            label = str(R.string.tile_talk_to, Prefs.agentName)
+            label = str(R.string.tile_talk_to, bidiIsolate(Prefs.agentName))
             val w = if (Hub.features.value.fleet) Fleet.count("waiting") else 0
             subtitle = if (w > 0) plural(R.plurals.tile_waiting, w, w) else str(R.string.tile_hands_free)
             updateTile()

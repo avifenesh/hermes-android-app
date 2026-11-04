@@ -127,7 +127,7 @@ fun RadarScreen() {
     // The listing knows best; until it answers, the momentum route says whether there is a scout.
     val scout = !momentum || (if (listing != null && listing.has("scout")) listing.optBoolean("scout") else m.optBoolean("scout", true))
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(stringResource(R.string.radar_title), err ?: if (!scout) null else batch?.let { stringResource(R.string.radar_batch, rel(it.optDouble("ts")), Fmt.hours(3)) } ?: if (data == null) stringResource(R.string.common_loading) else stringResource(R.string.radar_no_batch))
+        TopBar(stringResource(R.string.radar_title), err?.let(::bidiIsolate) ?: if (!scout) null else batch?.let { stringResource(R.string.radar_batch, rel(it.optDouble("ts")), Fmt.hours(3)) } ?: if (data == null) stringResource(R.string.common_loading) else stringResource(R.string.radar_no_batch))
         PullToRefreshBox(refreshing, {
             scope.launch { refreshing = true; coroutineScope { launch { load() }; launch { loadMomentum(force = true) } }; refreshing = false }
         }, Modifier.fillMaxSize()) {
@@ -154,8 +154,8 @@ fun RadarScreen() {
                 items(notes, key = { "n" + it.str("id") }) { n ->
                     Panel(Modifier.padding(bottom = 10.dp), border = p.acc) {
                         Column(Modifier.clickable { noteOpen = n }.padding(14.dp)) {
-                            Text(n.str("title"), style = sans(14.5f, 600, p.tx))
-                            Text(n.str("body"), style = sans(13f, 400, p.mu, 18f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            Text(n.str("title"), style = sans(14.5f, 600, p.tx).content())
+                            Text(n.str("body"), style = sans(13f, 400, p.mu, 18f).content(), maxLines = 3, overflow = TextOverflow.Ellipsis)
                             Text(stringResource(R.string.radar_tap_skill_diff), style = mono(11.5f, 500, p.acct))
                         }
                     }
@@ -182,9 +182,9 @@ private fun NoteSheet(n: JSONObject, onClose: () -> Unit, onAck: () -> Unit) {
     LaunchedEffect(n.str("id")) { full = runCatching { Api.get("/v1/radar/notes/${Fleet.enc(n.str("id"))}").optJSONObject("note") }.getOrNull() }
     Box(Modifier.fillMaxSize().background(p.bg)) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(n.str("title"), stringResource(R.string.radar_curator_note)) { }
+            TopBar(n.str("title"), stringResource(R.string.radar_curator_note), contentTitle = true) { }
             LazyColumn(Modifier.weight(1f)) {
-                item { Text(n.str("body"), style = sans(14.5f, 400, p.tx), modifier = Modifier.padding(16.dp)) }
+                item { Text(n.str("body"), style = sans(14.5f, 400, p.tx).content(), modifier = Modifier.padding(16.dp)) }
                 item { CodeBlock(full?.str("diff").orEmpty().ifBlank { stringResource(R.string.radar_no_diff) }, "diff") }
             }
             Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -236,25 +236,25 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
     Panel(Modifier.padding(bottom = 12.dp), bg = if (state == "dismissed") p.bg else p.s1) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Pill(f.str("type_label").ifBlank { f.str("type") }, p.ink, p.acc)
+                Pill(f.str("type_label").ifBlank { f.str("type") }, p.ink, p.acc, content = true)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.radar_confidence, Fmt.percent(f.optDouble("confidence", 0.0))) + " · " + f.str("actionability"), style = mono(11.5f, 500, p.mu))
+                Text(stringResource(R.string.radar_confidence, Fmt.percent(f.optDouble("confidence", 0.0))) + " · " + bidiIsolate(f.str("actionability")), style = mono(11.5f, 500, p.mu))
                 Spacer(Modifier.weight(1f))
                 if (state == "saved") Pill(stringResource(R.string.radar_status_saved), p.acct, p.accd)
                 if (state == "dismissed") Pill(stringResource(R.string.radar_status_dismissed), p.mu, p.s3)
                 if (f.optInt("spawned") > 0) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.radar_status_spawned), p.good, p.s3) }
             }
             Spacer(Modifier.height(8.dp))
-            Text(f.str("title"), style = sans(16.5f, 650, p.tx))
+            Text(f.str("title"), style = sans(16.5f, 650, p.tx).content())
             Spacer(Modifier.height(4.dp))
-            Text(f.str("why"), style = sans(14f, 400, p.tx2, 20f))
+            Text(f.str("why"), style = sans(14f, 400, p.tx2, 20f).content())
             val ev = f.optJSONArray("evidence")
             if (ev != null && ev.length() > 0) {
                 Spacer(Modifier.height(8.dp))
                 for (i in 0 until ev.length()) {
                     val e = ev.opt(i)?.toString().orEmpty()
                     val url = Regex("https?://\\S+").find(e)?.value?.trimEnd(')', ',', '.')
-                    Text("• " + e, style = mono(11.5f, 500, if (url != null) p.acct else p.mu), maxLines = 3, overflow = TextOverflow.Ellipsis,
+                    Text("• " + e, style = mono(11.5f, 500, if (url != null) p.acct else p.mu).content(), maxLines = 3, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().clickable {
                             if (url != null && safeLink(url)) runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                             else { cb.setText(AnnotatedString(e)); Ui.say(R.string.common_copied) }
@@ -264,14 +264,14 @@ fun FindingCard(f: JSONObject, onUpdate: (JSONObject) -> Unit) {
             f.optJSONObject("freshness")?.let { fr ->
                 Spacer(Modifier.height(8.dp))
                 val ok = fr.str("result") == "fresh"
-                Text((if (ok) stringResource(R.string.radar_fresh, fr.str("checked")) else stringResource(R.string.radar_downgraded, fr.str("checked"))) +
-                    fr.str("resurface_reason").let { if (it.isBlank()) "" else " · " + stringResource(R.string.radar_resurfaced, it) },
+                Text((if (ok) stringResource(R.string.radar_fresh, bidiIsolate(fr.str("checked"))) else stringResource(R.string.radar_downgraded, bidiIsolate(fr.str("checked")))) +
+                    fr.str("resurface_reason").let { if (it.isBlank()) "" else " · " + stringResource(R.string.radar_resurfaced, bidiIsolate(it)) },
                     style = sans(12.5f, 400, if (ok) p.goodt else p.attt, 17f))
             }
             f.optJSONArray("feedback").objs().forEach { x ->
                 val t = x.str("text")
-                val label = when (x.str("kind")) { "note" -> stringResource(R.string.radar_feedback_note); "feedback" -> stringResource(R.string.radar_feedback_you_said); "spawn_chat" -> stringResource(R.string.radar_feedback_spawned_chat); "spawn_task" -> stringResource(R.string.radar_feedback_spawned_agent); else -> x.str("kind") }
-                Text("$label · ${rel(x.optDouble("ts"))}" + if (t.isNotBlank()) ": $t" else "", style = sans(12.5f, 400, p.mu, 17f), modifier = Modifier.padding(top = 4.dp))
+                val label = when (x.str("kind")) { "note" -> stringResource(R.string.radar_feedback_note); "feedback" -> stringResource(R.string.radar_feedback_you_said); "spawn_chat" -> stringResource(R.string.radar_feedback_spawned_chat); "spawn_task" -> stringResource(R.string.radar_feedback_spawned_agent); else -> bidiIsolate(x.str("kind")) }
+                Text("$label · ${rel(x.optDouble("ts"))}" + if (t.isNotBlank()) ": " + bidiIsolate(t) else "", style = sans(12.5f, 400, p.mu, 17f), modifier = Modifier.padding(top = 4.dp))
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -162,17 +162,18 @@ object RoomLogic {
     fun answering(members: List<RoomMember>, working: Collection<String>): List<String> =
         members.filter { it.id in working }.map { it.name }
 
+    /** Member names are content inside the translated sentence: each keeps its own direction. */
     fun workingLine(names: List<String>): String = when (names.size) {
         0 -> ""
-        1 -> str(R.string.room_answering_one, names[0])
-        2 -> str(R.string.room_answering_two, names[0], names[1])
-        else -> str(R.string.room_answering_many, names.dropLast(1).joinToString(", "), names.last())
+        1 -> str(R.string.room_answering_one, bidiIsolate(names[0]))
+        2 -> str(R.string.room_answering_two, bidiIsolate(names[0]), bidiIsolate(names[1]))
+        else -> str(R.string.room_answering_many, bidiJoin(names.dropLast(1), ", "), bidiIsolate(names.last()))
     }
 
     fun noticeText(e: RoomEvent): String {
-        val who = e.name.ifBlank { str(R.string.room_notice_someone) }
+        val who = e.name.takeIf { it.isNotBlank() }?.let(::bidiIsolate) ?: str(R.string.room_notice_someone)
         return when (e.notice) {
-            "turn.failed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_failed_detail, who, e.detail.lineSequence().first())
+            "turn.failed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_failed_detail, who, bidiIsolate(e.detail.lineSequence().first()))
                 else str(R.string.room_notice_failed, who)
             "turn.cancelled" -> if (e.detail == "superseded_by_newer_user_event") str(R.string.room_notice_superseded, who)
                 else str(R.string.room_notice_cancelled, who)
@@ -180,10 +181,10 @@ object RoomLogic {
             "member.unavailable" -> str(R.string.room_notice_unavailable, who)
             "room.stop_requested" -> str(R.string.room_notice_stopped)
             "room.disbanded" -> str(R.string.room_notice_deleted)
-            "room.renamed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_renamed_to, e.detail) else str(R.string.room_notice_renamed)
+            "room.renamed" -> if (e.detail.isNotBlank()) str(R.string.room_notice_renamed_to, bidiIsolate(e.detail)) else str(R.string.room_notice_renamed)
             "authority.lost" -> str(R.string.room_notice_authority_lost)
             "room.bounded" -> str(R.string.room_notice_round_limit)
-            else -> e.notice
+            else -> bidiIsolate(e.notice)
         }
     }
 
@@ -196,8 +197,9 @@ object RoomLogic {
 
     fun previewLine(r: Room): String {
         val p = r.preview ?: return plural(R.plurals.rooms_member_count, r.members.size, r.members.size)
-        val who = if (p.role == "user") str(R.string.common_you) else p.name.ifBlank { "Bot" }
-        return "$who: ${p.text}"
+        // "<who>: <text>" reads in the app's direction; the name and the message keep their own.
+        val who = if (p.role == "user") str(R.string.common_you) else bidiIsolate(p.name.ifBlank { "Bot" })
+        return "$who: " + bidiIsolate(p.text)
     }
 
     /** Index into the accent presets so each member keeps one color in every room row and bubble. */

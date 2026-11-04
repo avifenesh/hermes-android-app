@@ -10,15 +10,15 @@ class ReadOnlyChatTest {
     @Before fun englishStrings() = TestStrings.install()
 
     @Test fun groupMirrorsSayWhereToReply() {
-        assertEquals("Group chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:group"))
-        assertEquals("Group chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:forum"))
-        assertEquals("Group chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:supergroup"))
-        assertEquals("Channel · read-only. Reply in Telegram.", readOnlyNotice("telegram:channel"))
+        assertEquals("Group chat · read-only. Reply in \u2068Telegram\u2069.", readOnlyNotice("telegram:group"))
+        assertEquals("Group chat · read-only. Reply in \u2068Telegram\u2069.", readOnlyNotice("telegram:forum"))
+        assertEquals("Group chat · read-only. Reply in \u2068Telegram\u2069.", readOnlyNotice("telegram:supergroup"))
+        assertEquals("Channel · read-only. Reply in \u2068Telegram\u2069.", readOnlyNotice("telegram:channel"))
     }
 
     @Test fun otherSurfacesAndUnknownKinds() {
-        assertEquals("Group chat · read-only. Reply in Discord.", readOnlyNotice("discord:group"))
-        assertEquals("Shared chat · read-only. Reply in Telegram.", readOnlyNotice("telegram:thread"))
+        assertEquals("Group chat · read-only. Reply in \u2068Discord\u2069.", readOnlyNotice("discord:group"))
+        assertEquals("Shared chat · read-only. Reply in \u2068Telegram\u2069.", readOnlyNotice("telegram:thread"))
         assertEquals("Shared chat · read-only. Reply where it started.", readOnlyNotice("shared"))
     }
 

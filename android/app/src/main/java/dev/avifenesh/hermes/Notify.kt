@@ -72,7 +72,7 @@ object Notify {
             .ifEmpty { listOf(m) }
         val style = NotificationCompat.MessagingStyle(me).setConversationTitle(chat?.title ?: HERMES).setGroupConversation(false)
         recent.forEach { style.addMessage(Hub.plain(if (it.kind == "text") it.content else Hub.previewOf(it)).take(900), (it.ts * 1000).toLong(), zl) }
-        val reply = RemoteInput.Builder("reply").setLabel(str(R.string.notify_reply_to, Hub.agent.value)).build()
+        val reply = RemoteInput.Builder("reply").setLabel(str(R.string.notify_reply_to, bidiIsolate(Hub.agent.value))).build()
         val replyPi = PendingIntent.getBroadcast(c, nid("r${m.chatId}"),
             Intent(c, ActionReceiver::class.java).setAction("reply").putExtra("chat", m.chatId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
@@ -105,12 +105,12 @@ object Notify {
         val ctxMeta = Hub.msgs.value[a.chatId].orEmpty().lastOrNull { it.kind == "approval" && it.meta.str("approval_id") == a.id }?.meta
         val files = ctxMeta?.optJSONArray("files").strs()
         val body = listOf(a.description, "$ " + a.command,
-            if (files.isNotEmpty()) str(R.string.notify_touched, files.take(4).joinToString(", ") { it.substringAfterLast('/') } + if (files.size > 4) " +${files.size - 4}" else "") else "",
-            if (ctxMeta?.optBoolean("smart_denied") == true) str(R.string.notify_flagged, HERMES) else "")
+            if (files.isNotEmpty()) str(R.string.notify_touched, bidiIsolate(files.take(4).joinToString(", ") { it.substringAfterLast('/') }) + if (files.size > 4) " +${files.size - 4}" else "") else "",
+            if (ctxMeta?.optBoolean("smart_denied") == true) str(R.string.notify_flagged, bidiIsolate(HERMES)) else "")
             .filter { it.isNotBlank() && it != "$ " }.joinToString("\n")
         val n = NotificationCompat.Builder(c, CH_APPR)
             .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-            .setContentTitle(str(R.string.notify_approve_title, chat?.title ?: HERMES)).setContentText(a.command)
+            .setContentTitle(str(R.string.notify_approve_title, bidiIsolate(chat?.title ?: HERMES))).setContentText(a.command)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true)
@@ -146,10 +146,10 @@ object Notify {
         val who = r.members.firstOrNull { it.id == a.member }?.name ?: a.member
         val open = PendingIntent.getActivity(c, nid("openroom${r.id}"),
             Intent(c, MainActivity::class.java).putExtra("room", r.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PI)
-        val body = listOf(str(R.string.notify_asks_to_run, who), "$ " + a.command.ifBlank { a.description }).joinToString("\n")
+        val body = listOf(str(R.string.notify_asks_to_run, bidiIsolate(who)), "$ " + a.command.ifBlank { a.description }).joinToString("\n")
         val n = NotificationCompat.Builder(c, CH_APPR)
             .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
-            .setContentTitle(str(R.string.notify_approve_title, r.name)).setContentText("$who: " + a.command.ifBlank { a.description })
+            .setContentTitle(str(R.string.notify_approve_title, bidiIsolate(r.name))).setContentText(bidiIsolate(who) + ": " + bidiIsolate(a.command.ifBlank { a.description }))
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).setAutoCancel(true)

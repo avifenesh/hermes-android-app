@@ -503,7 +503,7 @@ fun VoiceBubbleContent(
                 }
             }
         }
-        if (open && transcript.isNotBlank()) Text(transcript, style = sans(14f, 400, if (mine) p.tx else p.tx2, 20f),
+        if (open && transcript.isNotBlank()) Text(transcript, style = sans(14f, 400, if (mine) p.tx else p.tx2, 20f).content(),
             modifier = Modifier.padding(start = 52.dp, end = 6.dp, bottom = 4.dp))
     }
 }

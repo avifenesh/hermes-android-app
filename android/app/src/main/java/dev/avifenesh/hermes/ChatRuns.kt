@@ -63,9 +63,9 @@ fun plainText(s: String): String = s.replace(Regex("```[a-zA-Z]*\\n?"), "").repl
 
 /** Inbox preview line. A voice note with no text previews as its transcript, else "Voice message". */
 fun chatPreview(m: Msg): String = when (m.kind) {
-    "approval" -> str(R.string.chat_preview_approval, m.meta.str("command"))
+    "approval" -> str(R.string.chat_preview_approval, bidiIsolate(m.meta.str("command")))
     "image" -> str(R.string.chat_preview_photo) + (if (m.content.isNotBlank()) " · " + m.content else "")
-    "file" -> str(R.string.chat_preview_file, m.meta.str("file_name"))
+    "file" -> str(R.string.chat_preview_file, bidiIsolate(m.meta.str("file_name")))
     "voice" -> str(R.string.chat_preview_voice)
     else -> plainText(m.content).lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: voicePreview(m) ?: ""
 }

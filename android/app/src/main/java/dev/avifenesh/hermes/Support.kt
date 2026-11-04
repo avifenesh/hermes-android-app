@@ -222,7 +222,7 @@ internal fun SupportDialog(
     val draft = remember(body, draftId) { PublisherReportDraft(body, draftId) }
     var received by rememberSaveable(draftId) { mutableStateOf(false) }
     HDialog(if (stage == "preview") stringResource(R.string.support_review_title) else stringResource(if (request.text == null) R.string.report_problem else R.string.report_message), onDismiss = dismiss, body = {
-        Text(stringResource(R.string.support_disclosure, EDITION_PUBLISHER), style = sans(13.5f, 400, p.tx2, 19f))
+        Text(stringResource(R.string.support_disclosure, bidiIsolate(EDITION_PUBLISHER)), style = sans(13.5f, 400, p.tx2, 19f))
         Spacer(Modifier.height(12.dp))
         Btn(stringResource(R.string.support_privacy_policy), Modifier.fillMaxWidth(), primary = false, enabled = !sending) {
             Support.act(request) { Ui.push(Route.PrivacyR) }
@@ -230,20 +230,20 @@ internal fun SupportDialog(
         Text(stringResource(R.string.support_policy_closes_draft), style = sans(12.5f, 400, p.tx2, 18f))
         Spacer(Modifier.height(12.dp))
         if (stage == "preview") {
-            Text(stringResource(R.string.support_endpoint, PublisherReports.ENDPOINT), style = sans(12.5f, 400, p.tx2, 18f))
+            Text(stringResource(R.string.support_endpoint, bidiIsolate(PublisherReports.ENDPOINT)), style = sans(12.5f, 400, p.tx2, 18f))
             androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(stringResource(R.string.support_report_id, draft.id), style = mono(12.5f, 500, p.tx2))
+                Text(stringResource(R.string.support_report_id, bidiIsolate(draft.id)), style = mono(12.5f, 500, p.tx2))
             }
             Text(stringResource(R.string.support_keep_id), style = sans(12.5f, 400, p.tx2, 18f))
-            Text(stringResource(R.string.support_email_alternative, stringResource(R.string.report_email)), style = sans(14f, 600, p.tx))
+            Text(stringResource(R.string.support_email_alternative, bidiIsolate(stringResource(R.string.report_email))), style = sans(14f, 600, p.tx))
             Spacer(Modifier.height(12.dp))
             // No ellipsis or collapsed section: both destinations get exactly this text.
-            Text(body, style = sans(13.5f, 400, p.tx, 19f))
-            if (received) Text(stringResource(R.string.support_received, EDITION_PUBLISHER), style = sans(13.5f, 600, p.tx2, 19f))
+            Text(body, style = sans(13.5f, 400, p.tx, 19f).content())
+            if (received) Text(stringResource(R.string.support_received, bidiIsolate(EDITION_PUBLISHER)), style = sans(13.5f, 600, p.tx2, 19f))
             if (sendError) Text(stringResource(R.string.support_send_failed), style = sans(13.5f, 600, p.tx2, 19f))
             if (mailError) {
                 Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.support_mail_failed, stringResource(R.string.report_email)), style = sans(13.5f, 600, p.tx2, 19f))
+                Text(stringResource(R.string.support_mail_failed, bidiIsolate(stringResource(R.string.report_email))), style = sans(13.5f, 600, p.tx2, 19f))
             }
         } else {
             InputBox(note, { value ->
@@ -298,7 +298,7 @@ internal fun SupportDialog(
 /** General support never looks through the user's loaded chats for a quote. */
 @Composable
 fun ReportProblemRow() {
-    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), stringResource(R.string.support_row_sub, EDITION_PUBLISHER)) { Support.open() } }
+    Panel { NavRow(Ic.shield, stringResource(R.string.report_problem), stringResource(R.string.support_row_sub, bidiIsolate(EDITION_PUBLISHER))) { Support.open() } }
 }
 
 /** Long-press only opens the themed action chooser. Clipboard writes require a separate Copy tap. */

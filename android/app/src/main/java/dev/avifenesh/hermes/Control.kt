@@ -131,8 +131,9 @@ fun ModelChip(model: String, reasoning: String, fast: Boolean, changed: Boolean 
         .clickable(enabled = !busy, onClick = onClick).padding(start = 9.dp, end = 7.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (busy) LiveDot(8.dp) else Icn(Ic.cpu, p.acct, 14.dp)
         Spacer(Modifier.width(6.dp))
-        Text(label(model).ifBlank { stringResource(R.string.model_chip_fallback) }, style = mono(12.5f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
-        if (reasoning.isNotBlank()) Text(" · $reasoning", style = mono(12.5f, 500, p.mu), maxLines = 1)
+        Text(label(model).ifBlank { stringResource(R.string.model_chip_fallback) }, style = mono(12.5f, 600, p.tx).let { if (label(model).isNotBlank()) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
+        // The separator leads in the app's direction; the effort id ("medium") is isolated after it.
+        if (reasoning.isNotBlank()) Text(" · " + bidiIsolate(reasoning), style = mono(12.5f, 500, p.mu), maxLines = 1)
         if (fast) { Spacer(Modifier.width(4.dp)); Icn(Ic.zap, p.att, 13.dp) }
         Spacer(Modifier.width(2.dp))
         Icn(Ic.chevD, p.mu, 14.dp)
@@ -173,11 +174,11 @@ fun ModelSheet(
         LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding().navigationBarsPadding()) {
             item {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 10.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = serif(34f, p.tx), modifier = Modifier.weight(1f))
+                    Text(title, style = serif(34f, p.tx).trackFor(title), modifier = Modifier.weight(1f))
                     if (loading) Text(stringResource(R.string.model_loading), style = mono(11.5f, 500, p.mu))
                     IconBtn(Ic.refresh, p.tx2) { co.launch { err = null; runCatching { Ctl.loadModels(refresh = true) }.onFailure { err = it.message } } }
                 }
-                if (curModel.isNotBlank()) Text(stringResource(R.string.model_now, curModel, Ctl.providerName(curProv)), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                if (curModel.isNotBlank()) Text(stringResource(R.string.model_now, bidiIsolate(curModel), bidiIsolate(Ctl.providerName(curProv))), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 20.dp))
             }
             if (showScope) item {
@@ -190,7 +191,7 @@ fun ModelSheet(
             if (showReasoning && caps?.optBoolean("reasoning", true) != false) item {
                 Text(stringResource(R.string.model_reasoning_header), style = mono(11f, 600, p.mu), modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (e in EFFORTS) Chip(e, e == cur?.str("reasoning")) { onReasoning(e) }
+                    for (e in EFFORTS) Chip(bidiIsolate(e), e == cur?.str("reasoning")) { onReasoning(e) }
                 }
             }
             if (onFast != null && caps?.optBoolean("fast") == true) item {
@@ -208,11 +209,11 @@ fun ModelSheet(
                 }
             }
             item { InputBox(q, { q = it }, stringResource(R.string.model_search_hint), Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), maxLines = 1) }
-            err?.let { e -> item { Text(e, style = sans(13.5f, 400, p.bad), modifier = Modifier.padding(20.dp)) } }
+            err?.let { e -> item { Text(e, style = sans(13.5f, 400, p.bad).content(), modifier = Modifier.padding(20.dp)) } }
             if (models == null && err == null) item { Text(stringResource(R.string.model_fetching), style = mono(13f, 500, p.mu), modifier = Modifier.padding(20.dp)) }
             if (q.isNotBlank()) {
                 val hits = provs.flatMap { pr -> pr.optJSONArray("models").strs().filter { it.contains(q.trim(), true) || pr.str("name").contains(q.trim(), true) }.map { pr to it } }.take(120)
-                if (hits.isEmpty() && models != null) item { Text(stringResource(R.string.model_no_match, q), style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp)) }
+                if (hits.isEmpty() && models != null) item { Text(stringResource(R.string.model_no_match, bidiIsolate(q)), style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp)) }
                 items(hits) { (pr, m) ->
                     ModelRow(m, pr.str("name"), m == curModel && pr.str("slug") == curProv, pr.optJSONObject("capabilities")?.optJSONObject(m)) { onModel(m, pr.str("slug")) }
                 }
@@ -233,7 +234,7 @@ fun ModelSheet(
                     val isOpen = open[slug] ?: (slug == curProv)
                     item(key = "h$pi/$slug") {
                         Row(Modifier.fillMaxWidth().clickable { open[slug] = !isOpen }.padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(pr.str("name").ifBlank { slug }, style = sans(15f, 600, if (slug == curProv) p.acct else p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            Text(pr.str("name").ifBlank { slug }, style = sans(15f, 600, if (slug == curProv) p.acct else p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false))
                             Spacer(Modifier.width(8.dp))
                             Text(Fmt.int(pr.optInt("total_models", pr.optJSONArray("models")?.length() ?: 0)), style = mono(11.5f, 500, p.mu))
@@ -257,8 +258,8 @@ fun ModelRow(model: String, provider: String?, selected: Boolean, caps: JSONObje
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).background(if (selected) p.accd else androidx.compose.ui.graphics.Color.Transparent)
         .padding(start = 32.dp, end = 18.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(model, style = mono(13.5f, if (selected) 600 else 500, if (selected) p.acct else p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (provider != null) Text(provider, style = sans(12f, 400, p.mu), maxLines = 1)
+            Text(model, style = mono(13.5f, if (selected) 600 else 500, if (selected) p.acct else p.tx).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+            if (provider != null) Text(provider, style = sans(12f, 400, p.mu).contentLine(), maxLines = 1, modifier = Modifier.fillMaxWidth())
         }
         if (caps?.optBoolean("fast") == true) { Spacer(Modifier.width(6.dp)); Icn(Ic.zap, p.mu, 13.dp) }
         if (selected) { Spacer(Modifier.width(8.dp)); Icn(Ic.check, p.acct, 16.dp) }
@@ -289,7 +290,7 @@ fun ChatModelControl(cid: String) {
                 val c = o.optJSONObject("confirm")
                 when {
                     c != null -> confirm = c
-                    o.optBoolean("ok") -> Ui.say(done)
+                    o.optBoolean("ok") -> Ui.say(done, content = false)
                     else -> Ui.say(Hub.plain(o.str("error")).take(220))
                 }
             } catch (e: Exception) { Ui.say(e.message) } finally { busy = false }
@@ -302,18 +303,18 @@ fun ChatModelControl(cid: String) {
         }
     }
     if (open) ModelSheet(stringResource(R.string.model_title), st ?: JSONObject().put("model", model), true, true, scope, { scope = it },
-        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), str(R.string.model_switched_to, label(m))) },
-        onReasoning = { e -> run(JSONObject().put("reasoning", e), str(R.string.model_reasoning_set, e)) },
+        onModel = { m, pr -> open = false; run(JSONObject().put("model", m).put("provider", pr), str(R.string.model_switched_to, bidiIsolate(label(m)))) },
+        onReasoning = { e -> run(JSONObject().put("reasoning", e), str(R.string.model_reasoning_set, bidiIsolate(e))) },
         onFast = { f -> run(JSONObject().put("fast", f), if (f) str(R.string.model_fast_on) else str(R.string.model_fast_off)) },
         onDismiss = { open = false })
     confirm?.let { c ->
         HDialog(stringResource(R.string.model_switch_title), onDismiss = { confirm = null }, body = {
-                Text(Hub.plain(c.str("message")).substringBefore("Text fallback").trim().take(600), style = sans(14.5f, 400, p.tx2, 21f))
+                Text(Hub.plain(c.str("message")).substringBefore("Text fallback").trim().take(600), style = sans(14.5f, 400, p.tx2, 21f).content())
             }) {
                 Btn(stringResource(R.string.model_keep_current), primary = false) { confirm = null; co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "cancel") } } }
                 Btn(stringResource(R.string.model_switch)) {
                 confirm = null; busy = true
-                co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "once") }.onSuccess { Ui.say(if (it.optBoolean("ok")) str(R.string.model_switched) else Hub.plain(it.str("reply")).take(200)) }.onFailure { Ui.say(it.message) }; busy = false }
+                co.launch { runCatching { Ctl.confirm(cid, c.str("id"), "once") }.onSuccess { Ui.say(if (it.optBoolean("ok")) str(R.string.model_switched) else Hub.plain(it.str("reply")).take(200), content = !it.optBoolean("ok")) }.onFailure { Ui.say(it.message) }; busy = false }
             }
             }
     }
@@ -367,22 +368,22 @@ internal fun bootChanged(me: JSONObject, boot: String): Boolean {
 internal fun restartToast(res: JSONObject): String {
     val n = res.optInt("active")
     return when (res.optString("state")) {
-        "draining" -> if (n >= 1) plural(R.plurals.restart_draining, n, n, HERMES) else str(R.string.restart_restarting, HERMES)
+        "draining" -> if (n >= 1) plural(R.plurals.restart_draining, n, n, bidiIsolate(HERMES)) else str(R.string.restart_restarting, bidiIsolate(HERMES))
         "in_progress" -> str(R.string.restart_in_progress)
-        else -> str(R.string.restart_restarting, HERMES)
+        else -> str(R.string.restart_restarting, bidiIsolate(HERMES))
     }
 }
 @Composable
 fun RestartDialog(onDismiss: () -> Unit) {
     val p = P
     val co = rememberCoroutineScope()
-    HDialog(stringResource(R.string.restart_title, HERMES), onDismiss = onDismiss, body = {
+    HDialog(stringResource(R.string.restart_title, bidiIsolate(HERMES)), onDismiss = onDismiss, body = {
             Text(stringResource(R.string.restart_body), style = sans(15f, 400, p.tx2, 21f))
         }) {
             Btn(stringResource(R.string.common_cancel), primary = false, onClick = onDismiss)
             Btn(stringResource(R.string.restart_action)) {
             onDismiss()
-            co.launch { runCatching { Api.post("/v1/restart") }.onSuccess { Ctl.restartRequested(); Ui.say(restartToast(it)) }.onFailure { Ui.say(it.message) } }
+            co.launch { runCatching { Api.post("/v1/restart") }.onSuccess { Ctl.restartRequested(); Ui.say(restartToast(it), content = false) }.onFailure { Ui.say(it.message) } }
         }
         }
 }
@@ -400,7 +401,7 @@ fun RestartBanner() {
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.restart_banner_title), style = sans(15f, 600, p.tx))
-                Text(stringResource(R.string.restart_banner_body, HERMES), style = sans(12.5f, 400, p.tx2))
+                Text(stringResource(R.string.restart_banner_body, bidiIsolate(HERMES)), style = sans(12.5f, 400, p.tx2))
             }
             Btn(stringResource(R.string.restart_action), primary = false) { ask = true }
         }
@@ -460,7 +461,7 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
             try {
                 val b = JSONObject().put("key", key).put("value", nv ?: JSONObject.NULL)
                 if (provider != null) b.put("provider", provider)
-                val o = Guard.call(act, "config", key, nv, str(R.string.settings_change_title, labelOf(f))) { h -> Api.put("/v1/settings", b, h) }
+                val o = Guard.call(act, "config", key, nv, str(R.string.settings_change_title, bidiIsolate(labelOf(f)))) { h -> Api.put("/v1/settings", b, h) }
                 if (key == "model.default") { v = o.str("model"); prov = o.str("provider"); Ctl.chat.value = emptyMap(); runCatching { Hub.refreshMe() } }
                 else v = o.opt("value").takeIf { it != JSONObject.NULL }
                 if (f.optBoolean("restart")) Ctl.restartChanged()
@@ -472,18 +473,19 @@ fun SettingField(f: JSONObject, showKey: Boolean = false) {
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(labelOf(f), style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                // Labels, keys, help and values come from the gateway's config schema, in its language.
+                Text(labelOf(f), style = sans(15f, 600, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (f.optBoolean("restart")) { Spacer(Modifier.width(6.dp)); Pill(stringResource(R.string.settings_restart_pill), p.mu, p.s3) }
             }
-            if (showKey) Text(key, style = mono(11f, 500, p.dim), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (help.isNotBlank()) Text(help, style = sans(12.5f, 400, p.mu, 17f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            if (showKey) Text(key, style = mono(11f, 500, p.dim).ltr().alignToLayoutStart(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+            if (help.isNotBlank()) Text(help, style = sans(12.5f, 400, p.mu, 17f).contentLine(), maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.width(12.dp))
         when (type) {
             "bool" -> Toggle(v == true, { save(it) }, enabled = !busy)
             else -> Row(verticalAlignment = Alignment.CenterVertically) {
                 if (busy) { LiveDot(8.dp); Spacer(Modifier.width(6.dp)) }
-                Text(shown(f, v, modelLabeler()), style = mono(13f, 500, if (v == null) p.mu else p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
+                Text(shown(f, v, modelLabeler()), style = mono(13f, 500, if (v == null) p.mu else p.tx2).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
                 Icn(Ic.chevR, p.mu, 16.dp)
             }
         }
@@ -506,13 +508,14 @@ fun OptionSheet(title: String, options: List<String>, current: String, onPick: (
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = p.s1,
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
         LazyColumn(Modifier.fillMaxWidth().imePadding().navigationBarsPadding()) {
-            item { Text(title, style = serif(30f, p.tx), modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 8.dp)) }
+            item { Text(title, style = serif(30f, p.tx).trackFor(title), modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 8.dp)) }
             if (options.size > 12) item { InputBox(q, { q = it }, stringResource(R.string.common_search), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), maxLines = 1) }
             items(list) { o ->
                 val sel = o == current
                 Row(Modifier.fillMaxWidth().clickable { onPick(o) }.background(if (sel) p.accd else androidx.compose.ui.graphics.Color.Transparent)
                     .padding(horizontal = 22.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(o.ifEmpty { stringResource(R.string.settings_value_default) }, style = sans(15.5f, if (sel) 600 else 500, if (sel) p.acct else if (o.isEmpty()) p.mu else p.tx), modifier = Modifier.weight(1f))
+                    // Options are the gateway's raw values; only the empty one is UI copy.
+                    Text(o.ifEmpty { stringResource(R.string.settings_value_default) }, style = sans(15.5f, if (sel) 600 else 500, if (sel) p.acct else if (o.isEmpty()) p.mu else p.tx).let { if (o.isEmpty()) it else it.contentLine() }, modifier = Modifier.weight(1f))
                     if (sel) Icn(Ic.check, p.acct, 17.dp)
                 }
             }
@@ -552,19 +555,19 @@ fun SettingsScreen() {
     val cur = tab.ifBlank { tabs.firstOrNull().orEmpty() }
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.settings_title), stringResource(R.string.settings_subtitle,
-            meta.str("name").ifBlank { Prefs.server ?: HERMES }, meta.str("profile").ifBlank { Prefs.profile ?: "default" })) {
+            bidiIsolate(meta.str("name").ifBlank { Prefs.server ?: HERMES }), bidiIsolate(meta.str("profile").ifBlank { Prefs.profile ?: "default" }))) {
             IconBtn(Ic.search, p.tx2) { Ui.push(Route.AllSettingsR) }
             IconBtn(Ic.refresh, p.tx2) { co.launch { load() } }
         }
         if (tabs.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Seg(tabs.map { it to it }, cur) { tab = it }
+            Seg(tabs.map { it to bidiIsolate(it) }, cur) { tab = it }
         }
         LazyColumn(Modifier.weight(1f)) {
             item { RestartBanner() }
-            if (data == null) item { if (err != null) ErrorPanel(err!!) { co.launch { load() } } else Skeleton(6) }
+            if (data == null) item { if (err != null) ErrorPanel(err!!, content = true) { co.launch { load() } } else Skeleton(6) }
             groups.filter { it.str("tab").ifBlank { other } == cur }.forEach { g ->
                 item(key = "g" + g.str("title")) {
-                    Section(g.str("title"), null)
+                    Section(bidiIsolate(g.str("title")), null)
                     Panel {
                         g.optJSONArray("fields").objs().forEachIndexed { i, f -> if (i > 0) Line(); SettingField(f) }
                     }
@@ -573,7 +576,7 @@ fun SettingsScreen() {
             if (data != null) item {
                 Spacer(Modifier.height(18.dp))
                 Panel { NavRow(Ic.search, stringResource(R.string.settings_all_title), stringResource(R.string.settings_all_sub)) { Ui.push(Route.AllSettingsR) } }
-                Text(stringResource(R.string.settings_footer, "hermes config set"),
+                Text(stringResource(R.string.settings_footer, bidiIsolate("hermes config set")),
                     style = sans(12.5f, 400, p.dim, 18f), modifier = Modifier.padding(horizontal = 22.dp, vertical = 16.dp))
                 Spacer(Modifier.height(20.dp))
             }
@@ -601,10 +604,10 @@ fun AllSettingsScreen() {
         InputBox(q, { q = it }, stringResource(R.string.settings_search_keys), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), maxLines = 1)
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip(stringResource(R.string.common_all), cat.isBlank()) { cat = "" }
-            for (c in cats) Chip(c, cat == c) { cat = c }
+            for (c in cats) Chip(bidiIsolate(c), cat == c) { cat = c }
         }
         LazyColumn(Modifier.weight(1f)) {
-            if (err != null) item { ErrorPanel(stringResource(R.string.settings_load_failed, err.orEmpty())) { retry++ } }
+            if (err != null) item { ErrorPanel(stringResource(R.string.settings_load_failed, bidiIsolate(err.orEmpty()))) { retry++ } }
             else if (fields == null) item { Skeleton() }
             itemsIndexed(list) { i, f -> if (i > 0) Line(); SettingField(f, showKey = true) }
             if (fields != null && list.isEmpty()) item { Empty(stringResource(R.string.settings_nothing_matches), stringResource(R.string.settings_try_another)) }
@@ -618,7 +621,7 @@ fun AllSettingsScreen() {
 fun ExtScreen() {
     var tab by remember { mutableStateOf("skills") }
     Column(Modifier.fillMaxSize()) {
-        TopBar(stringResource(R.string.ext_title), stringResource(R.string.ext_subtitle, agentName())) {
+        TopBar(stringResource(R.string.ext_title), stringResource(R.string.ext_subtitle, bidiIsolate(agentName()))) {
             Text(stringResource(R.string.ext_open_hub), style = sans(14f, 600, P.acct), modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(P.accd)
                 .clickable { Mk.tab.value = tab; Ui.push(Route.HubR) }.padding(horizontal = 12.dp, vertical = 7.dp))
             Spacer(Modifier.width(8.dp))
@@ -661,20 +664,20 @@ fun SkillsTab() {
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(stringResource(R.string.skills_filter_all, all.size), filter == "all") { filter = "all" }
                 Chip(stringResource(R.string.skills_filter_off, all.count { !enabled(it) }), filter == "off") { filter = "off" }
-                Chip(stringResource(R.string.skills_filter_agent, agentName()), filter == "agent") { filter = "agent" }
+                Chip(stringResource(R.string.skills_filter_agent, bidiIsolate(agentName())), filter == "agent") { filter = "agent" }
                 Chip(stringResource(R.string.skills_filter_hub), filter == "hub") { filter = "hub" }
                 Chip(stringResource(R.string.skills_filter_bundled), filter == "bundled") { filter = "bundled" }
             }
             Text(stringResource(R.string.skills_toggle_note), style = sans(12.5f, 400, p.dim, 17f),
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
         }
-        if (skills == null) item { if (err != null) ErrorPanel(err!!) { err = null; rk++ } else Skeleton(6) }
+        if (skills == null) item { if (err != null) ErrorPanel(err!!, content = true) { err = null; rk++ } else Skeleton(6) }
         else if (list.isEmpty()) item {
             Empty(if (all.isEmpty()) stringResource(R.string.skills_empty_title) else stringResource(R.string.skills_no_match),
                 if (all.isEmpty()) stringResource(R.string.skills_empty_sub) else stringResource(R.string.skills_no_match_sub))
         }
         groups.forEach { (cat, l) ->
-            item { Section(cat, Fmt.int(l.size)) }
+            item { Section(bidiIsolate(cat), Fmt.int(l.size)) }
             items(l) { s ->
                 val name = s.str("name")
                 val en = enabled(s)
@@ -682,12 +685,12 @@ fun SkillsTab() {
                     verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(name, style = sans(15f, 600, if (en) p.tx else p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                            Text(name, style = sans(15f, 600, if (en) p.tx else p.mu).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                             val prov = s.str("provenance")
-                            if (prov != "bundled") { Spacer(Modifier.width(6.dp)); Pill(if (prov == "agent") agentName().lowercase() else prov, if (prov == "agent") p.acct else p.tx2, if (prov == "agent") p.accd else p.s3) }
+                            if (prov != "bundled") { Spacer(Modifier.width(6.dp)); Pill(if (prov == "agent") agentName().lowercase() else prov, if (prov == "agent") p.acct else p.tx2, if (prov == "agent") p.accd else p.s3, content = true) }
                             if (s.optInt("usage") > 0) { Spacer(Modifier.width(6.dp)); Text(Fmt.int(s.optInt("usage")) + "×", style = mono(11f, 500, p.dim)) }
                         }
-                        Text(s.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(s.str("description"), style = sans(13f, 400, p.mu, 18f).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
                     }
                     Spacer(Modifier.width(8.dp))
                     if (s.optBoolean("locked")) Text(if (s.str("provenance") == "plugin") stringResource(R.string.skills_locked_plugin) else stringResource(R.string.skills_always_on), style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
@@ -721,7 +724,7 @@ fun PluginsTab() {
     val auto = all.filter { it.optBoolean("auto") }.sortedWith(compareBy<JSONObject> { it.str("kind") }.thenBy { it.str("key") })
     LazyColumn(Modifier.fillMaxSize()) {
         item { RestartBanner() }
-        if (plugins == null) item { if (err != null) ErrorPanel(err!!) { co.launch { load() } } else Skeleton(6) }
+        if (plugins == null) item { if (err != null) ErrorPanel(err!!, content = true) { co.launch { load() } } else Skeleton(6) }
         if (mine.isNotEmpty()) item {
             val on = mine.count { it.optBoolean("configured") }
             Section(stringResource(R.string.plugins_section), pluralStringResource(R.plurals.plugins_on_count, on, on))
@@ -729,7 +732,7 @@ fun PluginsTab() {
         items(mine) { pl -> PluginRow(pl) { v ->
             co.launch {
                 val nm = pl.str("key").ifBlank { pl.str("name") }
-                runCatching { Guard.call(act, "plugin", nm, v, if (v) str(R.string.plugins_enable_title, nm) else str(R.string.plugins_disable_title, nm)) { h -> Api.post("/v1/plugins/toggle", JSONObject().put("name", nm).put("enabled", v), h) } }
+                runCatching { Guard.call(act, "plugin", nm, v, if (v) str(R.string.plugins_enable_title, bidiIsolate(nm)) else str(R.string.plugins_disable_title, bidiIsolate(nm))) { h -> Api.post("/v1/plugins/toggle", JSONObject().put("name", nm).put("enabled", v), h) } }
                     .onSuccess { Ctl.restartChanged(); load() }.onFailure { if (it.message != "Cancelled") Ui.say(it.message); load() }
             }
         } }
@@ -750,16 +753,16 @@ fun PluginRow(pl: JSONObject, onToggle: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(pl.str("key").ifBlank { pl.str("name") }, style = sans(15f, 600, if (on) p.tx else p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                Spacer(Modifier.width(6.dp)); Pill(pl.str("kind"), p.tx2, p.s3)
-                if (pl.str("version").isNotBlank()) { Spacer(Modifier.width(6.dp)); Text(pl.str("version"), style = mono(11f, 500, p.dim)) }
+                Text(pl.str("key").ifBlank { pl.str("name") }, style = sans(15f, 600, if (on) p.tx else p.mu).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Spacer(Modifier.width(6.dp)); Pill(pl.str("kind"), p.tx2, p.s3, content = true)
+                if (pl.str("version").isNotBlank()) { Spacer(Modifier.width(6.dp)); Text(pl.str("version"), style = mono(11f, 500, p.dim).ltr()) }
             }
-            if (pl.str("description").isNotBlank()) Text(pl.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (pl.str("description").isNotBlank()) Text(pl.str("description"), style = sans(13f, 400, p.mu, 18f).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
             val stats = listOf("tools" to R.plurals.plugins_tools, "hooks" to R.plurals.plugins_hooks, "commands" to R.plurals.plugins_commands)
                 .mapNotNull { (k, res) -> pl.optInt(k).takeIf { it > 0 }?.let { plural(res, it, it) } }
             val line = (stats + listOfNotNull(if (pl.optBoolean("pending")) stringResource(R.string.plugins_restart_to_apply) else null)).joinToString(" · ")
             if (line.isNotBlank()) Text(line, style = mono(11.5f, 500, if (pl.optBoolean("pending")) p.att else p.dim))
-            if (pl.str("error").isNotBlank() && pl.optBoolean("configured") && !pl.optBoolean("pending")) Text(pl.str("error"), style = mono(11.5f, 500, p.bad), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (pl.str("error").isNotBlank() && pl.optBoolean("configured") && !pl.optBoolean("pending")) Text(pl.str("error"), style = mono(11.5f, 500, p.bad).content(), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
         if (pl.optBoolean("locked")) Text(if (pl.optBoolean("auto")) (if (pl.optBoolean("enabled")) stringResource(R.string.plugins_loaded) else stringResource(R.string.plugins_off)) else stringResource(R.string.plugins_required), style = mono(11.5f, 500, p.mu), modifier = Modifier.padding(end = 8.dp))
@@ -776,8 +779,8 @@ fun McpTab() {
     LaunchedEffect(rk) { runCatching { val o = Api.get("/v1/mcp"); servers = o.optJSONArray("servers").objs(); err = o.str("error").ifBlank { null } }.onFailure { err = it.message } }
     val l = servers
     LazyColumn(Modifier.fillMaxSize()) {
-        if (l == null) item { if (err != null) ErrorPanel(err!!) { err = null; rk++ } else Skeleton() }
-        else if (l.isEmpty()) item { Empty(stringResource(R.string.mcp_empty_title), stringResource(R.string.mcp_empty_sub, "hermes mcp add")) }
+        if (l == null) item { if (err != null) ErrorPanel(err!!, content = true) { err = null; rk++ } else Skeleton() }
+        else if (l.isEmpty()) item { Empty(stringResource(R.string.mcp_empty_title), stringResource(R.string.mcp_empty_sub, bidiIsolate("hermes mcp add"))) }
         else {
             item { Section(stringResource(R.string.mcp_servers), Fmt.int(l.size)) }
             items(l) { s ->
@@ -786,9 +789,9 @@ fun McpTab() {
                     Dot(when (st) { "connected" -> p.good; "failed" -> p.bad; "disabled" -> p.dim; "connecting" -> p.att; else -> p.mu }, 9.dp)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(s.str("name"), style = sans(15f, 600, p.tx))
-                        Text(listOfNotNull(s.str("transport"), s.optInt("tools").takeIf { it > 0 }?.let { pluralStringResource(R.plurals.mcp_tools, it, it) }, mcpStatus(st)).joinToString(" · "), style = mono(11.5f, 500, p.mu))
-                        if (s.str("error").isNotBlank()) Text(s.str("error"), style = mono(11.5f, 500, p.bad), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(s.str("name"), style = sans(15f, 600, p.tx).content())
+                        Text(listOfNotNull(bidiIsolate(s.str("transport")), s.optInt("tools").takeIf { it > 0 }?.let { pluralStringResource(R.plurals.mcp_tools, it, it) }, mcpStatus(st)).joinToString(" · "), style = mono(11.5f, 500, p.mu))
+                        if (s.str("error").isNotBlank()) Text(s.str("error"), style = mono(11.5f, 500, p.bad).content(), maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -804,7 +807,7 @@ private fun mcpStatus(st: String): String = when (st) {
     "connecting" -> str(R.string.mcp_status_connecting)
     "failed" -> str(R.string.mcp_status_failed)
     "disabled" -> str(R.string.mcp_status_disabled)
-    else -> st
+    else -> bidiIsolate(st)
 }
 
 @Composable
@@ -818,18 +821,18 @@ fun SkillScreen(name: String) {
     val raw = o?.str("content").orEmpty()
     val body = if (raw.startsWith("---")) raw.substringAfter("\n---", raw).removePrefix("\n") else raw
     Column(Modifier.fillMaxSize()) {
-        TopBar(name, o?.str("path")?.ifBlank { null })
+        TopBar(name, o?.str("path")?.ifBlank { null }, contentTitle = true, contentSub = true)
         LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-            if (o == null) item { if (err != null) ErrorPanel(err!!) { err = null; rk++ } else Skeleton(5) }
+            if (o == null) item { if (err != null) ErrorPanel(err!!, content = true) { err = null; rk++ } else Skeleton(5) }
             else {
-                if (o.str("description").isNotBlank()) item { Text(o.str("description"), style = sans(15f, 400, p.tx2, 22f)); Spacer(Modifier.height(12.dp)) }
+                if (o.str("description").isNotBlank()) item { Text(o.str("description"), style = sans(15f, 400, p.tx2, 22f).content()); Spacer(Modifier.height(12.dp)) }
                 val missing = o.optJSONArray("missing_env").strs() + o.optJSONArray("missing_commands").strs()
                 if (missing.isNotEmpty()) item {
-                    Text(stringResource(R.string.skills_needs_setup, missing.joinToString(", ")), style = mono(12f, 500, p.att), modifier = Modifier.padding(bottom = 12.dp))
+                    Text(stringResource(R.string.skills_needs_setup, bidiIsolate(missing.joinToString(", "))), style = mono(12f, 500, p.att), modifier = Modifier.padding(bottom = 12.dp))
                 }
                 val files = o.optJSONArray("files").strs()
                 if (files.isNotEmpty()) item {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (f in files) Chip(f) }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { for (f in files) Chip(bidiIsolate(f)) }
                     Spacer(Modifier.height(14.dp))
                 }
                 item { Md(body.take(60000)) }
@@ -849,14 +852,14 @@ fun MemoryScreen() {
     var editing by remember { mutableStateOf<Pair<String, String?>?>(null) }
     val an = agentName()
     val aboutYou = stringResource(R.string.memory_about_you)
-    val notes = stringResource(R.string.memory_agent_notes, an)
+    val notes = stringResource(R.string.memory_agent_notes, bidiIsolate(an))
     LaunchedEffect(tick) { runCatching { d = Api.get("/v1/memory") }.onFailure { err = it.message } }
     editing?.let { (t, e) -> MemoryEditor(t, e) { editing = null; tick++ } }
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.memory_title), stringResource(R.string.memory_subtitle))
         LazyColumn(Modifier.weight(1f)) {
             val o = d
-            if (o == null) item { if (err != null) ErrorPanel(err!!) { err = null; tick++ } else Skeleton(6) }
+            if (o == null) item { if (err != null) ErrorPanel(err!!, content = true) { err = null; tick++ } else Skeleton(6) }
             else for ((k, title) in listOf("user" to aboutYou, "memory" to notes)) {
                 val m = o.optJSONObject(k) ?: continue
                 item(key = k) {
@@ -872,7 +875,7 @@ fun MemoryScreen() {
                         if (es.isEmpty()) Text(stringResource(R.string.memory_empty), style = sans(14f, 400, p.mu), modifier = Modifier.padding(16.dp))
                         es.forEachIndexed { i, e ->
                             if (i > 0) Line()
-                            Text(e, style = sans(14f, 400, p.tx, 20f), modifier = Modifier.fillMaxWidth().clickable { editing = k to e }.padding(horizontal = 16.dp, vertical = 11.dp))
+                            Text(e, style = sans(14f, 400, p.tx, 20f).content(), modifier = Modifier.fillMaxWidth().clickable { editing = k to e }.padding(horizontal = 16.dp, vertical = 11.dp))
                         }
                         Line()
                         Row(Modifier.fillMaxWidth().clickable { editing = k to null }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -882,7 +885,7 @@ fun MemoryScreen() {
                 }
             }
             item {
-                Text(stringResource(R.string.memory_footer, agentName()), style = sans(12.5f, 400, p.dim, 18f),
+                Text(stringResource(R.string.memory_footer, bidiIsolate(agentName())), style = sans(12.5f, 400, p.dim, 18f),
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp))
             }
         }

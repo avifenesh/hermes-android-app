@@ -400,26 +400,26 @@ fun TalkScreen() {
     }
     val running = cid != null && work.containsKey(cid)
     Column(Modifier.fillMaxSize().background(p.bg)) {
-        TopBar(stringResource(R.string.talk_title), if (cid != null) stringResource(R.string.talk_subtitle_voice) + " · " + (Hub.chats.collectAsState().value[cid]?.title ?: stringResource(R.string.talk_title)) else stringResource(R.string.talk_subtitle_voice)) {
+        TopBar(stringResource(R.string.talk_title), if (cid != null) stringResource(R.string.talk_subtitle_voice) + " · " + (Hub.chats.collectAsState().value[cid]?.title?.let(::bidiIsolate) ?: stringResource(R.string.talk_title)) else stringResource(R.string.talk_subtitle_voice)) {
             Text(stringResource(if (handsFree) R.string.talk_hands_free else R.string.talk_push_to_talk), style = sans(13f, 600, if (handsFree) p.acct else p.mu),
                 modifier = Modifier.padding(end = 10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).background(p.s2)
                     .clickable { handsFree = !handsFree }.padding(horizontal = 12.dp, vertical = 7.dp))
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (heard.isNotBlank()) {
-                Text(stringResource(R.string.talk_you_label), style = mono(11f, 700, p.mu)); Text(heard, style = sans(20f, 500, p.tx, 28f))
+                Text(stringResource(R.string.talk_you_label), style = mono(11f, 700, p.mu)); Text(heard, style = sans(20f, 500, p.tx, 28f).content())
             }
             if (said.isNotBlank()) {
-                Text(agentName().uppercase(), style = mono(11f, 700, p.acct)); Md(said, size = 17f)
+                Text(agentName().uppercase(), style = mono(11f, 700, p.acct).content()); Md(said, size = 17f)
             }
-            if (heard.isBlank() && said.isBlank()) Text(stringResource(R.string.talk_empty_hint, agentName()), style = sans(16f, 400, p.mu, 24f))
+            if (heard.isBlank() && said.isBlank()) Text(stringResource(R.string.talk_empty_hint, bidiIsolate(agentName())), style = sans(16f, 400, p.mu, 24f))
         }
         val label = when {
             state.startsWith("error:") -> state.removePrefix("error:")
             state.startsWith("hint:") -> state.removePrefix("hint:")
             state == "listening" -> stringResource(R.string.talk_state_listening)
             state == "thinking" || state == "sending" -> stringResource(R.string.talk_state_got_it)
-            state == "waiting" -> if (running) stringResource(R.string.talk_state_working, agentName()) else stringResource(R.string.talk_state_waiting)
+            state == "waiting" -> if (running) stringResource(R.string.talk_state_working, bidiIsolate(agentName())) else stringResource(R.string.talk_state_waiting)
             state == "speaking" -> stringResource(R.string.talk_state_speaking)
             else -> stringResource(R.string.talk_state_idle)
         }

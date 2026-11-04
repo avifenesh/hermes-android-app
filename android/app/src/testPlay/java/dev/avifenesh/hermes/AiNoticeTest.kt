@@ -13,7 +13,7 @@ class AiNoticeTest {
         assertTrue(str(R.string.ai_notice_title).isNotBlank())
         assertTrue("replies come from the user's gateway models", text.contains("models") && text.contains("gateway"))
         assertTrue("replies can be wrong or inappropriate", text.contains("wrong") && text.contains("inappropriate"))
-        assertTrue("the publisher does not see chats", text.contains("$EDITION_PUBLISHER does not see your chats"))
+        assertTrue("the publisher does not see chats", text.contains("\u2068$EDITION_PUBLISHER\u2069 does not see your chats"))
         assertTrue("how to report", text.contains("Report a problem") && text.contains("long-press"))
     }
 

@@ -122,7 +122,7 @@ object Fleet {
             // 401 is pairing/request authentication failure, not consent to weaken auth.
             if (e.code != 403) throw e
         }
-        val h = fleetSignature(act, id, name, serialized, "fleet-input", str(R.string.fleet_control_title, name))
+        val h = fleetSignature(act, id, name, serialized, "fleet-input", str(R.string.fleet_control_title, bidiIsolate(name)))
             ?: throw CancellationException("Authentication cancelled")
         currentCoroutineContext().ensureActive()
         Api.epoch.commit(ticket) { Hub.capabilityEpoch.commit(gate) {
@@ -175,13 +175,13 @@ object Fleet {
             Intent(c, MainActivity::class.java).putExtra("agent", id).putExtra("agent_name", name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), pi)
         val b = NotificationCompat.Builder(c, Notify.CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(0xFFFF8A66.toInt())
-            .setContentTitle(str(R.string.fleet_needs_you, name)).setContentText(ev.str("status"))
+            .setContentTitle(str(R.string.fleet_needs_you, bidiIsolate(name))).setContentText(ev.str("status"))
             .setStyle(NotificationCompat.BigTextStyle().bigText(listOf(ev.str("status"), a?.str("project")?.let { if (it.isBlank()) "" else "· $it" } ?: "")
                 .filter { it.isNotBlank() }.joinToString("\n")))
             .setSubText(ev.str("tool")).setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(open)
         if ((a == null || a.optBoolean("can_reply", true)) && a?.optBoolean("unguarded") != true) {
-            val reply = RemoteInput.Builder("reply").setLabel(str(R.string.fleet_reply_to, name)).build()
+            val reply = RemoteInput.Builder("reply").setLabel(str(R.string.fleet_reply_to, bidiIsolate(name))).build()
             val rpi = PendingIntent.getBroadcast(c, ("fr$id").hashCode(),
                 Intent(c, ActionReceiver::class.java).setAction("fleet_reply").putExtra("base", Prefs.base).putExtra("agent", id).putExtra("name", name),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
@@ -201,7 +201,7 @@ object Fleet {
 }
 
 suspend fun fleetSignature(act: androidx.fragment.app.FragmentActivity, id: String, name: String, text: String,
-                           domain: String = "fleet", title: String = str(R.string.fleet_send_to_title, name)): Map<String, String>? =
+                           domain: String = "fleet", title: String = str(R.string.fleet_send_to_title, bidiIsolate(name))): Map<String, String>? =
     kotlinx.coroutines.suspendCancellableCoroutine { k ->
         val ts = (System.currentTimeMillis() / 1000).toString()
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -219,8 +219,8 @@ suspend fun fleetSignature(act: androidx.fragment.app.FragmentActivity, id: Stri
         })
         k.invokeOnCancellation { prompt.cancelAuthentication() }
         prompt.authenticate(androidx.biometric.BiometricPrompt.PromptInfo.Builder().setTitle(title)
-            .setSubtitle(if (domain == "fleet") str(R.string.fleet_sig_unguarded, text.take(80))
-                else str(R.string.fleet_sig_input, text.take(90)))
+            .setSubtitle(if (domain == "fleet") str(R.string.fleet_sig_unguarded, bidiIsolate(text.take(80)))
+                else str(R.string.fleet_sig_input, bidiIsolate(text.take(90))))
             .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL).build(),
             androidx.biometric.BiometricPrompt.CryptoObject(sig))
     }
@@ -251,7 +251,7 @@ fun FleetSection() {
         if (waiting > 0) p.att else p.mu)
     // ctrl missing while feature is on (e.g. status file present, binary gone): muted note, not a red error.
     // "not installed" matches the gateway's own error text, which stays English.
-    if (err != null) Text(stringResource(R.string.fleet_agent_view_error, err.orEmpty()), style = sans(13f, 400, if (err!!.contains("not installed")) p.mu else p.bad), modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
+    if (err != null) Text(stringResource(R.string.fleet_agent_view_error, bidiIsolate(err.orEmpty())), style = sans(13f, 400, if (err!!.contains("not installed")) p.mu else p.bad), modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
     if (list.isEmpty() && snap != null) Text(stringResource(R.string.fleet_no_agents), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp))
     for (a in list) AgentRow(a)
     Text(if (showAll) stringResource(R.string.fleet_hide_ended) else stringResource(R.string.fleet_show_ended), style = sans(13.5f, 600, p.tx2),
@@ -267,13 +267,13 @@ fun AgentRow(a: JSONObject) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(a.str("name").ifBlank { stringResource(R.string.fleet_untitled) }, style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(a.str("name").ifBlank { stringResource(R.string.fleet_untitled) }, style = sans(15f, 600, p.tx).let { if (a.str("name").isBlank()) it else it.content() }, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(6.dp))
-                Pill(a.str("kind") + (a.str("via").takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""), p.tx2, p.s2)
+                Pill(bidiJoin(listOf(a.str("kind"), a.str("via")).filter { it.isNotBlank() }), p.tx2, p.s2)
             }
             val d = a.str("host_error").ifBlank { a.str("detail") }
-            if (d.isNotBlank()) Text(d, style = sans(13f, 400, if (g == "waiting") p.att else p.mu), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(listOf(a.str("host"), a.str("project"), a.str("where"), a.str("model")).filter { it.isNotBlank() && it != "tty" }.joinToString(" · "),
+            if (d.isNotBlank()) Text(d, style = sans(13f, 400, if (g == "waiting") p.att else p.mu).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+            Text(bidiJoin(listOf(a.str("host"), a.str("project"), a.str("where"), a.str("model")).filter { it.isNotBlank() && it != "tty" }),
                 style = mono(11f, 500, p.dim), maxLines = 1)
         }
         Spacer(Modifier.width(8.dp))
@@ -287,7 +287,7 @@ private fun groupLabel(g: String): String = when (g) {
     "working" -> str(R.string.fleet_group_working)
     "done" -> str(R.string.fleet_group_done)
     "recent" -> str(R.string.fleet_group_recent)
-    else -> g
+    else -> bidiIsolate(g)
 }
 
 fun openAgent(a: JSONObject) {
@@ -347,7 +347,7 @@ fun AgentScreen(id: String, name: String) {
             try { Fleet.load(true) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
         }
         while (feat.fleet) {
-            try { refresh() } catch (e: CancellationException) { throw e } catch (e: Exception) { err = e.message }
+            try { refresh() } catch (e: CancellationException) { throw e } catch (e: Exception) { err = e.message?.let(::bidiIsolate) }
             delay(3000)
         }
     }
@@ -377,11 +377,11 @@ fun AgentScreen(id: String, name: String) {
                     when { interrupt -> str(R.string.agent_sent_esc); input == null -> str(R.string.agent_sent); else -> str(R.string.agent_input_sent) }
                 }
                 try { refresh() } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                    err = str(R.string.agent_refresh_failed, e.message)
+                    err = str(R.string.agent_refresh_failed, e.message?.let(::bidiIsolate))
                 }
             } catch (e: CancellationException) { throw e }
               catch (e: Exception) {
-                feedback = str(R.string.agent_not_sent, e.message)
+                feedback = str(R.string.agent_not_sent, e.message?.let(::bidiIsolate))
                 try { check(ticket, gate); refresh() } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { /* Preserve the action error and last readable screen. */ }
             }
@@ -395,14 +395,15 @@ fun AgentScreen(id: String, name: String) {
     }
     if (!feat.fleet) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(name, null)
+            TopBar(name, null, contentTitle = true)
             Text(stringResource(R.string.agent_fleet_unavailable), style = sans(14f, 400, p.mu), modifier = Modifier.padding(20.dp))
         }
         return
     }
     val g = a?.str("group") ?: ""
     Column(Modifier.fillMaxSize().imePadding()) {
-        TopBar(title, if (imeVisible) null else listOf(groupLabel(g), a?.str("kind") ?: "", a?.str("host") ?: "", a?.str("project") ?: "").filter { it.isNotBlank() }.joinToString(" · "), stateColor(g)) {
+        TopBar(title, if (imeVisible) null else (listOf(groupLabel(g)) + listOf(a?.str("kind") ?: "", a?.str("host") ?: "", a?.str("project") ?: "").map(::bidiIsolate)).filter { it.isNotBlank() }.joinToString(" · "),
+            stateColor(g), contentTitle = true) {
             LegacyAgentInterrupt(a?.optBoolean("can_stop") == true, terminal != null, busy) { perform(interrupt = true) }
         }
         if (err != null) Text(err!!, style = sans(12f, 500, p.bad), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
@@ -425,7 +426,7 @@ fun AgentScreen(id: String, name: String) {
             if (!imeVisible && a?.optBoolean("can_reply", true) != false) FleetQuickReplies(busy) { perform(draft = it) }
             if (terminal != null) TerminalControls(::input, busy, compact = imeVisible)
             if (a?.optBoolean("can_reply", true) != false) {
-                FleetComposer(text, { text = it }, { perform(draft = text) }, busy, stringResource(R.string.fleet_reply_to, title), compact = imeVisible)
+                FleetComposer(text, { text = it }, { perform(draft = text) }, busy, stringResource(R.string.fleet_reply_to, bidiIsolate(title)), compact = imeVisible)
             } else Text(if (a?.str("via") == "desktop") stringResource(R.string.agent_reply_in_desktop) else stringResource(R.string.agent_reply_in_terminal), style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(8.dp))
         }
     }

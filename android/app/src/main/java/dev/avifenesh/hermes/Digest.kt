@@ -23,7 +23,7 @@ fun digestLinks(text: String): List<Pair<String, String>> {
     val urls = URL.findAll(text).map { it.value.trimEnd('.', ',', ';', ':') }.distinct().toList()
     val pr = urls.mapNotNull { u -> PR.find(u)?.let { m ->
         val repo = m.groupValues[1].substringAfter('/')
-        (if (m.groupValues[2] == "pull") str(R.string.digest_link_pr, repo, m.groupValues[3]) else repo + " #" + m.groupValues[3]) to u
+        (if (m.groupValues[2] == "pull") str(R.string.digest_link_pr, bidiIsolate(repo), m.groupValues[3]) else repo + " #" + m.groupValues[3]) to u
     } }
     val other = urls.filter { u -> pr.none { it.second == u } }.map { u -> (Uri.parse(u).host?.removePrefix("www.") ?: str(R.string.digest_link_fallback)) to u }
     return (pr + other).take(4)

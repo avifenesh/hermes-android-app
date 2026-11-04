@@ -67,7 +67,7 @@ fun PhoneControlPanel() {
                 // A server-side arm alone cannot bypass the device-local kill switch.
                 if (!it.optBoolean("this") || !enabled) { Prefs.phoneArmed = false; PhoneNotice.hide(c) }
                 PhoneService.controlState.value = Prefs.phoneArmed
-            }.onFailure { ready = false; error = it.message }
+            }.onFailure { ready = false; error = it.message?.let(::bidiIsolate) }
         }
     }
     LaunchedEffect(Unit) { refresh() }
@@ -77,7 +77,7 @@ fun PhoneControlPanel() {
         onDispose { lifecycle.removeObserver(observer) }
     }
     Panel {
-        SettingRow(stringResource(R.string.phone_control_accessibility_service), if (enabled) stringResource(R.string.phone_control_service_enabled) else stringResource(R.string.phone_control_service_disabled, APP_NAME)) {
+        SettingRow(stringResource(R.string.phone_control_accessibility_service), if (enabled) stringResource(R.string.phone_control_service_enabled) else stringResource(R.string.phone_control_service_disabled, bidiIsolate(APP_NAME))) {
             Btn(stringResource(R.string.common_open), primary = false) { PhoneService.openSettings(c) }
         }
         Line()
@@ -124,7 +124,7 @@ fun PhoneControlPanel() {
         }
     }
     Spacer(androidx.compose.ui.Modifier.height(14.dp))
-    Text(stringResource(R.string.phone_control_sideload_help, APP_NAME), style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
+    Text(stringResource(R.string.phone_control_sideload_help, bidiIsolate(APP_NAME)), style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
     Spacer(androidx.compose.ui.Modifier.height(12.dp))
     Text(stringResource(R.string.phone_control_limits), style = sans(13f, 400, P.mu, 19f), modifier = androidx.compose.ui.Modifier.padding(horizontal = 20.dp))
     if (busy) Text(stringResource(R.string.phone_control_confirming), style = sans(13f, 500, P.acct), modifier = androidx.compose.ui.Modifier.padding(20.dp))

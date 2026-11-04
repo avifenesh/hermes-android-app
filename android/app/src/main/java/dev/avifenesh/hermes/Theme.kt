@@ -24,13 +24,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 
 data class Pal(
@@ -70,13 +72,45 @@ val Serif = FontFamily(
     Font(R.font.instrument_serif_italic, FontWeight.Normal, FontStyle.Italic),
 )
 
+// Text styles follow the layout direction: UI copy reads right to left in Hebrew and Arabic even when a line starts with
+// a Latin name or value. Content from users, agents and the gateway opts in to its own direction (Bidi.kt).
 fun sans(size: Float, w: Int = 400, c: Color = Color.Unspecified, lh: Float = size * 1.38f) =
-    TextStyle(fontFamily = Sans, fontWeight = FontWeight(w), fontSize = size.sp, lineHeight = lh.sp, color = c, textDirection = TextDirection.Content)
+    TextStyle(fontFamily = Sans, fontWeight = FontWeight(w), fontSize = size.sp, lineHeight = lh.sp, color = c)
 fun mono(size: Float, w: Int = 400, c: Color = Color.Unspecified) =
-    TextStyle(fontFamily = Mono, fontWeight = FontWeight(w), fontSize = size.sp, lineHeight = (size * 1.42f).sp, color = c, textDirection = TextDirection.Content)
+    TextStyle(fontFamily = Mono, fontWeight = FontWeight(w), fontSize = size.sp, lineHeight = (size * 1.42f).sp, color = c)
+/** Display type for titles. Pass the text through [trackFor]: the tight tracking must not reach Arabic. */
 fun serif(size: Float, c: Color = Color.Unspecified, italic: Boolean = false) =
     TextStyle(fontFamily = Serif, fontSize = size.sp, lineHeight = (size * 1.08f).sp, color = c,
-        textDirection = TextDirection.Content, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, letterSpacing = (-0.4).sp)
+        fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, letterSpacing = (-0.4).sp, lineBreak = LineBreak.Heading)
+
+/**
+ * Android never letter-spaces cursive scripts (Arabic and the others in minikin's list), yet with a negative letter
+ * spacing its line breaker measures such a word 1-2 px wider than the line it draws. Compose sizes a wrap-content Text
+ * to the drawn width, so the word no longer fits and its last letter moves to a new line ("الوار/د"). Dropping the
+ * spacing for that text changes nothing it draws and keeps the measurements equal.
+ */
+fun TextStyle.trackFor(text: CharSequence): TextStyle =
+    if (letterSpacing.isSpecified && letterSpacing.value != 0f && hasUnspacedScript(text)) copy(letterSpacing = TextUnit.Unspecified) else this
+
+private val unspacedScripts = setOf(
+    Character.UnicodeScript.ARABIC, Character.UnicodeScript.NKO, Character.UnicodeScript.MANDAIC, Character.UnicodeScript.MONGOLIAN,
+    Character.UnicodeScript.PHAGS_PA, Character.UnicodeScript.DEVANAGARI, Character.UnicodeScript.BENGALI, Character.UnicodeScript.GURMUKHI,
+    Character.UnicodeScript.SHARADA, Character.UnicodeScript.SYLOTI_NAGRI, Character.UnicodeScript.OGHAM,
+)
+
+// Psalter Pahlavi, Modi and Tirhuta (Unicode 7) have UnicodeScript names only from API 34; their blocks hold nothing else.
+private val unspacedBlocks = listOf(0x10B80..0x10BAF, 0x11480..0x114DF, 0x11600..0x1165F)
+
+/** True when [text] holds a character of a script Android draws without letter spacing (minikin's LetterSpacingUtils). */
+fun hasUnspacedScript(text: CharSequence): Boolean {
+    var i = 0
+    while (i < text.length) {
+        val cp = Character.codePointAt(text, i)
+        if (Character.UnicodeScript.of(cp) in unspacedScripts || unspacedBlocks.any { cp in it }) return true
+        i += Character.charCount(cp)
+    }
+    return false
+}
 
 /** Accent presets: (name string resource, night accent, day text-safe accent). Lime is the design default.
  * The name stays a resource id so it resolves in the current app language where it is shown. */

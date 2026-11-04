@@ -57,8 +57,8 @@ fun MachinesSection() {
                 if (active) LiveDot(9.dp) else Dot(p.s4, 9.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(m.str("server").ifBlank { Uri.parse(m.str("base")).host ?: stringResource(R.string.machines_fallback_name) }, style = sans(15f, 600, p.tx))
-                    Text(Uri.parse(m.str("base")).host.orEmpty() + (m.str("profile").takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                    Text(m.str("server").ifBlank { Uri.parse(m.str("base")).host ?: stringResource(R.string.machines_fallback_name) }, style = sans(15f, 600, p.tx).content())
+                    Text(bidiJoin(listOfNotNull(Uri.parse(m.str("base")).host.orEmpty(), m.str("profile").takeIf { it.isNotBlank() })),
                         style = mono(11.5f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (active) Text(lat[m.str("base")]?.let { stringResource(R.string.machines_latency, it) } ?: stringResource(R.string.machines_active), style = mono(12f, 600, p.acct))
@@ -71,7 +71,7 @@ fun MachinesSection() {
         }
     }
     forget?.let { m ->
-        HDialog(stringResource(R.string.machines_forget_title, m.str("server").ifBlank { stringResource(R.string.machines_fallback_name) }), onDismiss = { forget = null }, body = {
+        HDialog(stringResource(R.string.machines_forget_title, bidiIsolate(m.str("server").ifBlank { stringResource(R.string.machines_fallback_name) })), onDismiss = { forget = null }, body = {
                 Text(stringResource(R.string.machines_forget_body), style = sans(14.5f, 400, p.tx2))
             }) {
                 Btn(stringResource(R.string.common_cancel), primary = false) { forget = null }
@@ -102,7 +102,7 @@ fun CronDeliveryRow() {
         else -> pluralStringResource(R.plurals.cron_delivery_some_elsewhere, total, toApp, total, elsewhere)
     }) { if (elsewhere > 0) Btn(stringResource(R.string.cron_delivery_move), primary = false) { ask = true } }
     if (ask) HDialog(stringResource(R.string.cron_delivery_dialog_title), onDismiss = { ask = false }, body = {
-            Text(pluralStringResource(R.plurals.cron_delivery_dialog_body, elsewhere, elsewhere, "Hermes Mobile"), style = sans(14.5f, 400, p.tx2))
+            Text(pluralStringResource(R.plurals.cron_delivery_dialog_body, elsewhere, elsewhere, bidiIsolate("Hermes Mobile")), style = sans(14.5f, 400, p.tx2))
         }) {
             Btn(stringResource(R.string.common_cancel), primary = false) { ask = false }
             Btn(stringResource(R.string.cron_delivery_move)) {

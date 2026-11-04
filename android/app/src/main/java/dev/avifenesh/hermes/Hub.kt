@@ -37,7 +37,8 @@ fun Chat.takesSessionCommands(): Boolean = kind != "digest" && readonly.isBlank(
 fun readOnlyNotice(readonly: String): String? {
     val r = readonly.trim()
     if (r.isEmpty()) return null
-    val surface = r.substringBefore(':', "").takeIf { it.isNotBlank() && ':' in r }?.replaceFirstChar { it.uppercase() }
+    // The surface ("Telegram") is a product name inside a translated sentence: it keeps its own direction there.
+    val surface = r.substringBefore(':', "").takeIf { it.isNotBlank() && ':' in r }?.replaceFirstChar { it.uppercase() }?.let(::bidiIsolate)
     return when (r.substringAfter(':', "")) {
         "group", "supergroup", "forum" ->
             if (surface != null) str(R.string.sync_readonly_group_in, surface) else str(R.string.sync_readonly_group)

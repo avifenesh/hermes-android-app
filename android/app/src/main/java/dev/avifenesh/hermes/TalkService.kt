@@ -26,7 +26,7 @@ class TalkService : Service() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 47, Intent(this, TalkService::class.java).setAction("stop"), PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(this, Notify.CH_LIVE).setSmallIcon(R.drawable.ic_stat).setColor(0xFFD4F75C.toInt())
-            .setContentTitle(str(R.string.talk_notif_title, Hub.agent.value)).setContentText(intent?.getStringExtra("state") ?: str(R.string.talk_notif_listening))
+            .setContentTitle(str(R.string.talk_notif_title, bidiIsolate(Hub.agent.value))).setContentText(intent?.getStringExtra("state") ?: str(R.string.talk_notif_listening))
             .setOngoing(true).setSilent(true).setContentIntent(open).addAction(0, str(R.string.talk_notif_end), stop)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).build()
         // Android 14+ checks while-in-use microphone permission again inside the service.

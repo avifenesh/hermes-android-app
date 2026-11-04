@@ -24,9 +24,9 @@ internal fun ChannelConnectionSettings(push: Boolean) {
     SettingRow(stringResource(R.string.phone_settings_push),
         stringResource(if (push) R.string.phone_settings_push_on_gateway else R.string.phone_settings_push_off_gateway)) {}
     Line()
-    SettingRow(stringResource(R.string.phone_settings_run_progress), stringResource(R.string.phone_settings_run_progress_sub, APP_NAME)) {}
+    SettingRow(stringResource(R.string.phone_settings_run_progress), stringResource(R.string.phone_settings_run_progress_sub, bidiIsolate(APP_NAME))) {}
     if (!push) {
         Line()
-        SettingRow(stringResource(R.string.phone_settings_without_push), stringResource(R.string.phone_settings_without_push_sub, APP_NAME)) {}
+        SettingRow(stringResource(R.string.phone_settings_without_push), stringResource(R.string.phone_settings_without_push_sub, bidiIsolate(APP_NAME))) {}
     }
 }

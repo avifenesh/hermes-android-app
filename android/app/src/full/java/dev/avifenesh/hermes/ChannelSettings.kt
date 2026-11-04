@@ -27,7 +27,7 @@ internal fun ChannelBatterySettings() {
     val pm = ctx.getSystemService(PowerManager::class.java)
     if (!pm.isIgnoringBatteryOptimizations(ctx.packageName)) {
         Line()
-        SettingRow(stringResource(R.string.channel_battery_title), stringResource(R.string.channel_battery_body, APP_NAME)) {
+        SettingRow(stringResource(R.string.channel_battery_title), stringResource(R.string.channel_battery_body, bidiIsolate(APP_NAME))) {
             Btn(stringResource(R.string.common_allow), primary = false) { runCatching { ctx.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + ctx.packageName))) } }
         }
     }
@@ -38,7 +38,7 @@ internal fun ChannelBatterySettings() {
 internal fun ChannelConnectionSettings(push: Boolean) {
     val ctx = LocalContext.current
     var live by remember { mutableStateOf(Prefs.live) }
-    SettingRow(stringResource(R.string.phone_settings_push), if (push) stringResource(R.string.phone_settings_push_on, HERMES) else stringResource(R.string.phone_settings_push_off)) {}
+    SettingRow(stringResource(R.string.phone_settings_push), if (push) stringResource(R.string.phone_settings_push_on, bidiIsolate(HERMES)) else stringResource(R.string.phone_settings_push_off)) {}
     Line()
     SettingRow(stringResource(R.string.phone_settings_stay_connected), stringResource(R.string.phone_settings_stay_connected_sub)) {
         Toggle(live, { v -> live = v; Prefs.live = v; LiveService.sync(ctx); if (!v && !Hub.foreground && !Prefs.phoneArmed) Hub.disconnect() })

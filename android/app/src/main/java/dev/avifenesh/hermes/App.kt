@@ -250,7 +250,7 @@ class MainActivity : FragmentActivity() {
                 Ui.composeOpen.value = true
             } catch (e: Exception) {
                 Ui.share.value = null
-                Ui.say(e.message?.let { str(R.string.share_attach_failed, it) } ?: str(R.string.share_attach_invalid))
+                Ui.say(e.message?.let { str(R.string.share_attach_failed, bidiIsolate(it)) } ?: str(R.string.share_attach_invalid))
             }
         }
     }

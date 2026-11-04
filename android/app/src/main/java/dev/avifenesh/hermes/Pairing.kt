@@ -154,10 +154,10 @@ object Pairing {
         if (known) {
             offers.clear()
             Ui.pairLink.value = null
-            Ui.say(base?.let { Uri.parse(it).host }?.let { str(R.string.pairing_already_paired_with, it) }
+            Ui.say(base?.let { Uri.parse(it).host }?.let { str(R.string.pairing_already_paired_with, bidiIsolate(it)) }
                 ?: str(R.string.pairing_already_paired_this_machine))
         } else {
-            offers.failed(str(R.string.pairing_link_used, PAIR_COMMAND))
+            offers.failed(str(R.string.pairing_link_used, bidiIsolate(PAIR_COMMAND)))
         }
     }
 
@@ -177,7 +177,7 @@ object Pairing {
             PairOffers.Next.AlreadyPaired -> alreadyPaired(link)
             PairOffers.Next.Redeem ->
                 if (link.scheme == "hermes" && link.host == "pair") redeem(ctx, link, auto = true)
-                else offers.failed(str(R.string.pairing_not_a_pairing_link, HERMES))
+                else offers.failed(str(R.string.pairing_not_a_pairing_link, bidiIsolate(HERMES)))
             PairOffers.Next.Confirm, PairOffers.Next.Nothing -> {}
         }
     }
@@ -241,7 +241,7 @@ object Pairing {
                 if (!a.isCancelled) {
                     failedKey = k
                     offers.failed(when {
-                        e is ApiError && e.code == 403 -> str(R.string.pairing_code_expired, PAIR_COMMAND)
+                        e is ApiError && e.code == 403 -> str(R.string.pairing_code_expired, bidiIsolate(PAIR_COMMAND))
                         // The server saw this exact request before (a transport re-send): a new attempt can still pair.
                         e is ApiError && e.code == 409 -> str(R.string.pairing_request_replayed)
                         else -> e.message ?: e.toString()

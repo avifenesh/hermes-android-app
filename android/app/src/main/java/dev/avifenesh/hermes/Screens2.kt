@@ -95,7 +95,7 @@ fun PulseScreen() {
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
         item { Header(stringResource(R.string.pulse_title), stringResource(R.string.pulse_subtitle)) }
-        if (err != null) item { ErrorPanel(stringResource(R.string.pulse_unreachable, HERMES, err.orEmpty())) { scope.launch { load() } } }
+        if (err != null) item { ErrorPanel(stringResource(R.string.pulse_unreachable, bidiIsolate(HERMES), bidiIsolate(err.orEmpty()))) { scope.launch { load() } } }
         else if (pulse == null) item { Skeleton(2) }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -110,24 +110,25 @@ fun PulseScreen() {
         items(pending, key = { "a" + it.id }) { a ->
             val m = Msg("x" + a.id, a.chatId, "agent", "approval", "", JSONObject().put("approval_id", a.id), a.ts, 0)
             Column {
-                Text(chats[a.chatId]?.title ?: stringResource(R.string.pulse_chat_fallback), style = sans(13f, 600, p.tx2), modifier = Modifier.padding(start = 20.dp, top = 6.dp).clickable { Ui.open(a.chatId) })
+                Text(chats[a.chatId]?.title ?: stringResource(R.string.pulse_chat_fallback), style = sans(13f, 600, p.tx2).let { if (chats[a.chatId]?.title != null) it.content() else it }, modifier = Modifier.padding(start = 20.dp, top = 6.dp).clickable { Ui.open(a.chatId) })
                 ApprovalCard(a, m)
             }
         }
         item { FleetSection() }
-        item { Section(stringResource(R.string.pulse_hermes_runs, HERMES), if (work.isEmpty() && live.isEmpty()) stringResource(R.string.pulse_runs_idle) else Fmt.int(work.size + live.size), if (work.isEmpty()) p.mu else p.acct) }
+        item { Section(stringResource(R.string.pulse_hermes_runs, bidiIsolate(HERMES)), if (work.isEmpty() && live.isEmpty()) stringResource(R.string.pulse_runs_idle) else Fmt.int(work.size + live.size), if (work.isEmpty()) p.mu else p.acct) }
         items(work.entries.toList(), key = { "w" + it.key }) { (cid, since) ->
-            ListRow({ LiveDot(9.dp) }, chats[cid]?.title ?: stringResource(R.string.pulse_run_fallback), stringResource(R.string.pulse_run_from_phone), { Elapsed(since, mono(13f, 600, p.acct)) }, { Ui.push(Route.RunR(cid)) })
+            ListRow({ LiveDot(9.dp) }, chats[cid]?.title ?: stringResource(R.string.pulse_run_fallback), stringResource(R.string.pulse_run_from_phone), { Elapsed(since, mono(13f, 600, p.acct)) }, { Ui.push(Route.RunR(cid)) }, contentTitle = chats[cid]?.title != null)
         }
         items(live, key = { "l" + it.str("id") }) { s ->
-            ListRow({ Dot(p.acct.copy(alpha = 0.6f), 9.dp) }, s.str("title").ifBlank { stringResource(R.string.pulse_untitled_session) }, s.str("source") + " · " + s.str("model").substringAfterLast('/'),
-                { Text(rel(s.optDouble("last", 0.0)), style = mono(12f, 500, p.mu)) }, { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { s.str("source") }, s.str("source"))) })
+            ListRow({ Dot(p.acct.copy(alpha = 0.6f), 9.dp) }, s.str("title").ifBlank { stringResource(R.string.pulse_untitled_session) }, bidiJoin(listOf(s.str("source"), s.str("model").substringAfterLast('/'))),
+                { Text(rel(s.optDouble("last", 0.0)), style = mono(12f, 500, p.mu)) }, { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { s.str("source") }, s.str("source"))) },
+                contentTitle = s.str("title").isNotBlank())
         }
         item { Section(stringResource(R.string.pulse_recently_done), null) }
         if (recent.isEmpty()) item { Text(stringResource(R.string.pulse_nothing_last_day), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
         items(recent, key = { "r" + it.id }) { c ->
             ListRow({ Icn(if (c.kind == "digest") Ic.digest else Ic.check, if (c.kind == "digest") p.tx2 else p.good, 18.dp) }, c.title, c.preview,
-                { Text(rel(c.updated), style = mono(11.5f, 500, p.mu)) }, { Ui.open(c.id) })
+                { Text(rel(c.updated), style = mono(11.5f, 500, p.mu)) }, { Ui.open(c.id) }, contentTitle = true, contentSub = true)
         }
         item { Spacer(Modifier.height(30.dp)) }
     }
@@ -193,7 +194,7 @@ fun CronScreen() {
     PullToRefreshBox(refreshing, { scope.launch { refreshing = true; load(); refreshing = false } }, Modifier.weight(1f), state = ptr,
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-        if (err != null) item { ErrorPanel(stringResource(R.string.cron_unreachable, HERMES, err.orEmpty())) { scope.launch { load() } } }
+        if (err != null) item { ErrorPanel(stringResource(R.string.cron_unreachable, bidiIsolate(HERMES), bidiIsolate(err.orEmpty()))) { scope.launch { load() } } }
         else if (jobs == null) item { Skeleton() }
         else if (all.isEmpty()) item { EmptyState(stringResource(R.string.cron_empty_title), stringResource(R.string.cron_empty_sub)) }
         if (on.isNotEmpty()) item { DayStrip(on.mapNotNull { parseTime(it.opt("next_run_at")) }) }
@@ -203,9 +204,9 @@ fun CronScreen() {
                 Column(Modifier.clickable { Ui.push(Route.JobR(next.str("id"))) }.padding(16.dp)) {
                     Text(stringResource(R.string.cron_next_up), style = mono(11f, 700, p.acct))
                     Spacer(Modifier.height(6.dp))
-                    Text(next.str("name").ifBlank { next.str("id") }, style = serif(30f, p.tx), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(next.str("name").ifBlank { next.str("id") }, style = serif(30f, p.tx).trackFor(next.str("name").ifBlank { next.str("id") }).contentLine(), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(4.dp))
-                    Text((parseTime(next.opt("next_run_at"))?.let { until(it) } ?: "–") + " · " + next.str("schedule_display").ifBlank { next.str("schedule") }, style = mono(12.5f, 500, p.tx2))
+                    Text((parseTime(next.opt("next_run_at"))?.let { until(it) } ?: "–") + " · " + bidiIsolate(next.str("schedule_display").ifBlank { next.str("schedule") }), style = mono(12.5f, 500, p.tx2))
                 }
             }
         }
@@ -232,7 +233,7 @@ fun JobRow(j: JSONObject, reload: () -> Unit) {
     val ok = st.isBlank() || st == "ok" || st == "success"
     val nx = parseTime(j.opt("next_run_at"))
     val lr = parseTime(j.opt("last_run_at"))
-    val sub = listOfNotNull(j.str("schedule_display").ifBlank { j.str("schedule") }.takeIf { it.isNotBlank() },
+    val sub = listOfNotNull(j.str("schedule_display").ifBlank { j.str("schedule") }.takeIf { it.isNotBlank() }?.let(::bidiIsolate),
         if (enabled && nx != null) until(nx) else null, lr?.let { stringResource(if (ok) R.string.cron_job_ran else R.string.cron_job_ran_failed, rel(it)) }).joinToString(" · ")
     ListRow({ Dot(when { !enabled -> p.dim; !ok -> p.bad; else -> p.good }, 8.dp) }, j.str("name").ifBlank { id }, sub, {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -242,9 +243,9 @@ fun JobRow(j: JSONObject, reload: () -> Unit) {
                 scope.launch { runCatching { Api.post("/v1/cron/$id/${if (v) "resume" else "pause"}") }.onFailure { enabled = !v; Ui.say(it.message) }; reload() }
             })
         }
-    }, { Ui.push(Route.JobR(id)) })
+    }, { Ui.push(Route.JobR(id)) }, contentTitle = true)
     if (confirm) HDialog(stringResource(R.string.cron_run_now_title), onDismiss = { confirm = false }, body = {
-            Text(stringResource(R.string.cron_run_now_body, j.str("name").ifBlank { id }), style = sans(15f, 400, p.tx2))
+            Text(stringResource(R.string.cron_run_now_body, bidiIsolate(j.str("name").ifBlank { id })), style = sans(15f, 400, p.tx2))
         }) {
             Btn(stringResource(R.string.common_cancel), primary = false) { confirm = false }
             Btn(stringResource(R.string.common_run)) { confirm = false; scope.launch { runCatching { Api.post("/v1/cron/$id/run"); Ui.say(R.string.cron_queued) }.onFailure { Ui.say(it.message) }; reload() } }
@@ -268,24 +269,24 @@ fun JobScreen(id: String) {
     val j = job
     val runs = j?.optJSONArray("runs").strs()
     Column(Modifier.fillMaxSize()) {
-        TopBar(j?.str("name")?.ifBlank { null } ?: id, j?.let { it.str("schedule_display").ifBlank { it.str("schedule") } }) {
+        TopBar(j?.str("name")?.ifBlank { null } ?: id, j?.let { it.str("schedule_display").ifBlank { it.str("schedule") } }, contentTitle = true, contentSub = true) {
             IconBtn(Ic.edit, p.tx2) { Ui.push(Route.CronEditR(id)) }
         }
         LazyColumn(Modifier.weight(1f)) {
             if (j != null) item {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     KV(stringResource(R.string.job_kv_status), if (j.optBoolean("enabled", true)) stringResource(R.string.job_status_active)
-                        else j.str("paused_reason").takeIf { it.isNotBlank() }?.let { stringResource(R.string.job_status_paused_reason, it) } ?: stringResource(R.string.job_status_paused))
+                        else j.str("paused_reason").takeIf { it.isNotBlank() }?.let { stringResource(R.string.job_status_paused_reason, bidiIsolate(it)) } ?: stringResource(R.string.job_status_paused))
                     parseTime(j.opt("next_run_at"))?.let { KV(stringResource(R.string.job_kv_next), until(it)) }
-                    parseTime(j.opt("last_run_at"))?.let { KV(stringResource(R.string.job_kv_last), stringResource(R.string.job_last_value, rel(it), j.str("last_status").ifBlank { "ok" })) }
-                    if (j.str("model").isNotBlank()) KV(stringResource(R.string.job_kv_model), j.str("model"))
-                    if (j.str("deliver").isNotBlank()) KV(stringResource(R.string.job_kv_deliver), j.str("deliver"))
-                    if (j.str("last_error").isNotBlank()) Text(j.str("last_error"), style = mono(12f, 500, p.bad))
+                    parseTime(j.opt("last_run_at"))?.let { KV(stringResource(R.string.job_kv_last), stringResource(R.string.job_last_value, rel(it), bidiIsolate(j.str("last_status").ifBlank { "ok" }))) }
+                    if (j.str("model").isNotBlank()) KV(stringResource(R.string.job_kv_model), bidiIsolate(j.str("model")))
+                    if (j.str("deliver").isNotBlank()) KV(stringResource(R.string.job_kv_deliver), bidiIsolate(j.str("deliver")))
+                    if (j.str("last_error").isNotBlank()) Text(j.str("last_error"), style = mono(12f, 500, p.bad).content())
                 }
             }
             if (runs.isNotEmpty()) item {
                 LazyRow(Modifier.padding(vertical = 4.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(runs) { r -> Chip(r.replace('_', ' ').take(16), r == run) { run = r } }
+                    items(runs) { r -> Chip(bidiIsolate(r.replace('_', ' ').take(16)), r == run) { run = r } }
                 }
             }
             item {
@@ -293,14 +294,14 @@ fun JobScreen(id: String) {
                     val o = out
                     when {
                         o == null -> Skeleton(6)
-                        o.isBlank() -> if (err != null) ErrorPanel(err!!) { retry++ } else Text(stringResource(R.string.job_empty_output), style = sans(14f, 400, p.mu))
+                        o.isBlank() -> if (err != null) ErrorPanel(err!!, content = true) { retry++ } else Text(stringResource(R.string.job_empty_output), style = sans(14f, 400, p.mu))
                         else -> Md(o.take(40000))
                     }
                 }
             }
             if (j != null && j.str("prompt").isNotBlank()) item {
                 Section(stringResource(R.string.job_prompt), null)
-                Text(j.str("prompt"), style = mono(12.5f, 400, p.tx2), modifier = Modifier.padding(horizontal = 20.dp))
+                Text(j.str("prompt"), style = mono(12.5f, 400, p.tx2).content(), modifier = Modifier.padding(horizontal = 20.dp))
                 Spacer(Modifier.height(30.dp))
             }
         }
@@ -328,18 +329,19 @@ fun ElsewhereScreen() {
         TopBar(stringResource(R.string.elsewhere_title), stringResource(R.string.elsewhere_subtitle))
         val l = list
         when {
-            err != null -> ErrorPanel(err!!) { err = null; reloadKey++ }
+            err != null -> ErrorPanel(err!!, content = true) { err = null; reloadKey++ }
             l == null -> Skeleton()
             l.isEmpty() -> Empty(stringResource(R.string.elsewhere_empty_title), stringResource(R.string.elsewhere_empty_sub))
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(l, key = { it.str("id") }) { s ->
                     Row(Modifier.fillMaxWidth().clickable { Ui.push(Route.SessR(s.str("id"), s.str("title").ifBlank { str(R.string.elsewhere_untitled) }, s.str("source"))) }.padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Pill(s.str("source").ifBlank { "?" }, p.tx2, p.s3)
+                        Pill(s.str("source").ifBlank { "?" }, p.tx2, p.s3, content = true)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.str("title").ifBlank { stringResource(R.string.elsewhere_untitled_session) }, style = sans(15f, 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(s.str("model").substringAfterLast('/') + (s.optDouble("cost", 0.0).takeIf { it > 0 }?.let { " · " + money(it) } ?: ""), style = mono(11.5f, 500, p.mu), maxLines = 1)
+                            Text(s.str("title").ifBlank { stringResource(R.string.elsewhere_untitled_session) }, style = sans(15f, 550, p.tx).let { if (s.str("title").isNotBlank()) it.contentLine() else it },
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+                            Text(bidiIsolate(s.str("model").substringAfterLast('/')) + (s.optDouble("cost", 0.0).takeIf { it > 0 }?.let { " · " + money(it) } ?: ""), style = mono(11.5f, 500, p.mu), maxLines = 1)
                         }
                         Text(rel(s.optDouble("started_at", 0.0)), style = mono(11.5f, 500, p.mu))
                     }
@@ -499,16 +501,16 @@ fun SessionScreen(r: Route.SessR) {
 
     Column(Modifier.fillMaxSize().background(p.bg)) {
         TopBar(r.title, when {
-            readOnly -> stringResource(R.string.session_sub_read_only, r.source)
-            running -> stringResource(R.string.session_sub_working, r.source)
-            else -> stringResource(R.string.session_sub_live, r.source)
+            readOnly -> stringResource(R.string.session_sub_read_only, bidiIsolate(r.source))
+            running -> stringResource(R.string.session_sub_working, bidiIsolate(r.source))
+            else -> stringResource(R.string.session_sub_live, bidiIsolate(r.source))
         }, right = {
             Icn(Ic.refresh, p.tx2, 20.dp, Modifier.clip(RoundedCornerShape(8.dp))
                 .clickable { scope.launch { load() } }.padding(7.dp))
         })
         val current = msgs
         when {
-            current == null && err != null -> ErrorPanel(err!!) { scope.launch { load() } }
+            current == null && err != null -> ErrorPanel(err!!, content = true) { scope.launch { load() } }
             current == null -> Skeleton(6)
             else -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list,
                 contentPadding = PaddingValues(vertical = 10.dp)) {
@@ -535,7 +537,7 @@ fun SessionScreen(r: Route.SessR) {
                 item(key = "bottom") { Spacer(Modifier.height(8.dp)) }
             }
         }
-        if (err != null && current != null) Text(err!!, style = sans(12.5f, 400, p.bad),
+        if (err != null && current != null) Text(err!!, style = sans(12.5f, 400, p.bad).content(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 3.dp))
         if (running) Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             LiveDot(7.dp); Spacer(Modifier.width(8.dp))
@@ -558,7 +560,7 @@ fun SessionScreen(r: Route.SessR) {
 @Composable
 private fun ChoiceChip(label: String, selected: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val p = P
-    Text(label, style = sans(13.5f, 550, if (selected) p.acct else p.tx2), maxLines = 2,
+    Text(label, style = sans(13.5f, 550, if (selected) p.acct else p.tx2).content(), maxLines = 2,
         modifier = Modifier.clip(RoundedCornerShape(12.dp))
             .background(if (selected) p.accd else p.s2)
             .border(1.dp, if (selected) p.acct else p.line, RoundedCornerShape(12.dp))
@@ -578,11 +580,11 @@ private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: S
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icn(if (approval) Ic.shield else Ic.blocks, p.att, 18.dp)
             Spacer(Modifier.width(9.dp))
-            Text(if (approval) stringResource(R.string.session_approval_needed) else stringResource(R.string.session_agent_asking, HERMES), style = sans(15f, 650, p.tx))
+            Text(if (approval) stringResource(R.string.session_approval_needed) else stringResource(R.string.session_agent_asking, bidiIsolate(HERMES)), style = sans(15f, 650, p.tx))
         }
         if (approval) {
-            if (prompt.str("command").isNotBlank()) Text(prompt.str("command"), style = mono(12.5f, 500, p.tx2))
-            if (prompt.str("detail").isNotBlank()) Text(prompt.str("detail"), style = sans(13.5f, 400, p.mu, 19f))
+            if (prompt.str("command").isNotBlank()) Text(prompt.str("command"), style = mono(12.5f, 500, p.tx2).ltr())
+            if (prompt.str("detail").isNotBlank()) Text(prompt.str("detail"), style = sans(13.5f, 400, p.mu, 19f).content())
             if (answered.contains(pid)) Text(stringResource(R.string.session_response_sent), style = sans(13f, 500, p.goodt))
             else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -605,7 +607,7 @@ private fun SessionPromptCard(prompt: JSONObject, answered: Set<String>, busy: S
                 val multi = q.optBoolean("multi_select")
                 var draft by remember(key) { mutableStateOf("") }
                 var selected by remember(key) { mutableStateOf<Set<Int>>(emptySet()) }
-                Text(q.str("question").ifBlank { stringResource(R.string.session_your_answer) }, style = sans(14.5f, 550, p.tx, 20f))
+                Text(q.str("question").ifBlank { stringResource(R.string.session_your_answer) }, style = sans(14.5f, 550, p.tx, 20f).let { if (q.str("question").isNotBlank()) it.content() else it })
                 if (answered.contains(key)) Text(stringResource(R.string.session_answer_sent), style = sans(13f, 500, p.goodt))
                 else {
                     if (options.isNotEmpty()) {
@@ -655,8 +657,8 @@ fun MeScreen() {
                     MarkBox(44.dp)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(meta.str("name").ifBlank { Prefs.server ?: "Hermes" }, style = sans(17f, 650, p.tx))
-                        Text(stringResource(R.string.me_profile_model, meta.str("profile").ifBlank { Prefs.profile ?: "default" }, meta.str("model").ifBlank { "–" }), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(meta.str("name").ifBlank { Prefs.server ?: "Hermes" }, style = sans(17f, 650, p.tx).content())
+                        Text(stringResource(R.string.me_profile_model, bidiIsolate(meta.str("profile").ifBlank { Prefs.profile ?: "default" }), bidiIsolate(meta.str("model").ifBlank { "–" })), style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Dot(if (online) p.good else p.dim, 8.dp); Spacer(Modifier.width(6.dp))
@@ -700,7 +702,7 @@ fun MeScreen() {
                 Line()
                 NavRow(Ic.blocks, stringResource(R.string.me_skills), stringResource(R.string.me_skills_sub)) { Ui.push(Route.ExtR) }
                 Line()
-                NavRow(Ic.book, stringResource(R.string.me_memory), stringResource(R.string.me_memory_sub, agentName())) { Ui.push(Route.MemoryR) }
+                NavRow(Ic.book, stringResource(R.string.me_memory), stringResource(R.string.me_memory_sub, bidiIsolate(agentName()))) { Ui.push(Route.MemoryR) }
                 Line()
                 NavRow(Ic.chart, stringResource(R.string.me_usage), stringResource(R.string.me_usage_sub)) { Ui.push(Route.UsageR) }
                 if (feat.projects) {
@@ -710,7 +712,7 @@ fun MeScreen() {
                 Line()
                 NavRow(Ic.search, stringResource(R.string.me_search), stringResource(R.string.me_search_sub)) { Ui.push(Route.SearchR) }
                 Line()
-                NavRow(Ic.power, stringResource(R.string.me_restart, HERMES), stringResource(R.string.me_restart_sub)) { restart = true }
+                NavRow(Ic.power, stringResource(R.string.me_restart, bidiIsolate(HERMES)), stringResource(R.string.me_restart_sub)) { restart = true }
             }
         }
         item { MachinesSection() }
@@ -727,8 +729,8 @@ fun MeScreen() {
     if (probs) HDialog(stringResource(R.string.me_server_problems), onDismiss = { probs = false }, body = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 degraded.forEach { d ->
-                    Text(listOf(d.str("path"), d.optInt("status", 0).takeIf { it > 0 }?.toString().orEmpty(), d.str("error"))
-                        .filter { it.isNotBlank() }.joinToString(" · "), style = mono(12f, 500, p.tx2))
+                    Text(bidiJoin(listOf(d.str("path"), d.optInt("status", 0).takeIf { it > 0 }?.toString().orEmpty(), d.str("error"))
+                        .filter { it.isNotBlank() }), style = mono(12f, 500, p.tx2))
                 }
             }
         }) {
@@ -815,7 +817,7 @@ fun PhoneSettingsScreen() {
                                 Icn(Ic.phone, if (d.optInt("revoked") == 1) p.dim else p.tx2, 20.dp)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(if (d.str("id") == thisId) stringResource(R.string.phone_settings_device_this, d.str("name")) else d.str("name"), style = sans(15f, 550, if (d.optInt("revoked") == 1) p.dim else p.tx))
+                                    Text(if (d.str("id") == thisId) stringResource(R.string.phone_settings_device_this, bidiIsolate(d.str("name"))) else bidiIsolate(d.str("name")), style = sans(15f, 550, if (d.optInt("revoked") == 1) p.dim else p.tx).short())
                                     Text(if (d.optInt("revoked") == 1) stringResource(R.string.phone_settings_device_revoked) else stringResource(R.string.phone_settings_device_seen, rel(d.optDouble("last_seen", 0.0))), style = mono(11.5f, 500, p.mu))
                                 }
                                 if (d.str("id") != thisId && d.optInt("revoked") == 0) Btn(stringResource(R.string.phone_settings_revoke), danger = true) {
@@ -829,7 +831,7 @@ fun PhoneSettingsScreen() {
                 item {
                     Panel {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            KV(stringResource(R.string.phone_settings_kv_server), Prefs.base?.removePrefix("https://") ?: "–")
+                            KV(stringResource(R.string.phone_settings_kv_server), Prefs.base?.removePrefix("https://")?.let(::bidiIsolate) ?: "–")
                             KV(stringResource(R.string.phone_settings_kv_security), if (Prefs.cfId != null) stringResource(R.string.phone_settings_security_access) else stringResource(R.string.phone_settings_security_signed))
                             KV(stringResource(R.string.phone_settings_kv_approval), if (Prefs.noLock) stringResource(R.string.phone_settings_approval_no_lock) else stringResource(R.string.phone_settings_approval_biometric))
                         }
@@ -869,8 +871,8 @@ fun Line() = Box(Modifier.fillMaxWidth().padding(start = 16.dp).height(1.dp).bac
 fun SettingRow(title: String, sub: String, right: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = sans(15f, 600, P.tx))
-            Text(sub, style = sans(13f, 400, P.mu, 18f))
+            Text(title, style = sans(15f, 600, P.tx).short())
+            Text(sub, style = sans(13f, 400, P.mu, 18f).short())
         }
         Spacer(Modifier.width(12.dp))
         right()
@@ -893,7 +895,7 @@ fun WakeWordPanel() {
         if (ok) apply(true) else Ui.say(R.string.phone_settings_wake_needs_mic)
     }
     Panel {
-        SettingRow(stringResource(R.string.phone_settings_wake_say, WakeWord.label(Prefs.wakePhrase)), when {
+        SettingRow(stringResource(R.string.phone_settings_wake_say, bidiIsolate(WakeWord.label(Prefs.wakePhrase))), when {
             st.startsWith("error:") -> st.removePrefix("error:")
             !on -> stringResource(R.string.phone_settings_wake_off_sub)
             st == "paused" -> stringResource(R.string.phone_settings_wake_paused)
@@ -908,7 +910,7 @@ fun WakeWordPanel() {
         if (on) {
             Line()
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.phone_settings_wake_engine, "microWakeWord v2"), style = sans(15f, 600, p.tx))
+                Text(stringResource(R.string.phone_settings_wake_engine, bidiIsolate("microWakeWord v2")), style = sans(15f, 600, p.tx))
                 Text(pluralStringResource(R.plurals.phone_settings_wake_cutoff, 5, Fmt.decimal(thr.toDouble(), 2), 5), style = mono(12f, 500, p.mu))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Manual native-cutoff adjustment, not invented calibrated sensitivity presets.
@@ -976,7 +978,7 @@ fun DayStrip(runs: List<Double>) {
 fun TalkVoicePanel() {
     val p = P
     var server by remember { mutableStateOf(Prefs.serverVoice) }
-    SettingRow(stringResource(R.string.phone_settings_server_voice), if (server) stringResource(R.string.phone_settings_server_voice_on, HERMES) else stringResource(R.string.phone_settings_server_voice_off)) {
+    SettingRow(stringResource(R.string.phone_settings_server_voice), if (server) stringResource(R.string.phone_settings_server_voice_on, bidiIsolate(HERMES)) else stringResource(R.string.phone_settings_server_voice_off)) {
         Toggle(server, { v -> server = v; Prefs.serverVoice = v })
     }
 }

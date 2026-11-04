@@ -161,9 +161,14 @@ object Ui {
     val toast = MutableSharedFlow<String>(extraBufferCapacity = 8)
     /** Process-local selection, scoped to the originating machine epoch and route. */
     internal val supportRequest = mutableStateOf<SupportRequest?>(null)
-    fun say(s: String?) { if (!s.isNullOrBlank()) toast.tryEmit(s) }
-    /** Toast a resource string in the app language (for click handlers and coroutines, outside composition). */
-    fun say(@androidx.annotation.StringRes id: Int, vararg args: Any?) = say(str(id, *args))
+    /** Toast a message. [content]: it is not a translated string (an error from the network or the gateway) and keeps its
+     * own direction; pass false for a string the app already translated. */
+    fun say(s: String?, content: Boolean = true) { if (!s.isNullOrBlank()) toast.tryEmit(if (content) bidiIsolate(s) else s) }
+    /** Toast a resource string in the app language (for click handlers and coroutines, outside composition). Its text
+     * arguments are content (names, servers, error text), so each keeps its own direction inside the sentence. */
+    fun say(@androidx.annotation.StringRes id: Int, vararg args: Any?) {
+        say(str(id, *args.map { if (it is String) bidiIsolate(it) else it }.toTypedArray()), content = false)
+    }
     fun push(r: Route) {
         supportRequest.value = null
         if (!r.available(Hub.features.value)) {
@@ -368,7 +373,7 @@ fun PairScreen(link: Uri?) {
         if (busy) return
         // Never drop a live pairing on a link alone: only the explicit "Pair with this machine" tap passes confirmed.
         if (Ui.paired.value && !confirmed) { err = str(R.string.pair_tap_to_switch); return }
-        if (u.scheme != "hermes" || u.host != "pair") { err = str(R.string.pair_not_a_link, HERMES); return }
+        if (u.scheme != "hermes" || u.host != "pair") { err = str(R.string.pair_not_a_link, bidiIsolate(HERMES)); return }
         err = null
         Pairing.redeem(ctx, u, auto = false)
     }
@@ -382,8 +387,8 @@ fun PairScreen(link: Uri?) {
         Spacer(Modifier.height(54.dp))
         MarkBox(58.dp)
         Spacer(Modifier.height(26.dp))
-        Text(APP_NAME, style = serif(64f, p.tx, italic = true))
-        Text(stringResource(R.string.pair_tagline, agentName()), style = sans(16f, 400, p.tx2, 24f))
+        Text(APP_NAME, style = serif(64f, p.tx, italic = true).trackFor(APP_NAME))
+        Text(stringResource(R.string.pair_tagline, bidiIsolate(agentName())), style = sans(16f, 400, p.tx2, 24f))
         Spacer(Modifier.height(34.dp))
         Text(stringResource(R.string.pair_step_machine), style = mono(12f, 600, p.mu))
         Spacer(Modifier.height(8.dp))
@@ -402,7 +407,7 @@ fun PairScreen(link: Uri?) {
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            InputBox(paste, { paste = it }, "hermes://pair?…", Modifier.weight(1f), maxLines = 3, size = 14f)
+            InputBox(paste, { paste = it }, "hermes://pair?…", Modifier.weight(1f), maxLines = 3, size = 14f, ltr = true)
             Spacer(Modifier.width(8.dp))
             Btn(if (paste.isBlank()) stringResource(R.string.pair_paste) else stringResource(R.string.pair_submit), primary = false, enabled = !busy) {
                 val t = paste.ifBlank { cb.getText()?.text.orEmpty() }.trim()
@@ -418,7 +423,7 @@ fun PairScreen(link: Uri?) {
         val pl = pendingLink
         if (pl != null) {
             Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.pair_confirm_switch, Uri.parse(pl.getQueryParameter("u") ?: "").host ?: "?"), style = sans(14.5f, 500, p.tx))
+            Text(stringResource(R.string.pair_confirm_switch, bidiIsolate(Uri.parse(pl.getQueryParameter("u") ?: "").host ?: "?")), style = sans(14.5f, 500, p.tx))
             Spacer(Modifier.height(8.dp))
             Btn(stringResource(R.string.pair_with_this_machine), Modifier.fillMaxWidth(), enabled = !busy) { Pairing.offers.take()?.let { go(it, confirmed = true) } }
         }
@@ -518,7 +523,8 @@ fun ComposeSheet() {
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
         Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(stringResource(R.string.compose_title), style = serif(36f, p.tx), modifier = Modifier.weight(1f))
+                val title = stringResource(R.string.compose_title)
+                Text(title, style = serif(36f, p.tx).trackFor(title), modifier = Modifier.weight(1f))
                 IconBtn(Ic.mic, p.acct, 40.dp, p.accd) { Ui.composeOpen.value = false; Ui.push(Route.TalkR) }
             }
             if (lastReply != null && text.isBlank()) {
@@ -526,7 +532,7 @@ fun ComposeSheet() {
                     .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.compose_continue_last_reply), style = sans(13.5f, 600, p.tx))
-                        Text(lastReply.title + " · " + lastReply.preview, style = sans(12.5f, 400, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(bidiJoin(listOf(lastReply.title, lastReply.preview)), style = sans(12.5f, 400, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Icn(Ic.chevR, p.mu, 16.dp)
                 }
@@ -535,7 +541,7 @@ fun ComposeSheet() {
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.compose_new_chat_in), style = mono(11f, 600, p.mu))
                 Row(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (x in profs) Chip(x, x == prof) { prof = x }
+                    for (x in profs) Chip(bidiIsolate(x), x == prof) { prof = x }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -543,9 +549,9 @@ fun ComposeSheet() {
                 ComposeModelControl(mpick) { mpick = it }
                 Spacer(Modifier.width(8.dp))
                 Chip(stringResource(R.string.compose_mixture_of_agents), text.startsWith("/moa ")) { text = if (text.startsWith("/moa ")) text.removePrefix("/moa ") else "/moa " + text }
-            } else Text(stringResource(R.string.compose_profile_note, prof), style = sans(12.5f, 400, p.mu))
+            } else Text(stringResource(R.string.compose_profile_note, bidiIsolate(prof)), style = sans(12.5f, 400, p.mu))
             Spacer(Modifier.height(10.dp))
-            InputBox(text, { text = it }, stringResource(R.string.compose_placeholder, agentName()), Modifier.fillMaxWidth().heightIn(min = 120.dp), minLines = 4, maxLines = 10)
+            InputBox(text, { text = it }, stringResource(R.string.compose_placeholder, bidiIsolate(agentName())), Modifier.fillMaxWidth().heightIn(min = 120.dp), minLines = 4, maxLines = 10)
             SlashSuggest(text, { text = it }, Modifier.padding(top = 6.dp))
             if (atts.isNotEmpty()) AttRow(atts)
             AttachmentPrivacyNotice(Modifier.padding(top = 8.dp))
@@ -569,7 +575,7 @@ fun ComposeSheet() {
         }
     }
     if (shared?.uri != null) HDialog(stringResource(R.string.attach_share_title), onDismiss = { Ui.share.value = null }, body = {
-        Text(Prefs.base?.let { stringResource(R.string.attach_share_body, it) } ?: stringResource(R.string.attach_share_body_default), style = sans(15f, 400, p.tx2))
+        Text(Prefs.base?.let { stringResource(R.string.attach_share_body, bidiIsolate(it)) } ?: stringResource(R.string.attach_share_body_default), style = sans(15f, 400, p.tx2))
     }, actions = {
         Btn(stringResource(R.string.common_cancel), primary = false) { Ui.share.value = null }
         Btn(stringResource(R.string.attach_upload), enabled = !busy) {
@@ -603,7 +609,7 @@ fun AttRow(atts: MutableList<JSONObject>) {
             verticalAlignment = Alignment.CenterVertically) {
             Icn(when (a.str("kind")) { "image" -> Ic.camera; "voice" -> Ic.mic; else -> Ic.file }, P.tx2, 15.dp)
             Spacer(Modifier.width(6.dp))
-            Text(a.str("file_name").take(22), style = sans(12.5f, 500, P.tx), maxLines = 1)
+            Text(a.str("file_name").take(22), style = sans(12.5f, 500, P.tx).content(), maxLines = 1)
             IconBtn(Ic.x, P.mu, 28.dp) { atts.remove(a) }
         }
     }

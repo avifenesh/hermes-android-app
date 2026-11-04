@@ -20,6 +20,21 @@ Code reads strings with `stringResource(R.string.key)` in Compose and `str(R.str
 (`L10n.kt`). Dates, times, durations, money, percentages and sizes are formatted by locale in `Format.kt`
 (`Fmt`), so no date or number pattern appears in a string.
 
+## Right to left
+
+Text direction rules live in `Bidi.kt`:
+
+- UI copy (translated strings, labels, lines the app composes) follows the layout direction. That is the default of
+  `sans()`, `mono()` and `serif()`, so a Hebrew or Arabic line that starts with a Latin name still reads right to left.
+- Content from the user, the agent or the gateway (messages, previews, chat and session titles, names, file names,
+  input fields) uses `.content()`: its first strong character sets its direction. One line of content in a row uses
+  `.contentLine()`, which also aligns it to the row's start.
+- Code, commands, paths, terminal output and cron syntax use `.ltr()`, and their scroll containers sit in `LtrLayout`.
+- Content passed into a translated template or joined into a UI line goes through `bidiIsolate()` (or `bidiJoin()`),
+  which wraps it in U+2068/U+2069. Product names passed as arguments are isolated too.
+- Titles in `serif()` pass their text through `trackFor()`, which drops the tight tracking for Arabic: Android draws
+  Arabic without letter spacing, and with it the line breaker would move the last letter to a new line.
+
 ## Keys
 
 - snake_case, screen first: `chat_jump_to_latest`, `wake_alarm_add`, `hub_install_failed`.

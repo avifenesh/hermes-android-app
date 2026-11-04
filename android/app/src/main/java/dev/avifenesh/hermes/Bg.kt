@@ -97,8 +97,8 @@ class ActionReceiver : BroadcastReceiver() {
                         val text = (i.getStringExtra("text") ?: RemoteInput.getResultsFromIntent(i)?.getCharSequence("reply")?.toString()).orEmpty().trim()
                         if (text.isNotEmpty()) {
                             val r = runCatching { Fleet.send(id, text) }
-                            val msg = r.fold({ it.str("line").ifBlank { str(R.string.notify_sent_to, i.getStringExtra("name")) } },
-                                { if ((it as? ApiError)?.code == 403) str(R.string.notify_needs_fingerprint, APP_NAME) else str(R.string.agent_not_sent, it.message) })
+                            val msg = r.fold({ it.str("line").ifBlank { str(R.string.notify_sent_to, bidiIsolate(i.getStringExtra("name").orEmpty())) } },
+                                { if ((it as? ApiError)?.code == 403) str(R.string.notify_needs_fingerprint, bidiIsolate(APP_NAME)) else str(R.string.agent_not_sent, it.message?.let(::bidiIsolate)) })
                             withContext(Dispatchers.Main) { Toast.makeText(c, msg, Toast.LENGTH_LONG).show() }
                         }
                         Fleet.cancel(c, id)
@@ -134,7 +134,7 @@ object Approvals {
         if (choice == "deny") { submit(null, null); return }
         val ts = (System.currentTimeMillis() / 1000).toString()
         val payload = "approve\n$aid\n$choice\n$ts".toByteArray()
-        val sig = try { Keys.approvalSignature() } catch (e: Exception) { done(str(R.string.approvals_key_unavailable, e.message)); return }
+        val sig = try { Keys.approvalSignature() } catch (e: Exception) { done(str(R.string.approvals_key_unavailable, e.message?.let(::bidiIsolate))); return }
         if (Prefs.noLock) {
             val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()
             if (s == null) done(str(R.string.approvals_signing_failed)) else submit(ts, s)
@@ -207,14 +207,14 @@ object Approvals {
         "once" -> str(R.string.approvals_prompt_once)
         "session" -> str(R.string.approvals_prompt_session)
         "always" -> str(R.string.approvals_prompt_always)
-        else -> str(R.string.approvals_prompt_scope, choice)
+        else -> str(R.string.approvals_prompt_scope, bidiIsolate(choice))
     }
 
     private fun prove(act: FragmentActivity, title: String, subtitle: String, prefix: String,
                       onError: (String) -> Unit, done: (String?, String?) -> Unit) {
         val ts = (System.currentTimeMillis() / 1000).toString()
         val payload = "$prefix\n$ts".toByteArray()
-        val sig = try { Keys.approvalSignature() } catch (e: Exception) { onError(str(R.string.approvals_key_unavailable, e.message)); return }
+        val sig = try { Keys.approvalSignature() } catch (e: Exception) { onError(str(R.string.approvals_key_unavailable, e.message?.let(::bidiIsolate))); return }
         if (Prefs.noLock) {
             val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()
             if (s == null) onError(str(R.string.approvals_signing_failed)) else done(ts, s)

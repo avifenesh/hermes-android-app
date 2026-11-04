@@ -29,11 +29,12 @@ import androidx.core.content.edit
 
 /** Play safeguard for AI-generated content: where replies come from, who sees chats, and how to report a reply. */
 internal object AiNotice {
-    /** The notice in the app language. The agent software and the publisher arrive as names, never translated. */
+    /** The notice in the app language. The agent software and the publisher arrive as names, never translated, each
+     * isolated so a sentence that starts with one still reads in the app's direction. */
     fun points(): List<String> = listOf(
-        str(R.string.ai_notice_source, HERMES, EDITION_PUBLISHER),
+        str(R.string.ai_notice_source, bidiIsolate(HERMES), bidiIsolate(EDITION_PUBLISHER)),
         str(R.string.ai_notice_risk),
-        str(R.string.ai_notice_privacy, EDITION_PUBLISHER),
+        str(R.string.ai_notice_privacy, bidiIsolate(EDITION_PUBLISHER)),
         str(R.string.ai_notice_report),
     )
     // Acknowledged on this phone only: app-private preferences, never sent anywhere (backup is off).

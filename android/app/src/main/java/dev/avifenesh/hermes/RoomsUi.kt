@@ -137,7 +137,7 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.name, style = sans(15.5f, if (r.unread > 0) 650 else 550, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(r.name, style = sans(15.5f, if (r.unread > 0) 650 else 550, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     Spacer(Modifier.width(6.dp))
                     Pill(Fmt.int(r.members.size), p.tx2, p.s2)
                     Spacer(Modifier.weight(1f))
@@ -312,7 +312,7 @@ fun RoomScreen(rid: String) {
         renaming = false; run("rename") { Rooms.rename(rid, name) }
     }
     if (deleting) HDialog(stringResource(R.string.room_delete_title), { deleting = false }, {
-        Text(stringResource(R.string.room_delete_body, HERMES_DESKTOP),
+        Text(stringResource(R.string.room_delete_body, bidiIsolate(HERMES_DESKTOP)),
             style = sans(14.5f, 400, P.tx2, 21f))
     }) {
         Btn(stringResource(R.string.common_cancel), primary = false) { deleting = false }
@@ -328,9 +328,9 @@ fun RoomScreen(rid: String) {
     confirm?.let { a ->
         val who = room?.members?.firstOrNull { it.id == a.member }?.name ?: a.member
         val discard = a.kind == "discard"
-        HDialog(if (discard) stringResource(R.string.room_discard_title, who) else stringResource(R.string.room_rerun_title, who), { confirm = null }, {
-            Text(if (discard) stringResource(R.string.room_discard_body, HERMES, who)
-                else stringResource(R.string.room_rerun_body, who), style = sans(14.5f, 400, P.tx2, 21f))
+        HDialog(if (discard) stringResource(R.string.room_discard_title, bidiIsolate(who)) else stringResource(R.string.room_rerun_title, bidiIsolate(who)), { confirm = null }, {
+            Text(if (discard) stringResource(R.string.room_discard_body, bidiIsolate(HERMES), bidiIsolate(who))
+                else stringResource(R.string.room_rerun_body, bidiIsolate(who)), style = sans(14.5f, 400, P.tx2, 21f))
         }) {
             Btn(stringResource(R.string.common_cancel), primary = false) { confirm = null }
             Btn(if (discard) stringResource(R.string.room_discard) else stringResource(R.string.room_run_again), danger = discard) { confirm = null; cb.act(a, "confirmed") }
@@ -352,9 +352,9 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
     Column(Modifier.fillMaxSize().imePadding()) {
         val sub = when {
             answering.isNotEmpty() -> RoomLogic.workingLine(answering)
-            else -> members.joinToString(", ") { it.name }.ifBlank { str(R.string.room_default_name) }
+            else -> bidiJoin(members.map { it.name }, ", ").ifBlank { str(R.string.room_default_name) }
         }
-        TopBar(room?.name ?: stringResource(R.string.room_default_name), sub, if (answering.isNotEmpty()) p.acct else p.mu) {
+        TopBar(room?.name ?: stringResource(R.string.room_default_name), sub, if (answering.isNotEmpty()) p.acct else p.mu, contentTitle = room?.name != null) {
             IconBtn(Ic.users, p.tx2, label = stringResource(R.string.room_members)) { cb.members() }
             Box {
                 IconBtn(Ic.more, p.tx2) { menu = true }
@@ -368,9 +368,9 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
-                if (error != null) item { ErrorPanel(stringResource(R.string.room_load_failed, error), cb.retry) }
+                if (error != null) item { ErrorPanel(stringResource(R.string.room_load_failed, bidiIsolate(error)), onRetry = cb.retry) }
                 else if (events.isEmpty() && !hasOlder) item {
-                    if (loading) Skeleton() else Empty(room?.name ?: stringResource(R.string.room_default_name), stringResource(R.string.room_empty_hint))
+                    if (loading) Skeleton() else Empty(room?.name?.let(::bidiIsolate) ?: stringResource(R.string.room_default_name), stringResource(R.string.room_empty_hint))
                 }
                 if (RoomLogic.olderControl(hasOlder, error)) item(key = "older") {
                     Text(stringResource(R.string.room_earlier), style = sans(13.5f, 600, p.acct), textAlign = TextAlign.Center,
@@ -429,7 +429,7 @@ fun RoomWorkingRow(answering: List<String>, queued: List<String>) {
         Spacer(Modifier.width(10.dp))
         Column {
             if (answering.isNotEmpty()) Text(RoomLogic.workingLine(answering), style = sans(14f, 600, p.acct))
-            if (queued.isNotEmpty()) Text(stringResource(R.string.room_next_up, queued.joinToString(", ")), style = sans(13f, 500, p.tx2))
+            if (queued.isNotEmpty()) Text(stringResource(R.string.room_next_up, bidiJoin(queued, ", ")), style = sans(13f, 500, p.tx2))
         }
     }
 }
@@ -462,7 +462,7 @@ fun OwnRoomMessage(rid: String, row: RoomRowSpec) {
             .padding(horizontal = 15.dp, vertical = 10.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (a in e.attachments) RoomAttachment(rid, e, a, mine = true)
-                if (e.text.isNotBlank()) Text(e.text, style = sans(15.5f, 400, p.tx, 23f))
+                if (e.text.isNotBlank()) Text(e.text, style = sans(15.5f, 400, p.tx, 23f).content())
             }
         }
         if (row.tail) Text(clock(e.ts), style = mono(10.5f, 500, p.dim), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
@@ -485,7 +485,7 @@ fun MemberRoomMessage(rid: String, row: RoomRowSpec, members: List<RoomMember>, 
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             if (row.head) Row(Modifier.padding(start = 4.dp, bottom = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(name, style = sans(13f, 650, memberColor(index)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(name, style = sans(13f, 650, memberColor(index)).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(8.dp))
                 Text(clock(e.ts), style = mono(10.5f, 500, p.dim))
             }
@@ -532,7 +532,7 @@ fun RoomAttachment(rid: String, e: RoomEvent, a: JSONObject, mine: Boolean) {
         Icn(Ic.file, P.tx2, 20.dp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f, fill = false)) {
-            Text(name, style = sans(14f, 500, P.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(name, style = sans(14f, 500, P.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val pr = prog
             Text(if (pr != null) stringResource(R.string.room_downloading, Fmt.percent((pr * 100).toInt() / 100.0))
                 else listOfNotNull(size?.let { sizeStr(it) }, stringResource(R.string.room_tap_to_open)).joinToString(" · "),
@@ -554,12 +554,12 @@ fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAc
             Icn(if (approval) Ic.shield else Ic.refresh, if (approval) p.att else p.mu, 18.dp)
             Spacer(Modifier.width(8.dp))
             Text(when (a.kind) {
-                "approval" -> stringResource(R.string.room_action_approval, who)
-                "discard" -> stringResource(R.string.room_action_discard, who)
-                else -> stringResource(R.string.room_action_retry, who)
+                "approval" -> stringResource(R.string.room_action_approval, bidiIsolate(who))
+                "discard" -> stringResource(R.string.room_action_discard, bidiIsolate(who))
+                else -> stringResource(R.string.room_action_retry, bidiIsolate(who))
             }, style = sans(14.5f, 650, if (approval) p.attt else p.tx), modifier = Modifier.weight(1f))
         }
-        if (a.description.isNotBlank()) Text(a.description, style = sans(14f, 400, p.tx, 20f), modifier = Modifier.padding(top = 8.dp))
+        if (a.description.isNotBlank()) Text(a.description, style = sans(14f, 400, p.tx, 20f).content(), modifier = Modifier.padding(top = 8.dp))
         if (a.command.isNotBlank()) { Spacer(Modifier.height(8.dp)); CodeBlock(a.command, stringResource(R.string.room_command_label)) }
         if (!ready) Text(stringResource(R.string.room_action_loading), style = sans(13f, 500, p.tx2),
             modifier = Modifier.padding(top = 8.dp))
@@ -598,8 +598,8 @@ fun RoomMembersSheet(room: Room, driver: RoomDriver?, onDismiss: () -> Unit, onM
 fun RoomMembersContent(room: Room, driver: RoomDriver?, onMention: (RoomMember) -> Unit) {
     val p = P
     Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-        Text(stringResource(R.string.room_members), style = serif(34f, p.tx), modifier = Modifier.padding(horizontal = 20.dp))
-        Text(pluralStringResource(R.plurals.room_members_summary, room.members.size, room.members.size, room.name), style = sans(13.5f, 400, p.mu),
+        Text(stringResource(R.string.room_members), style = serif(34f, p.tx).trackFor(stringResource(R.string.room_members)), modifier = Modifier.padding(horizontal = 20.dp))
+        Text(pluralStringResource(R.plurals.room_members_summary, room.members.size, room.members.size, bidiIsolate(room.name)), style = sans(13.5f, 400, p.mu),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         Spacer(Modifier.height(6.dp))
         for (m in room.members) {
@@ -612,7 +612,7 @@ fun RoomMembersContent(room: Room, driver: RoomDriver?, onMention: (RoomMember) 
                 }
             }
             ListRow({ MemberAvatar(m.name, RoomLogic.colorIndex(room.members, m.id, Accents.size), 40.dp) }, m.name,
-                listOfNotNull("@" + m.handle, m.profile.takeIf { it != m.handle }).joinToString(" · "), trail, { onMention(m) })
+                bidiJoin(listOfNotNull("@" + m.handle, m.profile.takeIf { it != m.handle })), trail, { onMention(m) }, contentTitle = true)
         }
         Text(stringResource(R.string.room_members_fixed), style = sans(12.5f, 400, p.mu),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
@@ -660,14 +660,14 @@ fun NewRoomContent(bots: List<RoomBot>, busy: Boolean, initialName: String = "",
     var name by rememberSaveable { mutableStateOf(initialName) }
     var picked by rememberSaveable { mutableStateOf(initialPicked.toList()) }
     Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Text(stringResource(R.string.rooms_new_group), style = serif(34f, p.tx))
-        Text(stringResource(R.string.rooms_new_group_desc, HERMES_DESKTOP), style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Text(stringResource(R.string.rooms_new_group), style = serif(34f, p.tx).trackFor(stringResource(R.string.rooms_new_group)))
+        Text(stringResource(R.string.rooms_new_group_desc, bidiIsolate(HERMES_DESKTOP)), style = sans(13.5f, 400, p.mu), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
         InputBox(name, { name = it.take(200) }, stringResource(R.string.room_name_hint), Modifier.fillMaxWidth(), maxLines = 2)
         Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.rooms_bots_header), style = mono(11.5f, 600, p.mu), modifier = Modifier.weight(1f))
             Text(stringResource(R.string.rooms_picked_count, picked.size, 2, 6), style = mono(11.5f, 500, if (picked.size in 2..6) p.acct else p.mu))
         }
-        if (bots.size < 2) Text(stringResource(R.string.rooms_too_few_bots, "hermes profile create"),
+        if (bots.size < 2) Text(stringResource(R.string.rooms_too_few_bots, bidiIsolate("hermes profile create")),
             style = sans(14f, 400, p.tx2, 20f), modifier = Modifier.padding(vertical = 8.dp))
         for ((i, b) in bots.withIndex()) {
             val on = b.profile in picked
@@ -677,8 +677,8 @@ fun NewRoomContent(bots: List<RoomBot>, busy: Boolean, initialName: String = "",
                 MemberAvatar(b.name, i + 1, 36.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(b.name, style = sans(15f, 600, p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (b.name != b.profile) Text("@" + b.profile, style = mono(12f, 500, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(b.name, style = sans(15f, 600, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (b.name != b.profile) Text("@" + b.profile, style = mono(12f, 500, p.mu).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Box(Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(if (on) p.acc else Color.Transparent)
                     .border(1.5.dp, if (on) p.acc else p.line2, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {

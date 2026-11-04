@@ -110,7 +110,7 @@ class LiveService : Service() {
                 b.setContentTitle(APP_NAME).setContentText(if (Hub.online.value) str(R.string.notify_connected) else str(R.string.notify_reconnecting))
             } else {
                 val (cid, since) = working.entries.maxBy { it.value }
-                b.setContentTitle(str(R.string.notify_agent_working, Hub.agent.value)).setContentText(Hub.chats.value[cid]?.title ?: str(R.string.notify_a_run))
+                b.setContentTitle(str(R.string.notify_agent_working, bidiIsolate(Hub.agent.value))).setContentText(Hub.chats.value[cid]?.title ?: str(R.string.notify_a_run))
                     .setProgress(0, 0, true).setShowWhen(true).setUsesChronometer(true).setWhen((since * 1000).toLong())
                     .setContentIntent(Notify.openIntent(c, cid))
                 if (working.size > 1) b.setSubText(plural(R.plurals.notify_runs, working.size, working.size))

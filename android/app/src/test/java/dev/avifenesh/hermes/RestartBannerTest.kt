@@ -57,12 +57,12 @@ class RestartBannerTest {
     }
 
     @Test fun restartToastSaysWhatTheServerDid() {
-        assertEquals("Restarting Hermes…", restartToast(JSONObject().put("ok", true).put("state", "restarting")))
-        assertEquals("Hermes restarts after 2 running tasks finish",
+        assertEquals("Restarting \u2068Hermes\u2069…", restartToast(JSONObject().put("ok", true).put("state", "restarting")))
+        assertEquals("\u2068Hermes\u2069 restarts after 2 running tasks finish",
             restartToast(JSONObject().put("ok", true).put("state", "draining").put("active", 2)))
-        assertEquals("Hermes restarts after 1 running task finishes",
+        assertEquals("\u2068Hermes\u2069 restarts after 1 running task finishes",
             restartToast(JSONObject().put("ok", true).put("state", "draining").put("active", 1)))
         assertEquals("A restart is already under way", restartToast(JSONObject().put("ok", true).put("state", "in_progress")))
-        assertEquals("Restarting Hermes…", restartToast(JSONObject().put("ok", true)))  // old server
+        assertEquals("Restarting \u2068Hermes\u2069…", restartToast(JSONObject().put("ok", true)))  // old server
     }
 }

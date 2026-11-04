@@ -148,13 +148,13 @@ fun SlashSuggest(text: String, onPick: (String) -> Unit, modifier: Modifier = Mo
             val args = c.str("args")
             Column(Modifier.fillMaxWidth().clickable { onPick("/$name ") }.padding(horizontal = 14.dp, vertical = 9.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("/$name", style = mono(14f, 600, p.acct))
-                    if (args.isNotBlank()) { Spacer(Modifier.width(8.dp)); Text(args, style = mono(12f, 400, p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
+                    Text("/$name", style = mono(14f, 600, p.acct).ltr())
+                    if (args.isNotBlank()) { Spacer(Modifier.width(8.dp)); Text(args, style = mono(12f, 400, p.mu).ltr(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
                     val cat = c.str("category")
                     if (cat == "Skill" || cat == "Plugin") { Spacer(Modifier.weight(1f)); Text(cat.lowercase(), style = mono(11f, 500, p.dim)) }
                 }
                 val d = c.str("description")
-                if (d.isNotBlank()) Text(d, style = sans(13f, 400, p.tx2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (d.isNotBlank()) Text(d, style = sans(13f, 400, p.tx2).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -685,17 +685,17 @@ fun Md(text: String, color: Color = P.tx, size: Float = 15.5f) {
                     b is BTable -> TableBlock(b.rows)
                     b is BRule -> Box(Modifier.fillMaxWidth().height(1.dp).background(p.line2))
                     a == null -> {}
-                    b is BPara -> Text(a, style = sans(size, 400, color, size * 1.5f), modifier = Modifier.fillMaxWidth())
-                    b is BHead -> Text(a, style = if (b.lvl <= 2) serif(if (b.lvl == 1) 28f else 24f, color) else sans(size + 1f, 650, color),
+                    b is BPara -> Text(a, style = sans(size, 400, color, size * 1.5f).content(), modifier = Modifier.fillMaxWidth())
+                    b is BHead -> Text(a, style = (if (b.lvl <= 2) serif(if (b.lvl == 1) 28f else 24f, color).trackFor(a) else sans(size + 1f, 650, color)).content(),
                         modifier = Modifier.fillMaxWidth())
                     b is BItem -> Row(Modifier.fillMaxWidth().padding(start = (b.depth * 14).dp)) {
                         Text(b.mark, style = sans(size, 500, p.mu, size * 1.5f), modifier = Modifier.width(if (b.mark == "•") 16.dp else 26.dp))
-                        Text(a, style = sans(size, 400, color, size * 1.5f), modifier = Modifier.weight(1f))
+                        Text(a, style = sans(size, 400, color, size * 1.5f).content(), modifier = Modifier.weight(1f))
                     }
                     b is BQuote -> Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(p.line2))
                         Spacer(Modifier.width(10.dp))
-                        Text(a, style = sans(size, 400, p.tx2, size * 1.5f), modifier = Modifier.weight(1f))
+                        Text(a, style = sans(size, 400, p.tx2, size * 1.5f).content(), modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -712,8 +712,10 @@ fun CodeBlock(code: String, lang: String = "") {
             Spacer(Modifier.weight(1f))
             Text(stringResource(R.string.parts_code_copy), style = mono(11f, 500, P.mu), modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { cb.setText(AnnotatedString(code)); Ui.say(R.string.common_copied) }.padding(8.dp))
         }
-        Text(code, style = mono(13f, 400, P.tx), softWrap = false,
-            modifier = Modifier.horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 12.dp))
+        LtrLayout {
+            Text(code, style = mono(13f, 400, P.tx).ltr(), softWrap = false,
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 12.dp))
+        }
     }
 }
 
@@ -726,7 +728,7 @@ fun TableBlock(rows: List<List<String>>) {
     Column(Modifier.clip(RoundedCornerShape(12.dp)).border(1.dp, p.line2, RoundedCornerShape(12.dp)).horizontalScroll(rememberScrollState())) {
         rows.forEachIndexed { r, row ->
             Row(Modifier.background(if (r == 0) p.s2 else Color.Transparent)) {
-                for (c in 0 until n) Text(inline(row.getOrNull(c) ?: "", p), style = sans(13.5f, if (r == 0) 600 else 400, p.tx),
+                for (c in 0 until n) Text(inline(row.getOrNull(c) ?: "", p), style = sans(13.5f, if (r == 0) 600 else 400, p.tx).content(),
                     modifier = Modifier.width(w[c]).padding(horizontal = 10.dp, vertical = 7.dp))
             }
             if (r < rows.lastIndex) Box(Modifier.height(1.dp).width(w.fold(0.dp) { a, b -> a + b }).background(p.line))
@@ -804,7 +806,7 @@ fun HDialog(title: String, onDismiss: () -> Unit, body: @Composable ColumnScope.
     val p = P
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.s1).border(1.dp, p.line, RoundedCornerShape(24.dp)).padding(22.dp)) {
-            Text(title, style = serif(24f, p.tx))
+            Text(title, style = serif(24f, p.tx).trackFor(title))
             Spacer(Modifier.height(12.dp))
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), content = body)
             Spacer(Modifier.height(20.dp))
@@ -817,22 +819,25 @@ fun HDialog(title: String, onDismiss: () -> Unit, body: @Composable ColumnScope.
 fun Header(title: String, sub: String? = null, meta: (@Composable () -> Unit)? = null, right: @Composable RowScope.() -> Unit = {}) {
     Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 10.dp, top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = serif(46f, P.tx))
+            Text(title, style = serif(46f, P.tx).trackFor(title))
             if (meta != null) meta()
-            if (sub != null) Text(sub, style = sans(13.5f, 400, P.mu))
+            if (sub != null) Text(sub, style = sans(13.5f, 400, P.mu).short())
         }
         right()
     }
 }
 
+/** Screen bar with back. [contentTitle] and [contentSub]: that text comes from the user, the agent or the gateway (a chat
+ * title, a job name, a repository) and keeps its own direction; otherwise it is UI copy in the layout direction. */
 @Composable
-fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, right: @Composable RowScope.() -> Unit = {}) {
+fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, contentTitle: Boolean = false, contentSub: Boolean = false,
+           right: @Composable RowScope.() -> Unit = {}) {
     Column(Modifier.fillMaxWidth().background(P.bg)) {
         Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 62.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.back) { Ui.pop() }
             Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                Text(title, style = sans(17f, 600, P.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (sub != null) Text(sub, style = mono(12f, 500, subColor), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = sans(17f, 600, P.tx).let { if (contentTitle) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (sub != null) Text(sub, style = mono(12f, 500, subColor).let { if (contentSub) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             right()
         }
@@ -843,7 +848,7 @@ fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, right: @C
 @Composable
 fun Section(title: String, right: String? = null, color: Color = P.mu, rightColor: Color = P.mu) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT), style = mono(11.5f, 600, color).copy(letterSpacing = 1.2.em * 0.1f), modifier = Modifier.weight(1f))
+        Text(title.uppercase(LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT), style = mono(11.5f, 600, color).copy(letterSpacing = 1.2.em * 0.1f).short(), modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         if (right != null) Text(right, style = mono(11.5f, 500, rightColor))
     }
@@ -859,7 +864,7 @@ fun Chip(text: String, selected: Boolean, count: Int? = null, onClick: () -> Uni
     val p = P
     Row(Modifier.clip(RoundedCornerShape(20.dp)).background(if (selected) p.acc else p.s2).selectable(selected = selected, role = Role.Tab, onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = sans(13.5f, 600, if (selected) p.ink else p.tx2))
+        Text(text, style = sans(13.5f, 600, if (selected) p.ink else p.tx2).short())
         if (count != null && count > 0) {
             Spacer(Modifier.width(6.dp))
             Text(Fmt.capped(count, 99), style = mono(11.5f, 600, if (selected) p.ink else p.mu))
@@ -870,9 +875,10 @@ fun Chip(text: String, selected: Boolean, count: Int? = null, onClick: () -> Uni
 /** Human day label for chat separators (e.g. "Thu 8 Oct", "Thu, Oct 8"). */
 fun dayLabel(ts: Double): String = Fmt.weekdayDayMonth((ts * 1000).toLong())
 
+/** A small tag. [content]: a name from the gateway (profile, source, tier) that keeps its own direction. */
 @Composable
-fun Pill(text: String, fg: Color, bg: Color) {
-    Text(text, style = mono(11f, 600, fg), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(bg).padding(horizontal = 7.dp, vertical = 3.dp))
+fun Pill(text: String, fg: Color, bg: Color, content: Boolean = false) {
+    Text(text, style = mono(11f, 600, fg).let { if (content) it.content() else it }, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(bg).padding(horizontal = 7.dp, vertical = 3.dp))
 }
 
 @Composable
@@ -883,14 +889,14 @@ fun Btn(text: String, modifier: Modifier = Modifier, primary: Boolean = true, da
     val hf = LocalHapticFeedback.current
     Box(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button) {
         hf.performHapticFeedback(if (danger) HapticFeedbackType.Reject else if (primary) HapticFeedbackType.Confirm else HapticFeedbackType.VirtualKey); onClick() }.alpha(if (enabled) 1f else 0.45f)
-        .padding(horizontal = 18.dp, vertical = 10.dp), contentAlignment = Alignment.Center) { Text(text, style = sans(15f, 600, fg), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+        .padding(horizontal = 18.dp, vertical = 10.dp), contentAlignment = Alignment.Center) { Text(text, style = sans(15f, 600, fg).short(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
 }
 
 @Composable
 fun Seg(opts: List<Pair<String, String>>, sel: String, on: (String) -> Unit) {
     val p = P
     Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.s2).padding(3.dp)) {
-        for ((k, label) in opts) Text(label, style = sans(13.5f, 600, if (k == sel) p.tx else p.mu), modifier = Modifier.clip(RoundedCornerShape(11.dp))
+        for ((k, label) in opts) Text(label, style = sans(13.5f, 600, if (k == sel) p.tx else p.mu).short(), modifier = Modifier.clip(RoundedCornerShape(11.dp))
             .background(if (k == sel) p.s4 else Color.Transparent).selectable(selected = k == sel, role = Role.Tab) { on(k) }.heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 12.dp))
     }
 }
@@ -904,14 +910,18 @@ fun LiveDot(size: Dp = 8.dp, color: Color = P.acc) {
 @Composable
 fun Dot(color: Color, size: Dp = 8.dp) = Box(Modifier.size(size).clip(CircleShape).background(color))
 
+/** A text field. What the user types keeps its own direction; [ltr]: the field takes syntax (a link, a schedule), so the
+ * text and its hint read left to right. */
 @Composable
 fun InputBox(v: String, on: (String) -> Unit, ph: String, modifier: Modifier = Modifier, minLines: Int = 1, maxLines: Int = 6, bare: Boolean = false, size: Float = 16f,
-             kb: KeyboardOptions = KeyboardOptions.Default) {
+             kb: KeyboardOptions = KeyboardOptions.Default, ltr: Boolean = false) {
     val p = P
-    BasicTextField(v, on, modifier = modifier.semantics { contentDescription = ph }, textStyle = sans(size, 400, p.tx, size * 1.42f), cursorBrush = SolidColor(p.acct), minLines = minLines, maxLines = maxLines, keyboardOptions = kb,
+    BasicTextField(v, on, modifier = modifier.semantics { contentDescription = ph }, textStyle = sans(size, 400, p.tx, size * 1.42f).let { if (ltr) it.ltr() else it.content() }, cursorBrush = SolidColor(p.acct), minLines = minLines, maxLines = maxLines, keyboardOptions = kb,
         decorationBox = { inner ->
             val m = if (bare) Modifier.padding(vertical = 6.dp) else Modifier.clip(RoundedCornerShape(22.dp)).background(p.s2).border(1.dp, p.line, RoundedCornerShape(22.dp)).padding(horizontal = 16.dp, vertical = 11.dp)
-            Box(m) { if (v.isEmpty()) Text(ph, style = sans(size, 400, p.dim, size * 1.42f)); inner() }
+            // The hint spans the field: a wrap-content hint is sized to its drawn width, which the line breaker can
+            // measure 1-2 px short and push its last word to a second line.
+            Box(m) { if (v.isEmpty()) Text(ph, style = sans(size, 400, p.dim, size * 1.42f).let { if (ltr) it.ltr() else it }, modifier = Modifier.fillMaxWidth()); inner() }
         })
 }
 
@@ -920,9 +930,9 @@ fun Empty(title: String, sub: String) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         MarkBox(44.dp, P.s3)
         Spacer(Modifier.height(16.dp))
-        Text(title, style = serif(28f, P.tx))
+        Text(title, style = serif(28f, P.tx).trackFor(title).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
         Spacer(Modifier.height(6.dp))
-        Text(sub, style = sans(14f, 400, P.mu).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+        Text(sub, style = sans(14f, 400, P.mu).short().copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
     }
 }
 
@@ -960,7 +970,7 @@ fun FileChip(a: JSONObject, id: String, mime: String, mine: Boolean) {
         Icn(Ic.file, P.tx2, 20.dp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f, fill = false)) {
-            Text(name, style = sans(14f, 500, P.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(name, style = sans(14f, 500, P.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val p = prog
             Text(when {
                 p != null -> sz?.let { stringResource(R.string.file_downloading_of, Fmt.percent((p * 100).toInt() / 100.0), sizeStr(it)) } ?: stringResource(R.string.file_downloading, Fmt.percent((p * 100).toInt() / 100.0))
@@ -975,12 +985,13 @@ fun FileChip(a: JSONObject, id: String, mime: String, mine: Boolean) {
     }
 }
 
+/** [content]: [msg] is an error text from the gateway or the network, not a translated string, and keeps its own direction. */
 @Composable
-fun ErrorPanel(msg: String, onRetry: () -> Unit) {
+fun ErrorPanel(msg: String, content: Boolean = false, onRetry: () -> Unit) {
     val p = P
     Panel(Modifier.padding(vertical = 8.dp)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(msg, style = sans(14f, 400, p.tx2))
+            Text(msg, style = sans(14f, 400, p.tx2).let { if (content) it.content() else it })
             Btn(stringResource(R.string.common_try_again), primary = false, onClick = onRetry)
         }
     }
@@ -1001,21 +1012,26 @@ fun Skeleton(rows: Int = 4) {
 fun EmptyState(title: String, sub: String? = null) {
     val p = P
     Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, style = sans(16f, 600, p.tx2))
-        if (sub != null) Text(sub, style = sans(13.5f, 400, p.mu), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(title, style = sans(16f, 600, p.tx2).short(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        if (sub != null) Text(sub, style = sans(13.5f, 400, p.mu).short(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
+/** [contentTitle] and [contentSub]: that text comes from the user, the agent or the gateway and keeps its own direction,
+ * aligned to the row's start; otherwise it is UI copy in the layout direction. */
 @Composable
-fun ListRow(lead: (@Composable () -> Unit)?, title: String, sub: String?, trail: (@Composable () -> Unit)?, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, titleColor: Color? = null) {
+fun ListRow(lead: (@Composable () -> Unit)?, title: String, sub: String?, trail: (@Composable () -> Unit)?, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, titleColor: Color? = null,
+            contentTitle: Boolean = false, contentSub: Boolean = false) {
     val p = P
     val hfRow = LocalHapticFeedback.current
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).combinedClickable(onClick = onClick, onLongClick = onLongClick?.let { l -> { hfRow.performHapticFeedback(HapticFeedbackType.LongPress); l() } }).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         if (lead != null) lead()
         Column(Modifier.weight(1f)) {
-            Text(title, style = sans(15f, 600, titleColor ?: p.tx), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (!sub.isNullOrEmpty()) Text(sub, style = sans(13f, 400, p.mu), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(title, style = sans(15f, 600, titleColor ?: p.tx).let { if (contentTitle) it.contentLine() else it.short() }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth())
+            if (!sub.isNullOrEmpty()) Text(sub, style = sans(13f, 400, p.mu).let { if (contentSub) it.contentLine() else it.short() }, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth())
         }
         if (trail != null) trail()
     }
@@ -1044,6 +1060,6 @@ fun TapToLoadImage(url: String) {
     val host = runCatching { android.net.Uri.parse(url).host }.getOrNull()
     Box(Modifier.width(220.dp).heightIn(min = 72.dp).clip(RoundedCornerShape(16.dp)).background(P.s2).clickable { go = true }.padding(14.dp),
         contentAlignment = Alignment.Center) {
-        Text(if (host != null) stringResource(R.string.image_tap_to_load, host) else stringResource(R.string.image_tap_to_load_link), style = mono(12f, 500, P.tx2))
+        Text(if (host != null) stringResource(R.string.image_tap_to_load, bidiIsolate(host)) else stringResource(R.string.image_tap_to_load_link), style = mono(12f, 500, P.tx2))
     }
 }
