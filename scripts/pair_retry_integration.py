@@ -6,7 +6,9 @@ No gateway, real credentials, production requests, or live state are used.
 
 A phone whose first /v1/pair response was lost (activity recreated, network cut)
 retries the same one-time code. The same device keys, proven by a fresh request
-signature, get the same device back with a new token; anything else still fails.
+signature over a body naming this server, get the same device back with a new
+token, but only while the issued token has never authenticated a request.
+Anything else still fails.
 """
 import atexit
 import os
@@ -33,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 import base64  # noqa: E402
 import json  # noqa: E402
+import logging  # noqa: E402
 import time  # noqa: E402
 import unittest  # noqa: E402
 
@@ -54,6 +57,10 @@ def sign(key, message):
     return base64.b64encode(key.sign(message, ec.ECDSA(hashes.SHA256()))).decode()
 
 
+PUBLIC = "https://box.example:9445"
+OWN = object()
+
+
 class Phone:
     """One phone: a request key and an approval key, like Keys.REQ / Keys.APR."""
 
@@ -69,6 +76,7 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         self.ad.store = S.Store(Path(self.tmp.name) / "mobile.db")
         self.ad._replay = SG.Replay()
         self.ad._pair_hits = {}
+        self.ad._public_url = PUBLIC
 
         @web.middleware
         async def auth(request, handler):
@@ -88,10 +96,14 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         self.ad.store._db.close()
         self.tmp.cleanup()
 
-    async def pair(self, code, phone, *, signer=None, pub=None, apub=None, headers=None):
-        """POST /v1/pair as the app does. ``signer`` adds the retry proof (canonical request signature)."""
-        body = json.dumps({"code": code, "device_name": "synthetic", "pub": pub or public(phone.key),
-                           "apub": apub or public(phone.approval), "lock": True}).encode()
+    async def pair(self, code, phone, *, signer=None, pub=None, apub=None, headers=None, server=OWN):
+        """POST /v1/pair as the app does: the body names the server the link points at, and ``signer`` adds the
+        retry proof (canonical request signature over that body)."""
+        fields = {"code": code, "device_name": "synthetic", "pub": pub or public(phone.key),
+                  "apub": apub or public(phone.approval), "lock": True}
+        if server is not None:
+            fields["server"] = PUBLIC if server is OWN else server
+        body = json.dumps(fields).encode()
         h = dict(headers or {})
         if signer is not None and not h:
             ts = str(int(time.time()))
@@ -114,8 +126,8 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         code = self.ad.store.create_pair_code()
         status, first, _ = await self.pair(code, phone, signer=phone.key)
         self.assertEqual(status, 200, first)
-        self.assertEqual(await self.ping(first["token"], phone), 200)
-        # The first response was lost on the phone; it retries the same link with the same keys.
+        # The first response was lost on the phone (so its token never reached it, never authenticated);
+        # it retries the same link with the same keys.
         status, second, _ = await self.pair(code, phone, signer=phone.key)
         self.assertEqual(status, 200, second)
         self.assertEqual(second["device_id"], first["device_id"])
@@ -182,16 +194,55 @@ class PairRetry(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.ad.store.revoke(first["device_id"]))
         self.assertEqual((await self.pair(code, phone, signer=phone.key))[0], 403)
 
-    async def test_retry_proof_is_single_use(self):
+    async def test_retry_proof_is_single_use_and_says_so(self):
         phone = Phone()
         code = self.ad.store.create_pair_code()
         self.assertEqual((await self.pair(code, phone))[0], 200)
         status, second, proof = await self.pair(code, phone, signer=phone.key)
         self.assertEqual(status, 200, second)
-        # Replaying the captured retry (same body, same signature) must not mint another token.
-        status, _, _ = await self.pair(code, phone, headers=proof)
-        self.assertEqual(status, 403)
+        # Re-sending the same retry (same body, same signature: a transport retry, or a capture) mints nothing.
+        # The answer is specific, so the app can tell the user to try again instead of "code expired".
+        status, body, _ = await self.pair(code, phone, headers=proof)
+        self.assertEqual(status, 409, body)
+        self.assertEqual(body.get("reason"), "proof_reused")
         self.assertEqual(await self.ping(second["token"], phone), 200)
+
+    async def test_retry_after_the_token_authenticated_is_refused(self):
+        # The phone did get its token and used it: nothing was lost, so nothing may be re-issued.
+        phone = Phone()
+        code = self.ad.store.create_pair_code()
+        status, first, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200)
+        self.assertEqual(await self.ping(first["token"], phone), 200)
+        status, body, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 403, body)
+        self.assertEqual(await self.ping(first["token"], phone), 200, "the token in use keeps working")
+
+    async def test_retry_relayed_by_another_server_is_refused(self):
+        # A server the phone was tricked into pairing with forwards the phone's signed retry here. The signed body
+        # names that other server, so it cannot rotate this server's token for the phone's device.
+        phone = Phone()
+        code = self.ad.store.create_pair_code()
+        status, first, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200)
+        for relay in ("https://relay.example:9445", "https://box.example:9446", "http://box.example:9445", None):
+            with self.subTest(server=relay):
+                status, body, _ = await self.pair(code, phone, signer=phone.key, server=relay)
+                self.assertEqual(status, 403, body)
+        status, again, _ = await self.pair(code, phone, signer=phone.key, server="HTTPS://Box.Example:9445/")
+        self.assertEqual(status, 200, "the same origin, spelled differently, is this server")
+        self.assertEqual(again["device_id"], first["device_id"])
+
+    async def test_reissue_is_logged_apart_from_a_new_pairing(self):
+        phone = Phone()
+        code = self.ad.store.create_pair_code()
+        with self.assertLogs("mobile.adapter", logging.INFO) as logs:
+            status, first, _ = await self.pair(code, phone, signer=phone.key)
+            status, second, _ = await self.pair(code, phone, signer=phone.key)
+        self.assertEqual(status, 200)
+        lines = [r.getMessage() for r in logs.records]
+        self.assertEqual(sum("paired device" in x for x in lines), 1, lines)
+        self.assertEqual(sum("re-issued" in x and first["device_id"] in x for x in lines), 1, lines)
 
     async def test_first_claim_still_needs_no_proof(self):
         # Older apps send no signature on /v1/pair: a fresh code keeps working for them.

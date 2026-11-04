@@ -130,7 +130,7 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.executescript(_SCHEMA)
         for tbl, col in (("devices", "pub"), ("devices", "apub"), ("chats", "profile"), ("approvals", "request_id"), ("devices", "nolock"),
-                         ("pair_codes", "device_id")):
+                         ("pair_codes", "device_id"), ("devices", "token_used")):
             try:
                 self._db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} TEXT DEFAULT ''")
             except sqlite3.OperationalError:
@@ -451,10 +451,12 @@ class Store:
                         nolock: bool = False, proven: bool = False) -> Optional[Dict[str, str]]:
         """Redeem a one-time code for a new device.
 
-        ``proven`` means the caller verified a fresh signature by ``pub``'s private key. Only then may a code that
-        is already used, and not expired, be redeemed again, and only by the device it created with the same keys:
-        that device gets a new token (the old one stops working) instead of a second device row. This is the phone
-        retrying after it lost the first response. Any other key, a revoked device or an expired code still fails.
+        ``proven`` means the caller verified a fresh signature by ``pub``'s private key over a request naming this
+        server. Only then may a code that is already used, and not expired, be redeemed again, and only by the device
+        it created with the same keys, while the token it was issued has never authenticated a request: the phone
+        lost the first response, so nothing can be using that token. The device gets a new token (the old one stops
+        working) instead of a second device row; the result carries ``reissued``. Any other key, a token in use, a
+        revoked device or an expired code still fails.
         """
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
@@ -478,9 +480,9 @@ class Store:
             did = row["device_id"] or ""
             if not (proven and did and pub and apub):
                 return None
-            cur = self._db.execute("UPDATE devices SET token_hash=?, last_seen=? WHERE id=? AND revoked=0 AND pub=? AND apub=?",
-                                   (sha(token), now, did, pub, apub))
-            return {"device_id": did, "token": token} if cur.rowcount == 1 else None
+            cur = self._db.execute("UPDATE devices SET token_hash=?, last_seen=? WHERE id=? AND revoked=0 AND pub=? AND apub=?"
+                                   " AND COALESCE(token_used,'')=''", (sha(token), now, did, pub, apub))
+            return {"device_id": did, "token": token, "reissued": True} if cur.rowcount == 1 else None
         did = new_id("d")
         self._db.execute("UPDATE pair_codes SET used=1, device_id=? WHERE code_hash=?", (did, row["code_hash"]))
         self._db.execute("INSERT INTO devices(id,name,token_hash,created,last_seen,pub,apub,nolock) VALUES(?,?,?,?,?,?,?,?)",
@@ -497,6 +499,11 @@ class Store:
             with self._lock:
                 self._db.execute("UPDATE devices SET last_seen=? WHERE id=?", (time.time(), row["id"]))
         return dict(row)
+
+    def mark_token_used(self, device_id: str) -> None:
+        """The device's current token authenticated a request: from now on no pairing retry may replace it."""
+        with self._lock:
+            self._db.execute("UPDATE devices SET token_used='1' WHERE id=? AND COALESCE(token_used,'')=''", (device_id,))
 
     def devices(self) -> List[Dict[str, Any]]:
         return [{k: r[k] for k in ("id", "name", "created", "last_seen", "revoked")}

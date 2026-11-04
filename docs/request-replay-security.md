@@ -69,21 +69,35 @@ proof, so those proofs cannot authorize terminal input.
 
 ## Pairing retry
 
-A one-time pairing code is redeemed once. If the phone loses the response (the
-screen is recreated, the network drops), it retries the same code with the same
-device keys and a request signature over the pairing request:
+A pairing code is redeemed once, with one exception: the same device retrying
+after it lost the response (the screen was recreated, the network dropped). The
+app signs every network attempt of `POST /v1/pair` with its request key:
 
 ```text
 POST\n/v1/pair\ntimestamp_seconds\nsha256(exact_raw_JSON_body_bytes)
 ```
 
-The server verifies it with the `pub` in the body and consumes it in a separate
-`pair` replay domain. Only then may a used, unexpired code be redeemed again, and
-only for the device it created, with the same `pub` and `apub`, while that device
-is not revoked. That device gets a new token and the previous token stops working;
-no second device row is created. A different key, a missing or replayed proof, a
-revoked device or an expired code still gets 403. A first redemption needs no
-proof, so older apps pair as before.
+The body includes `server`, the URL from the pairing link. The server verifies
+the signature with the `pub` in the body, requires `server` to be its own public
+URL (scheme, host, port and path; `MOBILE_PUBLIC_URL` or the configured public
+URL, never the request's Host header) and consumes the proof in a separate
+`pair` replay domain. Only then may a used, unexpired code be redeemed again,
+and only when all of these hold:
+
+* the code created this device, and the request carries the same `pub` and `apub`;
+* the device is not revoked;
+* the token issued to it has never authenticated a request. A lost response
+  means the phone never had that token; once any request authenticates with it,
+  no retry can replace it.
+
+The device keeps its id and gets a new token; the previous token stops working
+and no second device row is created. The gateway logs this as a re-issued token,
+not as a new pairing. A different key, another server's URL (a relay), a missing
+proof, a token in use, a revoked device or an expired code still gets 403. A
+valid, current proof that was already consumed (the same request sent twice) gets
+409 with `reason: proof_reused`; the app asks the user to open the link again,
+which signs a new attempt. A first redemption needs no proof, so older apps pair
+as before.
 
 ```sh
 "$HERMES_PYTHON" scripts/pair_retry_integration.py

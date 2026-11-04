@@ -421,7 +421,8 @@ object Api {
         it.body.bytes()
     }
 
-    suspend fun pair(link: Uri): Unit = withContext(Dispatchers.IO) {
+    /** [proceed] runs under the epoch lock right before credentials are written: false (cancelled) writes nothing. */
+    suspend fun pair(link: Uri, proceed: () -> Boolean = { true }): Unit = withContext(Dispatchers.IO) {
         val u = link.getQueryParameter("u") ?: throw ApiError(0, "That link has no server address")
         val c = link.getQueryParameter("c") ?: throw ApiError(0, "That link has no pairing code")
         val ticket = epoch.capture()
@@ -429,21 +430,21 @@ object Api {
         val cfSecret = link.getQueryParameter("s")
         Keys.ensure()  // device keys are per phone, not per machine
         val body = JSONObject().put("code", c).put("device_name", "${Build.MANUFACTURER} ${Build.MODEL}")
-            .put("pub", Keys.pub(Keys.REQ)).put("apub", Keys.pub(Keys.APR)).put("lock", !Prefs.noLock).toString().toByteArray()
+            .put("pub", Keys.pub(Keys.REQ)).put("apub", Keys.pub(Keys.APR)).put("lock", !Prefs.noLock)
+            // Signed with the rest: the server this phone is pairing with, so no other server can relay the retry.
+            .put("server", u).toString().toByteArray()
         // Pair with isolated credentials; failure/cancellation leaves the active machine untouched.
-        val unsigned = Request.Builder().url(u.trimEnd('/') + "/v1/pair").post(body.toRequestBody(JSON))
+        val req = Request.Builder().url(u.trimEnd('/') + "/v1/pair").post(body.toRequestBody(JSON))
             .apply { if (cfId != null) { header("CF-Access-Client-Id", cfId); header("CF-Access-Client-Secret", cfSecret ?: "") } }.build()
-        // Prove the request key, the same canonical signature as every request: if the first response was lost, the
-        // server gives this phone its device back on a retry of the same code. Older servers ignore the headers.
-        val ts = (System.currentTimeMillis() / 1000).toString()
-        val q = unsigned.url.encodedQuery
-        val canon = "POST\n${unsigned.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n${sha256(body)}"
-        val req = unsigned.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", Keys.sign(canon.toByteArray())).build()
-        val o = exec(req, plain)
+        // Prove the request key, the same canonical signature as every request, on every network attempt: if the
+        // first response was lost, the server gives this phone its device back on a retry of the same code.
+        // Older servers ignore the headers and the extra field.
+        val o = exec(req, pairingClient(plain, body, Keys::sign))
         val token = o.getString("token").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing pairing token")
         val device = o.getString("device_id").takeIf { it.isNotBlank() } ?: throw ApiError(0, "Missing device ID")
         currentCoroutineContext().ensureActive()
         epoch.commit(ticket) {
+            if (!proceed()) throw CancellationException("Pairing cancelled")
             Hub.reset()
             Prefs.base = u; Prefs.cfId = cfId; Prefs.cfSecret = cfSecret
             o.optJSONObject("cf")?.let { cf -> cf.str("i").takeIf { it.isNotBlank() }?.let { Prefs.cfId = it; Prefs.cfSecret = cf.str("s") } }

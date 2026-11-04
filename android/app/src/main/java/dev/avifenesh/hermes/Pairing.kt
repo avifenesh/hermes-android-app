@@ -3,9 +3,14 @@ package dev.avifenesh.hermes
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import okhttp3.Response
 import java.security.MessageDigest
 
 /**
@@ -36,6 +41,9 @@ internal class PairGate(redeemed: Collection<String> = emptyList()) {
 
     @Synchronized fun isRedeemed(key: String): Boolean = key in done
 
+    /** The link's earlier automatic attempt no longer blocks one: its screen left, or it was delivered again. */
+    @Synchronized fun forget(key: String) { attempted -= key }
+
     @Synchronized fun redeemed(): List<String> = done.toList()
 
     companion object {
@@ -45,12 +53,56 @@ internal class PairGate(redeemed: Collection<String> = emptyList()) {
     }
 }
 
+/**
+ * One redemption. Cancel and the credential commit are decided once, under one lock: either Cancel came first and
+ * the response is dropped (no machine switch), or the pairing had already committed and Cancel is too late.
+ */
+internal class PairAttempt(val key: String) {
+    private var cancelled = false
+    private var committed = false
+
+    /** Inside Api.pair's commit, right before credentials are written. False: cancelled, write nothing. */
+    @Synchronized fun claimCommit(): Boolean = if (cancelled) false else { committed = true; true }
+
+    /** False when the pairing already committed. */
+    @Synchronized fun cancel(): Boolean = if (committed) false else { cancelled = true; true }
+
+    val isCancelled: Boolean @Synchronized get() = cancelled
+}
+
+/** Signs one network attempt of the pairing request with the canonical request message. */
+internal class PairSigner(private val body: ByteArray, private val sign: (ByteArray) -> String,
+                          private val now: () -> Long) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val r = chain.request()
+        val ts = now().toString()
+        val q = r.url.encodedQuery
+        val hash = MessageDigest.getInstance("SHA-256").digest(body).joinToString("") { "%02x".format(it) }
+        val canon = "${r.method}\n${r.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n$hash"
+        return chain.proceed(r.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", sign(canon.toByteArray())).build())
+    }
+}
+
+/**
+ * The client for one pairing POST. OkHttp silently re-sends a request when a pooled connection was dead; the server
+ * refuses a re-sent signature as a replay. A network interceptor runs per attempt, so each one is signed afresh.
+ */
+internal fun pairingClient(base: OkHttpClient, body: ByteArray, sign: (ByteArray) -> String,
+                           now: () -> Long = { System.currentTimeMillis() / 1000 }): OkHttpClient =
+    base.newBuilder().addNetworkInterceptor(PairSigner(body, sign, now)).build()
+
 /** The pairing in progress. It runs on [Hub.scope], so it outlives the pairing screen's composition. */
 object Pairing {
     val busy = mutableStateOf(false)
     /** The last redemption's failure, kept across screen recreation; the screen clears it when it really leaves. */
     val error = mutableStateOf<String?>(null)
+    /** Links delivered from outside (intents). A delivery re-runs the pairing screen's effect even for the same link. */
+    val deliveries = mutableIntStateOf(0)
     private val gate by lazy { PairGate(Prefs.pairRedeemed) }
+    // Main thread only: redeem, cancel and the attempt coroutine (Dispatchers.Main) never interleave.
+    private var attempt: PairAttempt? = null
+    private var job: Job? = null
+    private var failedKey: String? = null
 
     private fun key(link: Uri): String? {
         val u = link.getQueryParameter("u") ?: return null
@@ -73,6 +125,33 @@ object Pairing {
         }
     }
 
+    /** A link from an intent: a genuine re-open, so a failed earlier attempt of it may run again. */
+    fun delivered(link: Uri) {
+        key(link)?.let { gate.forget(it) }
+        deliveries.intValue++
+    }
+
+    /** The pairing screen really left (not a configuration change): drop the failure, let a re-open retry. */
+    fun clear() {
+        error.value = null
+        failedKey?.let { gate.forget(it) }
+        failedKey = null
+    }
+
+    /** Cancel on the pairing screen. The response of a cancelled attempt never switches the active machine. */
+    fun cancel() {
+        val a = attempt
+        if (a != null) {
+            if (!a.cancel()) return  // already committed: the pairing completes and the screen leaves on its own
+            attempt = null
+            job?.cancel()
+            gate.finish(a.key, redeemed = false)
+            gate.forget(a.key)
+            busy.value = false
+        }
+        clear()
+    }
+
     fun redeem(ctx: Context, link: Uri, auto: Boolean) {
         val k = key(link)
         if (k == null) {
@@ -84,16 +163,20 @@ object Pairing {
             PairGate.Verdict.InFlight, PairGate.Verdict.Attempted -> return
             PairGate.Verdict.Start -> {}
         }
+        val a = PairAttempt(k)
+        attempt = a
         busy.value = true
         error.value = null
+        failedKey = null
         val app = ctx.applicationContext
-        Hub.scope.launch(Dispatchers.Main) {
+        job = Hub.scope.launch(Dispatchers.Main) {
             var ok = false
             try {
                 PhoneService.disarm(app)
                 Machines.park()
-                // pair commits credentials atomically only after a valid response. Nothing to roll back on failure.
-                Api.pair(link)
+                // pair commits credentials atomically only after a valid response, and only if not cancelled by then.
+                // Nothing to roll back on failure or cancel.
+                Api.pair(link) { a.claimCommit() }
                 ok = true
                 Prefs.seq = 0; Prefs.nseq = 0; Prefs.live = true
                 Machines.park()
@@ -104,14 +187,22 @@ object Pairing {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error.value = when (e) {
-                    is ApiError -> if (e.code == 403) "That code is used or expired. Run hermes mobile pair again." else e.message
-                    else -> e.message ?: e.toString()
+                if (!a.isCancelled) {
+                    failedKey = k
+                    error.value = when {
+                        e is ApiError && e.code == 403 -> "That code is used or expired. Run hermes mobile pair again."
+                        // The server saw this exact request before (a transport re-send): a new attempt can still pair.
+                        e is ApiError && e.code == 409 -> "This phone already sent that pairing request. Open the link again to retry."
+                        else -> e.message ?: e.toString()
+                    }
                 }
             } finally {
-                gate.finish(k, ok)
+                if (attempt === a) {  // a cancelled attempt was already settled by cancel()
+                    attempt = null
+                    gate.finish(k, ok)
+                    busy.value = false
+                }
                 if (ok) Prefs.pairRedeemed = gate.redeemed()
-                busy.value = false
             }
         }
     }

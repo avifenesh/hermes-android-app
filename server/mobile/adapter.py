@@ -12,7 +12,8 @@ import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlsplit
 
 from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, SendResult
@@ -121,6 +122,17 @@ def process_boot() -> str:
     if _PROCESS_BOOT is None:
         _PROCESS_BOOT = S.new_id("boot")
     return _PROCESS_BOOT
+
+
+def _origin(url: Any) -> Optional[Tuple[str, str, int, str]]:
+    """(scheme, host, port, path) of an http(s) URL, for comparing two spellings of one server."""
+    try:
+        u = urlsplit(str(url or "").strip())
+        if u.scheme.lower() not in ("http", "https") or not u.hostname:
+            return None
+        return u.scheme.lower(), u.hostname.lower(), u.port or (443 if u.scheme.lower() == "https" else 80), u.path.rstrip("/")
+    except ValueError:
+        return None
 
 
 def _copy_media(src: str) -> Dict[str, str]:
@@ -555,6 +567,8 @@ class MobileAdapter(BasePlatformAdapter):
         if not self._replay.fresh(sig, pub=dev.get("pub"), msg=msg, ts=ts, scope="request", store=self.store):
             logger.warning("[mobile] rejected unsigned/invalid request %s %s from %s", request.method, request.path, dev["id"])
             return web.json_response({"error": "bad signature"}, status=401)
+        if not dev.get("token_used"):
+            self.store.mark_token_used(dev["id"])  # a pairing retry may no longer replace this token
         request["device"] = dev
         request["signature_replay"] = self._replay
         request["signature_store"] = self.store
@@ -596,15 +610,26 @@ class MobileAdapter(BasePlatformAdapter):
         if not (SG.load_pub(pub) and SG.load_pub(apub)):
             return self._json({"error": "device keys required (P-256 SPKI, base64)"}, 400)
         # A retry of an already redeemed code must prove the request key, with the same canonical signature and
-        # durable single-use claim as every authenticated request (separate "pair" domain). First claims need none.
+        # durable single-use claim as every authenticated request (separate "pair" domain), over a body that names
+        # this server: a server the phone was lured to cannot relay the phone's retry here. First claims need none.
         ts, sig = request.headers.get("X-HM-Ts", ""), request.headers.get("X-HM-Sig", "")
-        proven = bool(sig) and self._replay.fresh(sig, pub=pub, msg=SG.canonical(request.method, request.raw_path, ts, raw),
-                                                  ts=ts, scope="pair", store=self.store)
+        here = _origin(self._public_url)
+        msg = SG.canonical(request.method, request.raw_path, ts, raw)
+        signed = bool(sig) and here is not None and _origin(body.get("server")) == here and SG.verify(pub, msg, sig)
+        proven = signed and self._replay.fresh(sig, pub=pub, msg=msg, ts=ts, scope="pair", store=self.store)
         res = self.store.claim_pair_code(str(body.get("code", "")), str(body.get("device_name", "phone")), pub, apub,
                                          nolock=body.get("lock") is False, proven=proven)
         if not res:
+            if signed and not proven and SG.ts_ok(ts):
+                # A valid, current proof that was already consumed: this exact request was sent before (a transport
+                # retry or a capture). Say so; "expired code" would send the user to make a new one for nothing.
+                return self._json({"error": "This phone already sent that pairing request. Open the link again.",
+                                   "reason": "proof_reused"}, 409)
             return self._json({"error": "invalid or expired code"}, 403)
-        logger.info("[mobile] paired device %s", res["device_id"])
+        if res.pop("reissued", False):
+            logger.info("[mobile] re-issued the token of device %s (same-device pairing retry; no new device)", res["device_id"])
+        else:
+            logger.info("[mobile] paired device %s", res["device_id"])
         return self._json({**res, "cf": _cf_access(), "server": {"name": socket.gethostname(), "profile": _profile_name()}})
 
     async def h_pair_page(self, request):

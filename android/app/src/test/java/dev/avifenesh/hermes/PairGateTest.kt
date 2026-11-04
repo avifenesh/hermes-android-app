@@ -61,6 +61,26 @@ class PairGateTest {
         assertEquals(PairGate.Verdict.Redeemed, next.begin("k", auto = true))
     }
 
+    @Test fun forgettingAFailedLinkLetsItsReopenRetry() {
+        // The screen left (or the link came in again from outside): a genuine re-open is a new automatic attempt.
+        val g = PairGate()
+        g.begin("k", auto = true)
+        g.finish("k", redeemed = false)
+        assertEquals(PairGate.Verdict.Attempted, g.begin("k", auto = true))
+        g.forget("k")
+        assertEquals(start, g.begin("k", auto = true))
+    }
+
+    @Test fun forgettingNeverUnredeemsOrReleasesTheCodeInFlight() {
+        val g = PairGate()
+        g.begin("a", auto = false)
+        g.forget("a")
+        assertEquals(PairGate.Verdict.InFlight, g.begin("a", auto = true))
+        g.finish("a", redeemed = true)
+        g.forget("a")
+        assertEquals(PairGate.Verdict.Redeemed, g.begin("a", auto = true))
+    }
+
     @Test fun keyIsAHashOfServerAndCodeNotTheCode() {
         val k = PairGate.key("https://box.example:9445/", "Zx81secretcode")
         assertFalse(k.contains("Zx81secretcode"))

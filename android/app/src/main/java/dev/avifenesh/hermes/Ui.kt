@@ -354,11 +354,12 @@ fun PairScreen(link: Uri?) {
     var pendingLink by remember(link) {
         mutableStateOf(if (Ui.paired.value && link?.getQueryParameter("c") != null && !Pairing.redeemed(link)) link else null)
     }
-    LaunchedEffect(link) {
+    // Keyed on deliveries too: the same link opened again from outside is a new attempt, not a recomposition.
+    LaunchedEffect(link, Pairing.deliveries.intValue) {
         if (link == null || link.getQueryParameter("c") == null) return@LaunchedEffect
         if (Pairing.redeemed(link)) Pairing.alreadyPaired(link) else if (!Ui.paired.value) go(link, auto = true)
     }
-    DisposableEffect(act) { onDispose { if (!act.isChangingConfigurations) Pairing.error.value = null } }
+    DisposableEffect(act) { onDispose { if (!act.isChangingConfigurations) Pairing.clear() } }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 26.dp)) {
         Spacer(Modifier.height(54.dp))
         MarkBox(58.dp)
@@ -405,7 +406,8 @@ fun PairScreen(link: Uri?) {
         }
         if (link != null && Ui.paired.value) {
             Spacer(Modifier.height(10.dp))
-            Btn("Cancel", primary = false) { Ui.pairLink.value = null }
+            // Cancels an in-flight pairing too: its response must not switch this phone to the other machine.
+            Btn("Cancel", primary = false) { Pairing.cancel(); Ui.pairLink.value = null }
         }
         Spacer(Modifier.height(40.dp))
         Text("The link carries a one-time code. Your phone creates its own signing keys. Approvals require biometric or screen-lock authentication.", style = sans(13f, 400, p.dim, 19f))
