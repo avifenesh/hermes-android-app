@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const base = '/home/avifenesh/.cache/hermes-play-prep/report-worker';
+// Disk scratch inside the ignored .wrangler directory: portable, not RAM-backed /tmp.
+const base = join(root, '.wrangler', 'test');
 const cli = join(root, 'node_modules/wrangler/bin/wrangler.js');
 const env = { ...process.env, WRANGLER_SEND_METRICS: 'false', CI: 'true' };
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -19,13 +20,12 @@ test('real Wrangler HTTP + D1 integration (no remote calls)', { timeout: 180000 
   t.after(() => rmSync(temp, { recursive: true, force: true }));
   const config = join(temp, 'wrangler.json');
   const state = join(temp, 'state');
-  // Only the local test database ID differs; production limiter is exercised unchanged.
+  // Derived from the production config: only the name and the local test database ID differ.
+  const production = JSON.parse(readFileSync(join(root, 'wrangler.jsonc'), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+  delete production.$schema;
   writeFileSync(config, JSON.stringify({
-    name: 'hermes-android-reports-local-test', main: join(root, 'src/index.js'),
-    compatibility_date: '2026-10-01', observability: { enabled: false },
-    rules: [{ type: 'Text', globs: ['**/*.html'], fallthrough: true }],
-    d1_databases: [{ binding: 'DB', database_name: 'hermes-android-reports', database_id: '00000000-0000-4000-8000-000000000001' }],
-    ratelimits: [{ name: 'REPORT_RATE_LIMITER', namespace_id: '1937462851', simple: { limit: 10, period: 60 } }],
+    ...production, name: 'hermes-android-reports-local-test', main: join(root, 'src/index.js'),
+    d1_databases: production.d1_databases.map(d => ({ ...d, database_id: '00000000-0000-4000-8000-000000000001' })),
   }));
   const sql = command => JSON.parse(execFileSync(process.execPath, [cli, 'd1', 'execute', 'DB', '--local', '--persist-to', state, '--config', config, `--command=${command}`, '--json'], { cwd: root, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
   sql(readFileSync(join(root, 'schema.sql'), 'utf8'));
@@ -89,6 +89,23 @@ test('real Wrangler HTTP + D1 integration (no remote calls)', { timeout: 180000 
     assert.equal(deletion.status, 200);
     assert.match(await deletion.text(), /random report ID/);
     assert.equal((await fetch(`${origin}/delete`, { method: 'POST' })).status, 404);
+  });
+  await t.test('stylesheet served byte-exact as CSS; HEAD answers on static routes', async () => {
+    const css = await fetch(`${origin}/style.css`);
+    assert.equal(css.status, 200);
+    assert.match(css.headers.get('content-type'), /^text\/css/);
+    assert.equal(await css.text(), readFileSync(join(root, 'style.css'), 'utf8'));
+    for (const path of ['/privacy', '/delete', '/style.css', '/health']) {
+      const head = await fetch(`${origin}${path}`, { method: 'HEAD' });
+      assert.equal(head.status, 200, path);
+      assert.equal((await head.arrayBuffer()).byteLength, 0, path);
+    }
+  });
+  await t.test('IPv6 addresses inside one /64 share one rate budget', async () => {
+    const statuses = [];
+    for (let i = 0; i < 12; i++) statuses.push((await post({ id: randomUUID(), text: 'v6-rate-test' }, { headers: { 'cf-connecting-ip': `2001:db8:77:1:${(i + 1).toString(16)}::${i + 2}` } })).status);
+    assert.equal(statuses.filter(s => s === 202).length, 10, JSON.stringify(statuses));
+    assert.deepEqual(statuses.slice(10), [429, 429]);
   });
   await t.test('production 10 per minute local edge binding returns 429', async () => {
     const statuses = [];

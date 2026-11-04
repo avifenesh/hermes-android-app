@@ -1,7 +1,7 @@
 import privacy from '../privacy.html';
 import deletion from '../delete.html';
 import stylesheet from '../style.css';
-import { InputError, readReport } from './input.js';
+import { InputError, rateKey, readReport } from './input.js';
 
 const headers = {
   'content-type': 'application/json; charset=utf-8',
@@ -14,14 +14,16 @@ const json = (status, body, extra = {}) => new Response(JSON.stringify(body), { 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/health' && request.method === 'GET') return json(200, { ok: true });
-    if (url.pathname === '/style.css' && request.method === 'GET') return new Response(stylesheet, {
-      headers: { ...headers, 'content-type': 'text/css; charset=utf-8' },
+    // Static routes answer GET and HEAD (link checkers and store reviewers often probe with HEAD).
+    const read = request.method === 'GET' || request.method === 'HEAD';
+    const page = (body, type, extra = {}) => new Response(request.method === 'HEAD' ? null : body, {
+      headers: { ...headers, 'content-type': type, ...extra },
     });
-    if (['/privacy', '/delete'].includes(url.pathname) && request.method === 'GET') return new Response(url.pathname === '/privacy' ? privacy : deletion, {
-      headers: { ...headers, 'content-type': 'text/html; charset=utf-8',
-        'content-security-policy': "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" },
-    });
+    if (url.pathname === '/health' && read) return page(JSON.stringify({ ok: true }), headers['content-type']);
+    if (url.pathname === '/style.css' && read) return page(stylesheet, 'text/css; charset=utf-8');
+    if (['/privacy', '/delete'].includes(url.pathname) && read) return page(url.pathname === '/privacy' ? privacy : deletion,
+      'text/html; charset=utf-8',
+      { 'content-security-policy': "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
     if (url.pathname !== '/v1/reports') return json(404, { error: 'not_found' });
     if (request.method !== 'POST') return json(405, { error: 'method_not_allowed' }, { allow: 'POST' });
     // Native-only surface, not browser CORS. Origin checks are NOT authentication.
@@ -29,9 +31,9 @@ export default {
     if (url.search) return json(400, { error: 'query_not_allowed' });
     try {
       // Cloudflare supplies this header in production; never trust client-forwarded alternatives.
-      const ip = request.headers.get('cf-connecting-ip');
-      if (!ip || !env.REPORT_RATE_LIMITER) return json(503, { error: 'temporarily_unavailable' });
-      const { success } = await env.REPORT_RATE_LIMITER.limit({ key: ip });
+      const key = rateKey(request.headers.get('cf-connecting-ip'));
+      if (!key || !env.REPORT_RATE_LIMITER) return json(503, { error: 'temporarily_unavailable' });
+      const { success } = await env.REPORT_RATE_LIMITER.limit({ key });
       if (!success) return json(429, { error: 'rate_limited' }, { 'retry-after': '60' });
       const { id, text } = await readReport(request);
       // A transactional batch pins both statements to the primary, even with D1 read replication.
