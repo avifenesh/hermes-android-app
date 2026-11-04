@@ -41,12 +41,17 @@ class LiveLifecycleTest {
         fun settle() {
             while (pending.isNotEmpty() || destroyed.isNotEmpty()) {
                 destroyed.removeFirstOrNull()?.let { life.onDestroy(it); continue }
-                val (id, fg) = pending.removeFirst()
-                val s = svc ?: Svc(this).also { svc = it }
-                if (fg) s.owed = true
-                life.onStart(s, id, stopAction = !fg)
-                if (s.owed && svc === s) crashes += "start $id never promoted"
+                deliverOne()
             }
+        }
+
+        /** One onStartCommand, the oldest pending start. */
+        fun deliverOne() {
+            val (id, fg) = pending.removeFirst()
+            val s = svc ?: Svc(this).also { svc = it }
+            if (fg) s.owed = true
+            life.onStart(s, id, stopAction = !fg)
+            if (s.owed && svc === s) crashes += "start $id never promoted"
         }
     }
 
@@ -56,7 +61,15 @@ class LiveLifecycleTest {
         var notification = false
         var notifiesAfterStop = 0
         var stopped = false
-        override fun promote() { owed = false; foreground = true; notification = true }
+        var promotions = 0
+        /** Android 15+ re-checks background-start eligibility on every startForeground with a time-limited type,
+         *  even for a service that is already foreground. The start's obligation is consumed before the throw. */
+        var refusePromote = false
+        override fun promote() {
+            owed = false
+            if (refusePromote) throw IllegalStateException("ForegroundServiceStartNotAllowedException")
+            promotions++; foreground = true; notification = true
+        }
         override fun demote() { foreground = false; notification = false }
         override fun stopIfLatest(startId: Int): Boolean {
             // stopSelf() passes -1 and always stops; stopSelfResult(id) refuses when a newer start was issued.
@@ -118,10 +131,11 @@ class LiveLifecycleTest {
     @Test fun aStartRequestedWhileTheServiceStopsIsNeitherLostNorCrashes() {
         val (p, life) = setup()
         life.send("c1", 1, 0)
-        p.settle()
-        val first = p.svc!!
-        // A notification reply requests a start (pending), then a machine switch clears every run before it lands.
+        // A notification reply asks for a start before the first one has landed, so both are pending.
         life.send("c2", 2, 5)
+        p.deliverOne()
+        val first = p.svc!!
+        // A machine switch clears every run while the later starts are still pending.
         life.runs.clear()
         assertNull(life.step(6, online = true, busy = emptySet()) { null })
         assertFalse("a newer start is pending, so the service may not stop yet", first.stopped)
@@ -200,6 +214,64 @@ class LiveLifecycleTest {
         assertFalse(life.runs.active())
         assertFalse(p.connected)
         assertFalse(life.keepConnected())
+    }
+
+    @Test fun aSendWhileTheServiceRunsDoesNotPromoteAgain() {
+        val (p, life) = setup()
+        life.send("c1", 1, 0)
+        p.settle()
+        val s = p.svc!!
+        val starts = p.requests
+        val promotions = s.promotions
+        p.foreground = false // the POST answers after the user left
+        life.send("c2", 2, 10)
+        life.started(LiveLifecycle.Follow("c1"), 3, 11, nextTurn = true)
+        p.settle()
+        assertEquals("no startForegroundService while already promoted", starts, p.requests)
+        assertEquals("no re-promotion that Android 15 could refuse", promotions, s.promotions)
+        assertEquals(listOf("c1", "c2"), life.runs.followed().sorted())
+        assertTrue(life.step(12, online = true, busy = setOf("c1", "c2")) { null } != null)
+        assertTrue(s.foreground)
+    }
+
+    @Test fun aRefusedRePromotionWhileForegroundKeepsFollowing() {
+        val (p, life) = setup()
+        life.send("c1", 1, 0)
+        p.settle()
+        val s = p.svc!!
+        s.refusePromote = true
+        p.foreground = false
+        // A start Android still delivers (requested before the service promoted, for example).
+        p.pending.addLast(++p.issued to true)
+        p.settle()
+        assertTrue(p.crashes.toString(), p.crashes.isEmpty())
+        assertTrue("already foreground: keep following", life.runs.active())
+        assertTrue(s.foreground && !s.stopped)
+        assertTrue(life.step(1, online = true, busy = setOf("c1")) { null } != null)
+    }
+
+    @Test fun aRefusedFirstPromotionEndsCleanly() {
+        val (p, life) = setup()
+        val f = LiveLifecycle.Follow("c1")
+        life.starting(f, 1, 0, nextTurn = true)
+        p.svc = Svc(p).also { it.refusePromote = true }
+        p.settle()
+        assertTrue(p.crashes.toString(), p.crashes.isEmpty())
+        assertFalse("no service can carry it", life.runs.active())
+        assertNull(p.svc)
+    }
+
+    @Test fun aRefusedStartDropsOnlyTheFollowThatAskedForIt() {
+        val (p, life) = setup()
+        life.send("c1", 1, 0) // its start is still pending
+        p.foreground = false
+        p.refuse = true
+        life.send("c2", 2, 5)
+        assertEquals(listOf("c1"), life.runs.followed())
+        p.refuse = false
+        p.settle()
+        assertTrue(p.svc?.foreground == true)
+        assertTrue(p.crashes.isEmpty())
     }
 
     @Test fun timeoutStopsAndRefusesBackgroundStartsUntilForeground() {

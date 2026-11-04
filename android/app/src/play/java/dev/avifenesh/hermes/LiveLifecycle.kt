@@ -34,6 +34,10 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
 
     private var svc: Instance? = null
     private var lastStartId = -1
+    /** The service is foreground and not stopping. New runs then join it through the follow loop, never through
+     *  another startForegroundService: on Android 15+ every startForeground with a time-limited type (dataSync)
+     *  re-checks background-start eligibility and throws even for a service that is already foreground. */
+    private var promoted = false
     /** Between demote and the next promote: nothing may post the progress notification. */
     var ending = false
         private set
@@ -50,13 +54,13 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
      *  app may still start a foreground service. */
     fun starting(follow: Follow, afterSeq: Long, now: Long, nextTurn: Boolean) {
         follow.created = !runs.has(follow.chat)
-        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request()
+        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request(follow)
         else follow.created = false
     }
 
     /** The gateway accepted it: the reply baseline is the accepted message. */
     fun started(follow: Follow, afterSeq: Long, now: Long, nextTurn: Boolean) {
-        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request()
+        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request(follow)
     }
 
     /** The request failed or resumed nothing: drop only what this action added and nothing confirmed since. */
@@ -64,14 +68,18 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
         if (follow.created) runs.abandon(follow.chat)
     }
 
-    /** Start the service if something is followed. It stops itself through [end]; never stopService from here. */
-    fun request() {
+    /** Start the service if something is followed and it is not already foreground. It stops itself through
+     *  [end]; never stopService from here. */
+    fun request(follow: Follow? = null) {
         if (!host.paired || !runs.active()) return
-        try { host.requestStart() } catch (e: RuntimeException) { refused() }
+        if (svc != null && promoted && !ending) return
+        try { host.requestStart() } catch (e: RuntimeException) { refused(follow) }
     }
 
-    private fun refused() {
-        runs.clear()
+    /** Android refused the service. Drop only the follow that asked; without one (a promotion or [request] from
+     *  the app) no service can carry any run. */
+    private fun refused(follow: Follow?) {
+        if (follow != null) runs.drop(follow.chat) else runs.clear()
         if (!host.foreground && !keepConnected()) host.disconnect()
     }
 
@@ -82,7 +90,11 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
         // "Stop updates" arrives through startService and owes no startForeground.
         if (stopAction) { runs.clear(); end(); return false }
         // startForegroundService requires startForeground even when the service is about to stop.
-        try { instance.promote() } catch (e: RuntimeException) { refused(); end(); return false }
+        try { instance.promote() } catch (e: RuntimeException) {
+            // Already foreground: Android 15+ refused only this re-promotion; the service keeps running as it was.
+            if (!promoted) { refused(null); end(); return false }
+        }
+        promoted = true
         ending = false
         if (!host.paired || !runs.active()) { end(); return false }
         host.connect()
@@ -111,6 +123,7 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
     fun end() {
         val s = svc ?: return
         ending = true
+        promoted = false
         s.demote()
         s.stopIfLatest(lastStartId)
     }
@@ -124,7 +137,7 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
     }
 
     fun onDestroy(instance: Instance) {
-        if (svc === instance) { svc = null; ending = false; lastStartId = -1 }
+        if (svc === instance) { svc = null; ending = false; promoted = false; lastStartId = -1 }
         if (!host.foreground && !keepConnected()) host.disconnect()
     }
 }

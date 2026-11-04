@@ -49,6 +49,9 @@ internal class RunFollow(private val graceMs: Long = START_GRACE_MS, private val
         if (runs[chat]?.state == State.PENDING) runs.remove(chat)
     }
 
+    /** Android refused the service this follow asked for: nothing can carry it. */
+    @Synchronized fun drop(chat: String) { runs.remove(chat) }
+
     /** A fresh working set from the gateway (the stream is up). */
     @Synchronized fun working(busy: Set<String>, now: Long) {
         for (chat in runs.keys.toList()) {
