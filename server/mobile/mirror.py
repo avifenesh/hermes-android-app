@@ -27,6 +27,21 @@ BACK_WINDOW = 48 * 3600
 SETTLE = 20
 INJECTED = ("[PRIOR CONTEXT", "[OUT-OF-BAND", "[ASYNC DELEGATION", "[System", "[SYSTEM", "[CONTEXT COMPACTION")
 DROP_PREFIX = ("[CONTEXT COMPACTION", "You've reached the maximum number of tool-calling")
+# Core mirrors a delivered cron brief or webhook result into the target session as a USER turn with this label
+# (cron/scheduler_delivery.py, gateway/platforms/webhook.py) to keep strict role alternation. It is not the user.
+_DELIVERY = re.compile(r"\[(Cron|Webhook) delivery: [^\]\n]*\]\n?")
+# Session chat types that are not the owner's private chat. The phone resumes a mirrored chat in its own DM lane.
+SHARED_CHAT_TYPES = ("group", "forum", "channel", "supergroup")
+
+
+def _delivery(role: str, text: str) -> Optional[Tuple[str, str]]:
+    """("cron" | "webhook", body without the label) for a core delivery-mirror row, else None."""
+    m = _DELIVERY.match(text) if role == "user" else None
+    return (m.group(1).lower(), text[m.end():].strip()) if m else None
+
+
+def _has_chat_type(c: sqlite3.Connection) -> bool:
+    return "chat_type" in {r[1] for r in c.execute("PRAGMA table_info(sessions)")}
 
 
 def _clean(role: str, text: Any) -> str:
@@ -122,7 +137,11 @@ class Mirror:
         q = ("SELECT id, source, parent_session_id AS p, end_reason, title, message_count, started_at,"
              " COALESCE(last_activity_at, started_at) AS la FROM sessions"
              f" WHERE source IN ({','.join('?' * len(sources))}) AND COALESCE(hidden,0)=0")
-        rows = [dict(r) for r in c.execute(q, sources)]
+        args = tuple(sources)
+        if _has_chat_type(c):  # group conversations stay where they are: replying would resume them in a DM lane
+            q += f" AND LOWER(COALESCE(chat_type,'')) NOT IN ({','.join('?' * len(SHARED_CHAT_TYPES))})"
+            args += SHARED_CHAT_TYPES
+        rows = [dict(r) for r in c.execute(q, args)]
         by = {r["id"]: r for r in rows}
         groups: Dict[str, List[Dict[str, Any]]] = {}
         for r in rows:
@@ -197,6 +216,10 @@ class Mirror:
                 for r in rows:
                     role = "agent" if r["role"] == "assistant" else "user"
                     t = _clean(r["role"], r["content"])
+                    origin = ch["source"]
+                    if (d := _delivery(role, t)) is not None:
+                        # Delivered by cron/webhook on that surface: the phone has no copy, so show what was sent.
+                        origin, role, t = d[0], "agent", d[1]
                     if not t:
                         continue
                     h = _hash(role, t)
@@ -204,7 +227,7 @@ class Mirror:
                         continue
                     if h:
                         hs.add(h)
-                    meta = {"mirror": ch["source"], "h": h}
+                    meta = {"mirror": origin, "h": h}
                     if prof:
                         meta["profile"] = prof
                     cand.append((role, t, _ts(r["timestamp"], ch["la"] or time.time()), meta))
@@ -321,7 +344,8 @@ class Mirror:
                 for r in rows:
                     role = "agent" if r["role"] == "assistant" else "user"
                     t = _clean(r["role"], r["content"])
-                    if not t or t.startswith(INJECTED):
+                    # A delivery into a phone chat: the phone already holds the delivered message itself.
+                    if not t or t.startswith(INJECTED) or _delivery(role, t) is not None:
                         continue
                     ts = _ts(r["timestamp"], now)
                     n = self._norm(t)
@@ -367,7 +391,26 @@ class Mirror:
     def take_over(self, cid: str) -> Optional[str]:
         """First phone reply in a mirrored default-profile chat: stop mirroring and return the session to /resume."""
         row = self.st._db.execute("SELECT tip, taken, COALESCE(profile,'') FROM mirror WHERE chat_id=?", (cid,)).fetchone()
-        if not row or row[1] or row[2]:
+        if not row or row[1] or row[2] or self._shared(row[0]):
             return None
         self._tx("UPDATE mirror SET taken=1 WHERE chat_id=?", (cid,))
         return row[0]
+
+    def _shared(self, sid: str) -> bool:
+        """A group/forum/channel session (mirrored before chains() filtered them) must not be resumed in the phone's
+        DM lane. Unreadable state counts as shared: /resume would read the same database anyway."""
+        home = next((h for p, h in self.profiles if not p), None)
+        if home is None:
+            return True
+        try:
+            c = self._src(home)
+            try:
+                if not _has_chat_type(c):
+                    return False
+                r = c.execute("SELECT chat_type FROM sessions WHERE id=?", (sid,)).fetchone()
+            finally:
+                c.close()
+        except Exception as e:
+            logger.debug("[mobile] mirror chat type of %s unreadable: %s", sid, e)
+            return True
+        return bool(r) and str(r[0] or "").lower() in SHARED_CHAT_TYPES
