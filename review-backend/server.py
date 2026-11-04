@@ -55,6 +55,11 @@ MAX_BODY, MAX_UPLOAD, TENANT_QUOTA = 1024 * 1024, 12 * 1024 * 1024, 64 * 1024 * 
 # The only routes allowed past the 1 MiB request limit: uploads (camera photos) and photo proofs.
 BIG_BODY_PATHS = {'/v1/upload': MAX_UPLOAD, '/v1/wake/proof': 3 * 1024 * 1024}
 NOTE = 'Synthetic review sandbox: nothing ran on any machine.'
+# The approval-gated run ("approval please"): its first part, the card it pauses on, and what Approve finishes with.
+GATED_FIRST = 'Synthetic plan: archive 12 example notes. That step needs your approval, so this run is paused until you decide.'
+GATED_COMMAND = 'demo: archive 12 example notes (not executed)'
+GATED_DESCRIPTION = 'Synthetic approval. The run waits for you; Approve lets it finish, Deny stops it. Nothing runs either way.'
+GATED_RESULT = 'Approved, so the run continued. Synthetic result: 12 example notes archived. Nothing ran on any machine.'
 
 
 def state_root(path):
@@ -235,6 +240,8 @@ class Backend:
     MAX_SPAWNS = 50               # Radar spawns per enrollment
     MAX_FILES = 300               # stored uploads per enrollment
     MAX_PW_TRIES = 10             # alarm password checks per enrollment per minute
+    TENANT_QUOTA = TENANT_QUOTA   # disk per enrollment (database and uploads)
+    GATE_TIMEOUT = None           # seconds an approval-gated run waits; None follows the approvals.timeout setting
 
     def __init__(self, home, public_url, client_header=None):
         self.home = state_root(home)
@@ -418,9 +425,24 @@ class Backend:
     def storage_error(self, did, extra=0):
         if self.disk_used() + extra > self.DISK_CAP:
             return 'The review sandbox is out of storage. Try again after unused sandboxes expire.', 507
-        if self.tenant_bytes(did) + extra > TENANT_QUOTA:
+        if self.tenant_bytes(did) + extra > self.TENANT_QUOTA:
             return 'Sandbox storage is full for this enrollment. Get a fresh pairing link for a clean sandbox.', 413
         return None
+
+    # Routes that add user data. Every other write (stop, deny, emergency stop, proofs, cancel, restart, settings)
+    # keeps working when a sandbox or the shared disk is full: it adds a few bytes, bounded by what it acts on.
+    # Uploads and exports check storage themselves, with their size.
+    GROWS = {('POST', '/v1/chats'), ('POST', '/v1/chats/{cid}/messages'), ('PUT', '/v1/sessions/{sid}/messages'),
+             ('PUT', '/v1/sessions/{sid}/prompts/{pid}'), ('POST', '/v1/cronjob'), ('PUT', '/v1/cronjob/{jid}'),
+             ('POST', '/v1/memory'), ('POST', '/v1/fleet/{aid}/send')}
+
+    def grows(self, r):
+        route = r.match_info.route
+        canon = route.resource.canonical if route is not None and route.resource is not None else ''
+        action = r.match_info.get('action')
+        return ((r.method, canon) in self.GROWS
+                or (r.method, canon, action) == ('POST', '/v1/cron/{jid}/{action}', 'run')
+                or (r.method == 'POST' and canon == '/v1/radar/findings/{fid}/{action}' and action in ('feedback', 'note', 'spawn')))
 
     def runtime(self, did):
         return self.rt.setdefault(did, {'working': {}, 'tasks': {}, 'steer': {}, 'tts': [], 'session_tasks': {}})
@@ -445,6 +467,7 @@ class Backend:
         welcome = ('# Welcome, Reviewer\nThis is **synthetic data**, not a live agent. Every reply is scripted and nothing runs on any machine.\n\n'
                    '| Try | Where |\n|---|---|\n| Chat, streaming replies, steer and stop | any chat |\n'
                    '| Approvals with your fingerprint | send a message with the word *approval* |\n'
+                   '| A run that waits for your approval, then finishes | send *approval please* |\n'
                    '| Model, reasoning, session actions | composer chip and ⋯ menu |\n| Cron jobs and the alarm clock | Cron tab |\n'
                    '| Settings, skills, plugins, Hub, memory, usage | Me tab |\n| Radar, projects, fleet | Me and Pulse |\n\n'
                    f'Alarm emergency-stop password: `{REVIEW_PASSWORD}`')
@@ -482,11 +505,14 @@ class Backend:
     def sample_file():
         return b'SYNTHETIC REVIEW CHECKLIST\nPair, chat, review approval, pause schedule.\n'
 
-    def approval_card(self, s, cid, command, description):
+    def approval_card(self, s, cid, command, description, gated=False):
         actions = [['Approve once', 'once', 'primary'], ['This session', 'session', ''], ['Always', 'always', ''], ['Deny', 'deny', 'danger']]
         a = s.add_approval(cid, 'demo', command, description, actions)
         s.add_message(cid, 'agent', '', kind='approval', meta={'approval_id': a['id'], 'command': command, 'description': description,
-                                                                'actions': actions, 'files': ['notes/checklist.md'], 'demo': True})
+                                                                'actions': actions, 'files': ['notes/checklist.md'], 'demo': True,
+                                                                **({'gated': True} if gated else {})})
+        if gated:
+            s.kv_put('gate:' + a['id'], cid)
         return a
 
     # ------------------------------------------------------------ auth
@@ -513,7 +539,7 @@ class Backend:
             self.inuse[did] = self.inuse.get(did, 0) + 1
             r['device'], r['signature_replay'], r['signature_store'] = dev, self.replay, self.auth
             r['store'] = self.tenant(did)
-            if r.method in ('POST', 'PUT', 'PATCH') and not (r.method == 'POST' and r.path.startswith('/v1/devices')):
+            if self.grows(r):
                 full = self.storage_error(did)
                 if full:
                     return J({'error': full[0]}, full[1])
@@ -827,30 +853,55 @@ class Backend:
         rt['working'][cid] = since
         self.notify(did)
         # Everything after the working flag is inside try/finally, so no failure can leave the chat "working".
+        gate_id = None
         try:
             final, steps = self.compose(s, cid, text, atts)
+            gated = 'approval please' in text.lower()
             shown = []
             for i, st in enumerate(steps):
                 shown.append({**st, 'ts': since + i * self.REPLY_STEP, 'status': 'ok'})
                 s.kv_put('steps:' + cid, shown)
                 self.notify(did)
                 await asyncio.sleep(self.REPLY_STEP)
-            words = final.split(' ')
-            for frac in (0.35, 0.7):
-                part = ' '.join(words[:max(1, int(len(words) * frac))]) + ' …'
-                msg = s.add_message(cid, 'agent', part, meta={'demo': True}) if msg is None else s.edit_message(msg['id'], content=part)
+            if gated:
+                # Approval-gated run, as a real agent does it: first part, then a pause in the working state with a
+                # pending card. The wait lives on the server, so the phone may background or disconnect meanwhile.
+                msg = await self.stream_text(did, s, cid, GATED_FIRST, None, {'demo': True})
+                a = self.approval_card(s, cid, GATED_COMMAND, GATED_DESCRIPTION, gated=True)
+                gate_id = a['id']
+                gate = rt.setdefault('gates', {})[gate_id] = asyncio.Event()
+                shown.append({'tool': 'sandbox.approval', 'what': 'Waiting for your approval', 'ts': time.time(), 'status': 'running'})
+                s.kv_put('steps:' + cid, shown)
                 self.notify(did)
-                await asyncio.sleep(self.REPLY_STEP)
+                timeout = self.GATE_TIMEOUT or max(5, min(3600, float(self.settings(s).get('approvals.timeout') or 300)))
+                try:
+                    await asyncio.wait_for(gate.wait(), timeout)
+                except asyncio.TimeoutError:
+                    s.set_approval(gate_id, 'expired', None)
+                    gate_id = None
+                    s.add_message(cid, 'agent', f'The approval waited {int(timeout)} s with no answer, so the run ended. Nothing ran. (synthetic)',
+                                  kind='status', meta={'demo': True})
+                    return
+                finally:
+                    rt['gates'].pop(a['id'], None)
+                state, gate_id = s.get_approval(a['id'])['state'], None
+                shown[-1].update(status='ok', what=f'Approval {state}')
+                s.kv_put('steps:' + cid, shown)
+                if state != 'approved':
+                    s.add_message(cid, 'agent', '🛑 Denied, so the run stopped here. Nothing ran. (synthetic)', meta={'demo': True})
+                    return
+                msg, final = None, GATED_RESULT + '\n\n' + final
             steer = rt['steer'].pop(cid, None)
             if steer:
                 final += f'\n\n_Steer received: “{steer[:120]}”. The scripted answer took it into account._'
             usage = self.turn_usage(s, cid, text, final, since)
-            meta = {'demo': True, 'usage': usage}
-            msg = s.add_message(cid, 'agent', final, meta=meta) if msg is None else s.edit_message(msg['id'], content=final, meta=meta)
+            msg = await self.stream_text(did, s, cid, final, msg, {'demo': True, 'usage': usage})
             s.put_turn(cid, usage)
-            if 'approval' in text.lower():
+            if 'approval' in text.lower() and not gated:
                 self.approval_card(s, cid, 'demo: archive example notes', 'Synthetic approval requested by your message. Approving records your choice; nothing runs.')
         except asyncio.CancelledError:
+            if gate_id is not None:
+                s.set_approval(gate_id, 'expired', None)  # a stopped run's pending approval can no longer be answered
             if msg is not None:
                 s.edit_message(msg['id'], content=(msg.get('content') or '').rstrip(' …') + ' …', meta={'demo': True, 'stopped': True})
             s.add_message(cid, 'agent', '⏹ Stopped. (synthetic run)', kind='status', meta={'quiet': True, 'demo': True})
@@ -864,6 +915,18 @@ class Backend:
             if rt['tasks'].get(cid) is asyncio.current_task():
                 rt['tasks'].pop(cid, None)
             self.notify(did)
+
+    async def stream_text(self, did, s, cid, text, msg, meta):
+        """Show text growing in two steps, then whole with its meta, the way the adapter edits a streamed reply."""
+        words = text.split(' ')
+        for frac in (0.35, 0.7):
+            part = ' '.join(words[:max(1, int(len(words) * frac))]) + ' …'
+            msg = s.add_message(cid, 'agent', part, meta={'demo': True}) if msg is None else s.edit_message(msg['id'], content=part)
+            self.notify(did)
+            await asyncio.sleep(self.REPLY_STEP)
+        msg = s.edit_message(msg['id'], content=text, meta=meta)
+        self.notify(did)
+        return msg
 
     async def idle(self, did):
         """Test helper: wait until no scripted work is pending for this tenant."""
@@ -1080,8 +1143,15 @@ class Backend:
         if a['state'] != 'pending':
             return J({'approval': a, 'resolved': 0})
         a = s.set_approval(aid, 'denied' if choice == 'deny' else 'approved', choice)
-        s.add_message(a['chat_id'], 'agent', ('🛑 Denied' if choice == 'deny' else f'✅ Approved ({choice})') + '. ' + NOTE,
-                      kind='status', meta={'quiet': True, 'demo': True})
+        gate = self.runtime(r['device']['id']).get('gates', {}).get(aid)
+        if gate is not None:
+            gate.set()  # the paused run resumes (or stops on deny) and reports for itself
+        elif s.kv_get('gate:' + aid):
+            s.add_message(a['chat_id'], 'agent', 'The run that asked for this ended before your answer (the sandbox restarted). Your choice is recorded; nothing ran.',
+                          kind='status', meta={'quiet': True, 'demo': True})
+        else:
+            s.add_message(a['chat_id'], 'agent', ('🛑 Denied' if choice == 'deny' else f'✅ Approved ({choice})') + '. ' + NOTE,
+                          kind='status', meta={'quiet': True, 'demo': True})
         return J({'approval': a, 'resolved': 1, 'demo': True})
 
     async def h_activity(self, r):
@@ -1396,9 +1466,40 @@ class Backend:
         except Exception:
             return timezone.utc
 
+    def clock(self):
+        """Wall clock for schedules; tests move it to check that interval and cron jobs come due."""
+        return time.time()
+
+    CATCHUP_STEPS = 1500  # enough to walk one day of a per-minute cron
+
+    def last_due(self, s, j, now):
+        """The latest scheduled run time after the job's last run (or creation) that has passed, or None.
+
+        Missed runs collapse into one: a reviewer back after two days gets one fresh digest, not a backlog."""
+        sched = safe_schedule(j['schedule_expr'])
+        base = j.get('last_run_at') or j['created_at']
+        if not j['enabled'] or sched['kind'] == 'invalid':
+            return None
+        if sched['kind'] == 'once':
+            due = j['created_at'] + sched['seconds']
+            return due if not j.get('last_run_at') and due <= now else None
+        if sched['kind'] == 'interval':
+            k = int((now - base) // sched['seconds'])
+            return base + k * sched['seconds'] if k >= 1 else None
+        tz = self.tz(s)
+        due = next_cron(sched['expr'], base, tz)
+        if due is None or due > now:
+            return None
+        step = next_cron(sched['expr'], max(due, now - 86400), tz)
+        for _ in range(self.CATCHUP_STEPS):
+            if step is None or step > now:
+                break
+            due, step = step, next_cron(sched['expr'], step, tz)
+        return due
+
     def job_view(self, s, j):
         sched = safe_schedule(j['schedule_expr'])
-        now, base = time.time(), j.get('last_run_at') or j['created_at']
+        now, base = self.clock(), j.get('last_run_at') or j['created_at']
         if not j['enabled'] or sched['kind'] == 'invalid':
             nxt = None
         elif sched['kind'] == 'cron':
@@ -1414,14 +1515,14 @@ class Backend:
                 'next_run_at': nxt, 'failure_streak': 0, 'runs': sorted(outs, reverse=True)[:14], 'demo': True}
 
     def jobs(self, s):
-        jobs = self.kv(s, 'jobs', lambda: self.default_jobs(time.time()))
-        # Due runs materialise lazily when someone looks: synthetic output, never a scheduler or tool.
-        changed = False
+        jobs = self.kv(s, 'jobs', lambda: self.default_jobs(self.clock()))
+        # Due runs materialise lazily when someone looks: at most one synthetic run per job per load, dated at the
+        # latest scheduled time that has passed. Never a scheduler or tool.
+        changed, now = False, self.clock()
         for j in jobs:
-            v = self.job_view(s, j)
-            due = v['next_run_at']
-            if j['enabled'] and due and due <= time.time() and (j.get('last_run_at') or 0) < due:
-                self.cron_deliver(s, j, f"# {j['name']}\nScheduled synthetic run. {NOTE}", due)
+            due = self.last_due(s, j, now)
+            if due is not None and (j.get('last_run_at') or 0) < due:
+                self.cron_deliver(s, j, f"# {j['name']}\nScheduled synthetic run for {datetime.fromtimestamp(due, self.tz(s)).strftime('%a %H:%M')}. {NOTE}", due)
                 changed = True
         if changed:
             s.kv_put('jobs', jobs)
@@ -1443,7 +1544,7 @@ class Backend:
 
     async def h_cron(self, r):
         s = r['store']
-        return J({'jobs': [self.job_view(s, j) for j in self.jobs(s)], 'now': time.time(), 'demo': True})
+        return J({'jobs': [self.job_view(s, j) for j in self.jobs(s)], 'now': self.clock(), 'demo': True})
 
     async def h_cron_action(self, r):
         s = r['store']
@@ -1454,7 +1555,7 @@ class Backend:
         if not job:
             return E('unknown job', 404)
         if action == 'run':
-            self.cron_deliver(s, job, f"# {job['name']}\nRun requested from the app at {datetime.now(self.tz(s)).strftime('%H:%M')}. {NOTE}", time.time())
+            self.cron_deliver(s, job, f"# {job['name']}\nRun requested from the app at {datetime.fromtimestamp(self.clock(), self.tz(s)).strftime('%H:%M')}. {NOTE}", self.clock())
         else:
             job['enabled'] = action == 'resume'
             job['paused_reason'] = '' if job['enabled'] else 'Paused from the app'
@@ -1519,7 +1620,7 @@ class Backend:
         job = {'id': S.new_id('job')[:16], 'name': f.get('name') or f['prompt'][:40] or 'Synthetic job', 'schedule_expr': f.pop('schedule'),
                'enabled': True, 'deliver': f.get('deliver') or 'mobile', 'prompt': f.get('prompt', ''), 'model': f.get('model', ''),
                'provider': f.get('provider', ''), 'reasoning_effort': f.get('reasoning_effort', ''), 'skills': f.get('skills', []),
-               'repeat': f.get('repeat'), 'last_status': None, 'last_error': '', 'paused_reason': '', 'created_at': time.time(), 'last_run_at': None}
+               'repeat': f.get('repeat'), 'last_status': None, 'last_error': '', 'paused_reason': '', 'created_at': self.clock(), 'last_run_at': None}
         s.kv_put('jobs', [*jobs, job])
         return J({'success': True, 'job_id': job['id'], 'job': self.job_view(s, job), 'message': 'Scheduled (synthetic: no scheduler runs it)'})
 
