@@ -131,10 +131,12 @@ ends open streams first, so it does not wait out the shutdown timeout.
 | Disk, one sandbox | 64 MiB | A full afternoon of uploads; the next request that adds data answers 413 with "get a fresh pairing link" |
 
 "Adds data" means messages, chats, other-app messages and answers, cron jobs and runs, memory entries, Fleet
-replies, Radar notes, feedback and spawns, uploads and exports. Everything else keeps working on a full sandbox or a
-full shared disk: the alarm's emergency stop, proofs, cancel and test, stopping a reply or an agent, approving and
-denying, restart, settings and toggles. Those writes are a few bytes each and bounded by what they act on, so one
-reviewer filling the disk can never stop another from silencing an alarm or a run.
+replies, Radar notes, feedback and spawns, uploads, and the session actions that add a line or a file (new session,
+compress, undo, export). Everything else keeps working on a full sandbox or a full shared disk: the alarm's
+emergency stop, proofs, cancel and test, stopping a reply or an agent, approving and denying, restart, settings and
+toggles. While storage is full they do their job but write no new rows: their status lines (restart, stop, deny,
+the Wake summary, scheduled-run digests) are skipped, so repeating them cannot grow a full sandbox, and one reviewer
+filling the disk can never stop another from silencing an alarm or a run.
 | Retention | 14 days unused | Long enough for a review and its follow-ups; reviewers can always enroll again from `/review`. An hourly sweep revokes expired enrollments and deletes their sandboxes, revoked and orphaned sandboxes, and device rows revoked longer than 14 days |
 | Unpair or revoke | immediate | The sandbox is deleted as soon as its last request, stream and reply end |
 
@@ -202,7 +204,7 @@ pass.
 ## Test scope
 
 `test_backend.py` uses real aiohttp HTTP sockets (paths sent byte-for-byte, as
-OkHttp does), SQLite databases and P-256 request and approval keys. Its 42 unittest
+OkHttp does), SQLite databases and P-256 request and approval keys. Its 45 unittest
 cases cover:
 
 - enrollment, signatures, replay, tamper, restart persistence, storage failure
@@ -213,8 +215,10 @@ cases cover:
   caps, stream limits, event-driven quiet streams, prompt shutdown, no password KDF on
   the event loop, numeric and schedule bounds, Hub jobs that cannot overtake each
   other, replies that cannot leave a chat working, and a full sandbox or full shared
-  disk that still allows stop, deny, emergency stop, proofs, cancel and restart;
-- interval, daily and five-field cron jobs coming due on a moved clock, and the
+  disk that still allows stop, deny, emergency stop, proofs, cancel and restart
+  while refusing session actions that add lines and writing no new rows;
+- interval, daily, weekly and five-field cron jobs coming due on a moved clock
+  (missed runs collapse into the latest one, even weeks back), and the
   approval-gated run: pause, backgrounding, approve, deny, stop, timeout, screen-lock
   rule;
 - one test per surface above, with the request shapes the app sends, the fields it
