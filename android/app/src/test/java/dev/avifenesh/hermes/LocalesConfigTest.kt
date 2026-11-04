@@ -21,25 +21,7 @@ class LocalesConfigTest {
         )
 
         /** Declared but not translated yet: these fall back to English. A translation's change removes its line here. */
-        val PENDING = setOf(
-            "af",
-            "ar",
-            "de",
-            "es",
-            "fr",
-            "ga",
-            "he",
-            "hu",
-            "it",
-            "ja",
-            "ko",
-            "pt",
-            "ru",
-            "tr",
-            "uk",
-            "zh-Hans",
-            "zh-Hant",
-        )
+        val PENDING = emptySet<String>()
 
         fun declared(): List<String> {
             val root = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }.newDocumentBuilder()
