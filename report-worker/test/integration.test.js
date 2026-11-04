@@ -84,10 +84,18 @@ test('real Wrangler HTTP + D1 integration (no remote calls)', { timeout: 180000 
     }
     assert.equal((await fetch(`${origin}/v1/reports/${id}`)).status, 404);
     assert.deepEqual(await (await fetch(`${origin}/health`)).json(), { ok: true });
-    assert.match(await (await fetch(`${origin}/privacy`)).text(), /hello@tiyuvta.ai/);
+    const policy = await (await fetch(`${origin}/privacy`)).text();
+    assert.match(policy, /hello@tiyuvta.ai/);
+    // Play: the policy and the deletion page name the app or developer as listed on Google Play.
+    assert.match(policy, /Herms for Hermes Agent/);
+    assert.match(policy, /Avifen/);
     const deletion = await fetch(`${origin}/delete`);
     assert.equal(deletion.status, 200);
-    assert.match(await deletion.text(), /random report ID/);
+    const deletionText = await deletion.text();
+    assert.match(deletionText, /random report ID/);
+    assert.match(deletionText, /<title>[^<]*Herms for Hermes Agent/);
+    assert.match(deletionText, /Avifen/);
+    assert.doesNotMatch(deletionText, /Hermes Android/);
     assert.equal((await fetch(`${origin}/delete`, { method: 'POST' })).status, 404);
   });
   await t.test('stylesheet served byte-exact as CSS; HEAD answers on static routes', async () => {

@@ -1,10 +1,10 @@
 # Herms for Hermes Agent: Google Play privacy policy
 
-Prepared 2026-11-04 for the **0.16.16 candidate**, package **dev.avifenesh.hermes.play**. This candidate has not been submitted to Google Play. Developer: **Avi Fenesh / Tiyuvta**. Privacy and support: **hello@tiyuvta.ai**.
+Prepared 2026-11-04 for the **0.16.16 candidate**, package **dev.avifenesh.hermes.play**. This candidate has not been submitted to Google Play. Developer: **Avifen** (Avi Fenesh). Privacy and support: **hello@tiyuvta.ai**.
 
 ## Where your information goes
 
-Hermes connects to the gateway you choose when pairing. You or another operator control that gateway, its storage, AI providers, tools and integrations. The publisher does not provide a central chat backend. There is no automatic publisher analytics, crash-reporting or behavior-tracking program. This does not mean that no information leaves your phone.
+Herms connects to the gateway you choose when pairing. You or another operator control that gateway, its storage, AI providers, tools and integrations. The publisher does not provide a central chat backend. There is no automatic publisher analytics, crash-reporting or behavior-tracking program. This does not mean that no information leaves your phone.
 
 This Play edition does not include the autonomous Android Accessibility phone-control service, installed-app inventory or its screen-reading/gesture interface. It cannot install downloaded APK attachments and does not request a direct battery-optimization exemption. These features belong to the separate full sideload edition.
 
@@ -20,13 +20,13 @@ This Play edition does not include the autonomous Android Accessibility phone-co
 
 ## Google services
 
-If your gateway supplies Firebase configuration and compatible Google Play services are available, Firebase Cloud Messaging obtains an installation/push token and registers it with that gateway. Google processes tokens, installation-related data and SDK service metadata. Push payloads carry wake/event identifiers, not chat message bodies; the client fetches content from the gateway. Identifiers are still data. Disabling Android notifications does not promise to delete Firebase identifiers. Live/periodic synchronization is available without Google push.
+If your gateway supplies Firebase configuration and compatible Google Play services are available, Firebase Cloud Messaging obtains an installation/push token and registers it with that gateway. Google processes tokens, installation-related data and SDK service metadata. Push payloads carry wake/event identifiers, not chat message bodies; the client fetches content from the gateway. Identifiers are still data. Disabling Android notifications does not promise to delete Firebase identifiers. Without Google push, Herms syncs while it is open, while a run you started from this phone is in progress, and at Android's periodic background check, which can be late.
 
 Google code scanner processes pairing QR images on-device through Play services. Google states that scanner images/results are not stored by that scanner. Modules may be downloaded; Google's ML Kit disclosures separately describe device/app information, identifiers, performance/configuration and feature/error diagnostics. Pasted-link pairing is an alternative. SDK behavior can depend on shipped versions and downloaded services.
 
 ## Voluntary support and content reports
 
-**In-app content reports are voluntary.** Opening Report, writing a note or viewing the preview does not upload a report. Only the explicit **Send report** action sends it to Tiyuvta's separate reporting service, operated on Cloudflare Workers and D1. The app does not send it through your selected gateway or AI providers.
+**In-app content reports are voluntary.** Opening Report, writing a note or viewing the preview does not upload a report. Only the explicit **Send report** action sends it to Avifen's separate reporting service, operated on Cloudflare Workers and D1. The app does not send it through your selected gateway or AI providers.
 
 The complete bounded preview contains your note, app version/package, Android version and device manufacturer/model. Selected-message text, including reasoning, is included only if you opt in; inclusion defaults off. Attachments and other messages are not included. A random report ID supports confirmation, safe retries and deletion requests; it is not a persistent device identifier. The receiver stores that ID, the exact submitted text and the server receipt time. Report text is limited to 8 KiB of UTF-8. A confirmation means receipt, not that a moderator has reviewed the content or resolved the issue.
 
@@ -38,11 +38,11 @@ Avi Fenesh uses submitted reports for support, safety/content-moderation review 
 
 ## Permissions and choices
 
-Microphone, camera, physical activity, notifications and exact-alarm access are optional and requested for their features. Voice listening/playback and synchronization can use foreground services. Alarm availability/full-screen display depends on Android permissions and settings. Device authentication protects app access and sensitive approvals; Hermes does not receive your biometric template. Deny/revoke optional permissions in Android settings; affected features may stop working. Stop Talk or disable wake-word listening when you do not want microphone capture.
+Microphone, physical activity, notifications and exact-alarm access are optional and requested for their features. Herms does not request camera permission: photos are taken by your camera app. Foreground services run only for Talk and wake-word listening you turn on, a ringing Wake alarm, and the progress of a run you started from this phone; there is no always-on background connection. Wake alarms ring only with exact-alarm access. Full-screen display depends on Android permissions and settings. Device authentication protects app access and sensitive approvals; Herms does not receive your biometric template. Deny/revoke optional permissions in Android settings; affected features may stop working. Stop Talk or disable wake-word listening when you do not want microphone capture.
 
 ## Retention, deletion and security
 
-Phone preferences, pairing records, selected encrypted credentials, Keystore keys and media caches support operation. Not every preference or cache is encrypted by Hermes. Clear app storage to remove app-private local data; separately remove exported Downloads and copies shared with other apps. Unpairing is not complete erasure.
+Phone preferences (including that you have seen the AI-replies notice), pairing records, selected encrypted credentials, Keystore keys and media caches support operation. Not every preference or cache is encrypted by Herms. Clear app storage to remove app-private local data; separately remove exported Downloads and copies shared with other apps. Unpairing is not complete erasure.
 
 Your gateway and its providers may retain messages, media, sessions, device registrations, tool/approval records and backups. Ask that operator about destinations, retention and deletion. The publisher cannot erase independently operated gateways. Revoking a device stops its access but does not delete its history, media or provider copies. Archiving is not deletion. No universal gateway/provider/SDK retention deadline is promised.
 
