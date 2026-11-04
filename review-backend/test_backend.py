@@ -14,6 +14,7 @@ import tempfile
 import threading
 import time
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 from urllib.parse import urlsplit, parse_qs, quote
 
@@ -28,19 +29,30 @@ server = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server)
 REPO = Path(__file__).resolve().parents[1]
 
-def kotlin_strings(src):
-    """Every string template in Kotlin source; ${...} and $name become {} ({base} for the session screen's base)."""
-    found, n = [], len(src)
+def kotlin_scan(src):
+    """Kotlin string templates with their spans, and the source with every string and comment blanked.
+
+    ${...} and $name become {} ({base} for the session screen's base variable). Nested strings inside
+    ${...} are found too; comments and char literals are skipped, so quotes in them do not cut a string.
+    """
+    found, n, mask = [], len(src), list(src)
+
+    def blank(a, b):
+        for k in range(a, b):
+            if mask[k] != '\n':
+                mask[k] = ' '
 
     def skip_code(i, until_brace):
         depth = 0
         while i < n:
             if src.startswith('//', i):
                 j = src.find('\n', i)
-                i = n if j < 0 else j
+                j = n if j < 0 else j
+                blank(i, j)
+                i = j
                 continue
             if src.startswith('/*', i):
-                d, i = 1, i + 2
+                a, d, i = i, 1, i + 2
                 while i < n and d:
                     if src.startswith('/*', i):
                         d, i = d + 1, i + 2
@@ -48,16 +60,20 @@ def kotlin_strings(src):
                         d, i = d - 1, i + 2
                     else:
                         i += 1
+                blank(a, i)
                 continue
             c = src[i]
             if c == "'":
                 m = re.match(r"'(\\u[0-9a-fA-F]{4}|\\.|[^'\\])'", src[i:i + 8])
+                if m:
+                    blank(i, i + len(m.group(0)))
                 i += len(m.group(0)) if m else 1
                 continue
             if c == '"':
-                raw = src.startswith('"""', i)
+                a, raw = i, src.startswith('"""', i)
                 text, i = read_string(i + (3 if raw else 1), raw)
-                found.append(text)
+                found.append((a, i, text))
+                blank(a, i)
                 continue
             if until_brace:
                 if c == '{':
@@ -102,13 +118,126 @@ def kotlin_strings(src):
         raise ValueError('unterminated string')
 
     skip_code(0, False)
-    return found
+    found.sort()
+    return found, ''.join(mask)
+
+
+def kotlin_strings(src):
+    return [text for _, _, text in kotlin_scan(src)[0]]
+
+
+def call_key(match, method, path):
+    """Coverage identity of a call: fixture ids collapse to the route's parameter names, but actions
+    (cron/hub/radar/projects) and the query parameters a call sends stay distinct."""
+    canon = match.route.resource.canonical if match.route.resource is not None else path
+    if match.get('action') is not None:
+        canon = canon.replace('{action}', match['action'])
+    return (method, canon, frozenset(parse_qs(urlsplit(path).query, keep_blank_values=True)))
+
+
+def is_api(template):
+    return template.startswith('/v1') or template.startswith('{base}')
+
+
+# Every helper the app sends requests through. Path is the first argument except Wake.request(ticket, path, method).
+CALL = re.compile(r'\b(?:Api\.(get|post|put|patch|delete|upload|download|bytes|request|pair)|(Wake\.request|(?<![.\w])request))\s*\(')
+VERB = {'get': 'GET', 'download': 'GET', 'bytes': 'GET', 'request': 'GET', 'post': 'POST', 'put': 'PUT', 'patch': 'PATCH', 'delete': 'DELETE'}
+FIXED = {'upload': ('POST', '/v1/upload?name={}&mime={}'), 'pair': ('POST', '/v1/pair')}  # paths built inside Net.kt
+
+
+def kotlin_call_sites(name, src):
+    """(method, path template, line) for every request helper call; ('?', reason, line) when a path cannot be resolved."""
+    strings, mask = kotlin_scan(src)
+
+    def args(i):
+        out, depth, a = [], 0, i
+        while i < len(mask):
+            c = mask[i]
+            if c in '([{':
+                depth += 1
+            elif c in ')]}':
+                if depth == 0:
+                    out.append((a, i))
+                    return out
+                depth -= 1
+            elif c == ',' and depth == 0:
+                out.append((a, i))
+                a = i + 1
+            i += 1
+        raise ValueError('unbalanced call')
+
+    def outer(a, b):
+        kept = []
+        for s, e, text in strings:
+            if a <= s < b and (not kept or s >= kept[-1][1]):
+                kept.append((s, e, text))
+        return [text for _, _, text in kept]
+
+    sites = []
+    for m in CALL.finditer(mask):
+        line = mask.count('\n', 0, m.start()) + 1
+        fn, wake = m.group(1), m.group(2)
+        before = mask[:m.start()]
+        if re.search(r'\bfun\s*$', before):
+            continue  # a definition, not a call
+        if wake and name != 'Wake.kt' and not wake.startswith('Wake.'):
+            continue  # unqualified request( is Wake's helper only inside Wake.kt (Net.kt's is Api's own plumbing)
+        enclosing = (re.findall(r'\bfun\s+(\w+)', before) or [''])[-1]
+        if fn == 'request' and name == 'Wake.kt' and enclosing == 'request':
+            continue  # Wake.request's own body; its callers are the call sites
+        if fn in FIXED:
+            sites.append((*FIXED[fn], line))
+            continue
+        spans = args(m.end())
+        path_span = spans[1] if wake else spans[0]
+        method = VERB.get(fn, 'GET')
+        if wake and len(spans) > 2:
+            method = (outer(*spans[2]) or ['GET'])[0]
+        templates = [x for x in outer(*path_span) if is_api(x)][:1]
+        if not templates:
+            ident = mask[path_span[0]:path_span[1]].strip()
+            if re.fullmatch(r'[A-Za-z_]\w*', ident):
+                start = before.rfind('fun ')
+                for a in re.finditer(r'(?:\bval\s+)?\b' + ident + r'\s*(?::\s*[\w?]+\s*)?=(?!=)', mask[start:m.start()]):
+                    rhs = start + a.end()
+                    stop = rhs
+                    depth = 0
+                    while stop < m.start() and not (depth == 0 and mask[stop] in '\n;'):
+                        depth += mask[stop] in '([{'
+                        depth -= mask[stop] in ')]}'
+                        stop += 1
+                    templates += [x for x in outer(rhs, stop) if is_api(x)]
+        if not templates:
+            sites.append(('?', f'cannot resolve the path of {m.group(0).strip()}...)', line))
+        sites += [(method, x, line) for x in templates]
+    return sites
+
+
+def client_call_problems(files):
+    """Compare the (method, template) pairs at the Kotlin call sites with CLIENT_CALLS, both ways."""
+    problems, seen = [], {}
+    for name, src in sorted(files.items()):
+        for method, template, line in kotlin_call_sites(Path(name).name, src):
+            if method == '?':
+                problems.append((name, line, template))
+            elif method not in {m for m, _ in CLIENT_CALLS.get(template, [])}:
+                problems.append((name, line, f'{method} {template} is not a listed client call'))
+            seen.setdefault(template, set()).add(method)
+    for template, calls in CLIENT_CALLS.items():
+        listed = {m for m, _ in calls}
+        if template in NOT_CALLED:
+            if template in seen:
+                problems.append(('CLIENT_CALLS', template, 'now has call sites'))
+        elif listed != seen.get(template, set()):
+            problems.append(('CLIENT_CALLS', template, f'listed {sorted(listed)}, call sites use {sorted(seen.get(template, set()))}'))
+    return problems
 
 
 # Every string template in the Play build's Kotlin sources (src/main, src/play) that names an API path, mapped to
 # the calls made with it: (HTTP method, a concrete sample path). Session-screen calls are built on a `base`
 # variable; the lexer shows it as {base}. A new or changed template fails the guard until it is listed here.
 SESSION = '/v1/sessions/s-cli-release'
+NOT_CALLED = {'/v1/radar', '/v1/sessions/{}'}
 CLIENT_CALLS = {
     '/v1/activity/{}': [('GET', '/v1/activity/m-x')],
     '/v1/approvals/{}': [('POST', '/v1/approvals/a-x')],
@@ -1398,6 +1527,132 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         self.assertLess(elapsed, 3)  # an open event stream must not hold Ctrl-C/SIGTERM for the 10 s timeout
         await self.start()
 
+    async def test_full_storage_still_allows_stop_deny_and_emergency_stop(self):
+        """A full sandbox, or a shared disk other reviewers filled, must never stop anyone silencing an alarm or a run."""
+        for _ in range(2):
+            await self.call('POST', '/v1/chats/c-welcome/messages', {'text': 'one more approval'})
+        await self.idle()
+        pending = [a['id'] for a in (await self.call('GET', '/v1/sync?since=0'))[1]['approvals'] if a['state'] == 'pending']
+        self.assertGreaterEqual(len(pending), 2)
+        did = self.dev['device_id']
+        for limit, status in (('this sandbox at its quota', 413), ('shared disk full', 507)):
+            photo = base64.b64encode(os.urandom(6000)).decode()  # a new photo each round (repeats are refused)
+            if status == 413:
+                self.backend.tbytes[did] = (1 << 40, time.monotonic())  # the per-sandbox usage reads as far over quota
+            else:
+                self.backend.DISK_CAP = 1
+            try:
+                self.assertEqual((await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'more data'}))[0], status, limit)
+                self.assertEqual((await self.call('POST', '/v1/chats', {'title': 'more data'}))[0], status, limit)
+                st, t = await self.call('POST', '/v1/wake/test')
+                self.assertEqual(st, 200, limit)  # starting the test alarm adds no data either
+                st, d = await self.call('POST', '/v1/wake/proof', {'kind': 'photo', 'sid': t['session']['id'], 'image': photo})
+                self.assertEqual((st, d['ok']), (200, True), limit)
+                await self.call('POST', '/v1/wake/test')
+                self.assertEqual((await self.call('POST', '/v1/wake/cancel'))[1], {'ok': True}, limit)
+                await self.call('POST', '/v1/wake/test')
+                st, d = await self.call('POST', '/v1/wake/override', {'password': server.REVIEW_PASSWORD})
+                self.assertEqual((st, d['ok']), (200, True), limit)  # the emergency stop always works
+                for method, path, body in (('POST', '/v1/chats/c-planning/stop', {}), ('POST', '/v1/fleet/tmux%3Abuild/stop', {}),
+                                           ('POST', '/v1/approvals/' + pending.pop(), {'choice': 'deny'}), ('POST', '/v1/restart', {})):
+                    self.assertEqual((await self.call(method, path, body))[0], 200, (limit, path))
+            finally:
+                self.backend.tbytes.pop(did, None)
+                self.backend.DISK_CAP = server.Backend.DISK_CAP
+        self.assertEqual((await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'room again'}))[0], 200)
+        await self.idle()
+
+    async def test_interval_daily_and_cron_jobs_come_due(self):
+        """Scheduled runs come due after each job's last run: one synthetic run per load, at the latest missed time."""
+        t0 = datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc).timestamp()  # a Monday, sandbox timezone UTC
+        clock = [t0]
+        self.backend.clock = lambda: clock[0]
+        ids = {}
+        for name, schedule in (('interval', 'every 2h'), ('daily', 'every day at 9am'), ('cron', '30 */6 * * *')):
+            status, d = await self.call('POST', '/v1/cronjob', {'name': name, 'schedule': schedule, 'prompt': 'p', 'deliver': 'mobile'})
+            self.assertEqual(status, 200)
+            ids[name] = d['job_id']
+
+        async def runs():
+            _, d = await self.call('GET', '/v1/cron')
+            jobs = {j['id']: j for j in d['jobs']}
+            return {name: jobs[jid]['runs'] for name, jid in ids.items()}
+        self.assertEqual(await runs(), {'interval': [], 'daily': [], 'cron': []})
+        clock[0] = t0 + 2 * 86400  # Wednesday 10:00: two days of missed runs collapse into one each
+        first = await runs()
+        self.assertEqual(first, {'interval': ['2026-11-04_10-00-00'], 'daily': ['2026-11-04_09-00-00'], 'cron': ['2026-11-04_06-30-00']})
+        self.assertEqual(await runs(), first)  # loading again adds nothing
+        clock[0] = t0 + 2 * 86400 + 2.5 * 3600  # 12:30
+        self.assertEqual(await runs(), {'interval': ['2026-11-04_12-00-00', '2026-11-04_10-00-00'], 'daily': ['2026-11-04_09-00-00'],
+                                        'cron': ['2026-11-04_12-30-00', '2026-11-04_06-30-00']})
+        _, d = await self.call('GET', f"/v1/chats/cron-job-{ids['interval']}/messages")
+        self.assertEqual(len(d['messages']), 2)
+        _, out = await self.call('GET', f"/v1/cron/{ids['cron']}/output")
+        self.assertIn('Wed 12:30', out['text'])
+
+    async def wait_pending(self, cid, dev=None, key=None):
+        for _ in range(200):
+            _, d = await self.call('GET', '/v1/sync?since=0', dev=dev, key=key)
+            aid = next((a['id'] for a in d['approvals'] if a['chat_id'] == cid and a['state'] == 'pending'), None)
+            if aid:
+                return aid, d
+            await asyncio.sleep(0.02)
+        self.fail('no pending approval appeared')
+
+    async def test_approval_gated_run_waits_resumes_and_survives_backgrounding(self):
+        """'approval please' streams a first part, then waits in a working state on a pending card until you decide."""
+        await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'Tidy my notes, approval please'})
+        aid, d = await self.wait_pending('c-planning')
+        self.assertIn('c-planning', [w['chat_id'] for w in d['working']])
+        _, m = await self.call('GET', '/v1/chats/c-planning/messages?limit=150')
+        self.assertEqual(m['messages'][-2]['content'], server.GATED_FIRST)
+        self.assertEqual((m['messages'][-1]['kind'], m['messages'][-1]['meta']['approval_id'], m['messages'][-1]['meta']['gated']), ('approval', aid, True))
+        # The phone backgrounds: no requests and no event stream for a while. The run keeps waiting on the server.
+        await asyncio.sleep(0.4)
+        _, run = await self.call('GET', '/v1/chats/c-planning/run')
+        self.assertTrue(run['working'])
+        self.assertEqual((run['steps'][-1]['what'], run['steps'][-1]['status']), ('Waiting for your approval', 'running'))
+        self.assertEqual([a['id'] for a in run['approvals']], [aid])
+        self.assertEqual((await self.call('POST', '/v1/approvals/' + aid, {'choice': 'once'}))[0], 403)  # fingerprint still required
+        status, a = await self.call('POST', '/v1/approvals/' + aid, {'choice': 'once'}, approval=(aid, 'once'))
+        self.assertEqual((status, a['approval']['state']), (200, 'approved'))
+        await self.idle()
+        _, run = await self.call('GET', '/v1/chats/c-planning/run')
+        self.assertFalse(run['working'])
+        _, m = await self.call('GET', '/v1/chats/c-planning/messages?limit=150')
+        self.assertTrue(m['messages'][-1]['content'].startswith(server.GATED_RESULT))
+        self.assertIn('usage', m['messages'][-1]['meta'])
+        # Deny ends the run with a short note.
+        await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'approval please'})
+        aid, _ = await self.wait_pending('c-planning')
+        self.assertEqual((await self.call('POST', '/v1/approvals/' + aid, {'choice': 'deny'}))[0], 200)
+        await self.idle()
+        _, m = await self.call('GET', '/v1/chats/c-planning/messages?limit=150')
+        self.assertIn('Denied', m['messages'][-1]['content'])
+        self.assertFalse((await self.call('GET', '/v1/chats/c-planning/run'))[1]['working'])
+        # Stop while waiting: the card expires and the run ends.
+        await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'approval please'})
+        aid, _ = await self.wait_pending('c-planning')
+        await self.call('POST', '/v1/chats/c-planning/stop', {})
+        await self.idle()
+        _, d = await self.call('GET', '/v1/sync?since=0')
+        self.assertEqual(next(a['state'] for a in d['approvals'] if a['id'] == aid), 'expired')
+        # No answer within the approval timeout: the card expires with a note.
+        self.backend.GATE_TIMEOUT = 0.2
+        await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'approval please'})
+        await self.idle()
+        _, m = await self.call('GET', '/v1/chats/c-planning/messages?limit=150')
+        self.assertIn('no answer', m['messages'][-1]['content'])
+        self.backend.GATE_TIMEOUT = None
+        # A phone without a screen lock may approve once only, gated run or not.
+        key, apr = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
+        nolock = await self.enroll(key, apr, lock=False)
+        await self.call('POST', '/v1/chats/c-planning/messages', {'text': 'approval please'}, dev=nolock, key=key)
+        aid, _ = await self.wait_pending('c-planning', dev=nolock, key=key)
+        self.assertEqual((await self.call('POST', '/v1/approvals/' + aid, {'choice': 'always'}, dev=nolock, key=key, approval=(aid, 'always'), apr=apr))[0], 403)
+        self.assertEqual((await self.call('POST', '/v1/approvals/' + aid, {'choice': 'once'}, dev=nolock, key=key, approval=(aid, 'once'), apr=apr))[0], 200)
+        await self.idle(nolock)
+
     # ---------------------------------------------------------------- coverage and drift guards
     async def test_every_play_reachable_api_answers(self):
         """Every client call answers with its expected status and the fields the app reads; any other status fails."""
@@ -1406,7 +1661,7 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
 
         async def check(method, path, body=None, amsg=None, status=200, keys=(), raw=None):
             match = await app.router.resolve(make_mocked_request(method, path, app=app))
-            hit.add((method, match.route.resource.canonical if match.route.resource else path))
+            hit.add(call_key(match, method, path))
             if raw is not None:
                 got, d = await self.raw(method, path, raw, self.headers(method, path, raw, amsg=amsg))
             else:
@@ -1518,7 +1773,9 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
             await check('GET', '/v1/radar?view=' + view, keys=('findings', 'notes', 'batch', 'scout'))
         await check('GET', '/v1/radar', keys=('findings',))
         await check('GET', '/v1/radar/findings/f-sandbox-01', keys=('finding',))
-        await check('POST', '/v1/radar/findings/f-sandbox-01/dismiss', {}, keys=('finding',))
+        for action in ('like', 'dislike', 'clear-vote', 'save', 'unsave', 'dismiss', 'restore'):
+            await check('POST', f'/v1/radar/findings/f-sandbox-01/{action}', {}, keys=('finding',))
+        await check('POST', '/v1/radar/findings/f-sandbox-01/note', {'text': 'remember this'}, keys=('finding',))
         await check('POST', '/v1/radar/findings/f-sandbox-01/feedback', {'text': 'ok'}, keys=('finding',))
         await check('POST', '/v1/radar/findings/f-sandbox-01/spawn', {'mode': 'task', 'prompt': 'x'}, keys=('ok', 'task_id'))
         await check('GET', '/v1/radar/notes/n-sandbox-01', keys=('note',))
@@ -1551,8 +1808,9 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
         for calls in CLIENT_CALLS.values():
             for method, path in calls:
                 match = await app.router.resolve(make_mocked_request(method, path, app=app))
-                wanted.add((method, match.route.resource.canonical))
-        self.assertEqual(sorted(wanted - hit - {('POST', '/v1/pair'), ('GET', '/v1/events')}), [])
+                wanted.add(call_key(match, method, path))
+        skip = {('POST', '/v1/pair', frozenset()), ('GET', '/v1/events', frozenset())}  # their own tests cover them
+        self.assertEqual(sorted(wanted - hit - skip, key=str), [])
 
     async def test_client_calls_are_all_served_with_their_methods(self):
         """Lexes the Play Kotlin sources and pins every API string template; each listed call resolves to a handler."""
@@ -1572,8 +1830,19 @@ class ReviewTest(unittest.IsolatedAsyncioTestCase):
                 if match.http_exception is not None or match.handler == self.backend.unsupported:
                     unserved.append((template, method, path))
         self.assertEqual(unserved, [])
+        # Methods come from the Kotlin call sites, not from this list: a method-only change must fail.
+        files = {str(f.relative_to(REPO)): f.read_text() for src in ('android/app/src/main/java', 'android/app/src/play/java')
+                 for f in sorted((REPO / src).rglob('*.kt'))}
+        self.assertGreater(sum(len(kotlin_call_sites(Path(n).name, s)) for n, s in files.items()), 100)
+        self.assertEqual(client_call_problems(files), [])
+        control = next(n for n in files if n.endswith('/Control.kt'))
+        self.assertEqual(files[control].count('Api.get("/v1/memory")'), 1)
+        mutated = {**files, control: files[control].replace('Api.get("/v1/memory")', 'Api.delete("/v1/memory")')}
+        problems = [p[2] for p in client_call_problems(mutated)]
+        self.assertIn('DELETE /v1/memory is not a listed client call', problems)
+        self.assertIn("listed ['GET', 'POST'], call sites use ['DELETE', 'POST']", problems)
         # The guard itself must catch what a prefix heuristic missed: nested quotes and the session screen's base.
-        self.assertEqual(kotlin_strings('Api.get("/v1/radar/notes/${enc(n.str("id"))}/ack") // "/v1/no"'), ['id', '/v1/radar/notes/{}/ack'])
+        self.assertEqual(kotlin_strings('Api.get("/v1/radar/notes/${enc(n.str("id"))}/ack") // "/v1/no"'), ['/v1/radar/notes/{}/ack', 'id'])
         self.assertIn('{base}/viewer', found)
 
     def test_sandbox_copies_match_production(self):
