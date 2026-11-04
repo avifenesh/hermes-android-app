@@ -18,7 +18,9 @@ import androidx.fragment.app.FragmentActivity
 import org.json.JSONObject
 
 /** Debug-only Group Chat fixtures on the production composables. No network: every callback only logs.
- *  Screens: list (Inbox, Rooms filter), all (Inbox, All filter), room, members, new, approval. */
+ *  Screens: list (Inbox, Rooms filter, one room waiting on an approval), all (Inbox, All filter), room,
+ *  approval (a member's command in the log), members (the members sheet over the room), new (the New group
+ *  chat sheet over the Inbox). Sheets use the app's own sheet, so their insets are the shipped ones. */
 class RoomProbeActivity : FragmentActivity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -35,7 +37,9 @@ class RoomProbeActivity : FragmentActivity() {
             Room("research", "Paper reading group", listOf(scout, critic), 17, 17, 0, now - 3600 * 5, emptyList(),
                 RoomPreview(17, "user", "", "Let's pick this up after the benchmark lands.", now - 3600 * 5)),
             Room("ops", "Ops on-call with a very long group name that must ellipsize cleanly", listOf(scribe, scout), 8, 6, 1,
-                now - 86400 * 2, emptyList(), RoomPreview(8, "member", "Scout", "Disk on the build box is at 91%.", now - 86400 * 2)))
+                now - 86400 * 2, emptyList(), RoomPreview(8, "member", "Scout", "Disk on the build box is at 91%.", now - 86400 * 2),
+                // A member waiting on the owner: the row badges like a chat with a pending approval.
+                listOf(RoomAction("approval", "scout", "dtask:2", 1, "req-2", "df -h && du -sh /var/cache/*", ""))))
         fun msg(seq: Long, who: RoomMember?, text: String, ago: Double, atts: List<JSONObject> = emptyList()) =
             RoomEvent(seq, "e$seq", "message", if (who == null) "user" else "member", who?.id.orEmpty(), who?.name.orEmpty(),
                 text, now - ago, "t1", "", "", atts)
@@ -59,7 +63,7 @@ class RoomProbeActivity : FragmentActivity() {
             if (screen == "approval") listOf(approval) else emptyList())
         val bots = listOf(RoomBot("default", "Hermes"), RoomBot("scout", "Scout"), RoomBot("scribe", "Scribe"),
             RoomBot("critic", "Critic"), RoomBot("researcher-with-a-long-profile-name", "Research Buddy"))
-        if (screen == "list" || screen == "all") {
+        if (screen == "list" || screen == "all" || screen == "new") {
             // The real Inbox reads the shared state flows; seed them with fixtures on this unpaired emulator.
             Hub.online.value = true
             Hub.chats.value = mapOf(
@@ -67,6 +71,7 @@ class RoomProbeActivity : FragmentActivity() {
                 "c2" to Chat("c2", "Nightly digest", "digest", now - 7200, 2, false, false, "2 failures, 14 runs.", "agent"))
             Rooms.list.value = rooms.associateBy { it.id }
             Rooms.loaded.value = true
+            Rooms.bots.value = bots
         }
         setContent {
             HermesTheme(theme) {
@@ -75,15 +80,17 @@ class RoomProbeActivity : FragmentActivity() {
                         when (screen) {
                             "list" -> InboxScreen(initialFilter = "rooms")
                             "all" -> InboxScreen(initialFilter = "all")
-                            "new" -> Box(Modifier.background(P.s1)) {
-                                NewRoomContent(bots, busy = false, initialName = "Launch review", initialPicked = setOf("scout", "critic")) { name, picked ->
-                                    Log.i("HermesRoomProbe", "CREATE " + JSONObject().put("name", name).put("members", org.json.JSONArray(picked)))
+                            // Sheets render as the app shows them, over their screen, so their insets are the real ones.
+                            "new" -> {
+                                InboxScreen(initialFilter = "rooms")
+                                RoomSheet({ Log.i("HermesRoomProbe", "DISMISS") }) {
+                                    NewRoomContent(bots, busy = false, initialName = "Launch review", initialPicked = setOf("scout", "critic")) { name, picked ->
+                                        Log.i("HermesRoomProbe", "CREATE " + JSONObject().put("name", name).put("members", org.json.JSONArray(picked)))
+                                    }
                                 }
                             }
-                            "members" -> Box(Modifier.background(P.s1)) {
-                                RoomMembersContent(crew, driver) { Log.i("HermesRoomProbe", "MENTION ${it.handle}") }
-                            }
                             else -> {
+                                var members by remember { mutableStateOf(screen == "members") }
                                 var draft by remember { mutableStateOf(intent.getStringExtra("draft") ?: "") }
                                 val atts = remember { mutableStateListOf<JSONObject>() }
                                 val list = remember { LazyListState(events.size + 5, 0) }
@@ -94,10 +101,13 @@ class RoomProbeActivity : FragmentActivity() {
                                         older = { Log.i("HermesRoomProbe", "OLDER") },
                                         act = { a, choice -> Log.i("HermesRoomProbe", "ACT ${a.kind} ${a.member} $choice") },
                                         mention = { m -> draft = RoomLogic.mention(draft, m.handle) },
-                                        members = { Log.i("HermesRoomProbe", "MEMBERS") },
+                                        members = { members = true },
                                         stop = { Log.i("HermesRoomProbe", "STOP") },
                                         rename = { Log.i("HermesRoomProbe", "RENAME") },
                                         delete = { Log.i("HermesRoomProbe", "DELETE") }))
+                                if (members) RoomMembersSheet(crew, driver, onDismiss = { members = false }) { m ->
+                                    members = false; draft = RoomLogic.mention(draft, m.handle)
+                                }
                             }
                         }
                     }

@@ -312,7 +312,9 @@ fun BoxScope.NavBar() {
     val work by Hub.working.collectAsState()
     val rooms by Rooms.list.collectAsState()
     val roomsOn = Hub.features.collectAsState().value.rooms && Rooms.supported.collectAsState().value
-    val need = appr.values.count { it.state == "pending" }
+    // A group chat member's command waiting on the owner counts like any other pending approval.
+    val need = appr.values.count { it.state == "pending" } +
+        if (roomsOn) rooms.values.sumOf { r -> r.pending.count { it.kind == "approval" } } else 0
     // Group chats with unread replies count like chats with unread replies.
     val unread = chats.values.count { it.unread > 0 && !it.archived } + if (roomsOn) RoomLogic.unreadRooms(rooms.values) else 0
     fun b(n: Int) = if (n > 99) "99+" else n.toString()

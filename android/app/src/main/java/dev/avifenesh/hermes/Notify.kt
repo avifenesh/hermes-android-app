@@ -140,6 +140,31 @@ object Notify {
 
     fun cancelRoom(c: Context, rid: String) = NotificationManagerCompat.from(c).cancel(nid("room$rid"))
 
+    /** A group chat member's command waits for the owner. Approving needs the biometric proof in the app,
+     *  so the notification opens the room instead of answering from the shade. */
+    fun roomApproval(c: Context, r: Room, a: RoomAction) {
+        val who = r.members.firstOrNull { it.id == a.member }?.name ?: a.member
+        val open = PendingIntent.getActivity(c, nid("openroom${r.id}"),
+            Intent(c, MainActivity::class.java).putExtra("room", r.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PI)
+        val body = listOf("$who asks to run:", "$ " + a.command.ifBlank { a.description }).joinToString("\n")
+        val n = NotificationCompat.Builder(c, CH_APPR)
+            .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
+            .setContentTitle("Approve? · " + r.name).setContentText("$who: " + a.command.ifBlank { a.description })
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).setAutoCancel(true)
+            .setContentIntent(open)
+            .setPublicVersion(NotificationCompat.Builder(c, CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
+                .setContentTitle("Approval needed").setContentText(r.name).build())
+            .build()
+        post(c, roomApprovalId(r.id, a), n)
+    }
+
+    fun cancelRoomApproval(c: Context, rid: String, a: RoomAction) =
+        NotificationManagerCompat.from(c).cancel(roomApprovalId(rid, a))
+
+    private fun roomApprovalId(rid: String, a: RoomAction) = nid("ra$rid:${a.taskId}:${a.generation}:${a.requestId}")
+
     fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(nid("a$aid"))
     fun cancelChat(c: Context, cid: String) = NotificationManagerCompat.from(c).cancel(nid("c$cid"))
 

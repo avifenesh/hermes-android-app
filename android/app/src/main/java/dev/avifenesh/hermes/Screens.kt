@@ -107,7 +107,7 @@ fun InboxScreen(initialFilter: String = "all") {
     }
     // One ordering for both kinds: waiting on you, working, pinned, then most recent.
     val entries: List<Pair<String, Any>> = (list.map { "c:${it.id}" to it } + roomList.map { "r:${it.id}" to it }).sortedWith(
-        compareByDescending<Pair<String, Any>> { (_, v) -> v is Chat && v.id in need }
+        compareByDescending<Pair<String, Any>> { (_, v) -> if (v is Chat) v.id in need else RoomLogic.needsYou(v as Room) }
             .thenByDescending { (_, v) -> if (v is Chat) v.id in work else (v as Room).working.isNotEmpty() }
             .thenByDescending { (_, v) -> v is Chat && v.pinned }
             .thenByDescending { (_, v) -> if (v is Chat) v.updated else (v as Room).updated })

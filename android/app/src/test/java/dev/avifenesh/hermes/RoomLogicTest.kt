@@ -118,7 +118,35 @@ class RoomLogicTest {
         assertEquals("Ada, Bo and Cy are answering", RoomLogic.workingLine(listOf("Ada", "Bo", "Cy")))
         val colors = members.map { RoomLogic.colorIndex(members, it.id, 5) }
         assertEquals(listOf(1, 2, 3), colors)  // index 0 is the app accent, kept for the owner's controls
-        assertEquals(RoomLogic.colorIndex(members, "zed", 5), RoomLogic.colorIndex(members, "zed", 5))
+        // A speaker no longer in the roster keeps a color from its id alone, in range.
+        assertEquals(("zed".hashCode() and 0x7fffffff) % 5, RoomLogic.colorIndex(members, "zed", 5))
+        assertEquals(RoomLogic.colorIndex(emptyList(), "zed", 5), RoomLogic.colorIndex(members.reversed(), "zed", 5))
         assertEquals("S", RoomLogic.initial(" @scout"))
+    }
+
+    private fun approval(task: String, request: String, member: String = "scout") =
+        RoomAction("approval", member, task, 1, request, "rm -rf build", "")
+
+    @Test fun pendingApprovalsParseBadgeAndNotifyOnce() {
+        val o = JSONObject().put("id", "crew").put("pending", JSONArray()
+            .put(JSONObject().put("kind", "approval").put("member", "scout").put("task_id", "t1").put("generation", 2)
+                .put("request_id", "r1").put("command", "rm -rf build"))
+            .put(JSONObject().put("kind", "discard").put("member", "scribe").put("task_id", "t2").put("generation", 1)))
+        val r = RoomLogic.room(o)
+        assertEquals(listOf("approval", "discard"), r.pending.map { it.kind })
+        assertEquals(RoomAction("approval", "scout", "t1", 2, "r1", "rm -rf build", ""), r.pending[0])
+        assertTrue(RoomLogic.needsYou(r))
+        assertFalse(RoomLogic.needsYou(r.copy(pending = r.pending.drop(1))))  // a discard waits, but asks nothing
+        val first = room(0, 1).copy(pending = listOf(approval("t1", "r1")))
+        assertEquals(listOf("r1"), RoomLogic.newApprovals(null, first).map { it.requestId })  // first sight asks
+        assertEquals(emptyList<RoomAction>(), RoomLogic.newApprovals(first, first))        // the next poll does not
+        val second = first.copy(pending = listOf(approval("t1", "r1"), approval("t3", "r3", "scribe")))
+        assertEquals(listOf("r3"), RoomLogic.newApprovals(first, second).map { it.requestId })
+        assertEquals(listOf("r1"), RoomLogic.answeredApprovals(second, first.copy(pending = listOf(approval("t3", "r3", "scribe"))))
+            .map { it.requestId })
+        assertEquals(listOf("r1", "r3"), RoomLogic.answeredApprovals(second, null).map { it.requestId })  // room deleted
+        assertTrue(RoomLogic.asksOutside("crew", foreground = true, open = "other"))
+        assertTrue(RoomLogic.asksOutside("crew", foreground = false, open = "crew"))
+        assertFalse(RoomLogic.asksOutside("crew", foreground = true, open = "crew"))  // already looking at it
     }
 }

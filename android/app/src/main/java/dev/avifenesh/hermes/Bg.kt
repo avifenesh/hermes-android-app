@@ -253,8 +253,9 @@ object Approvals {
             }
         }
         if (choice == "deny") { submit(null, null); return }
-        prove(act, "Approve command", a.command.ifBlank { a.description }, "approve\n$rid:${a.member}:${a.requestId}\n$choice",
-            { done(it) }, ::submit)
+        // Its own domain and server-side replay scope, one field per line (ids never contain a newline).
+        prove(act, "Approve command", a.command.ifBlank { a.description },
+            "room-approve\n$rid\n${a.member}\n${a.requestId}\n$choice", { done(it) }, ::submit)
     }
 
     private fun prove(act: FragmentActivity, title: String, subtitle: String, prefix: String,

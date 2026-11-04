@@ -122,13 +122,14 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
     var menu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val answering = RoomLogic.answering(r.members, r.working)
+    val needs = RoomLogic.needsYou(r)
     Box {
         Row(Modifier.fillMaxWidth().combinedClickable(onClick = onOpen, onLongClick = {
             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); menu = true
         }).padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
-                RoomTile(r)
-                if (answering.isNotEmpty()) Box(Modifier.align(Alignment.BottomEnd).size(14.dp).clip(CircleShape).background(p.bg), contentAlignment = Alignment.Center) { LiveDot(8.dp) }
+                RoomTile(r, needs)
+                if (answering.isNotEmpty() && !needs) Box(Modifier.align(Alignment.BottomEnd).size(14.dp).clip(CircleShape).background(p.bg), contentAlignment = Alignment.Center) { LiveDot(8.dp) }
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -142,8 +143,13 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
                 }
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val sub = if (answering.isNotEmpty()) RoomLogic.workingLine(answering) + "…" else RoomLogic.previewLine(r)
-                    Text(sub, style = sans(14f, 400, if (answering.isNotEmpty()) p.acct else p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    val sub = when {
+                        needs -> "Waiting for your approval"
+                        answering.isNotEmpty() -> RoomLogic.workingLine(answering) + "…"
+                        else -> RoomLogic.previewLine(r)
+                    }
+                    Text(sub, style = sans(14f, 400, when { needs -> p.attt; answering.isNotEmpty() -> p.acct; else -> p.mu }),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (r.unread > 0) {
                         Spacer(Modifier.width(8.dp))
                         Text(r.unread.coerceAtMost(99).toString(), style = mono(11f, 700, p.ink), modifier = Modifier.clip(CircleShape).background(p.acc).padding(horizontal = 7.dp, vertical = 1.dp))
@@ -223,7 +229,7 @@ fun RoomScreen(rid: String) {
     } }
     val dragging by list.interactionSource.collectIsDraggedAsState()
     var landed by remember(rid) { mutableStateOf(false) }
-    val pendingCount = driver?.pending?.size ?: 0
+    val pendingCount = (driver?.pending ?: room?.pending)?.size ?: 0
     LaunchedEffect(events.size, loading, pendingCount) {
         if (events.isEmpty() || loading) return@LaunchedEffect
         // Rows never outnumber events, plus a few fixed rows; an index past the end lands on the last row.
@@ -369,7 +375,7 @@ fun RoomBody(room: Room?, events: List<RoomEvent>, driver: RoomDriver?, driverUp
                 }
                 if (answering.isNotEmpty() || queued.isNotEmpty()) item(key = "working") { RoomWorkingRow(answering, queued) }
                 // What the room waits on scrolls with the log, so a long command never squeezes the composer.
-                items(driver?.pending.orEmpty(), key = { "act:${it.kind}:${it.taskId}:${it.generation}" }) { a ->
+                items(driver?.pending ?: room?.pending.orEmpty(), key = { "act:${it.kind}:${it.taskId}:${it.generation}" }) { a ->
                     Box(Modifier.padding(horizontal = 14.dp)) { RoomActionCard(a, members, actionBusy == a.taskId, cb.act) }
                 }
                 item(key = "end") { Spacer(Modifier.height(8.dp)) }
@@ -555,13 +561,19 @@ fun RoomActionCard(a: RoomAction, members: List<RoomMember>, busy: Boolean, onAc
     }
 }
 
+/** The sheet both room sheets use; it keeps its content clear of the status and navigation bars. */
 @Composable
-fun RoomMembersSheet(room: Room, driver: RoomDriver?, onDismiss: () -> Unit, onMention: (RoomMember) -> Unit) {
+fun RoomSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     val p = P
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = p.s1,
         dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(p.s4)) }) {
-        RoomMembersContent(room, driver, onMention)
+        content()
     }
+}
+
+@Composable
+fun RoomMembersSheet(room: Room, driver: RoomDriver?, onDismiss: () -> Unit, onMention: (RoomMember) -> Unit) {
+    RoomSheet(onDismiss) { RoomMembersContent(room, driver, onMention) }
 }
 
 @Composable
@@ -607,8 +619,7 @@ fun NewRoomSheet(onDismiss: () -> Unit) {
     val bots by Rooms.bots.collectAsState()
     var busy by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { runCatching { Rooms.load() } }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = P.s1,
-        dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).clip(CircleShape).background(P.s4)) }) {
+    RoomSheet(onDismiss) {
         NewRoomContent(bots, busy) { name, picked ->
             busy = true
             scope.launch {

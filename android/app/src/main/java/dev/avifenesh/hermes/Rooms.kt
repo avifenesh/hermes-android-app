@@ -11,7 +11,8 @@ import org.json.JSONObject
 data class RoomMember(val id: String, val profile: String, val handle: String, val name: String)
 data class RoomPreview(val seq: Long, val role: String, val name: String, val text: String, val ts: Double)
 data class Room(val id: String, val name: String, val members: List<RoomMember>, val latestSeq: Long, val readSeq: Long,
-                val unread: Int, val updated: Double, val working: List<String>, val preview: RoomPreview?)
+                val unread: Int, val updated: Double, val working: List<String>, val preview: RoomPreview?,
+                val pending: List<RoomAction> = emptyList())
 
 /** A room-log entry as the plugin projects it: a message (`role` user or member) or a thin notice. */
 data class RoomEvent(val seq: Long, val id: String, val kind: String, val role: String, val member: String, val name: String,
@@ -40,8 +41,12 @@ object RoomLogic {
         return Room(o.str("id"), o.str("name").ifBlank { "Group chat" }, o.optJSONArray("members").objs().map(::member),
             o.optLong("latest_seq"), o.optLong("read_seq"), o.optInt("unread"), o.optDouble("updated", 0.0),
             o.optJSONArray("working").strs(),
-            p?.let { RoomPreview(it.optLong("seq"), it.str("role"), it.str("name"), it.str("text"), it.optDouble("ts", 0.0)) })
+            p?.let { RoomPreview(it.optLong("seq"), it.str("role"), it.str("name"), it.str("text"), it.optDouble("ts", 0.0)) },
+            o.optJSONArray("pending").objs().map(::action))
     }
+
+    fun action(o: JSONObject) = RoomAction(o.str("kind"), o.str("member"), o.str("task_id"), o.optLong("generation"),
+        o.str("request_id"), o.str("command"), o.str("description"))
 
     fun event(o: JSONObject) = RoomEvent(o.optLong("seq"), o.str("id"), o.str("kind", "message"), o.str("role"),
         o.str("member"), o.str("name"), o.str("text"), o.optDouble("ts", 0.0), o.str("thread"), o.str("notice"),
@@ -50,10 +55,7 @@ object RoomLogic {
     fun driver(o: JSONObject?): RoomDriver {
         if (o == null) return RoomDriver(false, false, false, emptyMap(), emptyList())
         val members = o.optJSONArray("members").objs().associate { it.str("id") to it.str("status") }
-        val pending = o.optJSONArray("pending").objs().map {
-            RoomAction(it.str("kind"), it.str("member"), it.str("task_id"), it.optLong("generation"),
-                it.str("request_id"), it.str("command"), it.str("description"))
-        }
+        val pending = o.optJSONArray("pending").objs().map(::action)
         return RoomDriver(o.optBoolean("running"), o.optBoolean("working"), o.optBoolean("blocked"), members, pending)
     }
 
@@ -74,6 +76,26 @@ object RoomLogic {
     fun notifies(before: Room?, after: Room, foreground: Boolean): Boolean =
         before != null && after.latestSeq > before.latestSeq && after.unread > before.unread &&
             after.preview?.role == "member" && !foreground
+
+    /** A member's command waits on the owner: the room badges like a chat with a pending approval. */
+    fun needsYou(r: Room): Boolean = r.pending.any { it.kind == "approval" }
+
+    private fun approvalKey(a: RoomAction) = "${a.taskId}:${a.generation}:${a.requestId}"
+
+    /** Approvals that appeared since the last summary (all of them on first sight, as chat approvals after a sync). */
+    fun newApprovals(before: Room?, after: Room): List<RoomAction> {
+        val seen = before?.pending.orEmpty().filter { it.kind == "approval" }.map(::approvalKey).toSet()
+        return after.pending.filter { it.kind == "approval" && approvalKey(it) !in seen }
+    }
+
+    /** Approvals the summary no longer carries: answered here, on another phone or on Desktop. */
+    fun answeredApprovals(before: Room?, after: Room?): List<RoomAction> {
+        val still = after?.pending.orEmpty().filter { it.kind == "approval" }.map(::approvalKey).toSet()
+        return before?.pending.orEmpty().filter { it.kind == "approval" && approvalKey(it) !in still }
+    }
+
+    /** Ask the owner on the lock screen unless they are looking at that room already. */
+    fun asksOutside(roomId: String, foreground: Boolean, open: String?): Boolean = !(foreground && open == roomId)
 
     /** Rows for the timeline: a day label when the date changes, the speaker's name and avatar on the first
      *  message of a run, consecutive notices folded into the first of them. */
@@ -185,7 +207,12 @@ object Rooms {
             call({ Api.get("/v1/rooms") }) { o ->
                 supported.value = o.optBoolean("supported", true)
                 driverUp.value = o.optBoolean("driver", true)
+                val before = list.value
                 list.value = o.optJSONArray("rooms").objs().map(RoomLogic::room).associateBy { it.id }
+                if (Hub.isAppInitialized()) {
+                    for (r in list.value.values) approvals(Hub.app, before[r.id], r)
+                    for ((id, gone) in before) if (id !in list.value) approvals(Hub.app, gone, null)
+                }
                 bots.value = o.optJSONArray("bots").objs().map { RoomBot(it.str("profile"), it.str("name").ifBlank { it.str("profile") }) }
                 loaded.value = true
             }
@@ -290,9 +317,19 @@ object Rooms {
         val before = list.value[next.id]
         put(next)
         if (RoomLogic.notifies(before, next, Hub.foreground)) Notify.room(c, next)
+        approvals(c, before, next)
+    }
+
+    /** A member's new command approval asks like a chat approval; an answered one stops asking. */
+    private fun approvals(c: Context, before: Room?, after: Room?) {
+        if (after != null && RoomLogic.asksOutside(after.id, Hub.foreground, openRoom))
+            for (a in RoomLogic.newApprovals(before, after)) Notify.roomApproval(c, after, a)
+        for (a in RoomLogic.answeredApprovals(before, after)) Notify.cancelRoomApproval(c, before?.id ?: return, a)
     }
 
     fun onRemoved(rid: String) {
+        val gone = list.value[rid]
+        if (gone != null && Hub.isAppInitialized()) approvals(Hub.app, gone, null)
         list.update { it - rid }
         events.update { it - rid }
         before.update { it - rid }
