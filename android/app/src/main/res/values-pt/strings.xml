@@ -1,0 +1,1763 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_desc">Agentes esperando por você, o que está em execução e Falar com um toque</string>
+    <string name="tile_talk">Falar</string>
+    <string name="sc_talk">Falar</string>
+    <string name="sc_new">Novo chat</string>
+    <string name="sc_fleet">Frota</string>
+    <string name="report_problem">Relatar um problema</string>
+    <string name="report_message">Relatar mensagem</string>
+    <string name="report_include">Incluir a mensagem selecionada (opcional)</string>
+    <string name="report_notice">Revise um e-mail de suporte para hello@tiyuvta.ai. Ao abrir seu app de e-mail, o rascunho é compartilhado com ele; você decide se vai enviar.</string>
+    <string name="report_subject">Relatório de problema do Hermes</string>
+    <string name="report_email">hello@tiyuvta.ai</string>
+    <string name="common_cancel">Cancelar</string>
+    <string name="common_close">Fechar</string>
+    <string name="common_ok">OK</string>
+    <string name="common_save">Salvar</string>
+    <string name="common_saved">Salvo</string>
+    <string name="common_delete">Excluir</string>
+    <string name="common_remove">Remover</string>
+    <string name="common_rename">Renomear</string>
+    <string name="common_open">Abrir</string>
+    <string name="common_done">Concluído</string>
+    <string name="common_copy">Copiar</string>
+    <string name="common_copied">Copiado</string>
+    <string name="common_back">Voltar</string>
+    <string name="common_send">Enviar</string>
+    <string name="common_edit">Editar</string>
+    <string name="common_add">Adicionar</string>
+    <string name="common_search">Pesquisar</string>
+    <string name="common_settings">Configurações</string>
+    <string name="common_all">Tudo</string>
+    <string name="common_you">Você</string>
+    <string name="common_allow">Permitir</string>
+    <string name="common_deny">Negar</string>
+    <string name="common_approve">Aprovar</string>
+    <string name="common_install">Instalar</string>
+    <string name="common_update">Atualizar</string>
+    <string name="common_run">Executar</string>
+    <string name="common_try_again">Tentar novamente</string>
+    <string name="common_loading">Carregando…</string>
+    <string name="common_checking">Verificando…</string>
+    <string name="common_failed">Falhou</string>
+    <string name="common_connection_failed">Falha na conexão</string>
+    <string name="time_now">agora</string>
+    <string name="time_due">pendente</string>
+    <string name="time_in">em %1$s</string>
+    <string name="language_section">Idioma</string>
+    <string name="language_title">Idioma do app</string>
+    <string name="language_system_default">Padrão do sistema</string>
+    <string name="language_change">Alterar</string>
+
+    <!-- ================= Inbox, chat, compose, pairing and shared components ================= -->
+
+    <!-- ===== App shell: tab bar ===== -->
+    <string name="nav_sync_failed">Falha na sincronização: %1$s</string>
+    <string name="nav_inbox">Entrada</string>
+    <string name="nav_pulse">Pulso</string>
+    <string name="nav_cron">Cron</string>
+    <string name="nav_me">Eu</string>
+    <string name="nav_new_chat_desc">Novo chat</string>
+
+    <!-- ===== Pairing screen ===== -->
+    <string name="pair_tap_to_switch">Toque em “Parear com esta máquina” para trocar</string>
+    <string name="pair_not_a_link">Este não é um link de pareamento do %1$s</string>
+    <string name="pair_tagline">%1$s no seu bolso. Chats, aprovações, execuções e cron, direto da sua máquina.</string>
+    <string name="pair_step_machine">"1  Na sua máquina"</string>
+    <string name="pair_step_scan_or_paste">"2  Leia o código ou cole o link"</string>
+    <string name="pair_step_paste">"2  Cole o link de pareamento"</string>
+    <string name="pair_pairing">Pareando…</string>
+    <string name="pair_scan_qr">Ler código QR</string>
+    <string name="pair_qr_empty">Código QR vazio</string>
+    <string name="pair_qr_unavailable">Leitor de QR indisponível. Cole o link de pareamento.</string>
+    <string name="pair_qr_needs_play">A leitura de QR precisa do Google Play Services. Você ainda pode parear com um link.</string>
+    <string name="pair_paste">Colar</string>
+    <string name="pair_submit">Parear</string>
+    <string name="pair_confirm_switch">Parear com %1$s? Suas máquinas atuais continuam pareadas.</string>
+    <string name="pair_with_this_machine">Parear com esta máquina</string>
+    <string name="pair_security_note">O link traz um código de uso único. Seu telefone cria as próprias chaves de assinatura. As aprovações exigem autenticação biométrica ou bloqueio de tela.</string>
+    <string name="pair_privacy_policy">Política de privacidade</string>
+    <string name="pair_licenses">Licenças</string>
+
+    <!-- ===== New work sheet (compose) ===== -->
+    <string name="attach_upload_failed">Falha no envio: %1$s</string>
+    <string name="record_start_failed">Não foi possível iniciar a gravação: %1$s</string>
+    <string name="record_mic_denied">Permissão do microfone negada. Você ainda pode digitar uma mensagem.</string>
+    <string name="attach_no_camera_app">Nenhum app de câmera disponível. Anexe uma foto.</string>
+    <string name="attach_camera_denied">Permissão da câmera negada. Você ainda pode anexar uma foto.</string>
+    <string name="compose_model_not_switched">Modelo não alterado: %1$s</string>
+    <string name="compose_start_failed">Não foi possível iniciar: %1$s</string>
+    <string name="compose_title">Novo trabalho</string>
+    <string name="compose_continue_last_reply">Continuar a última resposta</string>
+    <string name="compose_new_chat_in">Novo chat em</string>
+    <string name="compose_mixture_of_agents">Mistura de agentes</string>
+    <string name="compose_profile_note">Executa no perfil %1$s, com modelo, memória e chaves próprios.</string>
+    <string name="compose_placeholder">Pergunte qualquer coisa a %1$s ou digite / para comandos</string>
+    <string name="attach_voice">Voz</string>
+    <string name="attach_camera">Câmera</string>
+    <string name="attach_photo">Foto</string>
+    <string name="attach_file">Arquivo</string>
+    <string name="attach_share_title">Enviar o arquivo compartilhado?</string>
+    <string name="attach_share_body">O arquivo compartilhado será enviado para %1$s. Nada é enviado até você confirmar.</string>
+    <string name="attach_share_body_default">O arquivo compartilhado será enviado para sua máquina pareada. Nada é enviado até você confirmar.</string>
+    <string name="attach_upload">Enviar</string>
+    <string name="attach_share_machine_changed">A máquina mudou. Compartilhe o arquivo de novo.</string>
+    <string name="attach_privacy_notice">Arquivos e fotos são enviados ao seu gateway pareado assim que selecionados, antes de “Enviar”. Remover um rascunho não exclui a cópia no servidor.</string>
+    <string name="record_recording">Gravando</string>
+
+    <!-- ===== Inbox ===== -->
+    <string name="inbox_title">Caixa de entrada</string>
+    <string name="inbox_offline">Off-line · mostrando o que está no telefone</string>
+    <string name="inbox_search_placeholder">Pesquisar mensagens</string>
+    <string name="inbox_search_everywhere">Pesquisar em todas as sessões da máquina →</string>
+    <plurals name="inbox_agent_busy">
+        <item quantity="one">%2$s está em %1$d tarefa</item>
+        <item quantity="many">%2$s está em %1$d tarefas</item>
+        <item quantity="other">%2$s está em %1$d tarefas</item>
+    </plurals>
+    <string name="inbox_filter_chats">Chats</string>
+    <string name="inbox_filter_rooms">Salas</string>
+    <string name="inbox_filter_digests">Resumos</string>
+    <string name="inbox_filter_archived">Arquivados</string>
+    <string name="inbox_filter_elsewhere">Outros lugares</string>
+    <string name="inbox_search_empty_title">Nada encontrado</string>
+    <string name="inbox_search_empty_body">Nenhum chat menciona “%1$s”.</string>
+    <string name="inbox_rooms_empty_title">Nenhum chat em grupo ainda</string>
+    <string name="inbox_rooms_empty_body">Crie um com dois ou mais Bots ou abra um pelo %1$s.</string>
+    <string name="inbox_empty_title">Tudo tranquilo</string>
+    <string name="inbox_empty_body">Comece um novo trabalho com a caneta ou espere %1$s e o cron darem notícias.</string>
+    <string name="inbox_row_waiting_approval">Aguardando sua aprovação</string>
+    <string name="inbox_row_working">%1$s está trabalhando…</string>
+    <string name="inbox_row_you">Você: %1$s</string>
+    <string name="inbox_menu_pin">Fixar</string>
+    <string name="inbox_menu_unpin">Desafixar</string>
+    <string name="inbox_menu_archive">Arquivar</string>
+    <string name="inbox_menu_unarchive">Desarquivar</string>
+    <string name="inbox_menu_mark_read">Marcar como lido</string>
+
+    <!-- ===== Chat screen ===== -->
+    <string name="chat_not_sent">Não enviado: %1$s</string>
+    <string name="chat_status_working">trabalhando</string>
+    <string name="chat_status_digest">resumo</string>
+    <string name="chat_title_fallback">Chat</string>
+    <string name="chat_load_failed">Não foi possível carregar o chat: %1$s</string>
+    <string name="chat_empty_title">Novo chat</string>
+    <string name="chat_empty_body">Diga algo para %1$s.</string>
+    <string name="chat_new_messages">Novas mensagens ↓</string>
+    <string name="chat_jump_to_latest">Ir para a mais recente</string>
+    <string name="chat_mode_steer">Guiar</string>
+    <string name="chat_mode_queue">Enfileirar</string>
+    <string name="chat_mode_steer_hint">redireciona antes do próximo passo</string>
+    <string name="chat_mode_queue_hint">executa quando esta terminar</string>
+    <string name="chat_placeholder_steer">Guiar %1$s…</string>
+    <string name="chat_placeholder_queue">Enfileirar uma continuação…</string>
+    <string name="chat_placeholder_message">Mensagem para %1$s</string>
+    <string name="chat_agent_working">%1$s está trabalhando</string>
+    <plurals name="chat_notice_count">
+        <item quantity="one">%1$d aviso</item>
+        <item quantity="many">%1$d avisos</item>
+        <item quantity="other">%1$d avisos</item>
+    </plurals>
+    <string name="chat_preview_approval">Precisa de aprovação: %1$s</string>
+    <string name="chat_preview_photo">Foto</string>
+    <string name="chat_preview_file">Arquivo: %1$s</string>
+    <string name="chat_preview_voice">Mensagem de voz</string>
+
+    <!-- ===== Chat messages ===== -->
+    <string name="msg_thinking">Pensando</string>
+    <string name="msg_tag_steer">DIRECIONAMENTO</string>
+    <string name="msg_tag_queued">NA FILA</string>
+    <plurals name="msg_trace_steps">
+        <item quantity="one">%1$d passo</item>
+        <item quantity="many">%1$d passos</item>
+        <item quantity="other">%1$d passos</item>
+    </plurals>
+
+    <!-- ===== Approval card ===== -->
+    <string name="approval_context">CONTEXTO</string>
+    <plurals name="approval_context_files">
+        <item quantity="one">%1$d arquivo</item>
+        <item quantity="many">%1$d arquivos</item>
+        <item quantity="other">%1$d arquivos</item>
+    </plurals>
+    <plurals name="approval_context_recent_steps">
+        <item quantity="one">%1$d passo recente</item>
+        <item quantity="many">%1$d passos recentes</item>
+        <item quantity="other">%1$d passos recentes</item>
+    </plurals>
+    <string name="approval_context_last_diff">último diff</string>
+    <string name="approval_needs_you">Precisa da sua aprovação</string>
+    <string name="approval_approved">Aprovado</string>
+    <string name="approval_denied">Negado</string>
+    <string name="approval_expired">Expirado</string>
+    <string name="approval_command_label">comando</string>
+    <string name="approval_smart_denied">A verificação de segurança do %1$s sinalizou este pedido. Leia antes de aprovar.</string>
+    <string name="approval_no_lock">Este telefone não tem bloqueio de tela, então aprovar não pede sua digital. Configure um bloqueio de tela e pareie de novo para corrigir.</string>
+
+    <!-- ===== Run screen ===== -->
+    <string name="run_stopping">Parando…</string>
+    <string name="run_title">Execução</string>
+    <string name="run_load_failed">Não foi possível carregar a execução: %1$s</string>
+    <string name="run_state_working">Trabalhando</string>
+    <string name="run_state_idle">Ocioso</string>
+    <string name="run_steps">Passos</string>
+    <string name="run_waiting_first_call">Aguardando a primeira chamada de ferramenta…</string>
+    <string name="run_no_calls">Nenhuma chamada de ferramenta no último turno.</string>
+    <string name="run_steer_placeholder">Guiar antes do próximo passo…</string>
+    <string name="run_steer_sent">Direcionamento enviado</string>
+    <string name="run_stop">Parar execução</string>
+    <string name="run_stop_desc">Parar execução</string>
+
+    <!-- ===== Tool activity (card in chat and detail screen) ===== -->
+    <string name="activity_duration_under">&lt;%1$s</string>
+    <string name="activity_tool_activity">Atividade das ferramentas</string>
+    <plurals name="activity_tools">
+        <item quantity="one">%1$d ferramenta</item>
+        <item quantity="many">%1$d ferramentas</item>
+        <item quantity="other">%1$d ferramentas</item>
+    </plurals>
+    <plurals name="activity_failed">
+        <item quantity="one">%1$d com falha</item>
+        <item quantity="many">%1$d com falha</item>
+        <item quantity="other">%1$d com falha</item>
+    </plurals>
+    <string name="activity_tab_calls">Chamadas · %1$d</string>
+    <string name="activity_tab_files">Arquivos · %1$d</string>
+    <string name="activity_load_failed">Não foi possível carregar a atividade das ferramentas: %1$s</string>
+    <string name="activity_empty_title">Nenhuma atividade de ferramentas</string>
+    <string name="activity_empty_body">As chamadas de ferramentas e os arquivos alterados vão aparecer aqui.</string>
+    <string name="activity_pane_command">comando</string>
+    <string name="activity_pane_input">entrada</string>
+    <string name="activity_pane_output">saída</string>
+    <string name="diff_none_captured">Nenhum diff registrado para este arquivo.</string>
+
+    <!-- ===== Shared parts: code blocks, images, files ===== -->
+    <string name="parts_code_label">código</string>
+    <string name="parts_code_copy">copiar</string>
+    <string name="image_unavailable">Imagem indisponível</string>
+    <string name="image_tap_to_load">Imagem de %1$s · toque para carregar</string>
+    <string name="image_tap_to_load_link">Imagem de um link · toque para carregar</string>
+    <string name="attach_open_failed">Não foi possível abrir o anexo</string>
+    <string name="file_downloads_unavailable">Downloads indisponíveis</string>
+    <string name="file_download_failed">Falha no download: %1$s</string>
+    <string name="file_downloading">Baixando… %1$s</string>
+    <string name="file_downloading_of">Baixando… %1$s de %2$s</string>
+    <string name="file_tap_to_install">toque para instalar</string>
+    <string name="file_tap_to_open">toque para abrir</string>
+    <string name="file_saved_to_downloads">Salvo em Downloads: %1$s</string>
+
+    <!-- ===== Icon buttons: screen reader labels ===== -->
+    <string name="icon_back_desc">Voltar</string>
+    <string name="icon_close_desc">Fechar</string>
+    <string name="icon_add_desc">Adicionar</string>
+    <string name="icon_send_desc">Enviar</string>
+    <string name="icon_stop_desc">Parar</string>
+    <string name="icon_run_desc">Executar</string>
+    <string name="icon_pause_desc">Pausar</string>
+    <string name="icon_microphone_desc">Microfone</string>
+    <string name="icon_camera_desc">Câmera</string>
+    <string name="icon_search_desc">Pesquisar</string>
+    <string name="icon_refresh_desc">Atualizar</string>
+    <string name="icon_more_desc">Mais opções</string>
+    <string name="icon_delete_desc">Excluir</string>
+    <string name="icon_edit_desc">Editar</string>
+    <string name="icon_pin_desc">Fixar</string>
+    <string name="icon_download_desc">Baixar</string>
+    <string name="icon_next_desc">Próximo</string>
+    <string name="icon_expand_desc">Expandir</string>
+    <string name="icon_collapse_desc">Recolher</string>
+    <string name="icon_new_chat_desc">Novo chat</string>
+    <string name="icon_settings_desc">Configurações</string>
+    <string name="icon_link_desc">Link</string>
+    <string name="icon_file_desc">Arquivo</string>
+    <string name="icon_confirm_desc">Confirmar</string>
+    <string name="icon_power_desc">Liga/desliga</string>
+    <string name="icon_members_desc">Membros</string>
+    <string name="icon_open_desc">Abrir</string>
+
+    <!-- ================= Group rooms, connection, pairing and app entry ================= -->
+
+    <!-- ===== Chat list sync: read-only mirrored chats (shown instead of the composer) ===== -->
+    <string name="sync_readonly_group_in">Chat em grupo · somente leitura. Responda no %1$s.</string>
+    <string name="sync_readonly_group">Chat em grupo · somente leitura. Responda onde ele começou.</string>
+    <string name="sync_readonly_channel_in">Canal · somente leitura. Responda no %1$s.</string>
+    <string name="sync_readonly_channel">Canal · somente leitura. Responda onde ele começou.</string>
+    <string name="sync_readonly_shared_in">Chat compartilhado · somente leitura. Responda no %1$s.</string>
+    <string name="sync_readonly_shared">Chat compartilhado · somente leitura. Responda onde ele começou.</string>
+    <string name="sync_chat_untitled">Chat</string>
+
+    <!-- ===== Network and storage errors (shown in toasts and error panels) ===== -->
+    <string name="net_machines_save_failed">Não foi possível salvar as máquinas pareadas</string>
+    <string name="net_machines_legacy_failed">Não foi possível remover as máquinas pareadas antigas</string>
+    <string name="net_request_signing_failed">Falha ao assinar a solicitação</string>
+    <string name="net_connection_changed">A conexão ou o recurso mudou</string>
+    <string name="net_not_paired">Não pareado</string>
+    <string name="net_feature_unavailable">Este recurso não está disponível nesta máquina</string>
+    <string name="net_not_authorized">Não autorizado (HTTP 401)</string>
+    <plurals name="net_download_cut_off">
+        <item quantity="one">Download interrompido em %1$d de %2$d byte</item>
+        <item quantity="many">Download interrompido em %1$d de %2$d bytes</item>
+        <item quantity="other">Download interrompido em %1$d de %2$d bytes</item>
+    </plurals>
+    <string name="net_download_save_failed">Não foi possível salvar o download</string>
+
+    <!-- ===== Pairing with a machine ===== -->
+    <string name="pairing_already_paired_with">Já pareado com %1$s</string>
+    <string name="pairing_already_paired_this_machine">Já pareado com esta máquina</string>
+    <string name="pairing_link_used">Esse link de pareamento já foi usado. Execute %1$s de novo.</string>
+    <string name="pairing_not_a_pairing_link">Este não é um link de pareamento do %1$s</string>
+    <string name="pairing_link_no_server">Esse link não tem endereço de servidor</string>
+    <string name="pairing_link_no_code">Esse link não tem código de pareamento</string>
+    <string name="pairing_paired_with">Pareado com %1$s</string>
+    <string name="pairing_code_expired">Esse código já foi usado ou expirou. Execute %1$s de novo.</string>
+    <string name="pairing_request_replayed">Este telefone já enviou essa solicitação de pareamento. Abra o link de novo para tentar outra vez.</string>
+    <string name="pairing_signature_failed">Falha na assinatura do pareamento</string>
+    <string name="pairing_missing_token">Token de pareamento ausente</string>
+    <string name="pairing_missing_device_id">ID do dispositivo ausente</string>
+
+    <!-- ===== Files shared into the app from another app ===== -->
+    <string name="share_not_content">Compartilhe um arquivo de outro app ou use o seletor de arquivos.</string>
+    <string name="share_no_provider">O arquivo compartilhado não tem fornecedor.</string>
+    <string name="share_private_file">Arquivos privados do %1$s não podem ser compartilhados com o app.</string>
+    <string name="share_provider_unavailable">O fornecedor do arquivo compartilhado está indisponível.</string>
+    <string name="share_no_grant">O app de origem não concedeu acesso. Compartilhe o arquivo de novo ou use o seletor de arquivos.</string>
+    <string name="share_attach_failed">Não é possível anexar o arquivo compartilhado: %1$s</string>
+    <string name="share_attach_invalid">Não é possível anexar o arquivo compartilhado: compartilhamento inválido</string>
+
+    <!-- ===== Group chats: names, status lines and timeline notices ===== -->
+    <string name="room_default_name">Chat em grupo</string>
+    <string name="room_answering_one">%1$s está respondendo</string>
+    <string name="room_answering_two">%1$s e %2$s estão respondendo</string>
+    <string name="room_answering_many">%1$s e %2$s estão respondendo</string>
+    <string name="room_notice_someone">Um membro</string>
+    <string name="room_notice_failed">%1$s encontrou um erro</string>
+    <string name="room_notice_failed_detail">%1$s encontrou um erro: %2$s</string>
+    <string name="room_notice_superseded">%1$s passou para sua mensagem mais recente</string>
+    <string name="room_notice_cancelled">O turno de %1$s foi cancelado</string>
+    <string name="room_notice_deferred">%1$s está indisponível; o turno aguarda</string>
+    <string name="room_notice_unavailable">%1$s está indisponível</string>
+    <string name="room_notice_stopped">Você parou o grupo</string>
+    <string name="room_notice_deleted">Este grupo foi excluído</string>
+    <string name="room_notice_renamed_to">Renomeado para %1$s</string>
+    <string name="room_notice_renamed">Grupo renomeado</string>
+    <string name="room_notice_authority_lost">Outro gateway assumiu este grupo</string>
+    <string name="room_notice_round_limit">Limite de rodadas atingido; mencione um Bot com @ para continuar</string>
+    <plurals name="rooms_member_count">
+        <item quantity="one">%1$d membro</item>
+        <item quantity="many">%1$d membros</item>
+        <item quantity="other">%1$d membros</item>
+    </plurals>
+
+    <!-- ===== Inbox: group chat rows ===== -->
+    <string name="rooms_waiting_approval">Aguardando sua aprovação</string>
+    <string name="rooms_mark_read">Marcar como lido</string>
+    <string name="rooms_new_group">Novo chat em grupo</string>
+    <string name="rooms_new_group_hint">De dois a seis Bots em uma sala</string>
+
+    <!-- ===== Group chat screen ===== -->
+    <string name="room_upload_failed">Falha no envio: %1$s</string>
+    <string name="room_not_sent">Não enviado: %1$s</string>
+    <string name="room_stopping">Parando o grupo…</string>
+    <string name="room_delete_title">Excluir este grupo?</string>
+    <string name="room_delete_body">O grupo e o histórico dele somem de todos os dispositivos e do %1$s. Cada Bot mantém os próprios chats.</string>
+    <string name="room_deleted">Grupo excluído</string>
+    <string name="room_discard_title">Descartar o turno de %1$s?</string>
+    <string name="room_rerun_title">Executar o turno de %1$s de novo?</string>
+    <string name="room_discard_body">O %1$s não sabe se este turno terminou. Descartar deixa o grupo seguir; não desfaz nada do que %2$s já fez.</string>
+    <string name="room_rerun_body">O turno de %1$s não pôde começar. Executar de novo envia a mesma mensagem para %1$s.</string>
+    <string name="room_discard">Descartar</string>
+    <string name="room_run_again">Executar de novo</string>
+    <string name="room_members">Membros</string>
+    <string name="room_stop">Parar o grupo</string>
+    <string name="room_delete">Excluir grupo</string>
+    <string name="room_load_failed">Não foi possível carregar o grupo: %1$s</string>
+    <string name="room_empty_hint">Diga algo ao grupo. Mencione um Bot com @ para perguntar só a ele.</string>
+    <string name="room_earlier">Mensagens anteriores</string>
+    <string name="room_worker_down">O worker de chats em grupo do gateway não está em execução. As mensagens aguardam até ele voltar.</string>
+    <string name="room_attach_photo">Foto</string>
+    <string name="room_attach_file">Arquivo</string>
+    <string name="room_composer_hint">Mensagem para o grupo</string>
+    <string name="room_next_up">Próximo: %1$s</string>
+    <plurals name="room_notice_count">
+        <item quantity="one">%1$d aviso</item>
+        <item quantity="many">%1$d avisos</item>
+        <item quantity="other">%1$d avisos</item>
+    </plurals>
+    <string name="room_download_failed">Falha no download: %1$s</string>
+    <string name="room_downloading">Baixando… %1$s</string>
+    <string name="room_tap_to_open">toque para abrir</string>
+    <string name="room_saved_to_downloads">Salvo em Downloads: %1$s</string>
+    <string name="room_action_approval">%1$s precisa da sua aprovação</string>
+    <string name="room_action_discard">O último turno de %1$s tem resultado desconhecido</string>
+    <string name="room_action_retry">O turno de %1$s está aguardando execução</string>
+    <string name="room_command_label">comando</string>
+    <string name="room_action_loading">Carregando o comando completo antes que você possa responder…</string>
+    <string name="room_no_lock">Este telefone não tem bloqueio de tela, então aprovar não pede sua digital.</string>
+    <string name="room_discard_turn">Descartar turno</string>
+
+    <!-- ===== Group members sheet ===== -->
+    <plurals name="room_members_summary">
+        <item quantity="one">%1$d Bot em %2$s. Toque em um para mencioná-lo com @.</item>
+        <item quantity="many">%1$d Bots em %2$s. Toque em um para mencioná-lo com @.</item>
+        <item quantity="other">%1$d Bots em %2$s. Toque em um para mencioná-lo com @.</item>
+    </plurals>
+    <string name="room_member_next">Próximo</string>
+    <string name="room_member_answering">Respondendo</string>
+    <string name="room_members_fixed">Os membros deste grupo são fixos. Para mudar quem participa, crie um novo grupo.</string>
+
+    <!-- ===== Rename group dialog ===== -->
+    <string name="room_rename_title">Renomear grupo</string>
+    <string name="room_name_hint">Nome do grupo</string>
+
+    <!-- ===== New group chat sheet ===== -->
+    <string name="rooms_create_failed">Não foi possível iniciar o grupo: %1$s</string>
+    <string name="rooms_new_group_desc">O grupo fica neste gateway, então o %1$s também o vê.</string>
+    <string name="rooms_bots_header">BOTS</string>
+    <string name="rooms_picked_count">%1$d de %2$d–%3$d</string>
+    <string name="rooms_too_few_bots">Este gateway atende menos de dois Bots. Crie outro perfil (%1$s) para iniciar um grupo.</string>
+    <string name="rooms_starting">Iniciando…</string>
+    <string name="rooms_start">Iniciar grupo</string>
+
+    <!-- ===== This phone settings: tabs (both editions) ===== -->
+    <string name="channel_tab_look">Aparência</string>
+    <string name="channel_tab_voice">Voz</string>
+    <string name="channel_tab_alerts">Alertas</string>
+    <string name="channel_tab_connection">Conexão</string>
+
+    <!-- ===== Opening attachments (both editions) ===== -->
+    <string name="channel_no_app_to_open">Nenhum app consegue abrir %1$s. Use o botão de salvar para colocá-lo em Downloads.</string>
+
+    <!-- ================= Pulse, cron, sessions, Me, This phone, support and legal ================= -->
+
+    <!-- ===== Pulse screen ===== -->
+    <string name="pulse_title">Pulso</string>
+    <string name="pulse_subtitle">O que precisa de você, o que está em execução, o que está pronto</string>
+    <string name="pulse_unreachable">Não foi possível acessar o %1$s: %2$s</string>
+    <string name="pulse_stat_spent_today">gasto hoje</string>
+    <string name="pulse_stat_runs_today">execuções hoje</string>
+    <string name="pulse_stat_cron_fails">falhas de cron</string>
+    <string name="pulse_needs_you">Precisa de você</string>
+    <string name="pulse_needs_you_nothing">nada</string>
+    <string name="pulse_no_approvals">Nenhuma aprovação pendente.</string>
+    <string name="pulse_chat_fallback">Chat</string>
+    <string name="pulse_hermes_runs">Execuções do %1$s</string>
+    <string name="pulse_runs_idle">ocioso</string>
+    <string name="pulse_run_fallback">Execução</string>
+    <string name="pulse_run_from_phone">deste telefone</string>
+    <string name="pulse_untitled_session">Sessão sem título</string>
+    <string name="pulse_recently_done">Concluído recentemente</string>
+    <string name="pulse_nothing_last_day">Nada no último dia.</string>
+
+    <!-- ===== Pulse: spend chart ===== -->
+    <plurals name="spend_days">
+        <item quantity="one">%1$d dia</item>
+        <item quantity="many">%1$d dias</item>
+        <item quantity="other">%1$d dias</item>
+    </plurals>
+    <string name="spend_usage_link">Uso ›</string>
+
+    <!-- ===== Cron screen ===== -->
+    <string name="cron_title">Cron</string>
+    <string name="cron_alarm_clock">Despertador</string>
+    <string name="cron_alarm_next">próximo %1$s · %2$s</string>
+    <string name="cron_no_alarm">nenhum alarme definido</string>
+    <plurals name="cron_active_count">
+        <item quantity="one">%1$d ativa</item>
+        <item quantity="many">%1$d ativas</item>
+        <item quantity="other">%1$d ativas</item>
+    </plurals>
+    <plurals name="cron_paused_count">
+        <item quantity="one">%1$d pausada</item>
+        <item quantity="many">%1$d pausadas</item>
+        <item quantity="other">%1$d pausadas</item>
+    </plurals>
+    <string name="cron_tab_jobs">Tarefas cron</string>
+    <string name="cron_unreachable">Não foi possível acessar o %1$s: %2$s</string>
+    <string name="cron_empty_title">Nenhuma tarefa cron</string>
+    <string name="cron_empty_sub">Toque em + para agendar uma.</string>
+    <string name="cron_next_up">A SEGUIR</string>
+    <string name="cron_section_active">Ativas</string>
+    <string name="cron_section_paused">Pausadas</string>
+    <string name="cron_paused_hide">ocultar</string>
+    <string name="cron_paused_show">mostrar %1$d</string>
+    <string name="cron_job_ran">executou %1$s</string>
+    <string name="cron_job_ran_failed">executou %1$s · falhou</string>
+    <string name="cron_run_now_title">Executar agora?</string>
+    <string name="cron_run_now_body">%1$s vai executar no próximo ciclo do agendador.</string>
+    <string name="cron_queued">Na fila</string>
+
+    <!-- ===== Cron job detail ===== -->
+    <string name="job_no_output">Nenhuma saída salva ainda</string>
+    <string name="job_kv_status">status</string>
+    <string name="job_status_active">ativa</string>
+    <string name="job_status_paused">pausada</string>
+    <string name="job_status_paused_reason">pausada · %1$s</string>
+    <string name="job_kv_next">próxima</string>
+    <string name="job_kv_last">última</string>
+    <string name="job_last_value">há %1$s · %2$s</string>
+    <string name="job_kv_model">modelo</string>
+    <string name="job_kv_deliver">entrega</string>
+    <string name="job_empty_output">Saída vazia</string>
+    <string name="job_prompt">Prompt</string>
+
+    <!-- ===== Elsewhere (sessions from other apps) ===== -->
+    <string name="elsewhere_title">Outros lugares</string>
+    <string name="elsewhere_subtitle">Sessões da CLI, do Telegram e de outros apps</string>
+    <string name="elsewhere_empty_title">Nada mais</string>
+    <string name="elsewhere_empty_sub">As sessões iniciadas fora do app aparecem aqui.</string>
+    <string name="elsewhere_untitled">Sem título</string>
+    <string name="elsewhere_untitled_session">Sessão sem título</string>
+
+    <!-- ===== Live session from elsewhere ===== -->
+    <string name="session_load_failed">Não foi possível carregar esta sessão</string>
+    <string name="session_sub_read_only">%1$s · substituída · somente leitura</string>
+    <string name="session_sub_working">%1$s · ao vivo · trabalhando</string>
+    <string name="session_sub_live">%1$s · ao vivo</string>
+    <string name="session_loading_older">Carregando mensagens anteriores…</string>
+    <string name="session_empty_title">Nenhuma mensagem ainda</string>
+    <string name="session_empty_sub">Envie uma mensagem para continuar esta sessão.</string>
+    <string name="session_working">Trabalhando: sua mensagem vai guiar a sessão ou entrar na fila</string>
+    <string name="session_superseded">Esta sessão foi substituída. Abra a continuação para enviar mensagens.</string>
+    <string name="session_input_steer">Guie ou enfileire uma continuação…</string>
+    <string name="session_input_message">Mensagem para esta sessão…</string>
+    <string name="session_approval_needed">Aprovação necessária</string>
+    <string name="session_agent_asking">%1$s está perguntando</string>
+    <string name="session_response_sent">Resposta enviada</string>
+    <string name="session_allow_once">Permitir uma vez</string>
+    <string name="session_allow_session">Esta sessão</string>
+    <string name="session_allow_always">Sempre</string>
+    <string name="session_your_answer">Sua resposta</string>
+    <string name="session_answer_sent">Resposta enviada</string>
+    <string name="session_send_selection">Enviar seleção</string>
+    <string name="session_type_answer">Digite sua resposta…</string>
+    <string name="session_other_detail">Outra / mais detalhes…</string>
+    <string name="session_send_answer">Enviar resposta</string>
+
+    <!-- ===== Me screen ===== -->
+    <string name="me_title">Eu</string>
+    <string name="me_profile_model">perfil %1$s · %2$s</string>
+    <string name="me_status_live">on-line</string>
+    <string name="me_status_offline">off-line</string>
+    <string name="me_server_problems">Problemas no servidor</string>
+    <plurals name="me_server_problems_count">
+        <item quantity="one">%1$d problema encontrado no autoteste</item>
+        <item quantity="many">%1$d problemas encontrados no autoteste</item>
+        <item quantity="other">%1$d problemas encontrados no autoteste</item>
+    </plurals>
+    <string name="me_agent">Agente</string>
+    <string name="me_agent_sub">Modelo, raciocínio, aprovações, memória, subagentes, ferramentas</string>
+    <string name="me_this_phone">Este telefone</string>
+    <string name="me_this_phone_sub">Voz, aparência, notificações, conexão</string>
+    <string name="me_workspace">Espaço de trabalho</string>
+    <string name="me_hub">Hub</string>
+    <string name="me_hub_sub">Instale skills, plugins e servidores MCP</string>
+    <string name="me_radar_sub_scout">A cada 3 h: as 5 coisas mais úteis que o scout encontrou</string>
+    <string name="me_radar_sub_momentum">Momentum: o que precisa de você, execuções e entregas</string>
+    <string name="me_radar_sub_both">Momentum e as descobertas do scout</string>
+    <string name="me_radar">Radar</string>
+    <plurals name="me_radar_decisions_desc">
+        <item quantity="one">%1$d decisão precisa de você</item>
+        <item quantity="many">%1$d decisões precisam de você</item>
+        <item quantity="other">%1$d decisões precisam de você</item>
+    </plurals>
+    <plurals name="me_radar_decisions_new_desc">
+        <item quantity="one">%1$d decisão precisa de você, %2$d novas</item>
+        <item quantity="many">%1$d decisões precisam de você, %2$d novas</item>
+        <item quantity="other">%1$d decisões precisam de você, %2$d novas</item>
+    </plurals>
+    <string name="me_skills">Skills e plugins</string>
+    <string name="me_skills_sub">Ative ou desative skills, plugins e servidores MCP</string>
+    <string name="me_memory">Memória</string>
+    <string name="me_memory_sub">O que %1$s lembra sobre você</string>
+    <string name="me_usage">Uso</string>
+    <string name="me_usage_sub">Gastos e tokens por dia, modelo e superfície</string>
+    <string name="me_projects">Projetos</string>
+    <string name="me_projects_sub">Repos na máquina: alterações, diffs, commit, push, PRs</string>
+    <string name="me_search">Pesquisar tudo</string>
+    <string name="me_search_sub">Texto completo em todas as sessões da máquina</string>
+    <string name="me_restart">Reiniciar o %1$s</string>
+    <string name="me_restart_sub">Recarregar a configuração e os plugins na máquina</string>
+    <string name="me_privacy">Política de privacidade</string>
+    <string name="me_privacy_sub">Política off-line: dados, permissões, retenção e suporte</string>
+    <string name="me_licenses">Licenças</string>
+    <string name="me_licenses_sub">Avisos off-line, restrições de modelos e textos completos das licenças</string>
+
+    <!-- ===== This phone settings ===== -->
+    <string name="phone_settings_title">Este telefone</string>
+    <string name="phone_settings_subtitle">Como o app aparece, fala e continua conectado</string>
+    <string name="phone_settings_theme">Tema</string>
+    <string name="phone_settings_theme_system">Sistema</string>
+    <string name="phone_settings_theme_night">Noite</string>
+    <string name="phone_settings_theme_day">Dia</string>
+    <string name="phone_settings_accent_desc">Cor de destaque %1$s</string>
+    <string name="phone_settings_talk_voice">Voz do Falar</string>
+    <string name="phone_settings_wake_word">Palavra de ativação</string>
+    <string name="phone_settings_notifications">Notificações</string>
+    <string name="phone_settings_push">Ativação por push</string>
+    <string name="phone_settings_push_on">Ativado. O Google ativa o telefone, e o conteúdo vem direto do %1$s.</string>
+    <string name="phone_settings_push_off">Não configurado no servidor. O app usa a própria conexão.</string>
+    <string name="phone_settings_stay_connected">Manter conectado em segundo plano</string>
+    <string name="phone_settings_stay_connected_sub">Mantém uma conexão ao vivo e mostra o progresso das execuções. Usa um pouco mais de bateria.</string>
+    <string name="phone_settings_channels">Canais</string>
+    <string name="phone_settings_channels_sub">Aprovações, respostas, cron e resumos, execuções ao vivo. Silencie cada um separadamente.</string>
+    <string name="phone_settings_devices">Dispositivos</string>
+    <string name="phone_settings_device_this">%1$s (este telefone)</string>
+    <string name="phone_settings_device_revoked">revogado</string>
+    <string name="phone_settings_device_seen">visto %1$s</string>
+    <string name="phone_settings_revoke">Revogar</string>
+    <string name="phone_settings_connection">Conexão</string>
+    <string name="phone_settings_kv_server">servidor</string>
+    <string name="phone_settings_kv_security">segurança</string>
+    <string name="phone_settings_security_access">Cloudflare Access + solicitações assinadas</string>
+    <string name="phone_settings_security_signed">solicitações assinadas</string>
+    <string name="phone_settings_kv_approval">aprovação</string>
+    <string name="phone_settings_approval_no_lock">sem bloqueio de tela</string>
+    <string name="phone_settings_approval_biometric">digital ou PIN</string>
+    <string name="phone_settings_unpair_button">Desparear este telefone</string>
+    <string name="phone_settings_unpair_title">Desparear?</string>
+    <string name="phone_settings_unpair_body">Este telefone esquece a máquina e as chaves dela. Você vai precisar de um novo código de pareamento.</string>
+    <string name="phone_settings_unpair">Desparear</string>
+    <string name="phone_settings_wake_needs_mic">A palavra de ativação precisa do microfone</string>
+    <string name="phone_settings_wake_say">Diga “%1$s”</string>
+    <string name="phone_settings_wake_off_sub">Usa o microfone continuamente em segundo plano enquanto está ativada. A detecção fica no dispositivo; depois de uma detecção, o Falar pode enviar áudio ao reconhecedor do sistema e texto ao seu gateway e fornecedores.</string>
+    <string name="phone_settings_wake_paused">Pausada enquanto o Falar usa o microfone</string>
+    <string name="phone_settings_wake_listening">Ouvindo</string>
+    <plurals name="phone_settings_wake_listening_hits">
+        <item quantity="one">Ouvindo · detectada %1$d vez nesta sessão</item>
+        <item quantity="many">Ouvindo · detectada %1$d vezes nesta sessão</item>
+        <item quantity="other">Ouvindo · detectada %1$d vezes nesta sessão</item>
+    </plurals>
+    <string name="phone_settings_wake_starting">Iniciando…</string>
+    <string name="phone_settings_wake_engine">%1$s · off-line</string>
+    <plurals name="phone_settings_wake_cutoff">
+        <item quantity="one">Limite da janela: %1$s · %2$d inferência</item>
+        <item quantity="many">Limite da janela: %1$s · %2$d inferências</item>
+        <item quantity="other">Limite da janela: %1$s · %2$d inferências</item>
+    </plurals>
+    <string name="phone_settings_wake_lower">Mais baixo</string>
+    <string name="phone_settings_wake_higher">Mais alto</string>
+    <string name="phone_settings_wake_use_recommended">Usar o recomendado: %1$s</string>
+    <string name="phone_settings_wake_warming_up">Aquecendo / rearmando</string>
+    <string name="phone_settings_wake_activation">Janela de ativação: %1$d / %2$d</string>
+    <string name="phone_settings_wake_explainer">Mais alto é mais rigoroso; mais baixo pode disparar com outras falas. A barra é a média das cinco saídas de ativação do modelo nativo, não a confiança. Mudar o limite reinicia o aquecimento. A sensibilidade do mecanismo antigo foi redefinida para a recomendação do modelo.</string>
+    <string name="phone_settings_daystrip_next_24h">PRÓXIMAS 24 H</string>
+    <plurals name="phone_settings_daystrip_runs">
+        <item quantity="one">%1$d execução</item>
+        <item quantity="many">%1$d execuções</item>
+        <item quantity="other">%1$d execuções</item>
+    </plurals>
+    <string name="phone_settings_server_voice">Voz do servidor</string>
+    <string name="phone_settings_server_voice_on">A voz própria do %1$s (definida em Agente → Voz). Cerca de um segundo antes de cada resposta.</string>
+    <string name="phone_settings_server_voice_off">O mecanismo de conversão de texto em voz do telefone. Instantâneo, robótico.</string>
+
+    <!-- ===== Me: machines ===== -->
+    <string name="machines_title">Máquinas</string>
+    <string name="machines_unavailable">indisponível</string>
+    <string name="machines_read_failed">Não foi possível ler as máquinas salvas. Os pareamentos existentes não foram alterados.</string>
+    <string name="machines_switched_to">Mudou para %1$s</string>
+    <string name="machines_fallback_name">máquina</string>
+    <string name="machines_switch_failed">Não foi possível trocar de máquina. Os pareamentos existentes foram mantidos.</string>
+    <string name="machines_latency">%1$d ms</string>
+    <string name="machines_active">ativa</string>
+    <string name="machines_forget">Esquecer</string>
+    <string name="machines_pair_another">Parear outra máquina</string>
+    <string name="machines_forget_title">Esquecer %1$s?</string>
+    <string name="machines_forget_body">O telefone descarta o token dessa máquina. Revogue o dispositivo lá também (Eu → Dispositivos naquela máquina).</string>
+    <string name="machines_update_failed">Não foi possível atualizar as máquinas salvas. Os pareamentos existentes foram mantidos.</string>
+
+    <!-- ===== This phone > Alerts: cron delivery ===== -->
+    <string name="cron_delivery_title">Entrega do cron</string>
+    <string name="cron_delivery_loading">Para onde as tarefas agendadas enviam os resultados</string>
+    <string name="cron_delivery_none">Nenhuma tarefa cron ainda. As novas entregam no app.</string>
+    <plurals name="cron_delivery_all_to_app">
+        <item quantity="one">%1$d tarefa com notificação entrega no app</item>
+        <item quantity="many">Todas as %1$d tarefas com notificação entregam no app</item>
+        <item quantity="other">Todas as %1$d tarefas com notificação entregam no app</item>
+    </plurals>
+    <plurals name="cron_delivery_some_elsewhere">
+        <item quantity="one">%1$d de %2$d tarefas entrega no app; %3$d ainda vão para o Telegram ou outro lugar</item>
+        <item quantity="many">%1$d de %2$d tarefas entregam no app; %3$d ainda vão para o Telegram ou outro lugar</item>
+        <item quantity="other">%1$d de %2$d tarefas entregam no app; %3$d ainda vão para o Telegram ou outro lugar</item>
+    </plurals>
+    <string name="cron_delivery_move">Mover</string>
+    <string name="cron_delivery_dialog_title">Entregar o cron no app?</string>
+    <plurals name="cron_delivery_dialog_body">
+        <item quantity="one">%1$d tarefa passa a entregar em %2$s. Tarefas somente locais continuam locais. Você pode mudar qualquer tarefa de volta no editor dela.</item>
+        <item quantity="many">%1$d tarefas passam a entregar em %2$s. Tarefas somente locais continuam locais. Você pode mudar qualquer tarefa de volta no editor dela.</item>
+        <item quantity="other">%1$d tarefas passam a entregar em %2$s. Tarefas somente locais continuam locais. Você pode mudar qualquer tarefa de volta no editor dela.</item>
+    </plurals>
+    <plurals name="cron_delivery_moved">
+        <item quantity="one">%1$d tarefa movida</item>
+        <item quantity="many">%1$d tarefas movidas</item>
+        <item quantity="other">%1$d tarefas movidas</item>
+    </plurals>
+
+    <!-- ===== Support report ===== -->
+    <string name="support_message_actions">Ações da mensagem</string>
+    <string name="support_actions_body">Copie a mensagem ou revise um relatório voluntário. Nada é enviado até você escolher “Enviar relatório” ou enviar pelo seu app de e-mail.</string>
+    <string name="support_report">Relatar</string>
+    <string name="support_review_title">Revisar relatório</string>
+    <string name="support_disclosure">Relatório voluntário para %1$s, o publicador do app, via Cloudflare (não pelo seu gateway de chat auto-hospedado). Não é preciso ter conta. Só o texto exato da prévia e um ID de relatório aleatório são enviados quando você toca em “Enviar relatório”. A Cloudflare recebe a conexão, incluindo seu endereço IP. Sem telemetria automática. Sair do app cancela a espera; isso não desfaz um relatório já recebido.</string>
+    <string name="support_privacy_policy">Política de privacidade</string>
+    <string name="support_policy_closes_draft">Abrir a política fecha este rascunho não enviado.</string>
+    <string name="support_endpoint">Endpoint do publicador: %1$s</string>
+    <string name="support_report_id">ID do relatório: %1$s</string>
+    <string name="support_keep_id">Guarde este ID para novas tentativas ou pedidos de exclusão.</string>
+    <string name="support_email_alternative">Alternativa por e-mail: %1$s</string>
+    <string name="support_mail_subject">Assunto: %1$s</string>
+    <string name="support_received">Recebido por %1$s. Este é um comprovante de recebimento, não uma decisão de moderação nem uma promessa de ação ou resposta.</string>
+    <string name="support_send_failed">Nenhum recebimento confirmado. Seu rascunho continua aqui. Toque em “Enviar relatório” para tentar de novo com o mesmo ID ou use o e-mail. Uma conexão com falha ou cancelada pode ter entregado mesmo assim; nada é repetido automaticamente.</string>
+    <string name="support_mail_failed">Não foi possível abrir um app de e-mail. Seu rascunho continua aqui. Você pode enviar um e-mail para %1$s por conta própria.</string>
+    <string name="support_note_hint">O que deu errado? (opcional)</string>
+    <string name="support_note_too_long">Essa edição passa do limite de 8 KiB do rascunho. Encurte; a nota anterior não mudou.</string>
+    <string name="support_included">Versão do app, pacote, versão do Android e modelo do dispositivo estão incluídos na prévia. Verifique se há segredos antes de enviar. Nenhum endereço de gateway ou token é adicionado automaticamente; anexos e outro histórico de chat não são incluídos. Relatórios longos são encurtados na prévia até o limite de 8 KiB. O e-mail passa o mesmo rascunho para seu app de e-mail; você decide se vai enviar por lá.</string>
+    <string name="support_include_detail">Apenas o texto desta mensagem selecionada, incluindo o raciocínio. Sem anexos nem outras mensagens. Verifique se há segredos e informações pessoais.</string>
+    <string name="support_no_messages">Nenhuma mensagem de chat ou anexo é incluído.</string>
+    <string name="support_open_mail">Abrir app de e-mail</string>
+    <string name="support_sending">Enviando…</string>
+    <string name="support_received_button">Recebido</string>
+    <string name="support_send">Enviar relatório</string>
+    <string name="support_review_button">Revisar relatório</string>
+    <string name="support_row_sub">Revise um relatório voluntário para %1$s ou use o e-mail. Nada é enviado automaticamente.</string>
+
+    <!-- ===== Privacy policy screen ===== -->
+    <string name="privacy_table_details">Detalhes</string>
+    <string name="privacy_package">Pacote: %1$s</string>
+    <string name="privacy_title">Política de privacidade</string>
+    <string name="privacy_read_failed">Não foi possível ler a política de privacidade incluída.</string>
+    <string name="privacy_bundled">Incluída neste app · disponível off-line. Não é preciso conta nem pareamento.</string>
+
+    <!-- ===== Licenses screen ===== -->
+    <string name="licenses_title">Licenças</string>
+    <string name="licenses_text_title">Texto da licença</string>
+    <string name="licenses_subtitle">Incluídas neste telefone · disponíveis off-line</string>
+    <string name="licenses_read_failed">Não foi possível ler o texto da licença incluído.</string>
+    <string name="licenses_wake_model">Os pesos e o manifesto do microWakeWord Hey Jarvis têm uma concessão Apache-2.0 explícita. A procedência do treinamento continua sem resposta; isto não certifica que todas as entradas de treinamento sejam permissivas. Leia o aviso e a procedência do modelo antes de redistribuir.</string>
+    <string name="licenses_not_sbom">Estes avisos não são um SBOM completo das dependências nem uma liberação jurídica. O Google ML Kit tem termos próprios.</string>
+    <string name="licenses_source">Fonte: %1$s</string>
+    <string name="licenses_sha256">SHA-256: %1$s</string>
+
+    <!-- ===== Digest actions (chips under a cron or digest thread) ===== -->
+    <string name="digest_link_pr">%1$s PR #%2$s</string>
+    <string name="digest_link_fallback">link</string>
+    <string name="digest_tldr">TL;DR</string>
+    <string name="digest_dig_deeper">Aprofundar</string>
+    <string name="digest_act_on_it">Agir</string>
+    <string name="digest_run_again">Executar de novo</string>
+    <string name="digest_pause_job">Pausar tarefa</string>
+    <string name="digest_job">Tarefa</string>
+    <string name="digest_queued">Na fila</string>
+    <string name="digest_paused">Pausada</string>
+
+    <!-- ===== Usage meters (reply footer, run screen, chat header) ===== -->
+    <string name="meter_cost_included">incluído</string>
+    <string name="meter_tokens_in">%1$s de entrada</string>
+    <string name="meter_tokens_out">%1$s de saída</string>
+    <string name="meter_cache_pct">%1$s cache</string>
+    <string name="meter_tok_per_s">%1$d tok/s</string>
+    <string name="meter_chip_in">entrada %1$s</string>
+    <string name="meter_chip_cache_read">leitura de cache %1$s</string>
+    <string name="meter_chip_cache_write">gravação de cache %1$s</string>
+    <string name="meter_chip_out">saída %1$s</string>
+    <string name="meter_chip_reasoning">raciocínio %1$s</string>
+    <plurals name="meter_calls">
+        <item quantity="one">%1$d chamada</item>
+        <item quantity="many">%1$d chamadas</item>
+        <item quantity="other">%1$d chamadas</item>
+    </plurals>
+    <plurals name="meter_calls_sub">
+        <item quantity="one">%1$d chamada (%2$d subchamadas)</item>
+        <item quantity="many">%1$d chamadas (%2$d subchamadas)</item>
+        <item quantity="other">%1$d chamadas (%2$d subchamadas)</item>
+    </plurals>
+    <string name="meter_cost_na">custo n/d</string>
+    <string name="meter_context">contexto %1$s de %2$s</string>
+    <string name="meter_tokens">%1$s tok</string>
+    <string name="meter_this_turn">ESTE TURNO</string>
+    <string name="meter_stat_in">entrada</string>
+    <string name="meter_stat_out">saída</string>
+    <string name="meter_stat_cache_hit">acerto de cache</string>
+    <string name="meter_stat_tok_s">tok/s</string>
+    <string name="meter_stat_calls">chamadas</string>
+    <string name="meter_stat_cost">custo</string>
+    <string name="meter_na">n/d</string>
+    <string name="meter_session">SESSÃO</string>
+    <plurals name="meter_session_calls">
+        <item quantity="one">%1$d chamada</item>
+        <item quantity="many">%1$d chamadas</item>
+        <item quantity="other">%1$d chamadas</item>
+    </plurals>
+
+    <!-- ===== Momentum report (Radar page) ===== -->
+    <string name="momentum_section_needs_you">Precisa de você</string>
+    <string name="momentum_section_problems">Problemas</string>
+    <string name="momentum_section_running">Em execução</string>
+    <string name="momentum_section_shipped">Entregue</string>
+    <string name="momentum_section_decided">Decidido</string>
+    <string name="momentum_unreachable">inacessível</string>
+    <string name="momentum_stale">desatualizado</string>
+    <string name="momentum_stale_at">desatualizado · %1$s</string>
+    <string name="momentum_no_report">Nenhum relatório ainda</string>
+    <string name="momentum_no_report_detail">momentum ainda não gerou um relatório</string>
+    <string name="momentum_refresh_failed">Não foi possível atualizar: %1$s</string>
+    <string name="momentum_no_reason">nenhum motivo informado</string>
+    <string name="momentum_show_count_desc">Mostrar só a contagem</string>
+    <string name="momentum_show_items_desc">Mostrar itens</string>
+    <string name="momentum_expanded_desc">Expandido</string>
+    <string name="momentum_collapsed_desc">Recolhido</string>
+    <plurals name="momentum_more">
+        <item quantity="one">e mais %1$d</item>
+        <item quantity="many">e mais %1$d</item>
+        <item quantity="other">e mais %1$d</item>
+    </plurals>
+    <string name="momentum_show_less_desc">Mostrar menos</string>
+    <string name="momentum_show_all_desc">Mostrar tudo</string>
+    <string name="momentum_new_desc">Novo</string>
+    <string name="momentum_open_in_browser_desc">Abrir no navegador</string>
+    <string name="momentum_no_app_for_link">Nenhum app consegue abrir este link</string>
+
+    <!-- ===== Accent colors (This phone > Look) ===== -->
+    <string name="accent_lime">Lima</string>
+    <string name="accent_coral">Coral</string>
+    <string name="accent_sky">Céu</string>
+    <string name="accent_violet">Violeta</string>
+    <string name="accent_mint">Menta</string>
+
+    <!-- ================= Agent settings, model, memory, search, usage, fleet, widget and notifications ================= -->
+
+    <!-- ===== Model chip and model sheet (chat composer, agent settings, cron editor) ===== -->
+    <string name="model_chip_fallback">modelo</string>
+    <string name="model_fast_chip_on">ϟ Rápido ativado</string>
+    <string name="model_fast_chip_off">ϟ Rápido desativado</string>
+    <string name="model_loading">carregando…</string>
+    <string name="model_now">agora %1$s · %2$s</string>
+    <string name="model_scope_chat">Este chat</string>
+    <string name="model_scope_global">Padrão para todos</string>
+    <string name="model_scope_global_hint">Salvo na configuração. Novos chats também começam aqui.</string>
+    <string name="model_scope_chat_hint">Só esta conversa. Seu padrão continua igual.</string>
+    <string name="model_reasoning_header">RACIOCÍNIO</string>
+    <string name="model_fast_title">Modo rápido</string>
+    <string name="model_fast_summary">Processamento prioritário, cobrado com acréscimo</string>
+    <string name="model_fast_on">Modo rápido ativado</string>
+    <string name="model_fast_off">Modo rápido desativado</string>
+    <string name="model_search_hint">Pesquisar modelos ou fornecedores</string>
+    <string name="model_fetching">Buscando fornecedores…</string>
+    <string name="model_no_match">Nenhum modelo corresponde a “%1$s”.</string>
+    <string name="model_recent">Recentes</string>
+    <string name="model_providers">Fornecedores</string>
+    <string name="model_title">Modelo</string>
+    <string name="model_fast_on_chat">Modo rápido ativado neste chat</string>
+    <string name="model_fast_off_chat">Modo rápido desativado neste chat</string>
+    <string name="model_switched_to">Mudou para %1$s</string>
+    <string name="model_reasoning_set">Raciocínio: %1$s</string>
+    <string name="model_switch_title">Trocar de modelo?</string>
+    <string name="model_keep_current">Manter o atual</string>
+    <string name="model_switch">Trocar</string>
+    <string name="model_switched">Trocado</string>
+
+    <!-- ===== Restart (gateway restart toast, dialog and banner) ===== -->
+    <plurals name="restart_draining">
+        <item quantity="one">%2$s reinicia quando %1$d tarefa em execução terminar</item>
+        <item quantity="many">%2$s reinicia quando %1$d tarefas em execução terminarem</item>
+        <item quantity="other">%2$s reinicia quando %1$d tarefas em execução terminarem</item>
+    </plurals>
+    <string name="restart_restarting">Reiniciando o %1$s…</string>
+    <string name="restart_in_progress">Já há uma reinicialização em andamento</string>
+    <string name="restart_title">Reiniciar o %1$s?</string>
+    <string name="restart_body">O trabalho em execução termina primeiro, depois o gateway recarrega a configuração e os plugins. O app se reconecta sozinho.</string>
+    <string name="restart_action">Reiniciar</string>
+    <string name="restart_banner_title">Reinicie para aplicar</string>
+    <string name="restart_banner_body">Algumas mudanças são carregadas quando o %1$s reinicia.</string>
+
+    <!-- ===== Agent settings (SettingField, OptionSheet, EditDialog, SettingsScreen, AllSettingsScreen) ===== -->
+    <string name="settings_value_default">padrão</string>
+    <string name="settings_change_title">Alterar %1$s</string>
+    <string name="settings_restart_pill">reiniciar</string>
+    <string name="settings_default_model">Modelo padrão</string>
+    <string name="settings_edit_number_hint">número</string>
+    <string name="settings_edit_value_hint">valor</string>
+    <string name="settings_not_a_number">Não é um número</string>
+    <string name="settings_title">Agente</string>
+    <string name="settings_subtitle">%1$s · perfil %2$s</string>
+    <string name="settings_tab_other">Outros</string>
+    <string name="settings_all_title">Todas as configurações</string>
+    <string name="settings_all_sub">Todas as chaves do config.yaml, com pesquisa</string>
+    <string name="settings_footer">As mudanças passam por %1$s, o mesmo caminho da CLI. Os segredos ficam na máquina.</string>
+    <plurals name="settings_key_count">
+        <item quantity="one">%1$d chave</item>
+        <item quantity="many">%1$d chaves</item>
+        <item quantity="other">%1$d chaves</item>
+    </plurals>
+    <string name="settings_search_keys">Pesquisar chaves</string>
+    <string name="settings_load_failed">Não foi possível carregar as configurações: %1$s</string>
+    <string name="settings_nothing_matches">Nenhum resultado</string>
+    <string name="settings_try_another">Tente outra palavra ou categoria.</string>
+
+    <!-- ===== Skills & plugins screen ===== -->
+    <string name="ext_title">Skills e plugins</string>
+    <string name="ext_subtitle">O que %1$s pode usar</string>
+    <string name="ext_open_hub">Hub</string>
+    <string name="ext_tab_skills">Skills</string>
+    <string name="ext_tab_plugins">Plugins</string>
+
+    <!-- ===== Skills tab and skill page ===== -->
+    <string name="skills_category_general">geral</string>
+    <string name="skills_search_hint">Pesquisar skills</string>
+    <string name="skills_filter_all">Todas %1$d</string>
+    <string name="skills_filter_off">Desativadas %1$d</string>
+    <string name="skills_filter_agent">Criadas por %1$s</string>
+    <string name="skills_filter_hub">Hub</string>
+    <string name="skills_filter_bundled">Incluídas</string>
+    <string name="skills_toggle_note">As mudanças valem para novos chats. Chats em andamento mantêm a lista de skills para preservar o cache do prompt.</string>
+    <string name="skills_empty_title">Nenhuma skill instalada</string>
+    <string name="skills_empty_sub">Explore o Hub para adicionar skills.</string>
+    <string name="skills_no_match">Nenhuma skill correspondente</string>
+    <string name="skills_no_match_sub">Tente outra palavra ou outro filtro.</string>
+    <string name="skills_locked_plugin">plugin</string>
+    <string name="skills_always_on">sempre ativa</string>
+    <string name="skills_cant_turn_off">Não é possível desativar %1$s</string>
+    <string name="skills_needs_setup">Precisa de configuração: %1$s</string>
+
+    <!-- ===== Plugins tab ===== -->
+    <string name="plugins_section">Plugins</string>
+    <plurals name="plugins_on_count">
+        <item quantity="one">%1$d ativado</item>
+        <item quantity="many">%1$d ativados</item>
+        <item quantity="other">%1$d ativados</item>
+    </plurals>
+    <string name="plugins_enable_title">Ativar %1$s</string>
+    <string name="plugins_disable_title">Desativar %1$s</string>
+    <string name="plugins_builtin">Integrados</string>
+    <string name="plugins_hide">ocultar</string>
+    <string name="plugins_show_count">mostrar %1$d</string>
+    <string name="plugins_builtin_note">Back-ends e adaptadores de plataforma carregam sozinhos. Escolha entre eles nas Configurações.</string>
+    <plurals name="plugins_tools">
+        <item quantity="one">%1$d ferramenta</item>
+        <item quantity="many">%1$d ferramentas</item>
+        <item quantity="other">%1$d ferramentas</item>
+    </plurals>
+    <plurals name="plugins_hooks">
+        <item quantity="one">%1$d hook</item>
+        <item quantity="many">%1$d hooks</item>
+        <item quantity="other">%1$d hooks</item>
+    </plurals>
+    <plurals name="plugins_commands">
+        <item quantity="one">%1$d comando</item>
+        <item quantity="many">%1$d comandos</item>
+        <item quantity="other">%1$d comandos</item>
+    </plurals>
+    <string name="plugins_restart_to_apply">reinicie para aplicar</string>
+    <string name="plugins_loaded">carregado</string>
+    <string name="plugins_off">desativado</string>
+    <string name="plugins_required">obrigatório</string>
+
+    <!-- ===== MCP tab ===== -->
+    <string name="mcp_empty_title">Nenhum servidor MCP</string>
+    <string name="mcp_empty_sub">Adicione um na máquina com %1$s.</string>
+    <string name="mcp_servers">Servidores</string>
+    <plurals name="mcp_tools">
+        <item quantity="one">%1$d ferramenta</item>
+        <item quantity="many">%1$d ferramentas</item>
+        <item quantity="other">%1$d ferramentas</item>
+    </plurals>
+    <string name="mcp_status_connected">conectado</string>
+    <string name="mcp_status_connecting">conectando</string>
+    <string name="mcp_status_failed">falhou</string>
+    <string name="mcp_status_disabled">desativado</string>
+    <string name="mcp_footer">A contagem de ferramentas aparece para os servidores que este gateway conectou. Servidores sob demanda iniciam no primeiro uso.</string>
+
+    <!-- ===== Memory screen ===== -->
+    <string name="memory_title">Memória</string>
+    <string name="memory_subtitle">Carregada em toda nova sessão</string>
+    <string name="memory_about_you">Sobre você</string>
+    <string name="memory_agent_notes">Notas de %1$s</string>
+    <plurals name="memory_chars">
+        <item quantity="one">%1$d caractere</item>
+        <item quantity="many">%1$d caracteres</item>
+        <item quantity="other">%1$d caracteres</item>
+    </plurals>
+    <string name="memory_turned_off">Desativada nas configurações</string>
+    <string name="memory_empty">Vazia</string>
+    <string name="memory_footer">Toque em uma entrada para editar ou esquecer. As edições passam pelos mesmos limites de tamanho e pela mesma verificação de segurança das gravações do próprio %1$s.</string>
+
+    <!-- ===== Chat menu (session commands) ===== -->
+    <string name="chatmenu_undone">Desfeito. Sua mensagem voltou para a caixa.</string>
+    <string name="chatmenu_exported">Exportado. O arquivo está neste chat.</string>
+    <string name="chatmenu_retry">Tentar de novo a última mensagem</string>
+    <string name="chatmenu_undo">Desfazer o último turno</string>
+    <string name="chatmenu_compress">Comprimir contexto</string>
+    <string name="chatmenu_new_session">Nova sessão</string>
+    <string name="chatmenu_export">Exportar como Markdown</string>
+    <string name="chatmenu_context">Janela de contexto</string>
+    <string name="chatmenu_status">Status da sessão</string>
+    <string name="chatmenu_new_title">Nova sessão?</string>
+    <string name="chatmenu_undo_title">Desfazer o último turno?</string>
+    <string name="chatmenu_new_body">%1$s começa do zero neste chat. As mensagens antigas continuam visíveis aqui, mas saem do contexto do modelo.</string>
+    <string name="chatmenu_undo_body">Sua última mensagem e a resposta de %1$s saem do contexto. A mensagem volta para a caixa para você editar e reenviar.</string>
+    <string name="chatmenu_start_fresh">Começar do zero</string>
+    <string name="chatmenu_undo_action">Desfazer</string>
+    <string name="chatmenu_title_hint">Título</string>
+
+    <!-- ===== Search across all sessions ===== -->
+    <string name="search_title">Pesquisar</string>
+    <string name="search_subtitle">Todas as sessões da máquina: app, Telegram, CLI</string>
+    <string name="search_hint">Palavras, \"uma frase\", prefixo*</string>
+    <string name="search_intro">Pesquisa de texto completo nas sessões salvas. Aceita AND, OR, NOT e \"frases exatas\".</string>
+    <string name="search_searching">Pesquisando…</string>
+    <string name="search_nothing_found">Nada encontrado</string>
+    <string name="search_no_mentions">Nenhuma sessão menciona “%1$s”.</string>
+    <string name="search_untitled">Sessão sem título</string>
+    <string name="search_you_said">Você: %1$s</string>
+
+    <!-- ===== Usage ===== -->
+    <string name="usage_title">Uso</string>
+    <string name="usage_subtitle">Gastos e tokens de todas as superfícies</string>
+    <plurals name="usage_days">
+        <item quantity="one">%1$d dia</item>
+        <item quantity="many">%1$d dias</item>
+        <item quantity="other">%1$d dias</item>
+    </plurals>
+    <string name="usage_load_failed">Não foi possível carregar o uso: %1$s</string>
+    <string name="usage_stat_spent">gasto</string>
+    <string name="usage_stat_sessions">sessões</string>
+    <string name="usage_stat_per_day">por dia</string>
+    <plurals name="usage_suspect_note">
+        <item quantity="one">%1$d sessão com preço %2$s ficou de fora: mais de US$ 2.000 por 1 M de tokens é erro de unidade, não gasto real.</item>
+        <item quantity="many">%1$d sessões com preço %2$s ficaram de fora: mais de US$ 2.000 por 1 M de tokens é erro de unidade, não gasto real.</item>
+        <item quantity="other">%1$d sessões com preço %2$s ficaram de fora: mais de US$ 2.000 por 1 M de tokens é erro de unidade, não gasto real.</item>
+    </plurals>
+    <plurals name="usage_included_note">
+        <item quantity="one">%1$d sessão rodou em assinatura (sem preço por token).</item>
+        <item quantity="many">%1$d sessões rodaram em assinaturas (sem preço por token).</item>
+        <item quantity="other">%1$d sessões rodaram em assinaturas (sem preço por token).</item>
+    </plurals>
+    <plurals name="usage_unpriced_note">
+        <item quantity="one">%1$d sessão em modelos sem preço conhecido, então o total aparece mais baixo.</item>
+        <item quantity="many">%1$d sessões em modelos sem preço conhecido, então o total aparece mais baixo.</item>
+        <item quantity="other">%1$d sessões em modelos sem preço conhecido, então o total aparece mais baixo.</item>
+    </plurals>
+    <string name="usage_by_model">Por modelo</string>
+    <string name="usage_included">incluído</string>
+    <string name="usage_na">n/d</string>
+    <plurals name="usage_sessions">
+        <item quantity="one">%1$d sessão</item>
+        <item quantity="many">%1$d sessões</item>
+        <item quantity="other">%1$d sessões</item>
+    </plurals>
+    <plurals name="usage_calls">
+        <item quantity="one">%1$d chamada</item>
+        <item quantity="many">%1$d chamadas</item>
+        <item quantity="other">%1$d chamadas</item>
+    </plurals>
+    <string name="usage_tokens">%1$s tok</string>
+    <string name="usage_cache_hit">%1$s cache</string>
+    <string name="usage_by_surface">Por superfície</string>
+    <string name="usage_max">máx. %1$s</string>
+    <string name="usage_today">hoje</string>
+
+    <!-- ===== Memory editor ===== -->
+    <string name="memory_add_to_about">Adicionar a “Sobre você”</string>
+    <string name="memory_add_to_notes">Adicionar às notas de %1$s</string>
+    <string name="memory_edit_entry">Editar entrada</string>
+    <string name="memory_entry_hint">Um fato por entrada</string>
+    <string name="memory_editor_note">Carregada no prompt de toda nova sessão. Chats em andamento mantêm a versão com que começaram.</string>
+    <string name="memory_delete_entry">Excluir entrada</string>
+    <string name="memory_saving">Salvando…</string>
+    <string name="memory_forget_title">Esquecer isto?</string>
+    <string name="memory_keep">Manter</string>
+    <string name="memory_forget">Esquecer</string>
+
+    <!-- ===== Cron job editor ===== -->
+    <string name="cronedit_scheduled">Agendada</string>
+    <string name="cronedit_new_title">Nova tarefa</string>
+    <string name="cronedit_edit_title">Editar tarefa</string>
+    <string name="cronedit_new_sub">Executa em uma sessão nova; a resposta final é entregue</string>
+    <string name="cronedit_load_failed">Não foi possível carregar a tarefa: %1$s</string>
+    <string name="cronedit_name">Nome</string>
+    <string name="cronedit_name_hint">Resumo da manhã</string>
+    <string name="cronedit_schedule">Agendamento</string>
+    <string name="cronedit_prompt">Prompt</string>
+    <string name="cronedit_prompt_note">Autossuficiente: a tarefa não tem contexto de chat.</string>
+    <string name="cronedit_prompt_hint">O que %1$s deve fazer a cada execução?</string>
+    <string name="cronedit_deliver_to">Entregar em</string>
+    <string name="cronedit_model">Modelo</string>
+    <string name="cronedit_model_note">Em branco segue seu modelo padrão, inclusive quando você mudá-lo depois.</string>
+    <string name="cronedit_model_default">Padrão</string>
+    <string name="cronedit_clear">Limpar</string>
+    <string name="cronedit_default_effort">esforço padrão</string>
+    <string name="cronedit_skills">Skills</string>
+    <string name="cronedit_skills_note">Separadas por vírgula; carregadas em cada execução.</string>
+    <string name="cronedit_skills_hint">ex.: %1$s</string>
+    <string name="cronedit_saving">Salvando…</string>
+    <string name="cronedit_schedule_job">Agendar tarefa</string>
+    <string name="cronedit_save_changes">Salvar alterações</string>
+    <string name="cronedit_job_model">Modelo da tarefa</string>
+    <string name="cronedit_delete_title">Excluir tarefa?</string>
+    <string name="cronedit_delete_body">%1$s deixa de ser executada. As saídas anteriores continuam na máquina.</string>
+    <string name="cronedit_deleted">Excluída</string>
+    <string name="cronedit_deliver_app">Este app</string>
+    <string name="cronedit_deliver_telegram_app">Telegram + este app</string>
+    <string name="cronedit_deliver_local">Nenhum lugar (salvo na máquina)</string>
+
+    <!-- ===== Fleet (coding agents on the machine) ===== -->
+    <string name="fleet_refused">O gateway recusou a operação</string>
+    <string name="fleet_waiting_on_you">%1$s está esperando por você</string>
+    <string name="fleet_agent_fallback">Agente</string>
+    <string name="fleet_needs_you">%1$s precisa de você</string>
+    <string name="fleet_reply_to">Responder a %1$s</string>
+    <string name="fleet_reply">Responder</string>
+    <string name="fleet_go_ahead">Pode seguir</string>
+    <string name="fleet_continue">Continuar</string>
+    <string name="fleet_send_to_title">Enviar para %1$s</string>
+    <string name="fleet_control_title">Controlar %1$s</string>
+    <string name="fleet_sig_unguarded">Executa sem pedidos de permissão: “%1$s”</string>
+    <string name="fleet_sig_input">Autorizar esta entrada no terminal · %1$s</string>
+    <string name="fleet_title">Frota</string>
+    <string name="fleet_idle">ociosa</string>
+    <plurals name="fleet_waiting_count">
+        <item quantity="one">%1$d aguardando</item>
+        <item quantity="many">%1$d aguardando</item>
+        <item quantity="other">%1$d aguardando</item>
+    </plurals>
+    <plurals name="fleet_working_count">
+        <item quantity="one">%1$d trabalhando</item>
+        <item quantity="many">%1$d trabalhando</item>
+        <item quantity="other">%1$d trabalhando</item>
+    </plurals>
+    <string name="fleet_agent_view_error">Visão de agentes: %1$s</string>
+    <string name="fleet_no_agents">Nenhum agente em execução.</string>
+    <string name="fleet_hide_ended">Ocultar sessões encerradas</string>
+    <string name="fleet_show_ended">Mostrar sessões encerradas</string>
+    <string name="fleet_untitled">Sem título</string>
+    <string name="fleet_group_waiting">aguardando</string>
+    <string name="fleet_group_working">trabalhando</string>
+    <string name="fleet_group_done">concluído</string>
+    <string name="fleet_group_recent">recente</string>
+
+    <!-- ===== Agent screen (one coding agent's terminal) ===== -->
+    <string name="agent_connection_changed">A conexão mudou; espere a tela atualizar antes de enviar.</string>
+    <string name="agent_sent_esc">Esc enviado</string>
+    <string name="agent_sent">Enviado</string>
+    <string name="agent_input_sent">Entrada enviada</string>
+    <string name="agent_refresh_failed">Entrada aceita; falha ao atualizar a tela: %1$s</string>
+    <string name="agent_not_sent">Não enviado: %1$s</string>
+    <string name="agent_fleet_unavailable">A frota não está disponível nesta máquina.</string>
+    <string name="agent_cancel_input">Cancelar entrada</string>
+    <string name="agent_cancelled_locally">Cancelado localmente; a entrada aceita não pode ser recuperada.</string>
+    <string name="agent_loading_screen">Carregando a tela…</string>
+    <string name="agent_read_only">Tela somente leitura · atualize o gateway para controlar o terminal. A resposta abaixo continua funcionando.</string>
+    <string name="agent_hint_mouse">Arraste para mover localmente · tente o mouse ou use as setas + Enter</string>
+    <string name="agent_hint_keyboard">Só teclado: use as setas + Enter · arraste para mover localmente</string>
+    <string name="agent_keyboard_only">Só teclado: use as setas + Enter</string>
+    <string name="agent_reply_in_desktop">Esta sessão está no app Claude para desktop; responda por lá.</string>
+    <string name="agent_reply_in_terminal">Este terminal não tem controle remoto; responda por lá.</string>
+
+    <!-- ===== Home-screen widget and Quick Settings tile ===== -->
+    <string name="widget_waiting">aguardando</string>
+    <string name="widget_working">trabalhando</string>
+    <string name="widget_approvals">aprovações</string>
+    <string name="widget_talk">Falar</string>
+    <string name="widget_new">Novo</string>
+    <string name="widget_fleet">Frota</string>
+    <string name="widget_label">Frota Hermes</string>
+    <string name="widget_open_to_pair">Abra o %1$s para parear</string>
+    <string name="widget_all_quiet">Tudo tranquilo.</string>
+    <string name="tile_talk_to">Falar com %1$s</string>
+    <plurals name="tile_waiting">
+        <item quantity="one">%1$d aguardando</item>
+        <item quantity="many">%1$d aguardando</item>
+        <item quantity="other">%1$d aguardando</item>
+    </plurals>
+    <string name="tile_hands_free">Mãos livres</string>
+
+    <!-- ===== Notifications ===== -->
+    <string name="notify_channel_approvals">Aprovações</string>
+    <string name="notify_channel_approvals_info">Comandos aguardando seu OK</string>
+    <string name="notify_channel_replies">Respostas</string>
+    <string name="notify_channel_replies_info">Respostas do agente e execuções concluídas</string>
+    <string name="notify_channel_digests">Cron e resumos</string>
+    <string name="notify_channel_digests_info">Resultados das tarefas agendadas</string>
+    <string name="notify_channel_live">Execuções ao vivo e conexão</string>
+    <string name="notify_channel_live_info">Progresso das execuções e a conexão em segundo plano</string>
+    <string name="notify_reply_to">Responder a %1$s</string>
+    <string name="notify_reply">Responder</string>
+    <string name="notify_mark_read">Marcar como lida</string>
+    <string name="notify_touched">Alterados: %1$s</string>
+    <string name="notify_flagged">⚠ sinalizado pela verificação de segurança do %1$s</string>
+    <string name="notify_approve_title">Aprovar? · %1$s</string>
+    <string name="notify_approval_needed">Aprovação necessária</string>
+    <string name="notify_this_session">Esta sessão</string>
+    <string name="notify_asks_to_run">%1$s pede para executar:</string>
+    <string name="notify_connected">Conectado</string>
+    <string name="notify_reconnecting">Reconectando…</string>
+    <string name="notify_agent_working">%1$s está trabalhando</string>
+    <string name="notify_a_run">Uma execução</string>
+    <plurals name="notify_runs">
+        <item quantity="one">%1$d execução</item>
+        <item quantity="many">%1$d execuções</item>
+        <item quantity="other">%1$d execuções</item>
+    </plurals>
+    <string name="notify_unlock_to_send">Desbloqueie o telefone para enviar</string>
+    <string name="notify_sent_to">Enviado para %1$s</string>
+    <string name="notify_needs_fingerprint">Precisa da sua digital: abra a sessão no %1$s</string>
+
+    <!-- ===== Approvals (fingerprint prompt and errors) ===== -->
+    <string name="approvals_expired">Essa aprovação já expirou</string>
+    <string name="approvals_key_unavailable">Chave de aprovação indisponível: %1$s</string>
+    <string name="approvals_signing_failed">Falha na assinatura</string>
+    <string name="approvals_no_signature">Sem assinatura</string>
+    <string name="approvals_prompt_once">Aprovar comando</string>
+    <string name="approvals_prompt_session">Aprovar para a sessão</string>
+    <string name="approvals_prompt_always">Aprovar para sempre</string>
+    <string name="approvals_prompt_scope">Aprovar para %1$s</string>
+    <string name="approvals_approved">Aprovado</string>
+
+    <!-- ================= Skill, plugin and MCP hub, projects, radar and terminal ================= -->
+
+    <!-- ===== Hub: skills, plugins and MCP servers (Market.kt) ===== -->
+    <string name="hub_job_lost">O acompanhamento da tarefa foi perdido: %1$s</string>
+    <string name="hub_title">Hub</string>
+    <string name="hub_subtitle">Skills, plugins e servidores MCP dos catálogos do %1$s</string>
+    <string name="hub_tab_skills">Skills</string>
+    <string name="hub_tab_plugins">Plugins</string>
+    <string name="hub_install_skills_into">Instalar skills em</string>
+    <string name="hub_search_installed_skills">Pesquisar skills instaladas</string>
+    <string name="hub_search_all_registries">Pesquisar em todos os registros de skills</string>
+    <string name="hub_all_sources">Todas as fontes</string>
+    <string name="hub_all_categories">Todas as categorias</string>
+    <string name="hub_discover_hint">Só skills não instaladas em %1$s. Pesquise para explorar mais registros.</string>
+    <string name="hub_installed_hint">Skills em %1$s. Os filtros de fonte e categoria valem para esta lista.</string>
+    <string name="hub_search_results">Resultados da pesquisa</string>
+    <string name="hub_installed_skills">Skills instaladas</string>
+    <string name="hub_browse_skills">Explorar skills</string>
+    <string name="hub_searching">pesquisando…</string>
+    <string name="hub_check_updates">Verificar atualizações</string>
+    <plurals name="hub_updates_available">
+        <item quantity="one">%1$d atualização do Hub disponível</item>
+        <item quantity="many">%1$d atualizações do Hub disponíveis</item>
+        <item quantity="other">%1$d atualizações do Hub disponíveis</item>
+    </plurals>
+    <string name="hub_timed_out">Tempo esgotado: %1$s</string>
+    <string name="hub_no_matching_skills">Nenhuma skill correspondente</string>
+    <string name="hub_no_matching_skills_discover">Tente outra categoria, fonte ou pesquisa. As skills instaladas estão em “Instaladas”.</string>
+    <string name="hub_no_matching_skills_body">Tente outra categoria ou palavra.</string>
+    <string name="hub_installed_locally">Instalada localmente · gerencie em “Extensões”</string>
+    <string name="hub_scope_discover">Descobrir</string>
+    <string name="hub_scope_installed">Instaladas</string>
+    <string name="hub_status_installed">instalada</string>
+    <string name="hub_job_installing">Instalando em %1$s…</string>
+    <string name="hub_job_updating">Atualizando em %1$s…</string>
+    <string name="hub_job_removing">Removendo de %1$s…</string>
+    <string name="hub_job_needs_ok">Precisa do seu OK</string>
+    <string name="hub_set_on_machine">Defina na máquina: %1$s</string>
+    <string name="hub_sign_install">Instalar %1$s</string>
+    <string name="hub_sign_update">Atualizar %1$s</string>
+    <string name="hub_installed_toast">%1$s instalado</string>
+    <string name="hub_updated_toast">%1$s atualizado</string>
+    <string name="hub_removed_toast">%1$s removido</string>
+    <string name="hub_job_failed">falhou</string>
+    <string name="hub_installed_in">instalada em %1$s</string>
+    <string name="hub_kv_source">fonte</string>
+    <string name="hub_kv_repo">repo</string>
+    <string name="hub_kv_installed">instalada</string>
+    <string name="hub_kv_scan_then">verificação</string>
+    <string name="hub_open_source">Abrir a fonte</string>
+    <string name="hub_scan_running">Verificação de segurança em andamento na máquina…</string>
+    <string name="hub_scan_failed">Falha na verificação de segurança</string>
+    <string name="hub_scan_allowed">Verificação: %1$s · instalação permitida</string>
+    <string name="hub_scan_refused">Verificação: %1$s · o %2$s não vai instalar isto</string>
+    <string name="hub_hide_findings">Ocultar ocorrências</string>
+    <plurals name="hub_show_findings">
+        <item quantity="one">Mostrar %1$d ocorrência</item>
+        <item quantity="many">Mostrar %1$d ocorrências</item>
+        <item quantity="other">Mostrar %1$d ocorrências</item>
+    </plurals>
+    <string name="hub_uninstall">Desinstalar</string>
+    <string name="hub_manage_in_extensions">Gerenciar em “Extensões”</string>
+    <string name="hub_scan_policy_refuses">A política de verificação do %1$s recusa esta skill. Não há como ignorar pelo telefone; analise na máquina se for preciso.</string>
+    <string name="hub_files">Arquivos</string>
+    <string name="hub_confirm_install">Instalar %1$s?</string>
+    <string name="hub_skill_install_body">No perfil %1$s. O %2$s baixa, verifica de novo e instala na máquina.</string>
+    <string name="hub_scan_summary">Verificação: %1$s · %2$s</string>
+    <string name="hub_source_trust">Fonte: %1$s (%2$s)</string>
+    <string name="hub_confirm_update">Atualizar %1$s?</string>
+    <string name="hub_skill_update_body">O %1$s verifica a nova versão primeiro e a recusa se a verificação não permitir. As skills que você editou localmente são ignoradas.</string>
+    <string name="hub_confirm_uninstall">Desinstalar %1$s?</string>
+    <string name="hub_skill_uninstall_body">Remove do perfil %1$s. Novos chats deixam de vê-la.</string>
+
+    <!-- ===== Hub: plugins ===== -->
+    <plurals name="hub_search_catalog_plugins">
+        <item quantity="one">Pesquisar %1$d plugin do catálogo</item>
+        <item quantity="many">Pesquisar %1$d plugins do catálogo</item>
+        <item quantity="other">Pesquisar %1$d plugins do catálogo</item>
+    </plurals>
+    <string name="hub_available_plugins">Plugins disponíveis</string>
+    <string name="hub_installed_plugins">Plugins instalados</string>
+    <string name="hub_all_plugins">Todos os plugins</string>
+    <string name="hub_nothing_here">Nada aqui</string>
+    <string name="hub_try_another_shelf">Tente outra visualização ou palavra.</string>
+    <string name="hub_status_update">atualização</string>
+    <string name="hub_pulled_from_catalog">Retirados do catálogo</string>
+    <string name="hub_plugin_gone">Este plugin não está mais no catálogo.</string>
+    <string name="hub_plugin_load_failed">Não foi possível carregar os detalhes do plugin: %1$s</string>
+    <string name="hub_sign_plugin_install">Instalar o plugin %1$s</string>
+    <string name="hub_sign_plugin_update">Atualizar o plugin %1$s</string>
+    <string name="hub_sign_plugin_remove">Remover o plugin %1$s</string>
+    <string name="hub_plugin_subtitle">plugin · %1$s</string>
+    <string name="hub_kv_maintainer">mantenedor</string>
+    <string name="hub_kv_version">versão</string>
+    <string name="hub_kv_pinned">fixado</string>
+    <string name="hub_kv_needs">requer</string>
+    <string name="hub_kv_platforms">plataformas</string>
+    <string name="hub_kv_adds">adiciona</string>
+    <string name="hub_kv_tools">ferramentas</string>
+    <string name="hub_kv_hooks">hooks</string>
+    <string name="hub_kv_middleware">middleware</string>
+    <string name="hub_kv_env">env</string>
+    <string name="hub_repository">Repositório</string>
+    <string name="hub_docs">Docs</string>
+    <string name="hub_plugin_note">Os plugins rodam dentro do %1$s com as permissões dele. As entradas do catálogo são revisadas e fixadas em um commit; as instalações recusam tudo o que estiver na lista de bloqueio.</string>
+    <string name="hub_plugin_install_body">Instala no commit fixado %1$s em %2$s e ativa.</string>
+    <string name="hub_adds">Adiciona: %1$s</string>
+    <string name="hub_plugin_update_body">Leva para a versão fixada atual do catálogo. Se isso adicionar ferramentas ou hooks, você será consultado de novo.</string>
+    <string name="hub_update_widens">A atualização amplia %1$s</string>
+    <string name="hub_accept_and_update">Aceitar e atualizar?</string>
+    <string name="hub_accept">Aceitar</string>
+    <string name="hub_confirm_remove">Remover %1$s?</string>
+    <string name="hub_plugin_remove_body">Exclui o plugin da máquina. O %1$s recusa isso enquanto o gateway está em execução; nesse caso, remova pela CLI.</string>
+
+    <!-- ===== Hub: MCP servers ===== -->
+    <plurals name="hub_search_mcp_servers">
+        <item quantity="one">Pesquisar %1$d servidor MCP</item>
+        <item quantity="many">Pesquisar %1$d servidores MCP</item>
+        <item quantity="other">Pesquisar %1$d servidores MCP</item>
+    </plurals>
+    <string name="hub_mcp_intro">O catálogo MCP aprovado pela Nous. Cada entrada mostra exatamente o que executa antes de você instalar.</string>
+    <string name="hub_available_servers">Servidores disponíveis</string>
+    <string name="hub_installed_servers">Servidores instalados</string>
+    <string name="hub_all_servers">Todos os servidores</string>
+    <string name="hub_no_mcp_servers">Nenhum servidor MCP</string>
+    <string name="hub_no_matching_mcp_servers">Nenhum servidor MCP correspondente</string>
+    <string name="hub_no_mcp_servers_body">O catálogo não tem servidores disponíveis.</string>
+    <string name="hub_try_another_word">Tente outra palavra.</string>
+    <string name="hub_status_off">desativado</string>
+    <string name="hub_mcp_gone">Este servidor MCP não está mais no catálogo.</string>
+    <string name="hub_mcp_load_failed">Não foi possível carregar os detalhes do servidor MCP: %1$s</string>
+    <string name="hub_sign_mcp_install">Instalar MCP %1$s</string>
+    <string name="hub_sign_mcp_remove">Remover MCP %1$s</string>
+    <string name="hub_mcp_subtitle">Servidor MCP · %1$s</string>
+    <string name="hub_kv_auth">auth</string>
+    <string name="hub_kv_url">url</string>
+    <string name="hub_kv_runs">executa</string>
+    <string name="hub_kv_clones">clona</string>
+    <string name="hub_build_steps">Etapas de build que rodam na máquina:</string>
+    <string name="hub_oauth_note">Usa OAuth. Conclua o login na máquina depois de instalar.</string>
+    <string name="hub_credentials">Credenciais</string>
+    <string name="hub_credentials_saved">salvas no .env da máquina</string>
+    <string name="hub_env_optional">%1$s (opcional)</string>
+    <string name="hub_fill_in_first">Preencha %1$s primeiro.</string>
+    <string name="hub_mcp_install_body">Adiciona à configuração de %1$s. Reinicie o %2$s para conectar.</string>
+    <string name="hub_mcp_install_build_body">Adiciona à configuração de %1$s, clona e executa as etapas de build na máquina. Reinicie o %2$s para conectar.</string>
+    <string name="hub_mcp_remove_body">Tira da configuração e exclui o clone, se houver.</string>
+
+    <!-- ===== Hub: scan findings and trust levels (HubLogic.kt) ===== -->
+    <string name="hub_no_findings">nenhuma ocorrência</string>
+    <plurals name="hub_findings_critical">
+        <item quantity="one">%1$d crítica</item>
+        <item quantity="many">%1$d críticas</item>
+        <item quantity="other">%1$d críticas</item>
+    </plurals>
+    <plurals name="hub_findings_high">
+        <item quantity="one">%1$d alta</item>
+        <item quantity="many">%1$d altas</item>
+        <item quantity="other">%1$d altas</item>
+    </plurals>
+    <plurals name="hub_findings_medium">
+        <item quantity="one">%1$d média</item>
+        <item quantity="many">%1$d médias</item>
+        <item quantity="other">%1$d médias</item>
+    </plurals>
+    <plurals name="hub_findings_low">
+        <item quantity="one">%1$d baixa</item>
+        <item quantity="many">%1$d baixas</item>
+        <item quantity="other">%1$d baixas</item>
+    </plurals>
+    <string name="hub_trust_official">oficial</string>
+    <string name="hub_trust_trusted">confiável</string>
+    <string name="hub_trust_community">comunidade</string>
+
+    <!-- ===== Projects list (Projects.kt) ===== -->
+    <string name="repo_sign_push">Push · %1$s</string>
+    <string name="repo_sign_create_pr">Criar PR · %1$s</string>
+    <string name="repo_sign_subtitle">Sai desta máquina</string>
+    <string name="projects_load_failed">Não foi possível carregar os projetos.</string>
+    <string name="projects_title">Projetos</string>
+    <plurals name="projects_repo_count">
+        <item quantity="one">%1$d repo · mais recentes primeiro</item>
+        <item quantity="many">%1$d repos · mais recentes primeiro</item>
+        <item quantity="other">%1$d repos · mais recentes primeiro</item>
+    </plurals>
+    <string name="projects_has_changes">Com alterações</string>
+    <string name="projects_no_changes_title">Nenhum projeto com alterações</string>
+    <string name="projects_no_changes_body">Escolha “Tudo” para ver os repositórios limpos.</string>
+    <string name="projects_empty_title">Nenhum projeto ainda</string>
+    <string name="projects_empty_body">Os repositórios da sua máquina vão aparecer aqui.</string>
+    <string name="projects_detached">desanexado</string>
+    <string name="projects_conflict">conflito</string>
+
+    <!-- ===== Repository screen (Projects.kt) ===== -->
+    <string name="repo_diff_failed">Não foi possível carregar o diff.</string>
+    <string name="repo_diff_failed_detail">Não foi possível carregar o diff: %1$s</string>
+    <string name="repo_no_diff_title">Nenhum diff disponível</string>
+    <string name="repo_no_diff_body">Este arquivo não tem alterações de texto para mostrar.</string>
+    <string name="repo_committed">Commit feito</string>
+    <string name="repo_committed_pushed">Commit e push feitos</string>
+    <string name="repo_pushed">Push feito</string>
+    <string name="repo_pr_opened">PR aberta</string>
+    <plurals name="repo_changed_count">
+        <item quantity="one">%1$d alterado</item>
+        <item quantity="many">%1$d alterados</item>
+        <item quantity="other">%1$d alterados</item>
+    </plurals>
+    <string name="repo_ahead_behind">↑%1$d à frente · ↓%2$d atrás de %3$s</string>
+    <string name="repo_pr_line">PR #%1$d · %2$s · %3$s</string>
+    <string name="repo_changes">Alterações</string>
+    <string name="repo_clean">Árvore de trabalho limpa.</string>
+    <string name="repo_stage">preparar</string>
+    <string name="repo_unstage">despreparar</string>
+    <string name="repo_stage_all">Preparar tudo</string>
+    <string name="repo_ask_agent">Pedir uma mensagem a %1$s</string>
+    <string name="repo_commit_hint">Mensagem do commit</string>
+    <string name="repo_commit">Commit</string>
+    <string name="repo_push">Push</string>
+    <string name="repo_open_pr">Abrir PR</string>
+
+    <!-- ===== Radar (Radar.kt) ===== -->
+    <string name="radar_title">Radar</string>
+    <string name="radar_batch">Lote %1$s · a cada %2$s</string>
+    <string name="radar_no_batch">Nenhum lote ainda</string>
+    <string name="radar_momentum">Momentum</string>
+    <string name="radar_scout_findings">Descobertas do scout</string>
+    <string name="radar_view_latest">Mais recentes</string>
+    <string name="radar_view_saved">Salvos</string>
+    <string name="radar_view_history">Histórico</string>
+    <string name="radar_tap_skill_diff">Toque para ver o diff da skill</string>
+    <string name="radar_nothing_saved">Nada salvo</string>
+    <string name="radar_nothing_yet">Nada ainda</string>
+    <string name="radar_empty_current">O scout roda a cada 3 horas. Puxe para atualizar.</string>
+    <string name="radar_empty_saved">As descobertas que você salvar aparecem aqui.</string>
+    <string name="radar_empty_history">As descobertas anteriores do scout aparecem aqui.</string>
+    <string name="radar_curator_note">Nota do curador</string>
+    <string name="radar_no_diff">(sem diff)</string>
+    <string name="radar_got_it">Entendi</string>
+    <string name="radar_feedback_saved">Feedback salvo</string>
+    <string name="radar_note_saved">Nota salva</string>
+    <string name="radar_dismissed_toast">Dispensado</string>
+    <string name="radar_saved_for_later">Salvo para depois</string>
+    <string name="radar_agent_queued">Agente em segundo plano na fila: %1$s</string>
+    <string name="radar_confidence">conf. %1$s</string>
+    <string name="radar_status_saved">salvo</string>
+    <string name="radar_status_dismissed">dispensado</string>
+    <string name="radar_status_spawned">iniciado</string>
+    <string name="radar_fresh">✓ atual: %1$s</string>
+    <string name="radar_downgraded">↓ rebaixado: %1$s</string>
+    <string name="radar_resurfaced">reapareceu: %1$s</string>
+    <string name="radar_feedback_note">nota</string>
+    <string name="radar_feedback_you_said">você disse</string>
+    <string name="radar_feedback_spawned_chat">chat iniciado</string>
+    <string name="radar_feedback_spawned_agent">agente iniciado</string>
+    <string name="radar_react">Reagir</string>
+    <string name="radar_restore">Restaurar</string>
+    <string name="radar_dismiss">Dispensar</string>
+    <string name="radar_spawn_chat">Iniciar chat</string>
+    <string name="radar_spawn_agent">Iniciar agente</string>
+    <string name="radar_reaction_hint">Sua reação, com suas palavras…</string>
+    <string name="radar_send_feedback">Enviar feedback</string>
+    <string name="radar_save_as_note">Salvar como nota</string>
+    <string name="radar_spawn_chat_label">Novo chat com este prompt</string>
+    <string name="radar_spawn_agent_label">Agente em segundo plano (tarefa kanban) com este prompt</string>
+    <string name="radar_prompt_hint">Prompt</string>
+    <string name="radar_start_chat">Iniciar chat</string>
+    <string name="radar_start_agent">Iniciar agente</string>
+
+    <!-- ===== Terminal controls (Terminal.kt) ===== -->
+    <string name="terminal_keyboard_only">Só teclado: use as setas + Enter</string>
+    <string name="terminal_key_shift">Shift</string>
+    <string name="terminal_key_ctrl">Ctrl</string>
+    <string name="terminal_key_alt">Alt</string>
+    <string name="terminal_key_space">Espaço</string>
+    <string name="terminal_key_home">Home</string>
+    <string name="terminal_key_end">End</string>
+    <string name="terminal_key_esc">Esc</string>
+    <string name="terminal_key_enter">Enter</string>
+    <string name="terminal_key_tab">Tab</string>
+    <string name="terminal_key_page_up">PgUp</string>
+    <string name="terminal_key_page_down">PgDn</string>
+    <string name="terminal_scroll_up">Rolar para cima</string>
+    <string name="terminal_scroll_down">Rolar para baixo</string>
+    <string name="terminal_reply_go_ahead">pode seguir</string>
+    <string name="terminal_reply_continue">continue</string>
+    <string name="terminal_reply_yes">sim</string>
+    <string name="terminal_reply_no">não</string>
+    <string name="terminal_reply_status">status?</string>
+    <string name="terminal_reply_commit_pr">faça commit e abra um PR</string>
+    <string name="terminal_reply_to_agent">Responder ao agente</string>
+    <string name="terminal_sending">Enviando…</string>
+
+    <!-- ================= Wake alarm, wake word, Talk and voice messages ================= -->
+
+    <!-- ===== Talk: voice engine (speech recognizer and text-to-speech) ===== -->
+    <string name="talk_tts_off">Saída de voz indisponível: as respostas aparecem como texto</string>
+    <string name="talk_no_recognizer">Nenhum reconhecedor de fala neste telefone</string>
+    <string name="talk_didnt_catch">Não entendi, toque para tentar de novo</string>
+    <string name="talk_recognizer_error">Erro do reconhecedor %1$d</string>
+    <string name="talk_spoken_done">Pronto.</string>
+    <string name="talk_server_voice_off">Voz do servidor indisponível: usando a voz do telefone</string>
+    <string name="talk_spoken_link">um link</string>
+
+    <!-- ===== Talk: ongoing notification ===== -->
+    <string name="talk_notif_listening">Ouvindo</string>
+    <string name="talk_notif_speaking">Falando</string>
+    <string name="talk_notif_thinking">Pensando</string>
+    <string name="talk_notif_title">Conversando com %1$s</string>
+    <string name="talk_notif_end">Encerrar</string>
+    <string name="talk_mic_off">A permissão do microfone está desativada. Permita nas configurações do app no Android para usar o Falar.</string>
+    <string name="talk_keep_active_failed">O Android não conseguiu manter o Falar ativo. Abra o Falar de novo enquanto o %1$s estiver na tela.</string>
+    <string name="talk_start_failed">O Android não conseguiu iniciar o Falar em segundo plano. Abra o Falar e tente de novo.</string>
+
+    <!-- ===== Talk screen ===== -->
+    <string name="talk_mic_denied">Permissão do microfone negada</string>
+    <string name="talk_send_failed">falha no envio</string>
+    <string name="talk_title">Falar</string>
+    <string name="talk_subtitle_voice">voz</string>
+    <string name="talk_hands_free">Mãos livres</string>
+    <string name="talk_push_to_talk">Pressione para falar</string>
+    <string name="talk_you_label">VOCÊ</string>
+    <string name="talk_empty_hint">Toque na esfera e fale. %1$s responde em voz alta e depois volta a ouvir.</string>
+    <string name="talk_state_listening">Ouvindo…</string>
+    <string name="talk_state_got_it">Entendi…</string>
+    <string name="talk_state_working">%1$s está trabalhando…</string>
+    <string name="talk_state_waiting">Aguardando a resposta…</string>
+    <string name="talk_state_speaking">Falando · toque para interromper</string>
+    <string name="talk_state_idle">Toque para falar</string>
+    <string name="talk_privacy_note">O Falar pode enviar áudio ao serviço de fala do seu sistema. As transcrições vão para o seu gateway pareado; as respostas faladas podem usar o fornecedor de voz dele ou o serviço de TTS do seu telefone.</string>
+    <string name="talk_new_conversation">Nova conversa</string>
+    <string name="talk_open_as_chat">Abrir como chat</string>
+
+    <!-- ===== Wake word listener (service, notifications, errors) ===== -->
+    <string name="wakeword_mic_needed">Permissão do microfone necessária</string>
+    <string name="wakeword_no_mic">Este dispositivo não tem microfone</string>
+    <string name="wakeword_allow_notifications">Permita as notificações de “Palavra de ativação” nas configurações do Android para que “Desativar” continue disponível</string>
+    <string name="wakeword_open_to_resume">Abra o %1$s para voltar a ouvir a palavra de ativação</string>
+    <string name="wakeword_notif_title">Ouvindo “%1$s”</string>
+    <string name="wakeword_notif_text">No dispositivo. Nada sai do telefone até você dizer a palavra.</string>
+    <string name="wakeword_turn_off">Desativar</string>
+    <string name="wakeword_model_failed">Falha ao carregar o modelo de ativação</string>
+    <string name="wakeword_mic_unavailable">Microfone indisponível. Feche outros apps de gravação e tente de novo.</string>
+    <string name="wakeword_mic_start_failed">Não foi possível iniciar o microfone</string>
+    <string name="wakeword_mic_stopped">O microfone parou (%1$d). Abra o %2$s de novo para tentar outra vez.</string>
+    <string name="wakeword_listening_failed">falha ao ouvir</string>
+    <string name="wakeword_heard">Palavra de ativação detectada</string>
+    <string name="wakeword_heard_text">Toque para falar com %1$s</string>
+    <string name="wakeword_channel">Palavra de ativação</string>
+    <string name="wakeword_channel_desc">Mostrada enquanto a palavra de ativação é ouvida</string>
+    <string name="wakeword_heard_channel_desc">Abre o Falar quando você diz a palavra de ativação</string>
+    <string name="wakeword_mic_needed_settings">Permissão do microfone necessária. Permita nas configurações do app no Android.</string>
+    <string name="wakeword_blocked">O Android bloqueou a escuta. Abra o %1$s e tente de novo.</string>
+
+    <!-- ===== Wake alarm: notification channel and ringing notification ===== -->
+    <string name="wake_channel">Alarme Wake</string>
+    <string name="wake_channel_desc">O alarme Wake e as verificações dele</string>
+    <string name="wake_prove_awake">Prove que você está acordado</string>
+    <string name="wake_notif_checkin">Verificação: um enigma rápido</string>
+    <string name="wake_notif_title">Wake</string>
+
+    <!-- ===== Wake alarm screen ===== -->
+    <string name="wake_photo_unreadable">Não foi possível ler a foto</string>
+    <string name="wake_network_error">Erro de rede</string>
+    <string name="wake_photo_read_failed">Não foi possível ler a foto: %1$s</string>
+    <string name="wake_no_photo">Nenhuma foto tirada.</string>
+    <string name="wake_camera_failed">A câmera não abriu: %1$s</string>
+    <string name="wake_camera_permission_off">A permissão da câmera está desativada. Use outra prova ou permita a câmera nas configurações do app no Android.</string>
+    <string name="wake_activity_permission_off">A permissão de atividade física está desativada. Use outra prova ou permita nas configurações do app no Android.</string>
+    <string name="wake_tag_alarm">ALARME</string>
+    <string name="wake_tag_checkin">VERIFICAÇÃO</string>
+    <string name="wake_tag_up">DE PÉ</string>
+    <string name="wake_tag_done">PRONTO</string>
+    <string name="wake_tag_offline">OFF-LINE</string>
+    <string name="wake_checkin">Verificação</string>
+    <string name="wake_loading_puzzle">Carregando o enigma…</string>
+    <string name="wake_submit">Enviar</string>
+    <plurals name="wake_checkins_missed">
+        <item quantity="one">%1$d verificação perdida. Escalonamento às %2$s.</item>
+        <item quantity="many">%1$d verificações perdidas. Escalonamento às %2$s.</item>
+        <item quantity="other">%1$d verificações perdidas. Escalonamento às %2$s.</item>
+    </plurals>
+    <string name="wake_emergency_stop">Parada de emergência</string>
+    <string name="wake_youre_up">Você está de pé.</string>
+    <string name="wake_checkin_at_stay_up">Verificação às %1$s. Fique fora da cama: se perder, o alarme volta.</string>
+    <string name="wake_good_morning">Bom dia.</string>
+    <string name="wake_all_done">Tudo pronto. O resumo e as correções estão no chat Wake.</string>
+    <string name="wake_questions_in">Perguntas em %1$s</string>
+    <string name="wake_scroll_to_end">Role até o fim</string>
+    <string name="wake_questions">Perguntas</string>
+    <string name="wake_answer_own_words">Responda com suas palavras. Não precisa acertar, precisa estar acordado.</string>
+    <string name="wake_your_answer">Sua resposta</string>
+    <string name="wake_back_to_text">Voltar ao texto</string>
+    <string name="wake_rerings">Toca de novo até uma prova ser aceita. Escalonamento para seus contatos às %1$s.</string>
+    <string name="wake_rerings_test">Toca de novo até uma prova ser aceita. Escalonamento para seus contatos às %1$s. (Teste: o escalonamento vai só para você.)</string>
+    <string name="wake_proof_read">Leitura · 2 min</string>
+    <string name="wake_preparing_reading">Preparando a leitura de hoje…</string>
+    <string name="wake_proof_photo">Foto do banheiro</string>
+    <string name="wake_proof_photo_sub">Tire uma foto nova da pia ou do espelho. A foto é enviada ao seu gateway e ao fornecedor de visão dele para verificação.</string>
+    <string name="wake_proof_no_camera">Este dispositivo não tem câmera. Use outra prova.</string>
+    <plurals name="wake_proof_walk">
+        <item quantity="one">Ande %1$d passo</item>
+        <item quantity="many">Ande %1$d passos</item>
+        <item quantity="other">Ande %1$d passos</item>
+    </plurals>
+    <string name="wake_proof_steps_sub">O telefone conta seus passos e envia os horários deles ao seu gateway para verificar a prova.</string>
+    <string name="wake_proof_no_step_sensor">Este telefone não tem sensor de passos.</string>
+    <plurals name="wake_alarm_rang">
+        <item quantity="one">Alarme %1$s · tocou %2$d×</item>
+        <item quantity="many">Alarme %1$s · tocou %2$d×</item>
+        <item quantity="other">Alarme %1$s · tocou %2$d×</item>
+    </plurals>
+
+    <!-- ===== Wake alarm: emergency stop ===== -->
+    <string name="wake_override_title">Parada de emergência</string>
+    <string name="wake_override_body">Só para quando você realmente não puder fazer uma prova. Encerra este alarme sem verificação, e ninguém recebe mensagem.</string>
+    <string name="wake_override_password">Senha</string>
+    <string name="wake_override_password_desc">Senha da parada de emergência</string>
+    <string name="wake_override_continue">Continuar</string>
+    <string name="wake_override_sure">Tem certeza?</string>
+    <string name="wake_override_sure_body">O alarme para agora e o despertar de hoje não vai contar.</string>
+    <string name="wake_override_keep">Não, manter</string>
+    <string name="wake_override_yes_stop">Sim, parar</string>
+
+    <!-- ===== Wake alarm: step proof ===== -->
+    <string name="wake_steps_unavailable">A contagem de passos está indisponível ou a permissão foi revogada. Volte e escolha outra prova.</string>
+    <plurals name="wake_steps_of">
+        <item quantity="one">de %1$d passo</item>
+        <item quantity="many">de %1$d passos</item>
+        <item quantity="other">de %1$d passos</item>
+    </plurals>
+    <string name="wake_steps_keep_walking">Continue andando. O alarme fica em silêncio enquanto você se move e volta 30 s depois que você parar.</string>
+
+    <!-- ===== Wake alarm: proof result ===== -->
+    <string name="wake_result_accepted">Aceito.</string>
+    <string name="wake_result_not_yet">Ainda não.</string>
+    <string name="wake_result_checkin_at">Verificação às %1$s.</string>
+    <string name="wake_verdict_correct">correta</string>
+    <string name="wake_verdict_partial">parcial</string>
+    <string name="wake_verdict_wrong">errada</string>
+    <string name="wake_verdict_blank">em branco</string>
+    <string name="wake_verdict_unchecked">não verificada</string>
+
+    <!-- ===== Wake alarm: offline fallback puzzle ===== -->
+    <string name="wake_offline_title">Sem conexão com o %1$s.</string>
+    <string name="wake_offline_body">Resolva isto para silenciar o alarme aqui. O servidor ainda espera uma prova real quando você voltar a ficar on-line.</string>
+    <string name="wake_offline_answer">Resposta</string>
+    <string name="wake_offline_check">Verificar</string>
+    <string name="wake_offline_wrong">Errado, aqui vai outro</string>
+
+    <!-- ===== Alarm clock settings ===== -->
+    <string name="alarm_proof_permissions_denied">Você pode usar a prova de leitura sem essas permissões. Ative a câmera ou a atividade nas configurações do app no Android para usar essas provas.</string>
+    <string name="alarm_open_app_settings">Abra Configurações do Android > Apps > %1$s para mudar esta permissão.</string>
+    <string name="alarm_title">Despertador</string>
+    <string name="alarm_next">próximo %1$s · %2$s</string>
+    <string name="alarm_none_set">nenhum alarme definido</string>
+    <string name="alarm_exact_off">Os alarmes exatos estão desativados</string>
+    <string name="alarm_exact_off_sub">Os alarmes locais não estão agendados. Permita alarmes exatos antes de contar com o Wake.</string>
+    <string name="alarm_notifications_attention">As notificações de alarme precisam de atenção</string>
+    <string name="alarm_notifications_attention_sub">Permita as notificações do %1$s e defina o canal “Alarme Wake” com importância alta para que a tela de prova fique acessível.</string>
+    <string name="alarm_fullscreen_off">Os alarmes em tela cheia estão desativados</string>
+    <string name="alarm_fullscreen_off_sub">O Wake pode tocar, mas o Android talvez mostre só uma notificação. Permita alarmes em tela cheia para mostrar as provas sobre a tela de bloqueio.</string>
+    <string name="alarm_battery_on">A otimização de bateria está ativada</string>
+    <string name="alarm_battery_on_sub">Os alarmes exatos ainda podem disparar. A sincronização em segundo plano pode atrasar; revise as configurações de bateria se os lembretes chegarem tarde.</string>
+    <string name="alarm_battery_review">Revisar</string>
+    <string name="alarm_section_alarms">Alarmes</string>
+    <string name="alarm_once">Uma vez</string>
+    <string name="alarm_add">Adicionar alarme</string>
+    <string name="alarm_timing">Toca de novo em +%1$d min sem prova · verificação em +%2$d</string>
+    <string name="alarm_timing_whatsapp">Toca de novo em +%1$d min sem prova · verificação em +%2$d · WhatsApp em +%3$d</string>
+    <string name="alarm_section_reading_level">Nível de leitura</string>
+    <string name="alarm_level_step">Nível %1$d de %2$d</string>
+    <string name="alarm_level_beginner">Iniciante: palavras curtas e simples, perguntas fáceis</string>
+    <string name="alarm_level_intermediate">Intermediário: um mecanismo, perguntas de por quê</string>
+    <string name="alarm_level_advanced">Avançado: texto denso, perguntas de raciocínio</string>
+    <string name="alarm_level_auto">Mais difícil a cada 2 semanas</string>
+    <string name="alarm_level_next">Próximo nível %1$s</string>
+    <string name="alarm_level_top">No nível mais alto</string>
+    <string name="alarm_level_fixed">Desativado: fica no nível %1$d</string>
+    <string name="alarm_section_escalation">Escalonamento</string>
+    <string name="alarm_whatsapp_status">whatsapp %1$s</string>
+    <string name="alarm_contact_fallback">Contato</string>
+    <string name="alarm_contact_name">Nome</string>
+    <string name="alarm_contact_phone">Telefone, ex.: (11) 91234-5678</string>
+    <string name="alarm_contact_add">Adicionar contato</string>
+    <string name="alarm_section_emergency_stop">Parada de emergência</string>
+    <string name="alarm_password_note">A tela do alarme tem uma parada de emergência protegida por senha e uma confirmação. Mude a senha aqui.</string>
+    <string name="alarm_password_current">Senha atual</string>
+    <string name="alarm_password_new">Nova senha (8 ou mais caracteres)</string>
+    <string name="alarm_password_change">Mudar senha</string>
+    <string name="alarm_password_changed">Senha alterada</string>
+    <string name="alarm_section_proof_permissions">Permissões opcionais para provas</string>
+    <string name="alarm_proof_permissions">Provas de foto e de passos</string>
+    <string name="alarm_proof_permissions_sub">Só o hardware compatível precisa de permissão. A prova de leitura funciona sem acesso à câmera ou à atividade.</string>
+    <string name="alarm_previously_denied">Negou antes?</string>
+    <string name="alarm_previously_denied_sub">O Android pode parar de mostrar os pedidos de permissão. Você pode mudá-los nas configurações do app.</string>
+    <string name="alarm_section_testing">Testes</string>
+    <string name="alarm_own_number_note">Seu próprio número. Os escalonamentos de teste vêm para cá em vez de irem para seus contatos.</string>
+    <string name="alarm_own_number">Seu número</string>
+    <string name="alarm_save_number">Salvar número</string>
+    <string name="alarm_whatsapp_test">Enviar teste de WhatsApp para mim</string>
+    <string name="alarm_whatsapp_sent">Enviado</string>
+    <string name="alarm_test_now">Testar o alarme agora</string>
+    <string name="alarm_test_cancel">Cancelar o teste em andamento</string>
+
+    <!-- ===== Voice messages in chat ===== -->
+    <string name="voice_audio_busy">O áudio está ocupado. Tente de novo em instantes.</string>
+    <string name="voice_cant_play">Não foi possível reproduzir esta mensagem de voz</string>
+    <string name="voice_load_failed">Falha ao carregar · toque para tentar de novo</string>
+    <string name="voice_tap_to_load">toque para carregar</string>
+    <string name="voice_message">Mensagem de voz</string>
+    <string name="voice_transcript_hide">Ocultar transcrição</string>
+    <string name="voice_transcript_show">Mostrar transcrição</string>
+    <string name="voice_transcript_expanded">Expandida</string>
+    <string name="voice_transcript_collapsed">Recolhida</string>
+    <string name="voice_transcript">Transcrição</string>
+    <string name="voice_retry_desc">Tentar de novo a mensagem de voz</string>
+    <string name="voice_loading_cancel_desc">Carregando a mensagem de voz, toque para cancelar o download</string>
+    <string name="voice_loading_autoplay_desc">Carregando a mensagem de voz, toca quando chegar. Toque para não reproduzir</string>
+    <string name="voice_load_play_length_desc">Carregar e reproduzir a mensagem de voz, %1$s</string>
+    <string name="voice_load_play_desc">Carregar e reproduzir a mensagem de voz</string>
+    <string name="voice_pause_desc">Pausar a mensagem de voz</string>
+    <string name="voice_play_length_desc">Reproduzir a mensagem de voz, %1$s</string>
+    <string name="voice_play_desc">Reproduzir a mensagem de voz</string>
+    <string name="voice_speed_desc">Velocidade de reprodução %1$s</string>
+    <string name="voice_speed_change">Mudar a velocidade de reprodução</string>
+    <string name="voice_position_desc">Posição na mensagem de voz</string>
+    <string name="voice_position_state">%1$s de %2$s</string>
+    <string name="voice_length_unknown">Duração desconhecida</string>
+    <string name="voice_seek">Buscar posição</string>
+    <string name="voice_seek_back">Voltar 5 segundos</string>
+    <string name="voice_seek_forward">Avançar 5 segundos</string>
+    <string name="voice_spoken_pair">%1$s %2$s</string>
+    <plurals name="voice_spoken_hours">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
+        <item quantity="other">%1$d horas</item>
+    </plurals>
+    <plurals name="voice_spoken_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="many">%1$d minutos</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <plurals name="voice_spoken_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="many">%1$d segundos</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
+</resources>

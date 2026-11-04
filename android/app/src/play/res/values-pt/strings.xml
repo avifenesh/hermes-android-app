@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Edition-specific settings and files ================= -->
+    <string name="widget_label">Frota Herms</string>
+
+    <!-- ===== This phone settings (Play edition) ===== -->
+    <string name="channel_control_unavailable_title">Indisponível nesta edição</string>
+    <string name="channel_control_unavailable_body">Esta edição Play não pode ler nem operar outros apps. Comandos remotos não podem ativar esse recurso.</string>
+    <string name="channel_background_title">Entrega em segundo plano</string>
+    <string name="channel_background_body">A otimização de bateria do Android continua ativada. O push (quando configurado) e a sincronização periódica continuam disponíveis; a entrega em segundo plano pode atrasar.</string>
+
+    <!-- ===== Opening attachments (Play edition) ===== -->
+    <string name="channel_apk_unavailable">A instalação de anexos APK não está disponível nesta edição Play. Você ainda pode salvar o arquivo em Downloads.</string>
+</resources>

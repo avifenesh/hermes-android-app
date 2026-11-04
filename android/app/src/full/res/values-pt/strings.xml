@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= Accessibility service ================= -->
+    <string name="phone_service_label">Controle do telefone Hermes</string>
+    <string name="phone_service_desc">Permite que seu agente Hermes leia a tela e toque, digite e deslize neste telefone. Ele só age enquanto Controle estiver ativado no app (Eu, Este telefone, Controle).</string>
+
+    <!-- ================= Phone control ================= -->
+
+    <!-- ===== Phone control notification (PhoneControl.kt, full edition only) ===== -->
+    <string name="phone_control_notice_title">O controle do telefone está ativado</string>
+    <string name="phone_control_notice_text">Seu agente pode ler e operar este telefone desbloqueado.</string>
+    <string name="phone_control_stop">Parar controle</string>
+
+    <!-- ===== Phone control panel (Me > This phone > Control) ===== -->
+    <string name="phone_control_accessibility_service">Serviço de acessibilidade</string>
+    <string name="phone_control_service_enabled">Ativado nas configurações do Android.</string>
+    <string name="phone_control_service_disabled">Ative o controle do telefone do %1$s nas configurações de Acessibilidade do Android.</string>
+    <string name="phone_control_allow">Permitir controle pelo agente</string>
+    <string name="phone_control_allow_on">Ativado. O agente pode ler, tocar, digitar, deslizar e abrir apps.</string>
+    <string name="phone_control_allow_off">Desativado. Nenhum conteúdo da tela ou comando é enviado.</string>
+    <string name="phone_control_enable_service_first">Ative primeiro o serviço de acessibilidade</string>
+    <string name="phone_control_server_unavailable">O controle do telefone ainda não está disponível no servidor</string>
+    <string name="phone_control_enable_channel">Ative o canal de notificação “Execuções ao vivo e conexão” para que “Parar controle” continue acessível</string>
+    <string name="phone_control_confirm_title">Permitir controle do telefone</string>
+    <string name="phone_control_activation_cancelled">Ativação cancelada porque o controle, o pareamento ou a Acessibilidade mudou</string>
+    <string name="phone_control_not_armed">O servidor não habilitou este telefone ou a ativação foi substituída</string>
+    <string name="phone_control_sideload_help">Primeira configuração de um APK instalado manualmente: o Android pode bloquear a Acessibilidade. Abra Configurações do Android → Apps → %1$s → ⋮ → Permitir configurações restritas e depois ative o serviço aqui. Você só precisa fazer isso uma vez.</string>
+    <string name="phone_control_limits">O controle só funciona com a tela ligada e desbloqueada. O Android bloqueia capturas de telas protegidas. Campos de senha continuam privados. Desative o controle aqui ou pela notificação a qualquer momento.</string>
+    <string name="phone_control_confirming">Confirme com a digital ou o PIN…</string>
+
+    <!-- ================= Edition-specific settings and files ================= -->
+
+    <!-- ===== This phone settings (full edition) ===== -->
+    <string name="channel_tab_control">Controle</string>
+    <string name="channel_control_section">Controle do telefone pelo agente</string>
+    <string name="channel_battery_title">Otimização de bateria</string>
+    <string name="channel_battery_body">Alguns telefones encerram a conexão em segundo plano. Permita que o %1$s funcione sem restrições.</string>
+
+    <!-- ===== Opening attachments (full edition) ===== -->
+    <string name="channel_allow_unknown_apps">Permita “Instalar apps desconhecidos” para o %1$s e toque no arquivo de novo</string>
+</resources>
