@@ -35,6 +35,7 @@ from . import phone as PH
 from . import projects as PJ
 from . import radar as RD
 from . import recall as RC
+from . import rooms as RM
 from . import selfcheck as SC
 from . import usage as U
 from . import sig as SG
@@ -239,6 +240,7 @@ class MobileAdapter(BasePlatformAdapter):
         self._control = C.Control(self)
         self._selfcheck = SC.SelfCheck(self)
         self._live_sessions = LS.LiveSessions(self)
+        self._rooms = RM.Rooms(self)
 
     # ------------------------------------------------------------ lifecycle
     def _build_app(self, cli: bool = False):
@@ -299,6 +301,7 @@ class MobileAdapter(BasePlatformAdapter):
         FL.routes(r, self._fleet, self._json)
         self._profiles = PR.ProfileChats(self)
         PR.routes(r, self._profiles, self._json)
+        RM.routes(r, self._rooms, self._json)
         PJ.routes(r, self._json)
         self._phone = PH.Phone(self)
         PH.routes(r, self, self._json)
@@ -320,6 +323,7 @@ class MobileAdapter(BasePlatformAdapter):
             self._reaper = asyncio.create_task(self._reap_loop())
             self._wake.start()
             self._fleet.start()
+            self._rooms.start()
             self._selfcheck.start(app)
         self._mobile_loop = asyncio.get_running_loop()
         A.bind(self)
@@ -346,6 +350,7 @@ class MobileAdapter(BasePlatformAdapter):
             self._wake.stop()
         if getattr(self, "_fleet", None):
             self._fleet.stop()
+        self._rooms.stop()
         await self._live_sessions.close_all()
         if self._runner:
             await self._runner.cleanup()
@@ -759,7 +764,9 @@ class MobileAdapter(BasePlatformAdapter):
             self._feat_cache = (now, projects)
         # The radar page also carries momentum's report, so either one turns it on.
         radar = RD.has_store() or MO.binary() is not None
-        return {"radar": radar, "fleet": fleet, "wake_wa": wake_wa, "projects": projects}
+        # Gateway-hosted Group Chats: Hermes' canonical group controls and a running session authority.
+        rooms = self._rooms.supported()
+        return {"radar": radar, "fleet": fleet, "wake_wa": wake_wa, "projects": projects, "rooms": rooms}
 
     def _meta(self) -> Dict[str, Any]:
         model = ""

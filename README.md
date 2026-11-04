@@ -365,6 +365,8 @@ are optional development work, not prerequisites for GitHub installation.
 | `server/mobile/selfcheck.py` | Operator self-check |
 | `scripts/phone_control_integration.py` | Isolated phone transport checks |
 | `scripts/replay_security_integration.py` | Isolated replay security checks |
+| `server/mobile/rooms.py` | Group chats over Hermes' hosted-room controls |
+| `scripts/rooms_integration.py` | Room checks against a disposable real gateway |
 
 ## License
 

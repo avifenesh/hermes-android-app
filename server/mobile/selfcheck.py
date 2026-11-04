@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 ENDPOINTS = ["/v1/me", "/v1/sync?since=0", "/v1/chats", "/v1/commands", "/v1/cron", "/v1/pulse", "/v1/sessions",
              "/v1/models", "/v1/settings", "/v1/settings/all", "/v1/skills", "/v1/plugins", "/v1/mcp", "/v1/memory",
              "/v1/usage", "/v1/fleet", "/v1/profiles", "/v1/projects", "/v1/cron-delivery", "/v1/wake",
-             "/v1/hub/skills/installed", "/v1/hub/mcp", "/v1/hub/jobs", "/v1/radar"]
+             "/v1/hub/skills/installed", "/v1/hub/mcp", "/v1/hub/jobs", "/v1/radar", "/v1/rooms"]
 KV = "selfcheck"
 DEVICE = {"id": "selfcheck", "name": "selfcheck", "created": 0, "pub": "", "apub": "", "revoked": 0}
 PKG_DIR = Path(__file__).resolve().parent
