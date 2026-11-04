@@ -53,12 +53,14 @@ data class Appr(val id: String, val chatId: String, val command: String, val des
                 val actions: List<Act>, val state: String, val choice: String, val ts: Double)
 
 /** Optional server surfaces from /v1/me `features`. All-true default: pre-fetch (no flicker) and old servers without the key (back-compat). */
-data class Features(val radar: Boolean = true, val fleet: Boolean = true, val wakeWa: Boolean = true, val projects: Boolean = true) {
+data class Features(val radar: Boolean = true, val fleet: Boolean = true, val wakeWa: Boolean = true, val projects: Boolean = true,
+                    val rooms: Boolean = true) {
     fun allows(path: String): Boolean = when (feature(path)) {
         "radar" -> radar
         "fleet" -> fleet
         "projects" -> projects
         "wake_wa" -> wakeWa
+        "rooms" -> rooms
         else -> true
     }
 
@@ -70,13 +72,14 @@ data class Features(val radar: Boolean = true, val fleet: Boolean = true, val wa
                 under("/v1/radar") -> "radar"
                 under("/v1/fleet") -> "fleet"
                 under("/v1/projects") -> "projects"
+                under("/v1/rooms") -> "rooms"
                 p == "/v1/wake/whatsapp-test" -> "wake_wa"
                 else -> null
             }
         }
         fun from(flags: Map<String, Boolean?> = emptyMap()) = Features(
             flags["radar"] ?: true, flags["fleet"] ?: true,
-            flags["wake_wa"] ?: true, flags["projects"] ?: true)
+            flags["wake_wa"] ?: true, flags["projects"] ?: true, flags["rooms"] ?: true)
     }
 }
 
@@ -96,7 +99,8 @@ object Hub {
     private val capabilities = MutableStateFlow(Features())
     val features: StateFlow<Features> = capabilities.asStateFlow()
     internal val capabilityEpoch = SessionEpoch()
-    private val otherCapabilityEpochs = mapOf("radar" to SessionEpoch(), "projects" to SessionEpoch(), "wake_wa" to SessionEpoch())
+    private val otherCapabilityEpochs = mapOf("radar" to SessionEpoch(), "projects" to SessionEpoch(), "wake_wa" to SessionEpoch(),
+        "rooms" to SessionEpoch())
     internal fun epochFor(path: String): SessionEpoch? = when (val key = Features.feature(path)) {
         "fleet" -> capabilityEpoch
         else -> otherCapabilityEpochs[key]
@@ -112,6 +116,7 @@ object Hub {
     @Volatile var openChat: String? = null
     @Volatile var foreground = false
     lateinit var app: Context
+    fun isAppInitialized() = ::app.isInitialized
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mx = Mutex()
     private val meMx = Mutex()
@@ -122,7 +127,7 @@ object Hub {
 
     fun parseFeatures(m: JSONObject): Features {
         val f = m.optJSONObject("features") ?: return Features()
-        return Features.from(listOf("radar", "fleet", "wake_wa", "projects")
+        return Features.from(listOf("radar", "fleet", "wake_wa", "projects", "rooms")
             .associateWith { if (f.has(it) && !f.isNull(it)) f.optBoolean(it, true) else null })
     }
 
@@ -135,9 +140,11 @@ object Hub {
         if (next.radar != old.radar) otherCapabilityEpochs.getValue("radar").invalidate()
         if (next.projects != old.projects) otherCapabilityEpochs.getValue("projects").invalidate()
         if (next.wakeWa != old.wakeWa) otherCapabilityEpochs.getValue("wake_wa").invalidate()
+        if (next.rooms != old.rooms) otherCapabilityEpochs.getValue("rooms").invalidate()
         capabilities.value = next
         metadata.value = o
         if (!next.fleet) Fleet.reset()
+        if (!next.rooms) Rooms.reset() else if (!old.rooms) scope.launch { runCatching { Rooms.load() } }
         o.str("agent_name").trim().takeIf { it.isNotBlank() }?.let { agent.value = it; Prefs.agentName = it }
         if (::app.isInitialized) runCatching { Widget.update(app) }
     }
@@ -275,10 +282,14 @@ object Hub {
         when (e.optString("type")) {
             "phone" -> PhoneService.pull()
             "session_event" -> sessionEvents.tryEmit(e)
+            "room" -> if (features.value.rooms) e.optJSONObject("room")?.let { Rooms.onRoom(app, it) }
+            "room_removed" -> Rooms.onRemoved(e.str("room_id"))
             "hello", "seq" -> {
                 // A hello from a restarted gateway: its restart state (and anything else in /v1/me) is new.
                 if (e.optString("type") == "hello" && bootChanged(meta.value, e.optString("boot"))) scope.launch { runCatching { refreshMe() } }
                 if (Prefs.phoneArmed) PhoneService.pull()
+                // A (re)connected stream may have missed room events: one list pull catches up.
+                if (e.optString("type") == "hello" && features.value.rooms) scope.launch { runCatching { Rooms.load() } }
                 e.optJSONArray("working")?.let { setWorking(it) }
                 if (e.optLong("seq") > Prefs.seq) scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }
             }
@@ -415,6 +426,7 @@ object Hub {
             Prefs.seq = 0; Prefs.nseq = 0; Prefs.fleetSeen = 0.0
             Prefs.talkChat = null; Prefs.lastProfile = null
             Fleet.reset()
+            Rooms.reset()
             Momentum.reset()
             Ctl.reset()
             if (::app.isInitialized) runCatching { androidx.core.app.NotificationManagerCompat.from(app).cancelAll() }

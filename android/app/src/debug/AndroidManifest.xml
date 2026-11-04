@@ -7,6 +7,7 @@
         <activity android:name=".MarkdownProbeActivity" android:exported="true" />
         <activity android:name=".FleetProbeActivity" android:exported="true" />
         <activity android:name=".VoiceProbeActivity" android:exported="true" />
+        <activity android:name=".RoomProbeActivity" android:exported="true" />
         <activity android:name=".BatteryPollingActivity" android:exported="false" />
         <activity android:name=".WakeIsolationProbeActivity" android:exported="true" />
         <activity android:name=".MachineStorageProbeActivity" android:exported="true" />

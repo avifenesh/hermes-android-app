@@ -73,13 +73,18 @@ import java.io.File
 
 // ---------------------------------------------------------------- inbox
 @Composable
-fun InboxScreen() {
+fun InboxScreen(initialFilter: String = "all") {
     val p = P
     val chats by Hub.chats.collectAsState()
     val work by Hub.working.collectAsState()
     val appr by Hub.approvals.collectAsState()
     val online by Hub.online.collectAsState()
-    var filter by rememberSaveable { mutableStateOf("all") }
+    var filter by rememberSaveable { mutableStateOf(initialFilter) }
+    val roomMap by Rooms.list.collectAsState()
+    val roomsOn = Hub.features.collectAsState().value.rooms && Rooms.supported.collectAsState().value
+    val roomsLoaded by Rooms.loaded.collectAsState()
+    var newRoom by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(roomsOn) { if (!roomsOn && filter == "rooms") filter = "all" }
     var q by rememberSaveable { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -95,7 +100,17 @@ fun InboxScreen() {
         }
         f && (q.isBlank() || c.title.contains(q, true) || c.preview.contains(q, true) ||
             msgs[c.id].orEmpty().any { it.content.contains(q, true) })
-    }.sortedWith(compareByDescending<Chat> { it.id in need }.thenByDescending { it.id in work }.thenByDescending { it.pinned }.thenByDescending { it.updated })
+    }.takeIf { filter != "rooms" }.orEmpty()
+    // Group chats sit in the same list as chats (All) or alone (Rooms), searched by name, members and preview.
+    val roomList = if (!roomsOn || filter !in setOf("all", "rooms")) emptyList() else roomMap.values.filter { r ->
+        q.isBlank() || r.name.contains(q, true) || r.preview?.text?.contains(q, true) == true || r.members.any { it.name.contains(q, true) }
+    }
+    // One ordering for both kinds: waiting on you, working, pinned, then most recent.
+    val entries: List<Pair<String, Any>> = (list.map { "c:${it.id}" to it } + roomList.map { "r:${it.id}" to it }).sortedWith(
+        compareByDescending<Pair<String, Any>> { (_, v) -> v is Chat && v.id in need }
+            .thenByDescending { (_, v) -> if (v is Chat) v.id in work else (v as Room).working.isNotEmpty() }
+            .thenByDescending { (_, v) -> v is Chat && v.pinned }
+            .thenByDescending { (_, v) -> if (v is Chat) v.updated else (v as Room).updated })
     Column(Modifier.fillMaxSize()) {
         val me by Hub.meta.collectAsState()
         val metaLine = listOf("name", "profile", "model").map { me.str(it).trim() }.filter { it.isNotBlank() }.joinToString(" · ")
@@ -128,23 +143,33 @@ fun InboxScreen() {
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("All", filter == "all") { filter = "all" }
             Chip("Chats", filter == "chats", unreadChats) { filter = "chats" }
+            if (roomsOn) Chip("Rooms", filter == "rooms", roomMap.values.sumOf { it.unread }) { filter = "rooms" }
             Chip("Digests", filter == "digests", unreadDigests) { filter = "digests" }
             Chip("Archived", filter == "archived") { filter = "archived" }
             Chip("Elsewhere", false) { Ui.push(Route.Elsewhere) }
         }
         val ptr = rememberPullToRefreshState()
-        PullToRefreshBox(refreshing, { scope.launch { refreshing = true; runCatching { Hub.sync(full = true) }.onFailure { Ui.say(it.message) }; refreshing = false } },
+        PullToRefreshBox(refreshing, { scope.launch { refreshing = true; runCatching { Hub.sync(full = true); if (roomsOn) Rooms.load() }.onFailure { Ui.say(it.message) }; refreshing = false } },
             Modifier.fillMaxSize(), state = ptr,
             indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter), containerColor = p.s1, color = p.acc) }) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
-                if (list.isEmpty()) item {
-                    if (q.isNotBlank()) Empty("Nothing found", "No chat mentions \"$q\".")
-                    else Empty("All quiet", "Start new work with the pen, or wait for ${agentName()} and cron to report in.")
+                if (filter == "rooms" && q.isBlank()) item(key = "new-room") { NewRoomRow { newRoom = true } }
+                if (entries.isEmpty()) item {
+                    when {
+                        q.isNotBlank() -> Empty("Nothing found", "No chat mentions \"$q\".")
+                        filter == "rooms" && !roomsLoaded -> Skeleton(2)
+                        filter == "rooms" -> Empty("No group chats yet", "Start one with two or more Bots, or open one from Hermes Desktop.")
+                        else -> Empty("All quiet", "Start new work with the pen, or wait for ${agentName()} and cron to report in.")
+                    }
                 }
-                items(list, key = { it.id }) { c -> ChatRow(c, c.id in work, c.id in need) }
+                items(entries, key = { it.first }) { (_, v) ->
+                    if (v is Chat) ChatRow(v, v.id in work, v.id in need)
+                    else (v as Room).let { r -> RoomRow(r, { Ui.openRoom(r.id) }) { scope.launch { Rooms.markRead(r.id, r.latestSeq) } } }
+                }
             }
         }
     }
+    if (newRoom) NewRoomSheet { newRoom = false }
 }
 
 @Composable

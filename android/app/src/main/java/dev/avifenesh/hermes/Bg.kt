@@ -240,6 +240,23 @@ object Approvals {
             "approve\n$sid:$pid\n$choice", { done(it) }, ::submit)
     }
 
+    /** A group chat member's command: the same biometric proof, bound to room, member and request. */
+    fun runRoom(act: FragmentActivity, rid: String, a: RoomAction, choice: String, done: (String?) -> Unit) {
+        fun submit(ts: String?, sig: String?) {
+            Hub.scope.launch {
+                val r = runCatching {
+                    val headers = mutableMapOf<String, String>()
+                    if (ts != null && sig != null) { headers["X-HM-Ts"] = ts; headers["X-HM-ASig"] = sig }
+                    Rooms.act(rid, a, choice, headers)
+                }
+                withContext(Dispatchers.Main) { done(if (r.isFailure) r.exceptionOrNull()?.message ?: "Failed" else null) }
+            }
+        }
+        if (choice == "deny") { submit(null, null); return }
+        prove(act, "Approve command", a.command.ifBlank { a.description }, "approve\n$rid:${a.member}:${a.requestId}\n$choice",
+            { done(it) }, ::submit)
+    }
+
     private fun prove(act: FragmentActivity, title: String, subtitle: String, prefix: String,
                       onError: (String) -> Unit, done: (String?, String?) -> Unit) {
         val ts = (System.currentTimeMillis() / 1000).toString()

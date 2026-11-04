@@ -220,6 +220,7 @@ class MainActivity : FragmentActivity() {
         // Show the pairing screen first: delivering may dismiss it again ("Already paired with ...").
         i.data?.takeIf { it.scheme == "hermes" }?.let { Ui.pairLink.value = it; Pairing.delivered(this, it) }
         i.getStringExtra("chat")?.let { Ui.open(it) }
+        i.getStringExtra("room")?.let { Ui.openRoom(it) }
         i.getStringExtra("agent")?.let { Ui.composeOpen.value = false; Ui.push(Route.AgentR(it, i.getStringExtra("agent_name").orEmpty())) }
         when (i.getStringExtra("go") ?: i.action?.substringAfter("dev.avifenesh.hermes.", "")) {
             "talk" -> {

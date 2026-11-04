@@ -135,6 +135,7 @@ object Ic {
     val pulse by lazy { v("M22 12h-4l-3 9L9 3l-3 9H2") }
     val cron by lazy { v("M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zM12 6v6l4 2") }
     val me by lazy { v("M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8z") }
+    val users by lazy { v("M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75") }
     val pen by lazy { v("M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1l1-4z", 2f) }
     val send by lazy { v("M12 19V5M5 12l7-7l7 7", 2.2f) }
     val stop by lazy { v("M6 6h12v12H6z", fill = true) }

@@ -1,0 +1,124 @@
+package dev.avifenesh.hermes
+
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RoomLogicTest {
+    private fun ev(seq: Long, role: String, member: String = "", ts: Double = 1000.0 + seq, kind: String = "message",
+                   notice: String = "", detail: String = "") =
+        RoomEvent(seq, "e$seq", kind, role, member, member.replaceFirstChar { it.uppercase() }, "text $seq", ts, "t", notice, detail, emptyList())
+
+    private fun room(unread: Int, latest: Long, role: String = "member", id: String = "r") =
+        Room(id, "Crew", emptyList(), latest, 0, unread, 0.0, emptyList(), RoomPreview(latest, role, "Scout", "hi", 0.0))
+
+    @Test fun roomsDefaultOnForOldServersAndGateEveryRoomRoute() {
+        assertTrue(Features().rooms)
+        assertTrue(Features.from(mapOf("rooms" to null)).rooms)
+        val off = Features.from(mapOf("rooms" to false))
+        for (p in listOf("/v1/rooms", "/v1/rooms?x=1", "/v1/rooms/a", "/v1/rooms/a/messages", "/v1/rooms/a/files/e/att")) {
+            assertFalse(p, off.allows(p))
+            assertTrue(p, Features().allows(p))
+        }
+        for (p in listOf("/v1/roomsx", "/v1/chats", "/v1/sync")) assertTrue(p, off.allows(p))
+        assertTrue(off.fleet && off.radar)  // turning rooms off touches no other gate
+    }
+
+    @Test fun parsesTheRoomSummaryNullSafely() {
+        val o = JSONObject().put("id", "crew").put("name", JSONObject.NULL).put("latest_seq", 9).put("read_seq", 4).put("unread", 2)
+            .put("updated", 12.5).put("working", JSONArray(listOf("scout")))
+            .put("members", JSONArray().put(JSONObject().put("id", "scout").put("handle", "scout").put("name", JSONObject.NULL))
+                .put(JSONObject().put("id", "scribe").put("profile", "writer").put("handle", "scribe").put("name", "Scribe")))
+            .put("preview", JSONObject().put("seq", 9).put("role", "member").put("name", "Scribe").put("text", "Done.").put("ts", 12.0))
+        val r = RoomLogic.room(o)
+        assertEquals("Group chat", r.name)  // never the string "null"
+        assertEquals(listOf("scout", "Scribe"), r.members.map { it.name })
+        assertEquals(listOf("scout", "writer"), r.members.map { it.profile })
+        assertEquals(Triple(9L, 4L, 2), Triple(r.latestSeq, r.readSeq, r.unread))
+        assertEquals(listOf("scout"), r.working)
+        assertEquals("Scribe: Done.", RoomLogic.previewLine(r))
+        assertNull(RoomLogic.room(JSONObject().put("id", "x").put("preview", JSONObject.NULL)).preview)
+        assertEquals("You: plan it", RoomLogic.previewLine(r.copy(preview = RoomPreview(1, "user", "", "plan it", 0.0))))
+    }
+
+    @Test fun parsesDriverStateAndPendingApproval() {
+        val d = RoomLogic.driver(JSONObject().put("running", true).put("working", true)
+            .put("members", JSONArray().put(JSONObject().put("id", "scout").put("status", "running")))
+            .put("pending", JSONArray().put(JSONObject().put("kind", "approval").put("member", "scout").put("task_id", "t")
+                .put("generation", 3).put("request_id", "r").put("command", "rm -rf build"))))
+        assertEquals(mapOf("scout" to "running"), d.members)
+        assertEquals(RoomAction("approval", "scout", "t", 3, "r", "rm -rf build", ""), d.pending.single())
+        assertFalse(RoomLogic.driver(null).running)
+    }
+
+    @Test fun pagesMergeByLogSequence() {
+        val newer = listOf(ev(5, "member", "scout"), ev(7, "user"))
+        val older = listOf(ev(2, "user"), ev(5, "member", "scout"))
+        val merged = RoomLogic.merge(newer, older)
+        assertEquals(listOf(2L, 5L, 7L), merged.map { it.seq })
+        assertEquals(merged, RoomLogic.merge(merged, older))  // a repeated page changes nothing
+        assertEquals(newer, RoomLogic.merge(newer, emptyList()))
+    }
+
+    @Test fun timelineGroupsSpeakerRunsAndFoldsNotices() {
+        val day = { ts: Double -> if (ts < 5000) "Mon" else "Tue" }
+        val rows = RoomLogic.rows(listOf(
+            ev(1, "user"),
+            ev(2, "member", "scout"), ev(3, "member", "scout"),              // one run: one name and avatar
+            ev(4, "member", "scribe"),                                       // a new speaker opens a run
+            ev(5, "", "scribe", kind = "notice", notice = "turn.failed"),
+            ev(6, "", "critic", kind = "notice", notice = "turn.cancelled"), // folded into the row above
+            ev(7, "member", "scribe"),                                       // a notice breaks the run
+            ev(8, "member", "scribe", ts = 1008.0 + 600),                    // ten minutes later: a new run
+            ev(9, "member", "scribe", ts = 6000.0),                          // a new day
+        ), day)
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 7L, 8L, 9L), rows.map { it.event.seq })
+        assertEquals(listOf(true, true, false, true, true, true, true, true), rows.map { it.head })
+        assertEquals(listOf(true, false, true, true, true, true, true, true), rows.map { it.tail })
+        assertEquals(listOf(5L, 6L), rows[4].notices.map { it.seq })
+        assertEquals(listOf(true, false, false, false, false, false, false, true), rows.map { it.day })
+    }
+
+    @Test fun unreadBadgesAndNotificationsFollowChatRules() {
+        assertEquals(2, RoomLogic.unreadRooms(listOf(room(3, 9), room(0, 4), room(1, 2))))
+        assertFalse(RoomLogic.notifies(null, room(3, 9), foreground = false))       // first sight: old replies are not news
+        assertTrue(RoomLogic.notifies(room(1, 8), room(2, 9), foreground = false))
+        assertFalse(RoomLogic.notifies(room(1, 8), room(2, 9), foreground = true))  // like chats: no ping in the app
+        assertFalse(RoomLogic.notifies(room(2, 8), room(2, 9), foreground = false)) // the owner's own words add nothing
+        assertFalse(RoomLogic.notifies(room(1, 8), room(2, 9, role = "user"), foreground = false))
+        assertFalse(RoomLogic.notifies(room(2, 9), room(0, 9), foreground = false)) // read elsewhere
+    }
+
+    @Test fun noticesReadAsSentences() {
+        assertEquals("Scout hit an error: provider timeout", RoomLogic.noticeText(
+            ev(1, "", "scout", kind = "notice", notice = "turn.failed", detail = "provider timeout\ntraceback ...")))
+        assertEquals("Scout moved on to your newer message", RoomLogic.noticeText(
+            ev(1, "", "scout", kind = "notice", notice = "turn.cancelled", detail = "superseded_by_newer_user_event")))
+        assertEquals("Renamed to Release crew", RoomLogic.noticeText(
+            ev(1, "", "", kind = "notice", notice = "room.renamed", detail = "Release crew")))
+    }
+
+    @Test fun mentionsAddTheHandleOnce() {
+        assertEquals("@scout ", RoomLogic.mention("", "scout"))
+        assertEquals("@scout check this", RoomLogic.mention("  check this", "scout"))
+        assertEquals("ask @scout now", RoomLogic.mention("ask @scout now", "scout"))
+        assertEquals("@scout @scouting x", RoomLogic.mention("@scouting x", "scout"))
+    }
+
+    @Test fun workingLineNamesWhoAnswersAndColorsStayPerMember() {
+        val members = listOf(RoomMember("a", "a", "a", "Ada"), RoomMember("b", "b", "b", "Bo"), RoomMember("c", "c", "c", "Cy"))
+        assertEquals(listOf("Ada", "Cy"), RoomLogic.answering(members, setOf("c", "a")))
+        assertEquals("", RoomLogic.workingLine(emptyList()))
+        assertEquals("Ada is answering", RoomLogic.workingLine(listOf("Ada")))
+        assertEquals("Ada and Cy are answering", RoomLogic.workingLine(listOf("Ada", "Cy")))
+        assertEquals("Ada, Bo and Cy are answering", RoomLogic.workingLine(listOf("Ada", "Bo", "Cy")))
+        val colors = members.map { RoomLogic.colorIndex(members, it.id, 5) }
+        assertEquals(listOf(1, 2, 3), colors)  // index 0 is the app accent, kept for the owner's controls
+        assertEquals(RoomLogic.colorIndex(members, "zed", 5), RoomLogic.colorIndex(members, "zed", 5))
+        assertEquals("S", RoomLogic.initial(" @scout"))
+    }
+}

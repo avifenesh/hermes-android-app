@@ -28,6 +28,9 @@ provider, Google SDK and voluntary support/reporting data flows are described in
   native mouse-aware clicks and remote scrolling, with a separate approval for each input.
 - **Remote Fleet sessions.** Hosts configured in `claude-ctrl` appear with a host label. Replies use
   its checked SSH transport and always require approval; raw terminal input and interrupt stay local-only.
+- **Group chats.** The gateway-hosted rooms Hermes Desktop creates in Bot Mode are in the Inbox too:
+  read along, send, start or delete a group, and approve a member's command. Bots answer through
+  Hermes' own room driver, so a room keeps going while the phone sleeps.
 - **Cron, Wake alarms, Talk.** Manage schedules, set alarms with proofs, dictate with on-device or
   server speech, and wake the app hands-free with on-device "Hey Jarvis" detection.
 - **Projects, Radar, Hub.** Browse repos with diffs and PRs, scan releases and papers, install

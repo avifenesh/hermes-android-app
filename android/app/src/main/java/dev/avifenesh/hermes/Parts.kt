@@ -357,7 +357,8 @@ object Img {
             trimGeneration
         }
         val bytes = if (remote) Api.plain.newCall(Request.Builder().url(key).build()).execute().use { it.body.bytes() }
-        else Api.bytes("/v1/media/" + Uri.encode(key))
+        // A key that is already an API path (group chat files) is fetched as is; anything else is a media id.
+        else Api.bytes(if (key.startsWith("/v1/")) key else "/v1/media/" + Uri.encode(key))
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
         var s = 1
@@ -774,6 +775,7 @@ fun iconLabel(v: ImageVector): String = when (v) {
     Ic.file -> "File"
     Ic.check -> "Confirm"
     Ic.power -> "Power"
+    Ic.users -> "Members"
     else -> "Open"
 }
 

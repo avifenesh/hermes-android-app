@@ -128,13 +128,22 @@ sealed interface Route {
     data object RadarR : Route
     data class LegalR(val document: String? = null) : Route
     data object PrivacyR : Route
+    data class RoomR(val id: String) : Route
 }
 
 fun Route.available(features: Features): Boolean = when (this) {
     is Route.AgentR -> features.fleet
     is Route.RadarR -> features.radar
     is Route.ProjectsR, is Route.RepoR -> features.projects
+    is Route.RoomR -> features.rooms
     else -> true
+}
+
+/** Where a route that this machine cannot serve falls back to. */
+fun Route.fallbackTab(): String = when (this) {
+    is Route.AgentR -> "pulse"
+    is Route.RoomR -> "inbox"
+    else -> "me"
 }
 
 object Ui {
@@ -155,10 +164,15 @@ object Ui {
     fun push(r: Route) {
         supportRequest.value = null
         if (!r.available(Hub.features.value)) {
-            stack.clear(); tab.value = if (r is Route.AgentR) "pulse" else "me"
+            stack.clear(); tab.value = r.fallbackTab()
         } else if (stack.lastOrNull() != r) stack.add(r)
     }
     fun open(cid: String) { supportRequest.value = null; composeOpen.value = false; stack.removeAll { it == Route.ChatR(cid) }; stack.add(Route.ChatR(cid)) }
+    fun openRoom(rid: String) {
+        supportRequest.value = null; composeOpen.value = false
+        if (!Route.RoomR(rid).available(Hub.features.value)) { stack.clear(); tab.value = "inbox"; return }
+        stack.removeAll { it == Route.RoomR(rid) }; stack.add(Route.RoomR(rid))
+    }
     fun pop() { supportRequest.value = null; if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
 }
 
@@ -216,7 +230,7 @@ fun Main() {
     LaunchedEffect(features) {
         val hidden = stack.lastOrNull()?.takeUnless { it.available(features) }
         stack.removeAll { !it.available(features) }
-        if (hidden != null && stack.isEmpty()) Ui.tab.value = if (hidden is Route.AgentR) "pulse" else "me"
+        if (hidden != null && stack.isEmpty()) Ui.tab.value = hidden.fallbackTab()
     }
     BackHandler(enabled = stack.isNotEmpty()) { Ui.pop() }
     BackHandler(enabled = stack.isEmpty() && Ui.tab.value != "inbox") { Ui.tab.value = "inbox" }
@@ -280,6 +294,7 @@ fun Main() {
                     is Route.RadarR -> RadarScreen()
                     is Route.LegalR -> LicensesScreen(r.document)
                     is Route.PrivacyR -> PrivacyScreen()
+                    is Route.RoomR -> RoomScreen(r.id)
                     null -> {}
                 }
                 }
@@ -295,8 +310,11 @@ fun BoxScope.NavBar() {
     val appr by Hub.approvals.collectAsState()
     val chats by Hub.chats.collectAsState()
     val work by Hub.working.collectAsState()
+    val rooms by Rooms.list.collectAsState()
+    val roomsOn = Hub.features.collectAsState().value.rooms && Rooms.supported.collectAsState().value
     val need = appr.values.count { it.state == "pending" }
-    val unread = chats.values.count { it.unread > 0 && !it.archived }
+    // Group chats with unread replies count like chats with unread replies.
+    val unread = chats.values.count { it.unread > 0 && !it.archived } + if (roomsOn) RoomLogic.unreadRooms(rooms.values) else 0
     fun b(n: Int) = if (n > 99) "99+" else n.toString()
     Row(Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).fillMaxWidth().navigationBarsPadding().padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {

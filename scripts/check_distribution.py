@@ -56,7 +56,7 @@ DEBUG_CLASSES = ("PhoneProbeActivity", "UiAuditActivity", "VoiceIngressProbe",
                  "WakeIsolationProbeActivity", "MachineStorageProbeActivity",
                  "DownloadIntegrityProbeActivity", "RedirectIsolationProbeActivity",
                  "PublisherReportProbeActivity", "PublisherReportsTest", "PublisherReportFenceTest",
-                 "VoiceProbeActivity")
+                 "VoiceProbeActivity", "RoomProbeActivity")
 # Debug-only fixture payload (the voice probe's bundled clip) lives under this asset folder.
 DEBUG_ASSET_DIR = "assets/probe/"
 

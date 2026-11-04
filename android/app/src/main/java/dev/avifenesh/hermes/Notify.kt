@@ -122,6 +122,24 @@ object Notify {
         post(c, nid("a${a.id}"), n)
     }
 
+    /** A Bot answered in a group chat nobody is looking at. Only the newest reply rides along (the SSE event
+     *  carries the room's preview, not its history); opening it lands in the room. */
+    fun room(c: Context, r: Room) {
+        val p = r.preview ?: return
+        val me = Person.Builder().setName("You").setKey("me").build()
+        val bot = Person.Builder().setName(p.name.ifBlank { "Bot" }).setKey("room:${r.id}:${p.name}").build()
+        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(r.name).setGroupConversation(true)
+            .addMessage(Hub.plain(p.text).take(900), (p.ts * 1000).toLong(), bot)
+        val open = PendingIntent.getActivity(c, nid("openroom${r.id}"),
+            Intent(c, MainActivity::class.java).putExtra("room", r.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PI)
+        val b = NotificationCompat.Builder(c, CH_MSG)
+            .setSmallIcon(R.drawable.ic_stat).setColor(LIME).setStyle(style).setNumber(r.unread)
+            .setContentIntent(open).setAutoCancel(true).setCategory(NotificationCompat.CATEGORY_MESSAGE)
+        post(c, nid("room${r.id}"), b.build())
+    }
+
+    fun cancelRoom(c: Context, rid: String) = NotificationManagerCompat.from(c).cancel(nid("room$rid"))
+
     fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(nid("a$aid"))
     fun cancelChat(c: Context, cid: String) = NotificationManagerCompat.from(c).cancel(nid("c$cid"))
 
