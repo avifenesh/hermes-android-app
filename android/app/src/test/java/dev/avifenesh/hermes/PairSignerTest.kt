@@ -1,18 +1,29 @@
 package dev.avifenesh.hermes
 
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.BufferedReader
+import java.io.IOException
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.MessageDigest
+import java.security.ProviderException
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 /**
@@ -82,5 +93,31 @@ class PairSignerTest {
         assertEquals(listOf("sig-1", "sig-2"), box.posts.map { it["x-hm-sig"] })
         assertNotEquals(box.posts[0]["x-hm-ts"], box.posts[1]["x-hm-ts"])
         assertEquals("POST\n/v1/pair\n${box.posts[0]["x-hm-ts"]}\n${hex(body)}", signed[0])
+    }
+
+    @Test fun aKeystoreFailureIsAnIoErrorNotACrash() {
+        // Keys.sign throws ProviderException/SignatureException (or a missing-key error) when the Keystore misbehaves.
+        // OkHttp rethrows anything but an IOException on its dispatcher thread, which kills the app.
+        val listener = ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"))
+        val server = thread(isDaemon = true) { runCatching { listener.accept().use { s -> s.getInputStream().read() } } }
+        val uncaught = AtomicReference<Throwable?>(null)
+        val pool = Executors.newSingleThreadExecutor { r -> Thread(r, "okhttp-dispatcher-test").apply { setUncaughtExceptionHandler { _, e -> uncaught.set(e) } } }
+        val base = OkHttpClient.Builder().dispatcher(Dispatcher(pool)).build()
+        val body = """{"code":"c0de"}""".toByteArray()
+        val client = pairingClient(base, body, sign = { throw ProviderException("Keystore operation failed") })
+        val failed = AtomicReference<IOException?>(null)
+        val done = CountDownLatch(1)
+        client.newCall(Request.Builder().url("http://127.0.0.1:${listener.localPort}/v1/pair").post(body.toRequestBody("application/json".toMediaType())).build())
+            .enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) { failed.set(e); done.countDown() }
+                override fun onResponse(call: Call, response: Response) { response.close(); done.countDown() }
+            })
+        assertTrue(done.await(10, TimeUnit.SECONDS))
+        pool.shutdown(); assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS))
+        listener.close(); server.join(2000)
+        assertEquals("nothing may escape onto the dispatcher thread", null, uncaught.get())
+        val e = failed.get()!!
+        assertEquals("Pairing signature failed", e.message)
+        assertTrue(e.cause is ProviderException)
     }
 }

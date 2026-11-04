@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import java.io.IOException
 import java.security.MessageDigest
 
 /**
@@ -79,7 +80,12 @@ internal class PairSigner(private val body: ByteArray, private val sign: (ByteAr
         val q = r.url.encodedQuery
         val hash = MessageDigest.getInstance("SHA-256").digest(body).joinToString("") { "%02x".format(it) }
         val canon = "${r.method}\n${r.url.encodedPath}${if (q != null) "?$q" else ""}\n$ts\n$hash"
-        return chain.proceed(r.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", sign(canon.toByteArray())).build())
+        // Keystore failures (ProviderException, SignatureException, a missing key) are not IOExceptions. OkHttp
+        // rethrows those on its dispatcher thread, which kills the app; as an IOException the call fails normally.
+        val sig = try { sign(canon.toByteArray()) } catch (e: IOException) { throw e } catch (e: Exception) {
+            throw IOException("Pairing signature failed", e)
+        }
+        return chain.proceed(r.newBuilder().header("X-HM-Ts", ts).header("X-HM-Sig", sig).build())
     }
 }
 
