@@ -17,6 +17,15 @@ import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
+
+class QualificationError(AssertionError):
+    """A failed gate. Raised explicitly so `python -O` cannot strip the check."""
+
+
+def require(ok: object, message: str) -> None:
+    if not ok:
+        raise QualificationError(message)
+
 ROOT = Path(__file__).resolve().parents[1]
 ABIS = {'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'}
 
@@ -30,29 +39,29 @@ def payload_parity(apk: Path, bundle: Path) -> None:
     """Single-module bundle, with bidirectional code/native/asset parity."""
     with zipfile.ZipFile(apk) as a, zipfile.ZipFile(bundle) as b:
         modules = {name.split('/')[0] for name in b.namelist() if '/' in name and not name.startswith(('BUNDLE-METADATA/', 'META-INF/'))}
-        assert modules == {'base'}, 'Unexpected bundle module'
+        require(modules == {'base'}, 'Unexpected bundle module')
         dex = {name for name in a.namelist() if re.fullmatch(r'classes\d*\.dex', name)}
         bundle_dex = {name.removeprefix('base/dex/') for name in b.namelist() if re.fullmatch(r'base/dex/classes\d*\.dex', name)}
-        assert dex and dex == bundle_dex, 'APK/bundle DEX inventory mismatch'
+        require(dex and dex == bundle_dex, 'APK/bundle DEX inventory mismatch')
         for name in dex:
-            assert a.read(name) == b.read('base/dex/' + name), 'APK/bundle code differs: ' + name
+            require(a.read(name) == b.read('base/dex/' + name), 'APK/bundle code differs: ' + name)
         payload = {name for name in a.namelist() if name.startswith(('lib/', 'assets/')) and not name.endswith('/')}
         bundle_payload = {name.removeprefix('base/') for name in b.namelist() if name.startswith(('base/lib/', 'base/assets/')) and not name.endswith('/')}
         profiles = {'BUNDLE-METADATA/com.android.tools.build.profiles/' + name: 'assets/dexopt/' + name for name in ('baseline.prof', 'baseline.profm')}
         bundle_payload.update(value for name, value in profiles.items() if name in b.namelist())
-        assert payload == bundle_payload, 'APK/bundle native/asset inventory mismatch'
+        require(payload == bundle_payload, 'APK/bundle native/asset inventory mismatch')
         for name in payload:
             bundled = next((key for key, value in profiles.items() if value == name), 'base/' + name)
-            assert a.read(name) == b.read(bundled), 'APK/bundle content differs: ' + name
+            require(a.read(name) == b.read(bundled), 'APK/bundle content differs: ' + name)
 
 
 def validate_apk_identity(badging: str, code: int, version: str) -> None:
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.MULTILINE)
-    assert package and package.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'APK/source version mismatch'
+    require(package and package.groups() == ('dev.avifenesh.hermes.play', str(code), version), 'APK/source version mismatch')
 
 
 def validate_test_counts(counts: dict[str, int]) -> None:
-    assert counts['tests'] > counts['skipped'] >= 0 and counts['failures'] == counts['errors'] == 0, 'No executed successful tests'
+    require(counts['tests'] > counts['skipped'] >= 0 and counts['failures'] == counts['errors'] == 0, 'No executed successful tests')
 
 
 def command(argv: list[str], output: Path) -> str:
@@ -63,16 +72,45 @@ def command(argv: list[str], output: Path) -> str:
     return result.stdout
 
 
+def manifest_names(manifest: bytes) -> set[str]:
+    """Entry names listed (with digests) in a JAR manifest; 72-byte lines continue with a leading space."""
+    lines: list[str] = []
+    for raw in manifest.decode('utf-8').replace('\r\n', '\n').split('\n'):
+        if raw.startswith(' ') and lines:
+            lines[-1] += raw[1:]
+        else:
+            lines.append(raw)
+    return {line[len('Name: '):] for line in lines if line.startswith('Name: ')}
+
+
+def verify_bundle_signature(jarsigner: str, bundle: Path, log: Path) -> None:
+    """Every payload entry must be covered by the signed manifest.
+
+    `jarsigner -verify` alone prints "jar verified." and exits 0 when some entries are unsigned. `-strict` is
+    not usable here: Android upload certificates are self-signed and AAB manifests are not the first ZIP entry,
+    so a correctly signed bundle fails it. Instead require the verification plus full manifest coverage.
+    """
+    signature = command([jarsigner, '-J-Duser.language=en', '-J-Duser.country=US', '-verify', str(bundle)], log)
+    require('jar verified.' in signature, 'Bundle signature not verified')
+    require('unsigned entries' not in signature, 'Bundle has unsigned entries')
+    with zipfile.ZipFile(bundle) as archive:
+        payload = {info.filename for info in archive.infolist()
+                   if not info.is_dir() and not info.filename.upper().startswith('META-INF/')}
+        listed = manifest_names(archive.read('META-INF/MANIFEST.MF'))
+    missing = sorted(payload - listed)
+    require(not missing, f'Bundle entries not covered by the signature: {missing[:5]}')
+
+
 def native_alignment(apk: Path) -> dict:
     libraries = []
     with zipfile.ZipFile(apk) as archive:
         abis = {name.split('/')[1] for name in archive.namelist() if name.startswith('lib/') and name.endswith('.so')}
-        assert abis == ABIS, f'Unexpected ABI set: {abis}'
+        require(abis == ABIS, f'Unexpected ABI set: {abis}')
         for name in archive.namelist():
             if not name.startswith('lib/') or not name.endswith('.so'):
                 continue
             data = archive.read(name)
-            assert data[:4] == b'\x7fELF' and data[5] == 1
+            require(data[:4] == b'\x7fELF' and data[5] == 1, 'qualify_play.py:75 check failed')
             if data[4] != 2:
                 continue
             offset = struct.unpack_from('<Q', data, 32)[0]
@@ -84,14 +122,14 @@ def native_alignment(apk: Path) -> dict:
                     continue
                 file_offset, virtual_address = struct.unpack_from('<QQ', data, start + 8)
                 alignment = struct.unpack_from('<Q', data, start + 48)[0]
-                assert alignment >= 16384 and file_offset % 16384 == virtual_address % 16384, name
+                require(alignment >= 16384 and file_offset % 16384 == virtual_address % 16384, name)
                 alignments.append(alignment)
-            assert alignments, name
+            require(alignments, name)
             libraries.append({'library': name, 'load_alignments': alignments})
         policy = archive.read('assets/privacy/privacy-policy.md')
     expected_policy = ROOT / 'android/app/src/play/assets/privacy/privacy-policy.md'
-    assert expected_policy.is_file(), 'Play-specific offline privacy policy is missing'
-    assert policy == expected_policy.read_bytes(), 'Packaged Play privacy policy differs from source'
+    require(expected_policy.is_file(), 'Play-specific offline privacy policy is missing')
+    require(policy == expected_policy.read_bytes(), 'Packaged Play privacy policy differs from source')
     return {'abis': sorted(abis), 'elf64_libraries': libraries, 'privacy_sha256': hashlib.sha256(policy).hexdigest()}
 
 
@@ -114,26 +152,26 @@ def main() -> None:
     prior = args.output / 'verification.json'
     if prior.is_file():
         prior.rename(args.output / ('verification.previous-' + digest(prior)[:12] + '.json'))
-    assert re.fullmatch('[0-9a-fA-F]{64}', args.expected_cert_sha256)
+    require(re.fullmatch('[0-9a-fA-F]{64}', args.expected_cert_sha256), 'qualify_play.py:117 check failed')
     from build_play_candidate import APK, BUNDLE, source_snapshot, output_snapshot, validate_provenance
-    assert args.provenance.is_file(), 'Run scripts/build_play_candidate.py first'
+    require(args.provenance.is_file(), 'Run scripts/build_play_candidate.py first')
     provenance = json.loads(args.provenance.read_text())
     bound_sources = source_snapshot(ROOT)
     validate_provenance(provenance, bound_sources, output_snapshot(ROOT))
-    assert digest(args.apk) == provenance['outputs'][APK] and digest(args.bundle) == provenance['outputs'][BUNDLE], 'Supplied artifacts differ from proven build'
+    require(digest(args.apk) == provenance['outputs'][APK] and digest(args.bundle) == provenance['outputs'][BUNDLE], 'Supplied artifacts differ from proven build')
     source = (ROOT / 'android/app/build.gradle.kts').read_text()
     version_match = re.search(r'versionName = "([^"]+)"', source)
     code_match = re.search(r'versionCode = (\d+)', source)
-    assert version_match and code_match, 'Missing source version'
+    require(version_match and code_match, 'Missing source version')
     version = version_match.group(1)
     code = int(code_match.group(1))
-    assert f'version: {version}\n' in (ROOT / 'server/mobile/plugin.yaml').read_text()
+    require(f'version: {version}\n' in (ROOT / 'server/mobile/plugin.yaml').read_text(), 'qualify_play.py:130 check failed')
     source_roots = [ROOT / 'android/app/src' / name for name in ['main', 'play', 'release', 'playRelease']]
     source_files = [path for base in source_roots for path in base.rglob('*') if path.is_file()]
     build_files = [ROOT / name for name in ['android/app/build.gradle.kts', 'android/build.gradle.kts', 'android/gradle.properties', 'android/settings.gradle.kts']]
     inputs = source_files + build_files
     latest_input = max(path.stat().st_mtime for path in inputs)
-    assert min(path.stat().st_mtime for path in (args.apk, args.bundle, args.bundle_apk)) >= latest_input, 'Artifacts predate Android inputs; rebuild'
+    require(min(path.stat().st_mtime for path in (args.apk, args.bundle, args.bundle_apk)) >= latest_input, 'Artifacts predate Android inputs; rebuild')
     distribution = json.loads(command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.apk),
         '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'distribution.json'))
     command([sys.executable, 'licenses/check_legal.py', '--apk', str(args.apk)], args.output / 'legal.json')
@@ -148,19 +186,18 @@ def main() -> None:
     manifest_check(manifest, 'play')
     node = ET.fromstring(manifest)
     ns = '{http://schemas.android.com/apk/res/android}'
-    assert node.attrib['package'] == 'dev.avifenesh.hermes.play'
-    assert node.attrib[ns + 'versionName'] == version and int(node.attrib[ns + 'versionCode']) == code
+    require(node.attrib['package'] == 'dev.avifenesh.hermes.play', 'qualify_play.py:151 check failed')
+    require(node.attrib[ns + 'versionName'] == version and int(node.attrib[ns + 'versionCode']) == code, 'qualify_play.py:152 check failed')
     sdk = node.find('uses-sdk')
-    assert sdk is not None
-    assert int(sdk.attrib[ns + 'targetSdkVersion']) >= 36
+    require(sdk is not None, 'qualify_play.py:154 check failed')
+    require(int(sdk.attrib[ns + 'targetSdkVersion']) >= 36, 'qualify_play.py:155 check failed')
     java_bin = Path(args.java).resolve().parent if Path(args.java).is_absolute() else None
     jarsigner = str(java_bin / 'jarsigner') if java_bin else 'jarsigner'
     keytool = str(java_bin / 'keytool') if java_bin else 'keytool'
-    signature = command([jarsigner, '-J-Duser.language=en', '-J-Duser.country=US', '-verify', str(args.bundle)], args.output / 'bundle-signature.log')
-    assert 'jar verified.' in signature, 'Bundle signature not verified'
+    verify_bundle_signature(jarsigner, args.bundle, args.output / 'bundle-signature.log')
     certificate = command([keytool, '-J-Duser.language=en', '-J-Duser.country=US', '-printcert', '-jarfile', str(args.bundle)], args.output / 'bundle-certificate.log')
     certificates = re.findall(r'SHA256:\s*([A-Fa-f0-9:]+)', certificate)
-    assert certificates and {item.replace(':', '').lower() for item in certificates} == {args.expected_cert_sha256.lower()}, 'Unexpected bundle signer'
+    require(certificates and {item.replace(':', '').lower() for item in certificates} == {args.expected_cert_sha256.lower()}, 'Unexpected bundle signer')
     payload_parity(args.bundle_apk, args.bundle)
     command([sys.executable, 'scripts/check_distribution.py', '--flavor', 'play', '--apk', str(args.bundle_apk),
         '--expected-cert-sha256', args.expected_cert_sha256], args.output / 'bundle-apk-distribution.json')
@@ -170,11 +207,11 @@ def main() -> None:
     validate_apk_identity(bundled_badging, code, version)
     generated_native = native_alignment(args.bundle_apk)
     reports = list((ROOT / 'android/app/build/test-results/testPlayDebugUnitTest').glob('TEST-*.xml'))
-    assert reports, 'Run :app:testPlayDebugUnitTest first'
+    require(reports, 'Run :app:testPlayDebugUnitTest first')
     test_roots = [ROOT / 'android/app/src' / name for name in ['main', 'play', 'debug', 'playDebug', 'test', 'testPlay']]
     test_inputs = [path for base in test_roots for path in base.rglob('*') if path.is_file() and path.suffix in ['.kt', '.java']]
     latest_test_input = max(path.stat().st_mtime for path in test_inputs + build_files)
-    assert all(path.stat().st_mtime >= latest_test_input for path in reports), 'Unit reports predate test/compiler inputs; rerun tests'
+    require(all(path.stat().st_mtime >= latest_test_input for path in reports), 'Unit reports predate test/compiler inputs; rerun tests')
     counts = {key: 0 for key in ['tests', 'failures', 'errors', 'skipped']}
     for path in reports:
         row = ET.parse(path).getroot()
@@ -182,14 +219,14 @@ def main() -> None:
             counts[key] += int(row.attrib.get(key, 0))
     validate_test_counts(counts)
     lint_file = ROOT / 'android/app/build/reports/lint-results-playRelease.xml'
-    assert lint_file.is_file(), 'Run :app:lintPlayRelease first'
+    require(lint_file.is_file(), 'Run :app:lintPlayRelease first')
     lint_inputs = [path for path in source_files if path.suffix in ['.kt', '.java', '.xml']] + build_files
-    assert lint_file.stat().st_mtime >= max(path.stat().st_mtime for path in lint_inputs), 'Lint report predates analyzed inputs; rerun lint'
+    require(lint_file.stat().st_mtime >= max(path.stat().st_mtime for path in lint_inputs), 'Lint report predates analyzed inputs; rerun lint')
     issues = ET.parse(lint_file).getroot().findall('issue')
     lint_errors = sum(item.attrib.get('severity') in ['Error', 'Fatal'] for item in issues)
-    assert lint_errors == 0
+    require(lint_errors == 0, 'qualify_play.py:190 check failed')
     native = native_alignment(args.apk)
-    assert source_snapshot(ROOT) == bound_sources, 'Source changed during qualification'
+    require(source_snapshot(ROOT) == bound_sources, 'Source changed during qualification')
     receipt = {'qualification': 'targeted artifact checks passed', 'store_approval': False, 'submitted': False,
         'version': version, 'version_code': code, 'package': node.attrib['package'],
         'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),

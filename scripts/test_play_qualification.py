@@ -102,5 +102,57 @@ class BundleParityTests(unittest.TestCase):
             self.check(bundle_extra={'base/lib/x86_64/test.so': b'changed native'})
 
 
+
+import os
+import shutil
+import subprocess
+import sys
+
+SCRIPTS = Path(__file__).resolve().parent
+JAVA_BIN = Path(os.environ.get('JAVA_HOME', '/usr/lib/jvm/java-21-openjdk-amd64')) / 'bin'
+
+
+class OptimizedModeTests(unittest.TestCase):
+    """python -O strips assert statements; the gates must still fail closed."""
+
+    def run_optimized(self, code):
+        return subprocess.run([sys.executable, '-O', '-c', f'import sys; sys.path.insert(0, {str(SCRIPTS)!r}); ' + code],
+                              capture_output=True, text=True, timeout=60)
+
+    def test_skipped_suite_still_rejected_under_optimize(self):
+        result = self.run_optimized("import qualify_play as q; q.validate_test_counts({'tests': 3, 'skipped': 3, 'failures': 0, 'errors': 0})")
+        self.assertNotEqual(result.returncode, 0, 'all-skipped suite passed under python -O')
+
+    def test_provenance_mismatch_still_rejected_under_optimize(self):
+        result = self.run_optimized("import build_play_candidate as b; b.validate_provenance({'format': 1, 'return_code': 0, 'command': ['x'], 'sources': {}, 'outputs': {}}, {}, {})")
+        self.assertNotEqual(result.returncode, 0, 'wrong build command accepted under python -O')
+
+
+@unittest.skipUnless((JAVA_BIN / 'jarsigner').is_file() and (JAVA_BIN / 'keytool').is_file(), 'JDK jarsigner/keytool not found')
+class BundleSignatureTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp(prefix='qualify-sig-'))
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.ks = self.dir / 'k.jks'
+        subprocess.run([str(JAVA_BIN / 'keytool'), '-genkeypair', '-keystore', str(self.ks), '-storepass', 'fixture', '-keypass', 'fixture',
+                        '-alias', 'k', '-keyalg', 'EC', '-dname', 'CN=fixture', '-validity', '2'], check=True, capture_output=True)
+
+    def jar(self, name, extra_unsigned=False):
+        path = self.dir / name
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr('base/manifest/AndroidManifest.xml', b'manifest')
+        subprocess.run([str(JAVA_BIN / 'jarsigner'), '-keystore', str(self.ks), '-storepass', 'fixture', str(path), 'k'], check=True, capture_output=True)
+        if extra_unsigned:
+            with zipfile.ZipFile(path, 'a') as z:
+                z.writestr('base/dex/classes.dex', b'unsigned payload')
+        return path
+
+    def test_fully_signed_bundle_accepted(self):
+        qualify.verify_bundle_signature(str(JAVA_BIN / 'jarsigner'), self.jar('ok.aab'), self.dir / 'ok.log')
+
+    def test_partly_unsigned_bundle_rejected(self):
+        with self.assertRaises((AssertionError, RuntimeError)):
+            qualify.verify_bundle_signature(str(JAVA_BIN / 'jarsigner'), self.jar('partial.aab', extra_unsigned=True), self.dir / 'partial.log')
+
 if __name__ == '__main__':
     unittest.main()
