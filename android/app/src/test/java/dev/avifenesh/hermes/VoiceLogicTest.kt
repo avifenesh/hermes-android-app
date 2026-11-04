@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.async
 
 class VoiceLogicTest {
     // ------------------------------------------------------------ peaks
@@ -229,16 +230,27 @@ class VoiceLogicTest {
         assertFalse(VoiceFetchRules.auto(voiceKind = false, size = 240_000, metered = false, failedBefore = false))
     }
 
-    @Test fun aTapDuringADownloadWaitsForItInsteadOfRestartingIt() {
-        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = false), VoiceTaps.tap(VoiceFetch.FETCHING))
-        assertTrue(VoiceTaps.landed(VoiceFetch.WAITING))
-        // A second tap takes the request back; the download carries on and the note stays quiet.
-        assertEquals(FetchTap(VoiceFetch.FETCHING, startDownload = false), VoiceTaps.tap(VoiceFetch.WAITING))
-        assertFalse(VoiceTaps.landed(VoiceFetch.FETCHING))
-        // Tap-to-load and retry start a download and play when it lands.
-        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.MANUAL))
-        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.FAILED))
-        assertEquals(FetchTap(VoiceFetch.READY, startDownload = false), VoiceTaps.tap(VoiceFetch.READY))
+    @Test fun aTapDuringAnAutomaticDownloadWaitsForItInsteadOfRestartingIt() {
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = false), VoiceTaps.tap(VoiceFetch.FETCHING, tapStarted = false))
+        assertTrue(VoiceTaps.landed(VoiceFetch.WAITING, started = true))
+        // A second tap takes the request back; the small automatic download carries on quietly.
+        assertEquals(FetchTap(VoiceFetch.FETCHING, startDownload = false), VoiceTaps.tap(VoiceFetch.WAITING, tapStarted = false))
+        assertFalse(VoiceTaps.landed(VoiceFetch.FETCHING, started = true))
+        assertEquals(FetchTap(VoiceFetch.READY, startDownload = false), VoiceTaps.tap(VoiceFetch.READY, tapStarted = false))
+    }
+
+    @Test fun aSecondTapCancelsADownloadATapStarted() {
+        // Large or metered clips wait for a tap; that tap starts the transfer, and so does a retry.
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.MANUAL, tapStarted = false))
+        assertEquals(FetchTap(VoiceFetch.WAITING, startDownload = true), VoiceTaps.tap(VoiceFetch.FAILED, tapStarted = false))
+        // Taking it back stops the bytes and waits for a tap again, as the label says.
+        assertEquals(FetchTap(VoiceFetch.MANUAL, startDownload = false, cancelDownload = true),
+            VoiceTaps.tap(VoiceFetch.WAITING, tapStarted = true))
+    }
+
+    @Test fun aDownloadThatLandsAfterHomeOrALockDoesNotStartPlaying() {
+        assertFalse(VoiceTaps.landed(VoiceFetch.WAITING, started = false))
+        assertTrue(VoiceTaps.landed(VoiceFetch.WAITING, started = true))
     }
 
     @Test fun mediaDownloadsNeverTakeTheApiAndEventStreamSlots() {
@@ -320,5 +332,94 @@ class VoiceLogicTest {
         assertEquals(FocusAct.NONE, Focus.act(Focus.LOSS_TRANSIENT, playing = false, pausedForNow = false, ducked = false))
         assertEquals(FocusAct.NONE, Focus.act(Focus.GAIN, playing = false, pausedForNow = false, ducked = false))
         assertEquals(listOf(1, -1, -2, -3), listOf(Focus.GAIN, Focus.LOSS, Focus.LOSS_TRANSIENT, Focus.LOSS_TRANSIENT_CAN_DUCK))
+    }
+
+    // ------------------------------------------------------------ focus sequences
+    private class FakePort(var grant: Boolean = true) : FocusPort {
+        var requests = 0; var abandons = 0
+        override fun request(): Boolean { requests++; return grant }
+        override fun abandon() { abandons++ }
+    }
+
+    @Test fun aDuckThenATransientLossStillResumesAtFullVolume() {
+        val g = FocusGate(FakePort())
+        assertTrue(g.acquire())
+        assertEquals(FocusAct.DUCK, g.change(Focus.LOSS_TRANSIENT_CAN_DUCK, playing = true))
+        assertEquals(FocusAct.PAUSE_FOR_NOW, g.change(Focus.LOSS_TRANSIENT, playing = true))
+        assertFalse(g.ducked)
+        assertEquals(FocusAct.RESUME, g.change(Focus.GAIN, playing = false))
+        assertEquals(FocusAct.RESUME, Focus.act(Focus.GAIN, playing = false, pausedForNow = true, ducked = true))
+    }
+
+    @Test fun aPauseWhileDuckedDoesNotLeaveTheNextStartQuiet() {
+        val g = FocusGate(FakePort())
+        g.acquire()
+        g.change(Focus.LOSS_TRANSIENT_CAN_DUCK, playing = true)
+        assertTrue(g.ducked)
+        g.held()  // any pause
+        assertFalse(g.ducked)
+        g.change(Focus.LOSS_TRANSIENT_CAN_DUCK, playing = true)
+        g.release()  // the user paused, or the screen left
+        assertFalse(g.ducked || g.pausedForNow)
+    }
+
+    @Test fun playDuringATransientLossAsksForFocusAgainAndHonorsTheAnswer() {
+        val port = FakePort()
+        val g = FocusGate(port)
+        assertTrue(g.acquire())
+        g.change(Focus.LOSS_TRANSIENT, playing = true)  // another app holds focus; our request stays registered
+        port.grant = false
+        assertFalse("must not start while another app owns focus", g.acquire())
+        assertEquals(2, port.requests)
+        assertTrue(g.pausedForNow)  // the user's play is not lost: it resumes when focus returns
+        assertEquals(FocusAct.RESUME, g.change(Focus.GAIN, playing = false))
+        port.grant = true
+        assertTrue(g.acquire())
+        assertEquals(3, port.requests)
+        g.release(); g.release()
+        assertEquals(1, port.abandons)
+        assertEquals(0, FakePort().also { FocusGate(it).release() }.abandons)
+    }
+
+    // ------------------------------------------------------------ previews from merged history
+    @Test fun anEditedOlderVoiceNoteNeverReplacesANewerPreview() {
+        val voice = Msg("v", "c", "user", "text", "", JSONObject().put("attachments", org.json.JSONArray()
+            .put(JSONObject().put("kind", "voice").put("transcript", "older words"))), 100.0, 5)
+        val newer = Msg("t", "c", "user", "text", "the newer text", JSONObject(), 101.0, 6)
+        val chat = Chat("c", "Chat", "chat", updated = 101.0, unread = 0, pinned = false, archived = false, preview = "the newer text", lastRole = "user")
+        val out = withPreviews(mapOf("c" to chat), mapOf("c" to listOf(voice, newer)), batch = listOf(voice))
+        assertEquals("the newer text", out.getValue("c").preview)
+        // The voice note alone: its transcript is the preview.
+        val alone = withPreviews(mapOf("c" to chat.copy(updated = 100.0)), mapOf("c" to listOf(voice)), listOf(voice))
+        assertEquals("older words", alone.getValue("c").preview)
+        // Only an old page is loaded: the server's preview stays.
+        val old = withPreviews(mapOf("c" to chat.copy(updated = 500.0, preview = "server")), mapOf("c" to listOf(voice)), listOf(voice))
+        assertEquals("server", old.getValue("c").preview)
+    }
+
+    // ------------------------------------------------------------ reset cancels media transfers
+    @Test fun resettingTheSessionCancelsMediaTransfersToo() = kotlinx.coroutines.runBlocking {
+        java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { listener ->
+            val connected = java.util.concurrent.CountDownLatch(1)
+            val server = kotlin.concurrent.thread(isDaemon = true) {
+                runCatching {
+                    listener.accept().use { sock ->
+                        val r = sock.getInputStream().bufferedReader()
+                        while (!r.readLine().isNullOrEmpty()) { }
+                        connected.countDown()
+                        while (sock.getInputStream().read() != -1) { } // never answers
+                    }
+                }
+            }
+            // Same dispatcher as Api.media; the signer is left out because no session is paired here.
+            val client = Api.media.newBuilder().apply { interceptors().clear() }.build()
+            val call = client.newCall(okhttp3.Request.Builder().url("http://127.0.0.1:${listener.localPort}/v1/media/x").build())
+            val result = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { runCatching { call.awaitBody { it.body.string() } } }
+            assertTrue(connected.await(3, java.util.concurrent.TimeUnit.SECONDS))
+            Api.cancelCalls()
+            assertTrue("a media transfer of the old session must stop", call.isCanceled())
+            kotlinx.coroutines.withTimeout(3000) { assertTrue(result.await().isFailure) }
+            server.join(2000)
+        }
     }
 }

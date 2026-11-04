@@ -75,3 +75,19 @@ private fun voicePreview(m: Msg): String? {
     if (clips.isEmpty()) return null
     return clips.map { it.str("transcript").trim() }.firstOrNull { it.isNotEmpty() }?.lineSequence()?.first() ?: "Voice message"
 }
+
+/**
+ * Inbox previews after [batch] landed: for each chat it touched, the newest preview candidate in the
+ * merged, time-ordered [history], unless that is older than the chat's last update (only a page of
+ * old messages is loaded). Choosing from the merged history, not the batch, keeps an edited older
+ * message (a voice note getting its transcript) from replacing a newer preview.
+ */
+fun withPreviews(chats: Map<String, Chat>, history: Map<String, List<Msg>>, batch: List<Msg>): Map<String, Chat> {
+    var out = chats
+    for (cid in batch.mapTo(LinkedHashSet()) { it.chatId }) {
+        val c = out[cid] ?: continue
+        val last = history[cid].orEmpty().lastOrNull { previewCandidate(it) } ?: continue
+        if (last.ts >= c.updated - 2) out = out + (cid to c.copy(preview = chatPreview(last), lastRole = last.role))
+    }
+    return out
+}

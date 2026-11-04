@@ -197,10 +197,7 @@ object Hub {
             }
             out
         }
-        list.filter { previewCandidate(it) }.groupBy { it.chatId }.forEach { (cid, l) ->
-            val last = l.maxBy { it.ts }
-            chats.update { m -> m[cid]?.let { c -> if (last.ts >= c.updated - 2) m + (cid to c.copy(preview = previewOf(last), lastRole = last.role)) else m } ?: m }
-        }
+        chats.update { withPreviews(it, msgs.value, list) }
     }
 
     private fun setWorking(a: JSONArray) {
@@ -407,7 +404,7 @@ object Hub {
         synchronized(Api.epoch) {
             Api.epoch.invalidate()
             if (::app.isInitialized) Wake.reset(app.applicationContext)
-            Api.http.dispatcher.cancelAll()
+            Api.cancelCalls()
             disconnect()
             capabilityEpoch.invalidate()
             otherCapabilityEpochs.values.forEach { it.invalidate() }

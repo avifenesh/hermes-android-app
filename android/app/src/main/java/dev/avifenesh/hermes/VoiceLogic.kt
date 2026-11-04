@@ -258,7 +258,7 @@ object Focus {
         LOSS -> if (playing || pausedForNow) FocusAct.PAUSE else FocusAct.NONE
         LOSS_TRANSIENT -> if (playing) FocusAct.PAUSE_FOR_NOW else FocusAct.NONE
         LOSS_TRANSIENT_CAN_DUCK -> if (playing && !ducked) FocusAct.DUCK else FocusAct.NONE
-        GAIN -> when { ducked -> FocusAct.RESTORE; pausedForNow -> FocusAct.RESUME; else -> FocusAct.NONE }
+        GAIN -> when { pausedForNow -> FocusAct.RESUME; ducked -> FocusAct.RESTORE; else -> FocusAct.NONE }
         else -> FocusAct.NONE
     }
 }
@@ -273,21 +273,77 @@ enum class VoiceFetch {
     /** The download failed; a tap retries. */ FAILED,
 }
 
-/** A tap on a bubble whose clip is not on the phone yet: the next state, and whether to start a download. */
-data class FetchTap(val state: VoiceFetch, val startDownload: Boolean)
+/** A tap on a bubble whose clip is not on the phone yet: the next state, and what to do with the download. */
+data class FetchTap(val state: VoiceFetch, val startDownload: Boolean, val cancelDownload: Boolean = false)
 
 object VoiceTaps {
     /**
-     * A tap during a download never restarts it: it asks to play when the clip lands, and a second
-     * tap takes that back. Only a clip that waits for a tap, or whose download failed, starts one.
+     * A tap during an automatic download never restarts it: it asks to play when the clip lands, and
+     * a second tap takes that back while the small download finishes. A clip that waits for a tap
+     * (large, metered, not a voice note) or whose download failed starts a download on a tap
+     * ([tapStarted] from then on), and a second tap cancels that transfer and waits for a tap again.
      */
-    fun tap(state: VoiceFetch): FetchTap = when (state) {
+    fun tap(state: VoiceFetch, tapStarted: Boolean): FetchTap = when (state) {
         VoiceFetch.FETCHING -> FetchTap(VoiceFetch.WAITING, startDownload = false)
-        VoiceFetch.WAITING -> FetchTap(VoiceFetch.FETCHING, startDownload = false)
+        VoiceFetch.WAITING -> if (tapStarted) FetchTap(VoiceFetch.MANUAL, startDownload = false, cancelDownload = true)
+                              else FetchTap(VoiceFetch.FETCHING, startDownload = false)
         VoiceFetch.MANUAL, VoiceFetch.FAILED -> FetchTap(VoiceFetch.WAITING, startDownload = true)
         VoiceFetch.READY -> FetchTap(VoiceFetch.READY, startDownload = false)
     }
 
-    /** The download finished: play now only if a tap asked for it. */
-    fun landed(state: VoiceFetch): Boolean = state == VoiceFetch.WAITING
+    /** The download finished: play now only if a tap asked for it and the screen is still in front
+     *  ([started]): a note never starts after Home or a screen lock. */
+    fun landed(state: VoiceFetch, started: Boolean): Boolean = state == VoiceFetch.WAITING && started
+}
+
+// ---------------------------------------------------------------- audio focus bookkeeping
+/** The system's audio focus as the player sees it. */
+interface FocusPort {
+    /** Ask for focus with the player's request (a retained request is asked again); true when granted now. */
+    fun request(): Boolean
+    fun abandon()
+}
+
+/**
+ * The player's audio-focus state, apart from MediaPlayer so its sequences are testable. Focus is
+ * asked for before every start, even while a request is still registered: after a transient loss
+ * the request stays, but another app owns focus until it gives it back. Any pause brings the
+ * volume back up, so a duck never outlives the playback it lowered.
+ */
+class FocusGate(private val port: FocusPort) {
+    private var registered = false
+    var pausedForNow = false; private set
+    var ducked = false; private set
+
+    /** Before a start the user asked for. A refusal leaves a transient pause pending, so the note
+     *  still resumes when focus comes back. */
+    fun acquire(): Boolean {
+        if (!port.request()) return false
+        registered = true
+        pausedForNow = false
+        return true
+    }
+
+    /** The user paused, the screen stopped or left, or focus is gone for good. */
+    fun release() {
+        pausedForNow = false
+        ducked = false
+        if (registered) { registered = false; port.abandon() }
+    }
+
+    /** Playback was held by any pause; the caller restores full volume. */
+    fun held() { ducked = false }
+
+    /** A focus change from the system while [playing]; the caller carries out the returned act. */
+    fun change(change: Int, playing: Boolean): FocusAct {
+        val act = Focus.act(change, playing, pausedForNow, ducked)
+        when (act) {
+            FocusAct.DUCK -> ducked = true
+            FocusAct.RESTORE -> ducked = false
+            FocusAct.PAUSE_FOR_NOW -> { pausedForNow = true; ducked = false }
+            FocusAct.RESUME -> { pausedForNow = false; ducked = false }
+            FocusAct.PAUSE, FocusAct.NONE -> Unit
+        }
+        return act
+    }
 }

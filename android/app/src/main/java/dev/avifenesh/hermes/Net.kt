@@ -311,6 +311,12 @@ object Api {
             .followRedirects(false).followSslRedirects(false).build()
     }
 
+    /** Cancel every call of the old session, media transfers included (they run on their own dispatcher). */
+    fun cancelCalls() {
+        http.dispatcher.cancelAll()
+        media.dispatcher.cancelAll()
+    }
+
     private fun signer(chain: Interceptor.Chain): Response {
         val r = chain.request()
         val identity = r.tag(Identity::class.java) ?: throw IOException("Missing connection identity")

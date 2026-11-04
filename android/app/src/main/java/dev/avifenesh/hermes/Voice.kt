@@ -44,10 +44,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
@@ -79,6 +79,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -211,11 +213,7 @@ object VoicePlayer {
     /** Shared by every message, like a system player: once 1.5x, the next note plays at 1.5x too. */
     val speed = mutableFloatStateOf(1f)
     private var mp: MediaPlayer? = null
-    private var focus: AudioFocusRequest? = null
-    private var audio: AudioManager? = null
-    /** Paused by a transient focus loss; resumes when focus returns unless the user acted meanwhile. */
-    private var pausedForNow = false
-    private var ducked = false
+    private var gate: FocusGate? = null
     private val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
 
@@ -249,12 +247,13 @@ object VoicePlayer {
 
     fun resume(c: Context) {
         val p = mp ?: return
-        pausedForNow = false
-        if (!requestFocus(c)) { Ui.say("Audio is busy. Try again in a moment."); return }
+        // Asked every time: a request kept through a transient loss does not mean focus is ours again.
+        if (!gate(c).acquire()) { Ui.say("Audio is busy. Try again in a moment."); return }
         start(p)
     }
 
     private fun start(p: MediaPlayer) {
+        p.setVolume(1f, 1f)
         // A non-zero speed on a prepared player starts it, so speed is applied only here, never while paused.
         runCatching { p.playbackParams = p.playbackParams.setSpeed(speed.floatValue) }
         if (!p.isPlaying) p.start()
@@ -264,13 +263,15 @@ object VoicePlayer {
     /** The user, the Activity stopping, or a permanent focus loss: pause and give focus back. */
     fun pause() {
         hold()
-        pausedForNow = false
-        abandonFocus()
+        gate?.release()
     }
 
+    /** Any pause: keep the position and bring a ducked volume back up. */
     private fun hold() {
         val p = mp ?: return
         if (p.isPlaying) p.pause()
+        p.setVolume(1f, 1f)
+        gate?.held()
         position.longValue = p.currentPosition.toLong()
         playing.value = false
     }
@@ -297,38 +298,32 @@ object VoicePlayer {
         val p = mp
         mp = null
         current.value = null; playing.value = false; position.longValue = 0; duration.longValue = 0
-        pausedForNow = false; ducked = false
         if (p != null) { runCatching { p.stop() }; p.release() }
-        abandonFocus()
+        gate?.release()
     }
 
     private fun onFocus(change: Int) {
         val p = mp ?: return
-        when (Focus.act(change, playing.value, pausedForNow, ducked)) {
+        when (gate?.change(change, playing.value) ?: return) {
             FocusAct.PAUSE -> pause()
-            FocusAct.PAUSE_FOR_NOW -> { hold(); pausedForNow = true }
-            FocusAct.DUCK -> { p.setVolume(0.2f, 0.2f); ducked = true }
-            FocusAct.RESTORE -> { p.setVolume(1f, 1f); ducked = false }
-            FocusAct.RESUME -> { pausedForNow = false; start(p) }
+            FocusAct.PAUSE_FOR_NOW -> hold()
+            FocusAct.DUCK -> p.setVolume(0.2f, 0.2f)
+            FocusAct.RESTORE -> p.setVolume(1f, 1f)
+            FocusAct.RESUME -> start(p)
             FocusAct.NONE -> Unit
         }
     }
 
-    private fun requestFocus(c: Context): Boolean {
-        if (focus != null) return true
-        val am = c.getSystemService(AudioManager::class.java) ?: return true
-        val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attrs)
-            .setOnAudioFocusChangeListener(::onFocus).build()
-        if (am.requestAudioFocus(req) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return false
-        audio = am; focus = req
-        return true
-    }
+    private fun gate(c: Context): FocusGate = gate ?: FocusGate(SystemFocus(
+        c.applicationContext.getSystemService(AudioManager::class.java),
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener(::onFocus).build())).also { gate = it }
+}
 
-    private fun abandonFocus() {
-        val req = focus ?: return
-        focus = null
-        audio?.abandonAudioFocusRequest(req)
-    }
+/** [FocusPort] on AudioManager with one request, asked again before every start. */
+private class SystemFocus(private val am: AudioManager?, private val req: AudioFocusRequest) : FocusPort {
+    override fun request(): Boolean = am == null || am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    override fun abandon() { am?.abandonAudioFocusRequest(req) }
 }
 
 /**
@@ -400,28 +395,28 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
             else -> VoiceFetch.MANUAL
         })
     }
-    var attempt by remember(id) { mutableIntStateOf(0) }
+    // A download a tap started: its own job, so a second tap can cancel the transfer.
+    var tapJob by remember(id) { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     fun play(f: File, fromMs: Long = 0) {
         runCatching { VoicePlayer.play(ctx, id, f, fromMs) }.onFailure { Ui.say("Can't play this voice message") }
     }
-    LaunchedEffect(id, attempt) {
+    suspend fun download() {
+        val got = try { fetch(ctx, id, name, size) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+        tapJob = null
+        if (got == null) { VoiceMedia.noteFailure(id); state = VoiceFetch.FAILED; return }
+        VoiceMedia.noteSuccess(id)
+        file = got
+        val wanted = VoiceTaps.landed(state, lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+        state = VoiceFetch.READY
+        if (wanted) play(got)
+        if (wave == null) wave = Waves.load(id, got)
+    }
+    LaunchedEffect(id) {
         val have = file
-        if (have == null) {
-            // Without a tap, only the states decided above download on their own.
-            if (attempt == 0 && state != VoiceFetch.FETCHING && state != VoiceFetch.WAITING) return@LaunchedEffect
-            if (state != VoiceFetch.WAITING) state = VoiceFetch.FETCHING
-            val got = try { fetch(ctx, id, name, size) } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
-            if (got == null) { VoiceMedia.noteFailure(id); state = VoiceFetch.FAILED; return@LaunchedEffect }
-            VoiceMedia.noteSuccess(id)
-            file = got
-            val wanted = VoiceTaps.landed(state)
-            state = VoiceFetch.READY
-            if (wanted) play(got)
-        } else {
-            file = have
-            state = VoiceFetch.READY
-        }
-        if (wave == null) wave = Waves.load(id, file!!)
+        if (have != null) { if (wave == null) wave = Waves.load(id, have) }
+        else if (state == VoiceFetch.FETCHING) download()  // the automatic download, decided above
     }
     val current = VoicePlayer.current.value == id
     val w = wave
@@ -431,7 +426,7 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
         else -> hint
     }
     VoiceBubbleContent(
-        mine = mine, peaks = w?.peaks, ready = w != null, fetch = state, sizeBytes = size,
+        mine = mine, peaks = w?.peaks, ready = w != null, fetch = state, sizeBytes = size, tapStarted = tapJob != null,
         durationMs = dur, positionMs = { if (VoicePlayer.current.value == id) VoicePlayer.position.longValue else 0L },
         current = current, playing = current && VoicePlayer.playing.value, speed = VoicePlayer.speed.floatValue,
         transcript = a.str("transcript"),
@@ -439,7 +434,12 @@ fun VoiceBubble(a: JSONObject, mine: Boolean, modifier: Modifier = Modifier,
             val f = file
             when {
                 f != null -> runCatching { VoicePlayer.toggle(ctx, id, f) }.onFailure { Ui.say("Can't play this voice message") }
-                else -> VoiceTaps.tap(state).let { t -> state = t.state; if (t.startDownload) attempt++ }
+                else -> {
+                    val t = VoiceTaps.tap(state, tapStarted = tapJob != null)
+                    state = t.state
+                    if (t.cancelDownload) { tapJob?.cancel(); tapJob = null }
+                    if (t.startDownload) tapJob = scope.launch { download() }
+                }
             }
         },
         onSeek = { ms ->
@@ -461,7 +461,7 @@ fun VoiceBubbleContent(
     mine: Boolean, peaks: FloatArray?, ready: Boolean, fetch: VoiceFetch, durationMs: Long, positionMs: () -> Long,
     current: Boolean, playing: Boolean, speed: Float, transcript: String,
     onToggle: () -> Unit, onSeek: (Long) -> Unit, onSpeed: () -> Unit,
-    modifier: Modifier = Modifier, transcriptOpen: Boolean = false, sizeBytes: Long? = null,
+    modifier: Modifier = Modifier, transcriptOpen: Boolean = false, sizeBytes: Long? = null, tapStarted: Boolean = false,
 ) {
     val p = P
     var open by remember(transcript) { mutableStateOf(transcriptOpen) }
@@ -471,7 +471,7 @@ fun VoiceBubbleContent(
     val pos by remember(current) { derivedStateOf { if (current) positionMs() / 1000 * 1000 else 0L } }
     Column(modifier.then(shell)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PlayButton(playing, fetch, durationMs, onToggle)
+            PlayButton(playing, fetch, durationMs, tapStarted, onToggle)
             Spacer(Modifier.width(4.dp))
             Waveform(peaks, ready, durationMs, positionMs, pos, current, mine, onSeek, Modifier.weight(1f).height(48.dp))
             Spacer(Modifier.width(2.dp))
@@ -507,12 +507,13 @@ fun VoiceBubbleContent(
 }
 
 @Composable
-private fun PlayButton(playing: Boolean, fetch: VoiceFetch, durationMs: Long, onClick: () -> Unit) {
+private fun PlayButton(playing: Boolean, fetch: VoiceFetch, durationMs: Long, tapStarted: Boolean, onClick: () -> Unit) {
     val p = P
     val length = if (durationMs > 0) ", " + VoiceMath.spoken(durationMs) else ""
     val label = when {
         fetch == VoiceFetch.FAILED -> "Retry voice message"
-        fetch == VoiceFetch.WAITING -> "Loading voice message, tap to cancel"
+        fetch == VoiceFetch.WAITING && tapStarted -> "Loading voice message, tap to cancel the download"
+        fetch == VoiceFetch.WAITING -> "Loading voice message, plays when it arrives. Tap to not play it"
         fetch == VoiceFetch.MANUAL -> "Load and play voice message$length"
         playing -> "Pause voice message"
         else -> "Play voice message$length"
