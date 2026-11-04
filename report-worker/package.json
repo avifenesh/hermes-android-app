@@ -9,5 +9,7 @@
     "dev": "wrangler dev --local",
     "check": "wrangler deploy --dry-run"
   },
-  "devDependencies": { "wrangler": "4.151.2" }
+  "devDependencies": {
+    "wrangler": "4.157.0"
+  }
 }
