@@ -67,12 +67,16 @@ The `/review` page also shows the alarm clock's emergency-stop password
 
 The reusable invitation authorizes *issuing new isolated enrollments*, not reading
 any existing tenant. It is not an API bearer token and cannot sign device requests.
-No shared pre-enrolled device key/token is shipped. Public enrollment/pairing allows
-20 attempts per client (IPv4 address or IPv6 /64) and 400 in total per five minutes,
-in one process. Behind the TLS proxy, pass `--client-ip-header X-Forwarded-For` (or the
-header your proxy writes) so limits key on the real client; only the proxy's own last
-hop is used, never a client-supplied value. Without it every request looks like the
-proxy and shares one budget. Do not run multiple workers. The invitation page does not transmit it
+No shared pre-enrolled device key/token is shipped. Rate limits, per five minutes
+and per client (IPv4 address or IPv6 /64): 20 wrong invitations, 20 failed pairing
+attempts and 20 invited enrollments. Only invited enrollments also count toward a
+shared ceiling of 400, so wrong guesses from any number of addresses cannot lock out
+reviewers who hold the invitation. A failure costs one constant-time compare or one
+SQLite lookup; throttle distributed floods at the proxy. Behind the TLS proxy, pass
+`--client-ip-header X-Forwarded-For` (or the header your proxy writes) so limits key
+on the real client; only the proxy's own last hop is used, never a client-supplied
+value. Without it every request looks like the proxy and shares one budget. Do not
+run multiple workers. The invitation page does not transmit it
 in URLs and has no analytics/external assets; API responses and page use no-store.
 
 ## Security model
@@ -83,8 +87,9 @@ normalized-signature durable SQLite replay claims. Invalid, stale, altered,
 noncanonical and malleated/replayed proofs fail. Replay storage failures fail
 closed. One central auth/replay database prevents cross-enrollment proof reuse
 when a phone reuses its hardware key. Each enrollment has its own fixture database
-and upload directory. Devices can list/revoke only themselves; revocation closes
-SSE on its next 250 ms tick. Replay state persists over restarts; **do not restore
+and upload directory. Devices can list/revoke only themselves; revoking ends the
+device's event streams and replies at once, then closes its store and deletes its
+sandbox. Replay state persists over restarts; **do not restore
 an old auth database or roll its clock back while ingress is open**.
 
 Power-equivalent actions need the same exact-content approval-key proof as
@@ -96,10 +101,38 @@ install/update/remove, MCP install/remove, Fleet replies to agents that act with
 asking, every raw terminal input, git push and pull-request creation. Denying,
 uninstalling a Hub skill and clarify answers need no proof, as in production.
 
-Limits: 1 MiB per ordinary request; 12 MiB for uploads and photo proofs (a camera
-photo is several MB); 64 MiB of uploads per enrollment in total; at most 40 cron
-jobs, three queued scripted replies per chat, 500 messages per other-app session.
+Request limits: 1 MiB for every request; only uploads (12 MiB, a camera photo is
+several MB) and alarm photo proofs (3 MiB) go higher. JSON `NaN`/`Infinity` are
+refused. Per enrollment: 64 MiB on disk (database and uploads), 300 uploads, 200
+chats, 50 Radar spawns, 40 cron jobs, three queued scripted replies per chat, 500
+messages per other-app session, three live event streams, 10 old-format alarm
+password checks a minute. Search reads at most the newest 1000 chat messages and
+200-character queries of up to 8 words. Schedules run from 1 minute to 366 days.
 MCP credential values typed into the Hub are discarded; only their names are kept.
+
+The alarm password is published on `/review`, so it is stored as a salted SHA-256
+and compared in constant time on the event loop; a slow KDF would protect nothing
+and let a request flood stall every reviewer. Sandboxes created before this change
+keep a PBKDF2 hash until the first correct entry; those checks run in a worker
+thread and are rate-limited.
+
+Event streams are event driven: a request or a scripted reply step wakes them, and
+an idle stream sends one keepalive every 15 seconds. Shutdown (Ctrl-C, SIGTERM)
+ends open streams first, so it does not wait out the shutdown timeout.
+
+## Retention and capacity
+
+| Bound | Default | Why |
+|---|---|---|
+| Open tenant stores | 32 | Each open SQLite store holds about three file descriptors; idle stores close least recently used first and reopen on the next request. Stores with a request, stream or reply in flight are never closed |
+| Idle close | 10 minutes | A reviewer between screens keeps a warm store; an abandoned one gives its descriptors back |
+| Active enrollments | 200 | A Play review uses a handful; re-reviews and testers fit with room to spare. Beyond it, enrollment and pairing answer 503 with a readable error |
+| Disk, all sandboxes | 2 GiB | Fits a small VPS; about 30 completely full sandboxes. When reached, new enrollments answer 503 and writes 507 |
+| Disk, one sandbox | 64 MiB | A full afternoon of uploads; the next upload or write answers 413 with "get a fresh pairing link" |
+| Retention | 14 days unused | Long enough for a review and its follow-ups; reviewers can always enroll again from `/review`. An hourly sweep revokes expired enrollments and deletes their sandboxes, revoked and orphaned sandboxes, and device rows revoked longer than 14 days |
+| Unpair or revoke | immediate | The sandbox is deleted as soon as its last request, stream and reply end |
+
+All are class attributes on `Backend`; tests shrink them per instance.
 
 To rotate invitations, stop the server and remove only `STATE/invitation.txt`;
 restart generates a new invitation without invalidating enrolled devices. To reset
@@ -139,7 +172,7 @@ that enrollment's SQLite file.
 | Projects | Two synthetic repos: status, per-file diff, stage, unstage, commit, push and open PR (both signed); the PR link opens a static `/review/pr` page that says nothing was pushed |
 | Files, voice | Signed raw upload/download, isolated per tenant, random IDs, the requested MIME type returned; opaque bytes, never parsed/executed/fetched. Server voice returns a short generated two-note chime, not speech |
 | Devices, push | Only the current enrollment is visible/revocable; push config disabled and FCM tokens discarded (the app explains it falls back to its own connection) |
-| Review capabilities | `/v1/review/capabilities` lists every served route, `unsupported: []`, honest non-screen limits and `submission_ready: true` |
+| Review capabilities | `/v1/review/capabilities` lists every served route, `unsupported: []`, honest non-screen limits and `surfaces_complete: true`. That only says no known Play surface is unsupported here; it is not a submission or hosting readiness claim |
 
 Paths outside the Play build (phone control, self-check, anything unknown) still
 return an explicit HTTP **501** `Unsupported in synthetic review sandbox`.
@@ -151,31 +184,40 @@ pairing and deep-link opening on the signed Play artifact. Check those on a devi
 
 ## Deployment limits
 
-No hosting, DNS, public network writes, store submission, real gateway changes,
-provider calls or APK/Gradle/emulator work are performed by these files/tests.
-The server is single-process, not Internet-hardened: no distributed quotas,
-retention sweeper, aggregate chat/message quota, production abuse controls or
-monitoring. Before hosting, add bounded tenant retention and enrollment limits,
-TLS/proxy configuration, invitation rotation, uptime/access procedures,
-privacy/retention instructions and artifact-specific Android qualification. Do not
-expose the local fixture on a real host with valuable mounts merely because auth
-tests pass.
+No DNS, public network writes, store submission, real gateway changes, provider
+calls or APK/Gradle/emulator work are performed by these files/tests. The server is
+single-process, not a hardened public service: no distributed quotas, monitoring or
+alerting, and per-client limits key on the proxy's last hop. Run it behind a TLS
+proxy in an isolated account or container with no valuable mounts, throttle
+distributed floods at the proxy, and qualify the exact Android artifact against it.
+Do not expose the fixture on a host with valuable mounts merely because auth tests
+pass.
 
 ## Test scope
 
 `test_backend.py` uses real aiohttp HTTP sockets (paths sent byte-for-byte, as
-OkHttp does), SQLite databases and P-256 request and approval keys. Its 27 unittest
+OkHttp does), SQLite databases and P-256 request and approval keys. Its 39 unittest
 cases cover:
 
 - enrollment, signatures, replay, tamper, restart persistence, storage failure
-  closed, signed SSE with the working flag and revocation, throttling;
+  closed, signed SSE with the working flag and revocation;
+- hosting bounds: wrong guesses from 20 addresses cannot lock out an invited
+  reviewer, open stores and file descriptors stay bounded, revoke closes and deletes,
+  enrollment and disk caps, retention expiry, request size limits, per-enrollment
+  caps, stream limits, event-driven quiet streams, prompt shutdown, no password KDF on
+  the event loop, numeric and schedule bounds, Hub jobs that cannot overtake each
+  other, replies that cannot leave a chat working;
 - one test per surface above, with the request shapes the app sends, the fields it
   parses, persistence across calls and tenant isolation;
-- `test_every_play_reachable_api_answers`: every Play-reachable path from the
-  client inventory returns a real answer (77 of them returned 501 before);
-- `test_client_calls_are_all_in_the_play_inventory`: every `/v1` literal in the
-  Play build's Kotlin sources (`src/main`, `src/play`) maps to an inventoried,
-  served route, so a new client call fails here until the sandbox serves it;
+- `test_every_play_reachable_api_answers`: calls every client API in order and
+  fails on any status other than the expected one (a handler error turned into
+  `400 invalid request` included) or a missing response field the app reads, then
+  checks that every listed client call was exercised;
+- `test_client_calls_are_all_served_with_their_methods`: lexes the Play build's
+  Kotlin sources (`src/main`, `src/play`) and pins every string template that names
+  an API path, including the session screen's `$base/...` calls; each listed call
+  resolves, with its HTTP method, to a sandbox handler. A new or changed template
+  fails until its calls are listed;
 - `test_sandbox_copies_match_production`: the guard pattern, curated settings keys
   and terminal keys equal the production source (parsed, never imported).
 

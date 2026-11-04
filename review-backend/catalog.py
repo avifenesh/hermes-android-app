@@ -239,6 +239,8 @@ HUB_SKILLS = [
 HUB_SEED_INSTALLED = {'identifier': 'official/software-development/changelog-writer',
                       'entry': {'name': 'changelog-writer', 'trust_level': 'builtin', 'scan_verdict': 'safe', 'source': 'official',
                                 'installed_at': '2026-10-20T09:00:00', 'updated_at': None, 'version': '1.0.0', 'enabled': True}}
+# voice-notes installed one release behind the catalogue entry below; its update adds a tool, so it asks for consent.
+HUB_SEED_PLUGINS = {'voice-notes': {'sha': '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432', 'version': '1.9.0', 'configured': True, 'loaded': True}}
 
 
 def hub_skill(ident):
