@@ -862,7 +862,7 @@ fun Chip(text: String, selected: Boolean, count: Int? = null, onClick: () -> Uni
         Text(text, style = sans(13.5f, 600, if (selected) p.ink else p.tx2))
         if (count != null && count > 0) {
             Spacer(Modifier.width(6.dp))
-            Text(if (count > 99) "99+" else count.toString(), style = mono(11.5f, 600, if (selected) p.ink else p.mu))
+            Text(Fmt.capped(count, 99), style = mono(11.5f, 600, if (selected) p.ink else p.mu))
         }
     }
 }

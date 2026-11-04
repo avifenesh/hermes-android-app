@@ -321,7 +321,7 @@ fun BoxScope.NavBar() {
         if (roomsOn) rooms.values.sumOf { r -> r.pending.count { it.kind == "approval" } } else 0
     // Group chats with unread replies count like chats with unread replies.
     val unread = chats.values.count { it.unread > 0 && !it.archived } + if (roomsOn) RoomLogic.unreadRooms(rooms.values) else 0
-    fun b(n: Int) = if (n > 99) "99+" else n.toString()
+    fun b(n: Int) = Fmt.capped(n, 99)
     Row(Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).fillMaxWidth().navigationBarsPadding().padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).height(62.dp).clip(CircleShape).background(p.nav).border(1.dp, p.line2, CircleShape).padding(horizontal = 4.dp),

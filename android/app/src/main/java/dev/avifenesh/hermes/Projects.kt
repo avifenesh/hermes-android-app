@@ -167,7 +167,7 @@ fun RepoScreen(rid: String) {
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp).clickable {
                         runCatching { act.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(pr.str("url")))) } })
             } }
-            item { Section(stringResource(R.string.repo_changes), files.size.toString()) }
+            item { Section(stringResource(R.string.repo_changes), Fmt.int(files.size)) }
             if (files.isEmpty() && st != null) item { Text(stringResource(R.string.repo_clean), style = sans(14f, 400, p.mu), modifier = Modifier.padding(horizontal = 20.dp)) }
             items(files, key = { it.str("path") }) { f ->
                 val path = f.str("path")

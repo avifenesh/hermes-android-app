@@ -1,5 +1,7 @@
 package dev.avifenesh.hermes
 
+import android.icu.number.NumberFormatter
+import android.icu.number.Precision
 import android.icu.text.CompactDecimalFormat
 import android.icu.text.MeasureFormat
 import android.icu.util.Measure
@@ -56,15 +58,20 @@ object Fmt {
     /** Stopwatch reading under ten minutes ("4:07"). */
     fun stopwatch(sec: Long): String = String.format(locale(), "%d:%02d", sec / 60, sec % 60)
 
-    /** US dollars (the only currency the server reports), with a third decimal for sub-cent amounts. */
-    fun money(x: Double): String = NumberFormat.getCurrencyInstance(locale()).apply {
-        currency = java.util.Currency.getInstance("USD")
-        val d = if (x > 0 && x < 0.01) 3 else 2
-        minimumFractionDigits = d; maximumFractionDigits = d
-    }.format(x)
+    /** US dollars (the only currency the server reports), with a third decimal for sub-cent amounts. The narrow
+     * symbol keeps "$" in every language (Arabic's default "US$" broke apart in right-to-left lines). */
+    fun money(x: Double): String = NumberFormatter.withLocale(locale())
+        .unit(android.icu.util.Currency.getInstance("USD"))
+        .unitWidth(NumberFormatter.UnitWidth.NARROW)
+        .precision(Precision.fixedFraction(if (x > 0 && x < 0.01) 3 else 2))
+        .format(x).toString()
 
+    /** Counts in the app language's digits, like every other number on screen (Arabic uses its own digits). */
     fun int(n: Long): String = NumberFormat.getIntegerInstance(locale()).format(n)
     fun int(n: Int): String = int(n.toLong())
+
+    /** A badge count with a ceiling: "7", "99+". */
+    fun capped(n: Int, cap: Int): String = if (n > cap) int(cap) + "+" else int(n)
 
     fun decimal(x: Double, digits: Int): String = NumberFormat.getNumberInstance(locale()).apply {
         minimumFractionDigits = digits; maximumFractionDigits = digits

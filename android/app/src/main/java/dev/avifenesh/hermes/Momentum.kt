@@ -276,7 +276,7 @@ private fun MomentumSection(rep: JSONObject, key: String, label: String, isOpen:
             if (key == "running" && n > 0) LiveDot(8.dp, tone) else Dot(if (n > 0) tone else p.dim, 8.dp)
             Spacer(Modifier.width(12.dp))
             Text(label, style = sans(15f, 600, if (n > 0) p.tx else p.mu), modifier = Modifier.weight(1f))
-            Text(if (n > 999) "999+" else n.toString(), style = mono(13.5f, 600, if (n > 0) p.tx2 else p.dim))
+            Text(Fmt.capped(n, 999), style = mono(13.5f, 600, if (n > 0) p.tx2 else p.dim))
             Spacer(Modifier.width(8.dp))
             if (canOpen) Icn(if (showing) Ic.chevU else Ic.chevD, p.mu, 16.dp) else Spacer(Modifier.width(16.dp))
         }

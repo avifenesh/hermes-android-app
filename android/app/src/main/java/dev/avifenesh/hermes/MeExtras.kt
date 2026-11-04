@@ -40,7 +40,7 @@ fun MachinesSection() {
         val t0 = System.currentTimeMillis()
         runCatching { Hub.health() }.onSuccess { lat = lat + ((Prefs.base ?: "") to (System.currentTimeMillis() - t0)) }
     }
-    Section(stringResource(R.string.machines_title), list?.size?.toString() ?: stringResource(R.string.machines_unavailable))
+    Section(stringResource(R.string.machines_title), list?.size?.let { Fmt.int(it) } ?: stringResource(R.string.machines_unavailable))
     if (list == null) {
         ErrorPanel(stringResource(R.string.machines_read_failed)) {
             saved = runCatching { Machines.all() }

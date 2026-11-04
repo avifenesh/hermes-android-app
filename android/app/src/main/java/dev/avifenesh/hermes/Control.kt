@@ -685,7 +685,7 @@ fun SkillsTab() {
                             Text(name, style = sans(15f, 600, if (en) p.tx else p.mu), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                             val prov = s.str("provenance")
                             if (prov != "bundled") { Spacer(Modifier.width(6.dp)); Pill(if (prov == "agent") agentName().lowercase() else prov, if (prov == "agent") p.acct else p.tx2, if (prov == "agent") p.accd else p.s3) }
-                            if (s.optInt("usage") > 0) { Spacer(Modifier.width(6.dp)); Text("${s.optInt("usage")}×", style = mono(11f, 500, p.dim)) }
+                            if (s.optInt("usage") > 0) { Spacer(Modifier.width(6.dp)); Text(Fmt.int(s.optInt("usage")) + "×", style = mono(11f, 500, p.dim)) }
                         }
                         Text(s.str("description"), style = sans(13f, 400, p.mu, 18f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
