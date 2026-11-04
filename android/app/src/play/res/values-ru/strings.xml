@@ -13,7 +13,7 @@
     <string name="phone_settings_without_push_sub">Уведомления приходят, пока идёт такой запуск, и когда вы открываете %1$s. Их также может доставить периодическая фоновая проверка Android, часто с опозданием на 15 минут и больше. Чтобы уведомления приходили сразу, настройте push на вашем gateway.</string>
     <string name="notify_channel_run_progress">Ход запусков</string>
     <string name="notify_channel_run_progress_info">Показывается, пока идёт запуск, после того как вы отправили сообщение или одобрили шаг с этого телефона</string>
-    <string name="notify_stop_updates">Остановить обновления</string>
+    <string name="notify_stop_updates">Остановить отслеживание</string>
     <string name="alarm_exact_off_cant_ring">«Подъём» не может звонить, пока вы не разрешите точные будильники. Локальные будильники не запланированы, а будильники от вашего gateway не могут включить звук будильника.</string>
     <string name="ai_notice_title">Об ответах ИИ</string>
     <string name="ai_notice_source">Ответы поступают от моделей ИИ и провайдеров, настроенных на вашем собственном gateway %1$s. %2$s не запускает и не выбирает их.</string>
