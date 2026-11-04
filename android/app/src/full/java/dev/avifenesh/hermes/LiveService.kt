@@ -85,7 +85,7 @@ class LiveService : Service() {
         fun starting(c: Context, chat: String, afterSeq: Long, nextTurn: Boolean) = Follow()
 
         @Suppress("UNUSED_PARAMETER")
-        fun started(c: Context, f: Follow, afterSeq: Long, nextTurn: Boolean) {}
+        fun started(c: Context, f: Follow, afterSeq: Long) {}
 
         @Suppress("UNUSED_PARAMETER")
         fun abandon(c: Context, f: Follow) {}

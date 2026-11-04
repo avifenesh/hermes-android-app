@@ -186,6 +186,34 @@ class RunFollowTest {
         assertFalse(f.active())
     }
 
+    @Test fun aQueuedTurnSurvivesADroppedStreamAndThePreHelloPass() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true)
+        f.working(emptySet(), 2_000) // between the turns
+        f.offline(5_000)
+        // onOpen marks the stream online before the hello brings a fresh set; between turns c1 is in neither.
+        f.working(emptySet(), 6_000)
+        assertTrue("the queued turn is still within its grace", f.active())
+        f.working(setOf("c1"), 7_000)
+        f.working(emptySet(), 8_000)
+        assertFalse("the queued turn ran and ended", f.active())
+    }
+
+    @Test fun aQueuedTurnKeepsItsGraceFromTheTurnEndWhileOffline() {
+        val f = follow()
+        f.start("c1", 1, 0, true)
+        f.working(setOf("c1"), 0)
+        f.start("c1", 5, 1_000, true, nextTurn = true)
+        f.working(emptySet(), 2_000)
+        f.offline(20_000)
+        f.expire(2_000 + grace - 1)
+        assertTrue(f.active())
+        f.expire(2_000 + grace)
+        assertFalse("a drop does not extend the wait for a turn that never starts", f.active())
+    }
+
     @Test fun aSteerEndsWithTheTurnItSteers() {
         val f = follow()
         f.start("c1", 1, 0, true)

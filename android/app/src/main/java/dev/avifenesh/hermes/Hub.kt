@@ -386,7 +386,7 @@ object Hub {
         val follow = LiveService.starting(app, cid, Prefs.seq, nextTurn)
         try {
             return sessionRequest({ Api.post("/v1/chats/$cid/messages", b) }) { o ->
-                msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)); LiveService.started(app, follow, it.seq, nextTurn) }
+                msg(o.getJSONObject("message")).also { upsertMsgs(listOf(it)); LiveService.started(app, follow, it.seq) }
             }
         } catch (e: Throwable) {
             LiveService.abandon(app, follow)
@@ -420,7 +420,7 @@ object Hub {
                 if (a != null) approvals.update { it + (a.id to a) }
                 val resumed = a != null && approvalResumesRun(if (o.has("resolved")) o.optInt("resolved") else null, a.state)
                 val f = follow ?: if (resumed) a?.chatId?.takeIf { it.isNotBlank() }?.let { LiveService.starting(app, it, Prefs.seq, false) } else null
-                if (f != null) { if (resumed) LiveService.started(app, f, Prefs.seq, false) else LiveService.abandon(app, f) }
+                if (f != null) { if (resumed) LiveService.started(app, f, Prefs.seq) else LiveService.abandon(app, f) }
                 a
             }
         } catch (e: Throwable) {

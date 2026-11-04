@@ -58,9 +58,11 @@ internal class LiveLifecycle(val runs: RunFollow, private val host: Host) {
         else follow.created = false
     }
 
-    /** The gateway accepted it: the reply baseline is the accepted message. */
-    fun started(follow: Follow, afterSeq: Long, now: Long, nextTurn: Boolean) {
-        if (runs.start(follow.chat, afterSeq, now, host.foreground, nextTurn)) request(follow)
+    /** The gateway accepted it: the reply baseline is the accepted message. Whether the send queued a next turn was
+     *  decided in [starting], from the chat's state when the user sent; by now the send's own turn may already show
+     *  as working, which must not read as a queued one. */
+    fun started(follow: Follow, afterSeq: Long, now: Long) {
+        if (runs.start(follow.chat, afterSeq, now, host.foreground)) request(follow)
     }
 
     /** The request failed or resumed nothing: drop only what this action added and nothing confirmed since. */

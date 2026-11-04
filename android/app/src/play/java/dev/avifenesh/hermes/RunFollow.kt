@@ -64,10 +64,12 @@ internal class RunFollow(private val graceMs: Long = START_GRACE_MS, private val
         }
     }
 
-    /** The event stream is down: the last working set is stale. Working runs must be re-confirmed within the grace. */
+    /** The event stream is down: the last working set is stale. Working runs must be re-confirmed within the grace.
+     *  A run between turns (NEXT) is already on its grace from the turn's end and stays as it is: the reconnect's
+     *  first pass, before the hello brings a fresh set, would otherwise end it. */
     @Synchronized fun offline(now: Long) {
         for ((chat, run) in runs.entries.toList()) {
-            if (run.state == State.WORKING || run.state == State.NEXT) runs[chat] = run.copy(state = State.UNCONFIRMED, graceFrom = now)
+            if (run.state == State.WORKING) runs[chat] = run.copy(state = State.UNCONFIRMED, graceFrom = now)
         }
     }
 

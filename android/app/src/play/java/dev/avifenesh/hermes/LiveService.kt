@@ -137,8 +137,8 @@ class LiveService : Service(), LiveLifecycle.Instance {
 
         /** The gateway accepted it; [afterSeq] is the accepted message, the reply baseline. */
         @Suppress("UNUSED_PARAMETER")
-        internal fun started(c: Context, f: LiveLifecycle.Follow, afterSeq: Long, nextTurn: Boolean) =
-            onMain { life.started(f, afterSeq, System.currentTimeMillis(), nextTurn) }
+        internal fun started(c: Context, f: LiveLifecycle.Follow, afterSeq: Long) =
+            onMain { life.started(f, afterSeq, System.currentTimeMillis()) }
 
         /** The request failed or resumed nothing. */
         @Suppress("UNUSED_PARAMETER")

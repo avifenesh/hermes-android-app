@@ -89,7 +89,7 @@ class LiveLifecycleTest {
     }
 
     private fun LiveLifecycle.send(chat: String, seq: Long, now: Long): LiveLifecycle.Follow =
-        LiveLifecycle.Follow(chat).also { starting(it, seq, now, nextTurn = true); started(it, seq, now, nextTurn = true) }
+        LiveLifecycle.Follow(chat).also { starting(it, seq, now, nextTurn = true); started(it, seq, now) }
 
     @Test fun pairingPushAndMachineSwitchNeverHoldTheServiceOrTheStream() {
         val (p, life) = setup()
@@ -225,7 +225,7 @@ class LiveLifecycleTest {
         val promotions = s.promotions
         p.foreground = false // the POST answers after the user left
         life.send("c2", 2, 10)
-        life.started(LiveLifecycle.Follow("c1"), 3, 11, nextTurn = true)
+        life.started(LiveLifecycle.Follow("c1"), 3, 11)
         p.settle()
         assertEquals("no startForegroundService while already promoted", starts, p.requests)
         assertEquals("no re-promotion that Android 15 could refuse", promotions, s.promotions)
@@ -272,6 +272,47 @@ class LiveLifecycleTest {
         p.settle()
         assertTrue(p.svc?.foreground == true)
         assertTrue(p.crashes.isEmpty())
+    }
+
+    @Test fun aWorkingSignalBeforeTheResponseKeepsTheSendItsOwnTurn() {
+        val (p, life) = setup()
+        val f = LiveLifecycle.Follow("c1")
+        life.starting(f, 1, 0, nextTurn = true) // an idle chat: this send starts its own turn
+        p.settle()
+        // working:true lands before the POST response (profile chats emit it inside the request).
+        assertTrue(life.step(10, online = true, busy = setOf("c1")) { null } != null)
+        life.started(f, 2, 20)
+        assertNull("the run ends with its own turn, not after a queued-turn grace",
+            life.step(30, online = true, busy = emptySet()) { null })
+    }
+
+    @Test fun aSendIntoAWorkingChatWaitsForTheTurnItQueued() {
+        val (p, life) = setup()
+        life.send("c1", 1, 0)
+        p.settle()
+        life.step(1, online = true, busy = setOf("c1")) { null }
+        val queued = LiveLifecycle.Follow("c1")
+        life.starting(queued, 5, 40, nextTurn = true) // decided here: the chat is working when the user sends
+        life.step(45, online = true, busy = setOf("c1")) { null }
+        life.started(queued, 6, 50)
+        assertTrue("between turns", life.step(60, online = true, busy = emptySet()) { null } != null)
+        life.step(61, online = true, busy = setOf("c1")) { null }
+        assertNull(life.step(62, online = true, busy = emptySet()) { null })
+    }
+
+    @Test fun aQueuedTurnSurvivesAReconnectBeforeTheHello() {
+        val (p, life) = setup()
+        life.send("c1", 1, 0)
+        p.settle()
+        life.step(1, online = true, busy = setOf("c1")) { null }
+        val queued = LiveLifecycle.Follow("c1")
+        life.starting(queued, 5, 2, nextTurn = true)
+        life.started(queued, 6, 3)
+        life.step(100, online = true, busy = emptySet()) { null } // the first turn ended
+        life.step(1_000, online = false, busy = emptySet()) { null }
+        assertTrue("onOpen, before the hello's working set", life.step(2_000, online = true, busy = emptySet()) { null } != null)
+        assertTrue(life.step(3_000, online = true, busy = setOf("c1")) { null } != null)
+        assertTrue(p.svc?.foreground == true)
     }
 
     @Test fun timeoutStopsAndRefusesBackgroundStartsUntilForeground() {
