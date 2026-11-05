@@ -49,8 +49,9 @@ this page stays "Hermes" and can be installed next to it.
   fails on the code before its fix.
 - Instrumented tests on the full debug build passed, including a new pixel comparison of
   a room approval card that turns ready after loading against one that is ready from the
-  start. The wake-word engine's two parity tests now skip, instead of failing, when its
-  optional reference library is not built.
+  start. The wake-word reference parity test now skips, instead of failing, when the
+  optional reference library is not built. The configured-recording test skips when no
+  recording is supplied.
 - Script suites passed: Play qualification 23, distribution 22, legal inventory 24, and
   the report Worker's 16.
 - Signed full release APK: distribution guard and legal inventory passed with the
