@@ -862,7 +862,8 @@ private fun SubLine(lead: String?, tail: String, style: TextStyle) {
     val hasLead = !lead.isNullOrEmpty()
     Layout({
         Text(tail, style = style, maxLines = 1, softWrap = false)
-        Text(tail, style = style)
+        // Wrapped, a line may end with the separator but never start with one.
+        Text(tail.replace(" · ", "\u00A0· "), style = style)
         if (hasLead) {
             Text(" · ", style = style, maxLines = 1, softWrap = false)
             Text(lead.orEmpty(), style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
