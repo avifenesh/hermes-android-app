@@ -26,8 +26,9 @@ works with this app.
 
 ## Herms on Google Play
 
-This build is in Google's review for the closed test. Join
-https://groups.google.com/g/herms-testers to be invited when it opens. The sideload app on
+This build is live in the Herms closed test since 2026-11-05. Join
+https://groups.google.com/g/herms-testers, then open
+https://play.google.com/apps/testing/dev.avifenesh.hermes.play and tap Become a tester. The sideload app on
 this page stays "Hermes" and can be installed next to it.
 
 ## Artifact

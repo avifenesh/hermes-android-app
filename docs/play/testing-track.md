@@ -1,6 +1,6 @@
 # Closed testing and production access
 
-Requirements read on 2026-11-04. The closed track, the herms-testers group and its tester list exist, with feedback to GitHub issues; the first release went to review on 2026-11-05. The 14-day clock has not started: it runs from when testers opt in to the published release.
+Requirements read on 2026-11-04. The closed track, the herms-testers group and its tester list exist, with feedback to GitHub issues; 0.16.18 was approved and released on 2026-11-05, and the opt-in page is live at https://play.google.com/apps/testing/dev.avifenesh.hermes.play. Each tester's 14 days run from when they opt in.
 
 ## The requirement as it applies today
 

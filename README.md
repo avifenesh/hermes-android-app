@@ -45,10 +45,11 @@ provider, Google SDK and voluntary support/reporting data flows are described in
 
 ## Herms on Google Play
 
-A Play edition, **Herms for Hermes Agent** (package `dev.avifenesh.hermes.play`), is in
-review for a Google Play closed test. To test it, join
-[herms-testers](https://groups.google.com/g/herms-testers); members get the Play invite when
-the test opens. It installs next to the full APK.
+A Play edition, **Herms for Hermes Agent** (package `dev.avifenesh.hermes.play`), is in a
+Google Play closed test. To test it, join
+[herms-testers](https://groups.google.com/g/herms-testers) with your Google account, then open
+the [opt-in page](https://play.google.com/apps/testing/dev.avifenesh.hermes.play) and tap **Become a tester**.
+It installs next to the full APK.
 
 ## Install the full APK
 

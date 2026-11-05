@@ -1,8 +1,8 @@
 # Google Play preparation
 
-Candidate: **0.16.18 / versionCode 50**, `dev.avifenesh.hermes.play`, sent for review on 2026-11-05 on the Closed testing - Alpha track.
+Candidate: **0.16.18 / versionCode 50**, `dev.avifenesh.hermes.play`, approved and released to the Closed testing - Alpha track on 2026-11-05. Opt-in page: https://play.google.com/apps/testing/dev.avifenesh.hermes.play
 
-**Closed test in review since 2026-11-05. Not approved for production.** Play Console has the store listing, store settings, every App content declaration, Play App Signing with a Google-generated key, and the closed track (all 178 countries, testers from the Google Group herms-testers@googlegroups.com). The foreground-service declaration has its two demo videos. The full GitHub release remains separate and unchanged.
+**Closed test live since 2026-11-05. Not approved for production.** Play Console has the store listing, store settings, every App content declaration, Play App Signing with a Google-generated key, and the closed track (all 178 countries, testers from the Google Group herms-testers@googlegroups.com). The foreground-service declaration has its two demo videos. The full GitHub release remains separate and unchanged.
 
 ## Prepared materials
 
@@ -58,7 +58,7 @@ Status on 2026-11-05. "Owner" marks work only the owner can do.
 | 3. Publisher decisions | Title, label, Seal icon, Google-generated app signing key, non-trader status | None. |
 | 4. Declarations ([declarations.md](declarations.md), [account-deletion.md](account-deletion.md)) | Every App content section; the release's full-screen intent, health and foreground-service declarations; `/privacy` and `/delete` name Herms and Avifen | None. |
 | 5. Background behavior ([demo videos](demo-videos.md)) | C1 (`LiveService` only while a run started on this phone works) and C2 (`WakeService` systemExempted) ship; Play does not list systemExempted, so V3 is not asked for; V1 (microphone) and V2 (dataSync) recorded on the submitted build and linked in the declaration | None. |
-| 6. Testing and production access ([plan](testing-track.md)) | Closed track with the herms-testers group, all countries, feedback to GitHub issues; release sent for review on 2026-11-05 | Pass review, keep 12 or more testers opted in for 14 days, apply for production (owner). |
+| 6. Testing and production access ([plan](testing-track.md)) | Closed track with the herms-testers group, all countries, feedback to GitHub issues; 0.16.18 approved and released on 2026-11-05 | Keep 12 or more testers opted in for 14 days, apply for production (owner). |
 | 7. AI safeguards ([safeguards](ai-content-safeguards.md)) | Covered and uncovered surfaces and the gap list are written down | Decide on further client-side safeguards and terms (owner). |
 | 8. Account/deletion ([classification](account-deletion.md)) | Pairing is not account creation; Data safety deletion answers entered | Google can still disagree; the fallback change is written down. |
 
