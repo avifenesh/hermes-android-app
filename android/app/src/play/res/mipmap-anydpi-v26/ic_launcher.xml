@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Play edition (Herms) launcher icon, the Seal. Overrides the full edition's lime H from src/main. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ink" />
+    <foreground android:drawable="@drawable/ic_launcher_play_fg" />
+    <monochrome android:drawable="@drawable/ic_launcher_play_mono" />
+</adaptive-icon>
