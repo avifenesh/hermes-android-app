@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -782,7 +783,7 @@ fun iconLabel(v: ImageVector): String = stringResource(when (v) {
 @Composable
 fun IconBtn(v: ImageVector, tint: Color = P.tx, size: Dp = 44.dp, bg: Color = Color.Transparent, enabled: Boolean = true, label: String = iconLabel(v), onClick: () -> Unit) {
     Box(Modifier.size(maxOf(size, 48.dp)).clip(CircleShape).semantics { contentDescription = label }.clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(size).clip(CircleShape).background(bg).alpha(if (enabled) 1f else 0.4f),
+        Box(Modifier.size(size).clip(CircleShape).background(bg).dimWhenDisabled(enabled, 0.4f),
             contentAlignment = Alignment.Center) { Icn(v, tint, size * 0.5f) }
     }
 }
@@ -794,7 +795,7 @@ fun Toggle(on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifi
     val x by animateDpAsState(if (on) 21.dp else 3.dp, label = "toggle")
     Box(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).toggleable(value = on, enabled = enabled, role = Role.Switch) { value ->
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange(value)
-    }.alpha(if (enabled) 1f else 0.45f), contentAlignment = Alignment.Center) {
+    }.dimWhenDisabled(enabled), contentAlignment = Alignment.Center) {
         Box(Modifier.size(44.dp, 26.dp).clip(RoundedCornerShape(13.dp)).background(if (on) p.acc else p.s3)) {
             Box(Modifier.offset(x = x, y = 3.dp).size(20.dp).clip(CircleShape).background(if (on) p.ink else p.mu))
         }
@@ -887,6 +888,12 @@ fun Pill(text: String, fg: Color, bg: Color, content: Boolean = false) {
     Text(text, style = mono(11f, 600, fg).let { if (content) it.content() else it }, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(bg).padding(horizontal = 7.dp, vertical = 3.dp))
 }
 
+/** Fades what follows in the chain while a control is disabled. Modifier.alpha adds its layer only below 1f, so
+ *  flipping enabled through it takes a layer node out of the chain, and after that the hardware renderer drew a
+ *  clip().background() just before it without the fill: a room's Approve and Deny went blank when the card turned
+ *  ready. This layer stays in the chain whatever [enabled] is; only its alpha changes. */
+fun Modifier.dimWhenDisabled(enabled: Boolean, dim: Float = 0.45f) = graphicsLayer { alpha = if (enabled) 1f else dim }
+
 @Composable
 fun Btn(text: String, modifier: Modifier = Modifier, primary: Boolean = true, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val p = P
@@ -894,7 +901,7 @@ fun Btn(text: String, modifier: Modifier = Modifier, primary: Boolean = true, da
     val fg = when { danger -> p.bad; primary -> p.ink; else -> p.tx }
     val hf = LocalHapticFeedback.current
     Box(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).background(bg).clickable(enabled = enabled, role = Role.Button) {
-        hf.performHapticFeedback(if (danger) HapticFeedbackType.Reject else if (primary) HapticFeedbackType.Confirm else HapticFeedbackType.VirtualKey); onClick() }.alpha(if (enabled) 1f else 0.45f)
+        hf.performHapticFeedback(if (danger) HapticFeedbackType.Reject else if (primary) HapticFeedbackType.Confirm else HapticFeedbackType.VirtualKey); onClick() }.dimWhenDisabled(enabled)
         .padding(horizontal = 18.dp, vertical = 10.dp), contentAlignment = Alignment.Center) { Text(text, style = sans(15f, 600, fg).short(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
 }
 

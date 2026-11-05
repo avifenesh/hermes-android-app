@@ -18,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -171,7 +170,7 @@ private fun TerminalButton(label: String, enabled: Boolean = true, selected: Boo
         .heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center) {
         Text(label, style = sans(13f, 600, if (primary || active) p.ink else if (!enabled) p.mu else p.tx),
-            maxLines = 1, softWrap = false, modifier = Modifier.alpha(if (primary && !enabled) 0.45f else 1f))
+            maxLines = 1, softWrap = false, modifier = Modifier.dimWhenDisabled(enabled || !primary))
     }
 }
 
