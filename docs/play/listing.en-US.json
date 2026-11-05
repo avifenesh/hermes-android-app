@@ -19,7 +19,11 @@
     "feature_graphic": "assets/feature-1024x500.png",
     "phone_screenshots": [
       "assets/phone-01-inbox.png",
-      "assets/phone-02-chat.png"
+      "assets/phone-02-chat-approval.png",
+      "assets/phone-03-group-room.png",
+      "assets/phone-04-voice-note.png",
+      "assets/phone-05-usage.png",
+      "assets/phone-06-day-inbox.png"
     ]
   }
 }
