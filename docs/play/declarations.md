@@ -8,7 +8,7 @@
 
 ## Artifact these answers describe
 
-`dist/Hermes-Play-0.16.18.aab`, SHA-256 `9bf160fdf0142e4c2b05e1400bc0963221c78546aafe18887ab77542ad75f2b6`, versionName 0.16.18, versionCode 50, built from commit `578dbe6` (tag `v0.16.18` is on its release-notes commit). The manifest below was read with `bundletool 1.18.3 dump manifest` on 2026-11-05. It matches `dist/verification-play-0.16.18/bundle-apk-distribution.json`. This is the bundle sent for review on the Closed testing - Alpha track.
+`dist/Hermes-Play-0.16.19.aab`, SHA-256 `629514e4d352e1088570ee7cafcbee2a0f63d5f66a6c4af006b6211461f687a9`, versionName 0.16.19, versionCode 51, built from commit `bfacc93` (tag `v0.16.19` is on its release-notes commit). Its manifest, read with `bundletool 1.18.3 dump manifest` on 2026-11-05, has the same permissions and service types as 0.16.18, as listed below, and matches `dist/verification-play-0.16.19/bundle-apk-distribution.json`. This is the bundle sent for review on the Closed testing - Alpha track; 0.16.18 passed review there with the same declarations.
 
 - `minSdkVersion` 31, `targetSdkVersion` 36. API 36 meets the requirement for new apps from 2026-08-31.
 - Requested permissions: `SCHEDULE_EXACT_ALARM`, `INTERNET`, `POST_NOTIFICATIONS`, `USE_BIOMETRIC`, `USE_FINGERPRINT`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`, `FOREGROUND_SERVICE_MICROPHONE`, `USE_FULL_SCREEN_INTENT`, `WAKE_LOCK`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `ACTIVITY_RECOGNITION`, `ACCESS_NETWORK_STATE`, `com.google.android.c2dm.permission.RECEIVE`, and the AndroidX dynamic-receiver signature permission.
@@ -257,7 +257,7 @@ Talk would stop listening as soon as the screen turns off, cutting off the user 
 Talk drops the conversation in progress. Wake-word listening stops, and Android does not allow a microphone service to restart from the background, so it stays off until the user opens the app.
 ```
 
-- **Video:** V1, https://drive.google.com/file/d/1lDKGHK1zMMgSis6-cbB3u_8TX1niKrLW/view
+- **Video:** V1, recorded on 0.16.19 against the hosted review sandbox. The link is only in Play Console, because the video shows the sandbox address.
 
 ### dataSync (LiveService)
 
@@ -282,7 +282,7 @@ The reply and any approval request the run is waiting for arrive only at the nex
 Streaming stops mid-reply and progress disappears from the notification; the user sees the result only after reopening the app or at the next periodic sync.
 ```
 
-- **Video:** V2, https://drive.google.com/file/d/1ar1FE7PKjIUv0QPKAy0Gi2AJfwUsP4Md/view
+- **Video:** V2, recorded on 0.16.19 against the hosted review sandbox. The link is only in Play Console, because the video shows the sandbox address.
 
 Without C1 the honest description would be "keeps a live connection open in the background whenever the server has no push". That is a persistent connection with no task and no end, which fails "runs only for as long as necessary". Android's own guidance sends periodic server sync to WorkManager, which the app already schedules every 15 minutes.
 

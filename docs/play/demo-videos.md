@@ -25,7 +25,7 @@ Play's video rules for the types used:
 2. **Pair before you start recording.** Open `{REVIEW_URL}/review`, enter `{INVITATION}`, tap **Get fresh pairing link**, then **Open Hermes / copy this pairing link**. The invitation must never appear in a video.
 3. Turn on Do Not Disturb for other apps, clear old notifications, set the phone to English, and use light theme.
 4. Record with the phone's own screen recorder, with audio for V1 and V3. Turn on "show touches" if the recorder offers it.
-5. Keep each video under 2 minutes. Host it where anyone with the link can watch without signing in, and check the link signed out. V1 and V2 for 0.16.18 are Google Drive files shared to anyone with the link: [V1](https://drive.google.com/file/d/1lDKGHK1zMMgSis6-cbB3u_8TX1niKrLW/view) and [V2](https://drive.google.com/file/d/1ar1FE7PKjIUv0QPKAy0Gi2AJfwUsP4Md/view).
+5. Keep each video under 2 minutes. Host it where anyone with the link can watch without signing in, and check the link signed out. The current V1 and V2 (0.16.19, recorded against the hosted review sandbox) are Google Drive files shared to anyone with the link. Their links are only in Play Console, because the videos show the sandbox address.
 6. Start every video with two seconds of the app's Me tab, showing the version line, so the build is identifiable.
 
 ## V1: microphone (Talk and wake word)

@@ -46,7 +46,7 @@ provider, Google SDK and voluntary support/reporting data flows are described in
   explicitly granted Accessibility service, with a persistent Stop notification and device
   authentication. Off by default.
 
-[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.18.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
+[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.19.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
 
 ## Herms on Google Play
 
@@ -68,9 +68,9 @@ Before installation, verify the downloaded APK using `sha256sum` and Android SDK
 
 ```sh
 # Set APK to the file you downloaded. Compare this digest with its release checksum.
-APK=Hermes-0.16.18.apk
+APK=Hermes-0.16.19.apk
 printf '%s  %s\n' \
-  5d118f640b741414fd63381ba3e2623f525e224c6260b084fd70d50073352d8a "$APK" | sha256sum --check -
+  0a81b87c7f4b2440feaeef1325f249ab0599245e29c572618fd85cf841ed9df8 "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 
