@@ -891,9 +891,14 @@ fun WakeWordPanel() {
     val hits by WakeListen.hits.collectAsState()
     val activation by WakeListen.activation.collectAsState()
     val warmingUp by WakeListen.warmingUp.collectAsState()
-    // Turn off in the notification clears the preference in the service, then reports "off". Follow it, or the
+    // Turn off in the notification clears the preference inside the service. Follow the preference itself: the
+    // listener state may not change (Turn off while starting writes "off" over "off"), and without this the
     // switch stays on and reads "Starting…" while nothing listens.
-    LaunchedEffect(st) { on = Prefs.wakeWord }
+    DisposableEffect(Unit) {
+        val watch = Prefs.watch("wakeword") { on = Prefs.wakeWord }
+        on = Prefs.wakeWord
+        onDispose { Prefs.unwatch(watch) }
+    }
     fun apply(v: Boolean) { on = v; Prefs.wakeWord = v; WakeListen.sync(ctx); if (!v) WakeListen.state.value = "off" }
     val perm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) apply(true) else Ui.say(R.string.phone_settings_wake_needs_mic)

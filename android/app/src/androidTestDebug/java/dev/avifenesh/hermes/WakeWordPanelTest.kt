@@ -14,18 +14,24 @@ import java.util.concurrent.TimeUnit
  * The wake-word switch while its notification's Turn off runs. That action clears the preference inside
  * WakeListenService and reports "off". The panel kept its own copy of the preference, so with Me > This phone > Voice
  * open the switch stayed on and read "Starting…" although nothing was listening. This sends the notification's own
- * intent to the service and reads the switch from the accessibility tree.
+ * intent to the service, while listening and while starting, and reads the switch from the accessibility tree.
  */
 class WakeWordPanelTest {
     private val ins = InstrumentationRegistry.getInstrumentation()
 
-    @Test fun turnOffInTheNotificationTurnsTheSwitchOff() {
+    @Test fun turnOffWhileListeningTurnsTheSwitchOff() = turnOff("listening", R.string.phone_settings_wake_listening)
+
+    /** The service posts its notification before the detector reports "listening", so Turn off can come while the
+     *  panel reads "Starting…" and the state is still "off". The stop writes "off" over "off", which a StateFlow drops. */
+    @Test fun turnOffWhileStartingTurnsTheSwitchOff() = turnOff("off", R.string.phone_settings_wake_starting)
+
+    private fun turnOff(state: String, shown: Int) {
         val ctx = ins.targetContext
         val was = Prefs.wakeWord
-        ins.runOnMainSync { Prefs.wakeWord = true; WakeListen.state.value = "listening" }
+        ins.runOnMainSync { Prefs.wakeWord = true; WakeListen.state.value = state }
         val act = ins.startActivitySync(Intent(ctx, WakeWordPanelProbeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         try {
-            awaitSwitch(true, ctx.getString(R.string.phone_settings_wake_listening))
+            awaitSwitch(true, ctx.getString(shown))
             // The notification's Turn off action: the same intent its PendingIntent carries.
             ctx.startService(Intent(ctx, WakeListenService::class.java).setAction("stop"))
             awaitSwitch(false, ctx.getString(R.string.phone_settings_wake_off_sub))

@@ -52,6 +52,11 @@ object Prefs {
         // storage intact; the picker reports failure and mutations still fail closed.
         if (sp.contains("machines")) runCatching { sec("machines", strict = true) }
     }
+    /** Calls [f] on the main thread after [key] changes. Preferences hold listeners weakly: keep the result until
+     *  you pass it to [unwatch]. */
+    fun watch(key: String, f: () -> Unit) = SharedPreferences.OnSharedPreferenceChangeListener { _, k -> if (k == key) f() }
+        .also { sp.registerOnSharedPreferenceChangeListener(it) }
+    fun unwatch(l: SharedPreferences.OnSharedPreferenceChangeListener) = sp.unregisterOnSharedPreferenceChangeListener(l)
     private fun g(k: String): String? = sp.getString(k, null)
     private fun s(k: String, v: String?) { sp.edit().apply { if (v == null) remove(k) else putString(k, v) }.apply() }
     var base: String? get() = g("base"); set(v) = s("base", v)
