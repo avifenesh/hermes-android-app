@@ -402,13 +402,16 @@ fun ChatScreen(cid: String) {
     val live = use?.optJSONObject("turn")?.takeIf { running && it.optDouble("updated", 0.0) >= (since ?: 0.0) - 1 }
     LaunchedEffect(cid, msgs.size, running) { runCatching { Hub.loadUsage(cid) }; if (!running) runCatching { Ctl.loadChat(cid) } }
     val label = modelLabeler()
+    val working = stringResource(R.string.chat_status_working)
     val sub = when {
         // While working: model and cost only. The full token line is one tap away in the run screen.
-        running -> stringResource(R.string.chat_status_working) + (live?.let { l -> listOfNotNull(label(l.str("model")).takeIf { it.isNotBlank() }?.let(::bidiIsolate), costStr(l)).joinToString(" · ").takeIf { it.isNotBlank() }?.let { " · $it" } } ?: "")
-        chat?.kind == "digest" -> stringResource(R.string.chat_status_digest)
-        else -> headerLine(use?.optJSONObject("session"), use?.optJSONObject("turn"), label)
+        running -> HeaderParts(listOfNotNull(working, live?.let { l -> label(l.str("model")).takeIf { it.isNotBlank() }?.let(::bidiIsolate) }).joinToString(" · "),
+            live?.let(::costStr).orEmpty())
+        chat?.kind == "digest" -> HeaderParts(stringResource(R.string.chat_status_digest), "")
+        else -> headerParts(use?.optJSONObject("session"), use?.optJSONObject("turn"), label)
     }
-    TopBar(chat?.title ?: stringResource(R.string.chat_title_fallback), sub, if (running) p.acct else p.mu, contentTitle = chat?.title != null) {
+    TopBar(chat?.title ?: stringResource(R.string.chat_title_fallback), sub?.lead, if (running) p.acct else p.mu, contentTitle = chat?.title != null,
+        subTail = sub?.tail) {
             if (running) {
                 Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accd).clickable { Ui.push(Route.RunR(cid)) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {

@@ -831,13 +831,19 @@ fun Header(title: String, sub: String? = null, meta: (@Composable () -> Unit)? =
  * title, a job name, a repository) and keeps its own direction; otherwise it is UI copy in the layout direction. */
 @Composable
 fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, contentTitle: Boolean = false, contentSub: Boolean = false,
-           right: @Composable RowScope.() -> Unit = {}) {
+           subTail: String? = null, right: @Composable RowScope.() -> Unit = {}) {
     Column(Modifier.fillMaxWidth().background(P.bg)) {
         Row(Modifier.fillMaxWidth().statusBarsPadding().heightIn(min = 62.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.back) { Ui.pop() }
             Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                 Text(title, style = sans(17f, 600, P.tx).let { if (contentTitle) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (sub != null) Text(sub, style = mono(12f, 500, subColor).let { if (contentSub) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val subStyle = mono(12f, 500, subColor).let { if (contentSub) it.content() else it }
+                // [subTail] stays whole (counts and amounts); only [sub] before it shortens on a narrow line.
+                if (subTail.isNullOrEmpty()) { if (sub != null) Text(sub, style = subStyle, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                else Row {
+                    if (!sub.isNullOrEmpty()) Text(sub, style = subStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(if (sub.isNullOrEmpty()) subTail else " · $subTail", style = subStyle, maxLines = 1, softWrap = false)
+                }
             }
             right()
         }

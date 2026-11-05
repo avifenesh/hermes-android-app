@@ -220,13 +220,22 @@ fun RunUsage(turn: JSONObject?, sess: JSONObject?, host: String) {
     }
 }
 
-/** Chat header subtitle per the design: "opus-5.5 · 48.2k tok · $0.61", in the app's direction with the model isolated. */
-fun headerLine(sess: JSONObject?, turn: JSONObject?, label: (String) -> String = ::shortModel): String? {
-    val s = sess ?: return turn?.let { usageLine(it, label = label) }?.ifBlank { null }
-    return buildList {
-        label(turn?.str("model")?.ifBlank { null } ?: s.str("model")).takeIf { it.isNotBlank() }?.let { add(bidiIsolate(it)) }
-        val t = s.lng("prompt_tokens") + s.lng("output_tokens")
+/** Chat header subtitle per the design: "opus-5.5 · 48.2k tok · $0.61", in the app's direction with the model isolated.
+ * Two pieces: the model ([HeaderParts.lead]), which shortens with an ellipsis on a narrow line, and the numbers after
+ * it ([HeaderParts.tail]), which stay whole. */
+fun headerParts(sess: JSONObject?, turn: JSONObject?, label: (String) -> String = ::shortModel): HeaderParts? {
+    val model = { u: JSONObject? -> u?.str("model")?.ifBlank { null } }
+    val lead = label(model(turn) ?: model(sess) ?: "").takeIf { it.isNotBlank() }?.let(::bidiIsolate).orEmpty()
+    val tail = if (sess == null) turn?.let { usageLine(it, withModel = false, label = label) }.orEmpty() else buildList {
+        val t = sess.lng("prompt_tokens") + sess.lng("output_tokens")
         if (t > 0) add(str(R.string.meter_tokens, tok(t)))
-        costStr(s)?.let { add(it) }
-    }.joinToString(" · ").ifBlank { null }
+        costStr(sess)?.let { add(it) }
+    }.joinToString(" · ")
+    return HeaderParts(lead, tail).takeIf { lead.isNotEmpty() || tail.isNotEmpty() }
 }
+
+class HeaderParts(val lead: String, val tail: String) {
+    override fun toString() = listOf(lead, tail).filter { it.isNotEmpty() }.joinToString(" · ")
+}
+
+fun headerLine(sess: JSONObject?, turn: JSONObject?, label: (String) -> String = ::shortModel): String? = headerParts(sess, turn, label)?.toString()
