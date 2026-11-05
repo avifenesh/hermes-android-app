@@ -97,6 +97,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -854,29 +855,36 @@ fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, contentTi
 internal fun subTailInline(tailWidth: Int, sepWidth: Int, maxWidth: Int, minLead: Int) = tailWidth + sepWidth + minLead <= maxWidth
 
 /** "lead · tail" on one line where only [lead] shortens, so counts and amounts in [tail] stay whole. When the tail
- *  alone leaves the lead no room (a narrow screen or large text), the tail moves to its own line under the lead. */
+ *  leaves the lead no room (a narrow screen or large text), it moves under the lead and wraps there instead of
+ *  being cut, so the amount stays readable. */
 @Composable
 private fun SubLine(lead: String?, tail: String, style: TextStyle) {
     val hasLead = !lead.isNullOrEmpty()
     Layout({
-        Text(tail, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(tail, style = style, maxLines = 1, softWrap = false)
+        Text(tail, style = style)
         if (hasLead) {
             Text(" · ", style = style, maxLines = 1, softWrap = false)
             Text(lead.orEmpty(), style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }) { ms, c ->
         val loose = c.copy(minWidth = 0, minHeight = 0)
-        val tailP = ms[0].measure(loose)
-        if (!hasLead) return@Layout layout(tailP.width, tailP.height) { tailP.placeRelative(0, 0) }
-        val sepP = ms[1].measure(loose)
-        if (!c.hasBoundedWidth || subTailInline(tailP.width, sepP.width, c.maxWidth, 48.dp.roundToPx())) {
-            val leadP = ms[2].measure(if (c.hasBoundedWidth) loose.copy(maxWidth = c.maxWidth - tailP.width - sepP.width) else loose)
-            layout(leadP.width + sepP.width + tailP.width, maxOf(leadP.height, sepP.height, tailP.height)) {
-                leadP.placeRelative(0, 0); sepP.placeRelative(leadP.width, 0); tailP.placeRelative(leadP.width + sepP.width, 0)
+        val bounded = c.hasBoundedWidth
+        // The tail's natural one-line width decides the layout; it is never drawn clipped.
+        val line = ms[0].measure(loose.copy(maxWidth = Constraints.Infinity))
+        val sep = if (hasLead) ms[2].measure(loose) else null
+        val inline = !bounded || if (hasLead) subTailInline(line.width, sep!!.width, c.maxWidth, 48.dp.roundToPx()) else line.width <= c.maxWidth
+        if (inline && !hasLead) return@Layout layout(line.width, line.height) { line.placeRelative(0, 0) }
+        if (inline) {
+            val leadP = ms[3].measure(if (bounded) loose.copy(maxWidth = c.maxWidth - line.width - sep!!.width) else loose)
+            layout(leadP.width + sep!!.width + line.width, maxOf(leadP.height, sep.height, line.height)) {
+                leadP.placeRelative(0, 0); sep.placeRelative(leadP.width, 0); line.placeRelative(leadP.width + sep.width, 0)
             }
         } else {
-            val leadP = ms[2].measure(loose)
-            layout(maxOf(leadP.width, tailP.width), leadP.height + tailP.height) { leadP.placeRelative(0, 0); tailP.placeRelative(0, leadP.height) }
+            val leadP = if (hasLead) ms[3].measure(loose) else null
+            val wrap = ms[1].measure(loose)
+            val top = leadP?.height ?: 0
+            layout(maxOf(leadP?.width ?: 0, wrap.width), top + wrap.height) { leadP?.placeRelative(0, 0); wrap.placeRelative(0, top) }
         }
     }
 }
