@@ -1,6 +1,6 @@
 # Play Console declarations: Herms for Hermes Agent
 
-**Drafts for owner review. Nothing here has been entered in Play Console.** Policy text was read on 2026-11-04 from the sources at the end. Recheck any source older than a week before you submit.
+**Entered in Play Console on 2026-11-05.** App content shows no open items: privacy policy, ads, advertising ID, government, financial and health features, App access (the synthetic review sandbox), Data safety, the content rating and the target audience (18 and over, minors restricted). Policy text was read on 2026-11-04 from the sources at the end. Recheck any source older than a week before the next submission.
 
 - Store title: **Herms for Hermes Agent**. Play app label: **Herms**. Package `dev.avifenesh.hermes.play`.
 - Developer account: personal, **Avifen**, non-trader (legal name Avraham Fenesh, Israel, hello@tiyuvta.ai).
@@ -8,21 +8,21 @@
 
 ## Artifact these answers describe
 
-`dist/Hermes-Play-0.16.16.aab`, SHA-256 `3a5fd902bb8db3bc624028385ba0cc7c4d954ce4986e7a0deef2be97038b2a7d`, versionName 0.16.16, versionCode 48, built from commit `0f9fd88`. The manifest below was read with `bundletool 1.18.3 dump manifest` on 2026-11-04. It matches `dist/verification-play-0.16.16/distribution.json`.
+`dist/Hermes-Play-0.16.17.aab`, SHA-256 `c41e911bff266dcdd740dfb4dd57b743c8eaa2bf9a6be00f221a06e963c9a977`, versionName 0.16.17, versionCode 49, built from commit `5fccf54` (tag `v0.16.17`). The manifest below was read with `bundletool 1.18.3 dump manifest` on 2026-11-05. It matches `dist/verification-play-0.16.17/bundle-apk-distribution.json`.
 
 - `minSdkVersion` 31, `targetSdkVersion` 36. API 36 meets the requirement for new apps from 2026-08-31.
-- Requested permissions: `SCHEDULE_EXACT_ALARM`, `INTERNET`, `POST_NOTIFICATIONS`, `USE_BIOMETRIC`, `USE_FINGERPRINT`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `FOREGROUND_SERVICE_MICROPHONE`, `CAMERA`, `USE_FULL_SCREEN_INTENT`, `WAKE_LOCK`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `ACTIVITY_RECOGNITION`, `ACCESS_NETWORK_STATE`, `com.google.android.c2dm.permission.RECEIVE`, and the AndroidX dynamic-receiver signature permission.
-- Foreground services: `LiveService` dataSync, `WakeService` mediaPlayback, `TalkService` microphone, `WakeListenService` microphone. WorkManager's `SystemForegroundService` is merged but has no type and is never promoted: no worker calls `setForeground`.
-- Absent: Accessibility service, `QUERY_ALL_PACKAGES` (the `<queries>` block names only speech recognition, TTS and `mailto`), `REQUEST_INSTALL_PACKAGES`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `USE_EXACT_ALARM`, `AD_ID`, location, SMS, call log, contacts, `READ_MEDIA_*`, body sensors.
+- Requested permissions: `SCHEDULE_EXACT_ALARM`, `INTERNET`, `POST_NOTIFICATIONS`, `USE_BIOMETRIC`, `USE_FINGERPRINT`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`, `FOREGROUND_SERVICE_MICROPHONE`, `USE_FULL_SCREEN_INTENT`, `WAKE_LOCK`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `ACTIVITY_RECOGNITION`, `ACCESS_NETWORK_STATE`, `com.google.android.c2dm.permission.RECEIVE`, and the AndroidX dynamic-receiver signature permission.
+- Foreground services: `LiveService` dataSync, `WakeService` systemExempted, `TalkService` microphone, `WakeListenService` microphone. WorkManager's `SystemForegroundService` is merged but has no type and is never promoted: no worker calls `setForeground`.
+- Absent: `CAMERA`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, Accessibility service, `QUERY_ALL_PACKAGES` (the `<queries>` block names only speech recognition, TTS and `mailto`), `REQUEST_INSTALL_PACKAGES`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `USE_EXACT_ALARM`, `AD_ID`, location, SMS, call log, contacts, `READ_MEDIA_*`, body sensors.
 - SDKs that send data: Firebase Messaging 25.1.3 (with Firebase Installations and datatransport), Google code scanner 16.1.0 (ML Kit). No ads, analytics or crash-reporting SDK.
 
-The application label in this artifact is still "Hermes Play preview". The owner's branding change sets it to "Herms". Rebuild and requalify before upload; these answers do not depend on the label.
+The application label is "Herms" in every app language. The launcher icon is the Seal.
 
 ## Changes needed before submission
 
 Each item says what blocks what. Details are in the section named.
 
-**Status:** C1, C2, C4, C5 and C6 are implemented in the Play build (`play/compliance`), with the permission and service-type boundary enforced by `scripts/check_distribution.py`. C3 waits on the reviewer sandbox redeploy after PR #22; C4 also needs the report Worker redeploy. Entries below written "after C1/C2/C6" describe the current Play build.
+**Status:** C1 to C6 are done. C1, C2, C4, C5 and C6 ship in the Play build, with the permission and service-type boundary enforced by `scripts/check_distribution.py`; the reviewer sandbox (C3) and the report Worker (C4) are deployed. Entries below written "after C1/C2/C6" describe the current Play build.
 
 | # | Change | Why | Blocks |
 |---|---|---|---|
