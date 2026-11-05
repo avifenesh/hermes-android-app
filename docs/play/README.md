@@ -1,17 +1,17 @@
 # Google Play preparation
 
-Candidate: **0.16.17 / versionCode 49**, `dev.avifenesh.hermes.play`, uploaded on 2026-11-05 as a draft release on the Closed testing - Alpha track. 0.16.18 replaces it before the release goes to review.
+Candidate: **0.16.18 / versionCode 50**, `dev.avifenesh.hermes.play`, sent for review on 2026-11-05 on the Closed testing - Alpha track.
 
-**Closed test set up, not yet sent for review, not approved for production.** Play Console has the store listing, store settings, every App content declaration, Play App Signing with a Google-generated key, and the closed track (all 178 countries, testers from the Google Group herms-testers@googlegroups.com). The foreground-service declaration still needs its two demo videos. The full GitHub release remains separate and unchanged.
+**Closed test in review since 2026-11-05. Not approved for production.** Play Console has the store listing, store settings, every App content declaration, Play App Signing with a Google-generated key, and the closed track (all 178 countries, testers from the Google Group herms-testers@googlegroups.com). The foreground-service declaration has its two demo videos. The full GitHub release remains separate and unchanged.
 
 ## Prepared materials
 
 - [English listing](listing.en-US.json), as entered in Play Console: title "Herms for Hermes Agent", label "Herms", category Productivity.
 - [Play-specific privacy draft](privacy-policy.md), also bundled offline through `android/app/src/play/assets/privacy/privacy-policy.md`. The full edition's policy also discloses the same voluntary publisher-report path.
 - [Data Safety worksheet](data-safety.md); the answers are entered in Play Console.
-- [Console declaration drafts](declarations.md) for every App content section, checked against the 0.16.17 AAB manifest, with the code changes Play policy requires (C1 to C6, all done).
+- [Console declaration drafts](declarations.md) for every App content section, checked against the 0.16.18 AAB manifest, with the code changes Play policy requires (C1 to C6, all done).
 - [AI-content safeguards](ai-content-safeguards.md), [account deletion classification](account-deletion.md), [closed testing plan](testing-track.md) and [demo video scripts](demo-videos.md).
-- [512px icon](assets/icon-512.png) and [1024x500 feature graphic](assets/feature-1024x500.png): the Herms launcher icon (the Seal, `src/play/res/mipmap-anydpi-v26/ic_launcher.xml`), the app's colors and licensed fonts, rendered by `scripts/build_play_artwork.py`. The full edition keeps its lime H, so both apps can sit on one phone. These are artwork, not app screenshots. The six `phone-*.png` assets are 1080×1920 captures of the bundle-generated universal APK of the submitted **0.16.17** bundle (2026-11-05), paired to the synthetic review sandbox: inbox, a chat approval, a group room, a voice note and Usage in the Night theme, and the inbox in the Day theme. Recapture them when the submitted build changes what they show.
+- [512px icon](assets/icon-512.png) and [1024x500 feature graphic](assets/feature-1024x500.png): the Herms launcher icon (the Seal, `src/play/res/mipmap-anydpi-v26/ic_launcher.xml`), the app's colors and licensed fonts, rendered by `scripts/build_play_artwork.py`. The full edition keeps its lime H, so both apps can sit on one phone. These are artwork, not app screenshots. The six `phone-*.png` assets are 1080×1920 captures of the bundle-generated universal APK of the **0.16.17** bundle (2026-11-05), paired to the synthetic review sandbox: inbox, a chat approval, a group room, a voice note and Usage in the Night theme, and the inbox in the Day theme. The submitted 0.16.18 changes none of what they show. Recapture them when the submitted build does.
 - A [synthetic reviewer backend](../../review-backend/README.md). It uses production pairing/signature/replay modules, isolates each enrollment and answers every API path the Play build can reach with synthetic behaviour. It is hosted for review; its address and invitation are only in Play Console App access.
 
 ## Reproduce the candidate
@@ -56,9 +56,9 @@ Status on 2026-11-05. "Owner" marks work only the owner can do.
 | 1. AI-content reporting ([safeguards](ai-content-safeguards.md)) | Voluntary in-app report flow to the publisher receiver, including messages in other-app sessions; first-run AI notice in Play | Rerun the on-device consent, receipt and deletion pass on the submitted build. Operate the report queue (owner). |
 | 2. Reviewer access ([App access](declarations.md#app-access-sign-in-details)) | Synthetic sandbox hosted with group chats; sign-in details entered in Play Console | Keep it up through review. |
 | 3. Publisher decisions | Title, label, Seal icon, Google-generated app signing key, non-trader status | None. |
-| 4. Declarations ([declarations.md](declarations.md), [account-deletion.md](account-deletion.md)) | Every App content section; the release's full-screen intent and health declarations; `/privacy` and `/delete` name Herms and Avifen | Foreground-service declaration: dataSync and microphone each need a video link. |
-| 5. Background behavior ([demo videos](demo-videos.md)) | C1 (`LiveService` only while a run started on this phone works) and C2 (`WakeService` systemExempted) ship; Play does not list systemExempted, so V3 is not asked for | Record V1 (microphone) and V2 (dataSync) on the submitted build. |
-| 6. Testing and production access ([plan](testing-track.md)) | Closed track with the herms-testers group, all countries, feedback to GitHub issues | Send the release for review, keep 12 or more testers opted in for 14 days, apply for production (owner). |
+| 4. Declarations ([declarations.md](declarations.md), [account-deletion.md](account-deletion.md)) | Every App content section; the release's full-screen intent, health and foreground-service declarations; `/privacy` and `/delete` name Herms and Avifen | None. |
+| 5. Background behavior ([demo videos](demo-videos.md)) | C1 (`LiveService` only while a run started on this phone works) and C2 (`WakeService` systemExempted) ship; Play does not list systemExempted, so V3 is not asked for; V1 (microphone) and V2 (dataSync) recorded on the submitted build and linked in the declaration | None. |
+| 6. Testing and production access ([plan](testing-track.md)) | Closed track with the herms-testers group, all countries, feedback to GitHub issues; release sent for review on 2026-11-05 | Pass review, keep 12 or more testers opted in for 14 days, apply for production (owner). |
 | 7. AI safeguards ([safeguards](ai-content-safeguards.md)) | Covered and uncovered surfaces and the gap list are written down | Decide on further client-side safeguards and terms (owner). |
 | 8. Account/deletion ([classification](account-deletion.md)) | Pairing is not account creation; Data safety deletion answers entered | Google can still disagree; the fallback change is written down. |
 

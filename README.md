@@ -41,12 +41,12 @@ provider, Google SDK and voluntary support/reporting data flows are described in
   explicitly granted Accessibility service, with a persistent Stop notification and device
   authentication. Off by default.
 
-[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.17.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
+[Privacy](docs/privacy-policy.md) · [Security](SECURITY.md) · [What was verified](docs/release-0.16.18.md) · [QA scope](docs/android-qa.md) · [Distributions](docs/distribution-flavors.md)
 
 ## Herms on Google Play
 
-A Play edition, **Herms for Hermes Agent** (package `dev.avifenesh.hermes.play`), is being
-prepared for a Google Play closed test. To test it, join
+A Play edition, **Herms for Hermes Agent** (package `dev.avifenesh.hermes.play`), is in
+review for a Google Play closed test. To test it, join
 [herms-testers](https://groups.google.com/g/herms-testers); members get the Play invite when
 the test opens. It installs next to the full APK.
 
@@ -62,9 +62,9 @@ Before installation, verify the downloaded APK using `sha256sum` and Android SDK
 
 ```sh
 # Set APK to the file you downloaded. Compare this digest with its release checksum.
-APK=Hermes-0.16.17.apk
+APK=Hermes-0.16.18.apk
 printf '%s  %s\n' \
-  3a2f5cf3d4dc5b382d34e12ce351427c68630171dd04431dd942eef62a194da5 "$APK" | sha256sum --check -
+  5d118f640b741414fd63381ba3e2623f525e224c6260b084fd70d50073352d8a "$APK" | sha256sum --check -
 apksigner verify --verbose --print-certs "$APK"
 ```
 

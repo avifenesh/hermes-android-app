@@ -8,7 +8,7 @@
 
 ## Artifact these answers describe
 
-`dist/Hermes-Play-0.16.17.aab`, SHA-256 `c41e911bff266dcdd740dfb4dd57b743c8eaa2bf9a6be00f221a06e963c9a977`, versionName 0.16.17, versionCode 49, built from commit `5fccf54` (tag `v0.16.17`). The manifest below was read with `bundletool 1.18.3 dump manifest` on 2026-11-05. It matches `dist/verification-play-0.16.17/bundle-apk-distribution.json`.
+`dist/Hermes-Play-0.16.18.aab`, SHA-256 `9bf160fdf0142e4c2b05e1400bc0963221c78546aafe18887ab77542ad75f2b6`, versionName 0.16.18, versionCode 50, built from commit `578dbe6` (tag `v0.16.18` is on its release-notes commit). The manifest below was read with `bundletool 1.18.3 dump manifest` on 2026-11-05. It matches `dist/verification-play-0.16.18/bundle-apk-distribution.json`. This is the bundle sent for review on the Closed testing - Alpha track.
 
 - `minSdkVersion` 31, `targetSdkVersion` 36. API 36 meets the requirement for new apps from 2026-08-31.
 - Requested permissions: `SCHEDULE_EXACT_ALARM`, `INTERNET`, `POST_NOTIFICATIONS`, `USE_BIOMETRIC`, `USE_FINGERPRINT`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`, `FOREGROUND_SERVICE_MICROPHONE`, `USE_FULL_SCREEN_INTENT`, `WAKE_LOCK`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`, `ACTIVITY_RECOGNITION`, `ACCESS_NETWORK_STATE`, `com.google.android.c2dm.permission.RECEIVE`, and the AndroidX dynamic-receiver signature permission.
@@ -234,11 +234,11 @@ Source: [Advertising ID](https://support.google.com/googleplay/android-developer
 
 ## Foreground service types
 
-For each type the Console asks for a feature description, the user impact if the system defers or interrupts the task, a video link and a use case. Play allows a foreground service only if the use is "beneficial to the user and relevant to the core functionality", "initiated by the user or is user perceptible", "can be terminated or stopped by the user", "can't be interrupted or deferred by the system without causing a negative user experience", and "runs only for as long as necessary to complete the task". Videos are scripted in [demo-videos.md](demo-videos.md).
+Play's help lists four items per type: a feature description, the user impact if the system defers or interrupts the task, a video link and a use case. On 2026-11-05 the Console form asked only for the task checkboxes and one video link per type; the descriptions below are kept for review questions. Play allows a foreground service only if the use is "beneficial to the user and relevant to the core functionality", "initiated by the user or is user perceptible", "can be terminated or stopped by the user", "can't be interrupted or deferred by the system without causing a negative user experience", and "runs only for as long as necessary to complete the task". Videos are scripted in [demo-videos.md](demo-videos.md).
 
 ### Microphone (TalkService, WakeListenService)
 
-- **Use case:** Background Audio Access.
+- **Use case:** Background Audio Access. Entered in the Console as "Background audio input".
 - **Description:**
 
 ```text
@@ -257,13 +257,13 @@ Talk would stop listening as soon as the screen turns off, cutting off the user 
 Talk drops the conversation in progress. Wake-word listening stops, and Android does not allow a microphone service to restart from the background, so it stays off until the user opens the app.
 ```
 
-- **Video:** V1.
+- **Video:** V1, https://drive.google.com/file/d/1lDKGHK1zMMgSis6-cbB3u_8TX1niKrLW/view
 
 ### dataSync (LiveService)
 
 This entry describes the Play build after C1: no always-on connection, and nothing starts the service except a send or an approval decision from this phone.
 
-- **Use case:** Network transfer: Upload or download (data fetch, server-side processing).
+- **Use case:** Network transfer: Upload or download (data fetch, server-side processing). Entered in the Console as "Network processing: Other" (its help text: "uploading or downloading").
 - **Description:**
 
 ```text
@@ -282,7 +282,7 @@ The reply and any approval request the run is waiting for arrive only at the nex
 Streaming stops mid-reply and progress disappears from the notification; the user sees the result only after reopening the app or at the next periodic sync.
 ```
 
-- **Video:** V2.
+- **Video:** V2, https://drive.google.com/file/d/1ar1FE7PKjIUv0QPKAy0Gi2AJfwUsP4Md/view
 
 Without C1 the honest description would be "keeps a live connection open in the background whenever the server has no push". That is a persistent connection with no task and no end, which fails "runs only for as long as necessary". Android's own guidance sends periodic server sync to WorkManager, which the app already schedules every 15 minutes.
 

@@ -1,6 +1,6 @@
 # Closed testing and production access
 
-**Draft for owner review.** Requirements read on 2026-11-04. No test track, tester list or Google Group exists yet, and no clock has started.
+Requirements read on 2026-11-04. The closed track, the herms-testers group and its tester list exist, with feedback to GitHub issues; the first release went to review on 2026-11-05. The 14-day clock has not started: it runs from when testers opt in to the published release.
 
 ## The requirement as it applies today
 
