@@ -26,7 +26,7 @@ class LegalContractTest(unittest.TestCase):
                           'android/app/src/main/cpp/microwakeword']:
             shutil.copytree(ROOT / directory, self.root / directory,
                             ignore=shutil.ignore_patterns('__pycache__'))
-        for path in ['NOTICE', 'LICENSE', 'android/app/build.gradle.kts'] + [
+        for path in ['NOTICE', 'LICENSE', 'android/app/build.gradle.kts', 'android/app/src/main/res/values/strings.xml'] + [
             f'android/app/src/main/java/dev/avifenesh/hermes/{name}'
             for name in ['Ui.kt', 'Screens2.kt', 'Legal.kt']
         ]:
@@ -57,7 +57,9 @@ class LegalContractTest(unittest.TestCase):
                 name = 'res/short_' + str(len(files)) + '.ttf'
             files[name] = (self.root / entry['repo_path']).read_bytes()
         files['lib/arm64-v8a/libmicrowakeword.so'] = b'SYNTHETIC ELF test marker only'
-        files['classes.dex'] = b'SYNTHETIC DEX test marker: legal/inventory.json Licenses'
+        files['classes.dex'] = b'SYNTHETIC DEX test marker: legal/inventory.json'
+        files['resources.arsc'] = (b'SYNTHETIC ARSC test marker: Offline notices, model restrictions and full license texts '
+                                   b'Training provenance remains unresolved')
         files.update(extra or {})
         for name in omit:
             files.pop(name)
@@ -141,6 +143,14 @@ class LegalContractTest(unittest.TestCase):
         path = self.root / 'android/app/src/main/java/dev/avifenesh/hermes/Ui.kt'
         path.write_text(path.read_text().replace('is Route.LegalR -> LicensesScreen(r.document)', 'is Route.LegalR -> Unit'))
         self.expect_failure('Legal route dispatch missing')
+
+    def test_missing_licenses_string_rejected(self):
+        path = self.root / 'android/app/src/main/res/values/strings.xml'
+        path.write_text(path.read_text().replace('Offline notices, model restrictions and full license texts', 'Licenses'))
+        self.expect_failure('Me > Licenses entry missing')
+
+    def test_apk_without_reader_text_rejected(self):
+        self.expect_failure('APK resources lack reader text', self.fixture_apk(omit=('resources.arsc',)))
 
     def test_apk_with_aapt2_shortened_font_paths(self):
         code, report = self.run_check(self.fixture_apk(rename_fonts=True))

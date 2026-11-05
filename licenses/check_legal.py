@@ -66,6 +66,8 @@ OLD_MODEL_HASHES = {
 }
 
 
+READER_SUB = 'Offline notices, model restrictions and full license texts'
+
 def obsolete_asset(name, data):
     return (name.lower().endswith(('.onnx', '.ort')) or '/oww/' in name.lower()
             or 'onnxruntime' in name.lower() or digest(data) in OLD_MODEL_HASHES)
@@ -193,15 +195,24 @@ def main():
     ui = read(kotlin / 'Ui.kt').decode()
     me = read(kotlin / 'Screens2.kt').decode()
     legal = read(kotlin / 'Legal.kt').decode()
+    # User-facing text lives in string resources (English base); the screens reference it by key.
+    strings_xml = read(root / 'android/app/src/main/res/values/strings.xml').decode()
+
+    def base_string(name):
+        found = re.search(r'<string name="' + re.escape(name) + r'">(.*?)</string>', strings_xml, re.S)
+        return found.group(1) if found else ''
     check('data class LegalR(val document: String? = null) : Route' in ui, 'Legal route missing')
     check('is Route.LegalR -> LicensesScreen(r.document)' in ui, 'Legal route dispatch missing')
-    check('"Licenses", "Offline notices, model restrictions and full license texts") { Ui.push(Route.LegalR()) }' in me, 'Me > Licenses entry missing')
+    check('NavRow(Ic.book, stringResource(R.string.me_licenses), stringResource(R.string.me_licenses_sub)) { Ui.push(Route.LegalR()) }' in me
+          and base_string('me_licenses') == 'Licenses' and base_string('me_licenses_sub') == READER_SUB, 'Me > Licenses entry missing')
     for token in ['context.assets.open("legal/inventory.json")', 'entries.getJSONObject(i)', 'context.assets.open("legal/${it.file}")', 'reader.readText()', 'SelectionContainer', 'LazyColumn', 'chunked(4000)', 'Text(current.paragraphs[i]']:
         check(token in legal, 'Offline reader source contract missing: ' + token)
     # Source contract, not Kotlin compilation or an emulator/rendering assertion.
     for forbidden in ['Api.get(', 'Api.post(', 'WebView', 'ACTION_VIEW', 'maxLines =', 'TextOverflow.Ellipsis']:
         check(forbidden not in legal, 'Reader unexpectedly networks or truncates: ' + forbidden)
-    check('Training provenance remains unresolved' in legal and 'explicit Apache-2.0 grant' in legal, 'Reader lacks current model grant/provenance distinction')
+    wake_note = base_string('licenses_wake_model')
+    check('R.string.licenses_wake_model' in legal and 'Training provenance remains unresolved' in wake_note
+          and 'explicit Apache-2.0 grant' in wake_note, 'Reader lacks current model grant/provenance distinction')
     check('Hey Jarvis is CC BY-NC-SA' not in legal, 'Reader retains obsolete classifier warning')
     gradle = read(root / 'android/app/build.gradle.kts').decode()
     check('onnxruntime' not in gradle.lower(), 'Obsolete ONNX Runtime Gradle dependency')
@@ -260,8 +271,11 @@ def main():
             check(bool(natives), 'APK missing native microWakeWord engine')
             dex = b''.join(apk.read(n) for n in listed if re.fullmatch(r'classes\d*\.dex', n))
             check(b'ai/onnxruntime/' not in dex and b'ai.onnxruntime.' not in dex, 'APK contains obsolete ONNX Runtime Java classes')
-            for token in [b'legal/inventory.json', b'Licenses']:
-                check(token in dex, 'APK DEX lacks reader marker: ' + token.decode())
+            check(b'legal/inventory.json' in dex, 'APK DEX lacks reader marker: legal/inventory.json')
+            # The reader's labels are compiled into the resource table (aapt2 writes UTF-8 string pools).
+            arsc = apk.read('resources.arsc') if 'resources.arsc' in listed else b''
+            for text in [READER_SUB, 'Training provenance remains unresolved']:
+                check(text.encode() in arsc, 'APK resources lack reader text: ' + text)
             apk_report = {'path': str(args.apk.resolve()), 'sha256': digest(args.apk.read_bytes()), 'checked_entries': len(expected_apk), 'font_resource_paths': packaged_fonts, 'microwakeword_native_entries': natives, 'old_onnx_ort_absent': not any('obsolete ONNX' in e for e in errors)}
 
     result = {
