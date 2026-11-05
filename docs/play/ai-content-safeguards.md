@@ -1,6 +1,6 @@
 # AI-generated content: what Play requires and what Herms does
 
-**Draft for owner review.** Policy read on 2026-11-04. Applies to the Play build `dev.avifenesh.hermes.play`, 0.16.16 candidate.
+**Draft for owner review.** Policy read on 2026-11-04. Applies to the Play build `dev.avifenesh.hermes.play`, 0.16.17.
 
 ## What the policy requires
 
@@ -26,10 +26,10 @@ The [policy explainer](https://support.google.com/googleplay/android-developer/a
 
 ### In-app reporting, without leaving the app
 
-Two entry points, both in the qualified 0.16.16 Play build:
+Two entry points, both in the 0.16.17 Play build:
 
 1. **Report one message.** Long-press any message in an app chat. The "Message actions" dialog says nothing is sent until the user chooses. Tap **Report**.
-   - **Other-app sessions (for example a Telegram session viewed in the app): not covered in 0.16.16.** Their message bubbles carry the same long-press handler, but `Support.open(message)` (`Support.kt` line 101) returns unless the current screen is `Route.ChatR` for that message's chat. The session screen is `Route.SessR`, so the long-press opens nothing. The `play/compliance` branch makes `Support.open` accept session messages. This row counts as covered only once that change lands and passes on the submitted build. Until then, use Report a problem from the Me tab.
+   - **Other-app sessions** (for example a Telegram session viewed in the app) work the same way since 0.16.17: long-press a message in the session view and tap **Report**, with the same consent, preview and receipt.
 2. **Report a problem.** Me tab > **Report a problem**, for anything not tied to one message.
 
 The flow:
@@ -52,7 +52,7 @@ Reports are read by a person, Avi Fenesh, using authenticated Wrangler commands.
 
 | Covered | Not covered |
 |---|---|
-| Reporting any app chat message from inside the app | Reporting a message from an other-app session view: a gap in 0.16.16, covered once the `play/compliance` change to `Support.open` lands and is qualified |
+| Reporting any app chat message, or a message in an other-app session view, from inside the app | |
 | Report a problem from the Me tab, for anything | One-tap reporting of AI text on other surfaces: cron outputs, Radar items, activity details, run screens. Users can report these with Report a problem and describe or paste the content. |
 | A written promise that reports reach a person, through the in-app receipt and policy text | Any filter, block or blur on the phone before AI output is shown. The client shows what the gateway returns. |
 | Changing the app or the gateway plugin when reports show a defect | Changing what a user's chosen provider generates. The publisher cannot reach a self-hosted gateway or its providers. |
@@ -64,7 +64,7 @@ Reports are read by a person, Avi Fenesh, using authenticated Wrangler commands.
 2. **No client-side safeguard exists today.** Options, in increasing cost: (a) a first-run notice that replies come from the user's own models and that the Play terms forbid generating restricted content; (b) terms of use the user accepts at pairing; (c) a client-side hide-behind-tap for messages that a small on-device classifier or block list flags. None is implemented. The owner decides whether to add any before submission. (a) and (b) are small changes.
 3. **No user blocking.** The [User Generated Content policy](https://support.google.com/googleplay/android-developer/answer/9876937) asks UGC apps for a user-blocking function and terms of use. Herms content is visible only inside the user's own gateway, so it is not a UGC platform run by the publisher. If a reviewer classifies multi-user gateways as UGC, blocking and terms become requirements.
 4. **Queue capacity.** An attacker with many IP prefixes can fill the 1000-row queue and stop new reports until the operator clears it. Nothing alerts on that.
-5. **Report coverage.** Only app chat bubbles have a working one-tap report in 0.16.16. Other-app session bubbles get one when the `play/compliance` change lands. Other AI surfaces rely on Report a problem. See the table above.
+5. **Report coverage.** App chat bubbles and other-app session bubbles have a one-tap report. Other AI surfaces rely on Report a problem. See the table above.
 
 ## Operating procedure for reports
 

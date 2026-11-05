@@ -1,6 +1,6 @@
 # Hermes Android privacy policy
 
-**Prepared for the GitHub full APK release 0.16.16. Reviewed 2026-11-04.** This policy describes the full Android client, displayed as **Hermes**, package **`dev.avifenesh.hermes`**. Published older APKs retain their own bundled policy. The separate [Play policy](play/privacy-policy.md) describes `dev.avifenesh.hermes.play`; the Play edition has not been submitted to Google Play.
+**Prepared for the GitHub full APK release 0.16.17. Reviewed 2026-11-05.** This policy describes the full Android client, displayed as **Hermes**, package **`dev.avifenesh.hermes`**. Published older APKs retain their own bundled policy. The separate [Play policy](play/privacy-policy.md) describes `dev.avifenesh.hermes.play`, the edition distributed on Google Play as Herms for Hermes Agent (closed testing first).
 
 ## Developer and contact
 

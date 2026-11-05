@@ -27,8 +27,8 @@ android {
         applicationId = "dev.avifenesh.hermes"
         minSdk = 31
         targetSdk = 36
-        versionCode = 48
-        versionName = "0.16.16"
+        versionCode = 49
+        versionName = "0.16.17"
         testInstrumentationRunner = if (providers.gradleProperty("hermesTestBuildType").orNull == "release")
             "dev.avifenesh.hermes.ReleaseLinkageProbe" else "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
