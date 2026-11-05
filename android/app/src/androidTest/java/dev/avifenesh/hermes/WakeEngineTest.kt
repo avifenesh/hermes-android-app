@@ -46,7 +46,12 @@ class WakeEngineTest {
         return hits
     }
 
+    /** The pinned reference engine is built only with -PhermesWakeReferenceTests=true in debug builds. Without it there
+     *  is nothing to compare against, so the parity test is skipped instead of failing on a missing library. */
+    private fun referenceBuilt() = runCatching { System.loadLibrary("mwwreference") }.isSuccess
+
     @Test fun testReferenceParity() {
+        assumeTrue("reference engine not built; pass -PhermesWakeReferenceTests=true", referenceBuilt())
         val pcm = fixture()
         // 0.97 is the shipping recommendation. 0.1 is a test-only stress cutoff, not a preset.
         for (cutoff in listOf(0.97f, 0.1f)) {
