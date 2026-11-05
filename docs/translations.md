@@ -32,6 +32,7 @@ Text direction rules live in `Bidi.kt`:
 - Code, commands, paths, terminal output and cron syntax use `.ltr()`, and their scroll containers sit in `LtrLayout`.
 - Content passed into a translated template or joined into a UI line goes through `bidiIsolate()` (or `bidiJoin()`),
   which wraps it in U+2068/U+2069. Product names passed as arguments are isolated too.
+- Hebrew: join a prefix letter to a Latin word or a placeholder with the maqaf (U+05BE, "ל־Hermes", "ב־%1$s"), not a hyphen. A hyphen there makes the line breaker wrap one-line labels; `StringResourcesTest` checks it.
 - Titles in `serif()` pass their text through `trackFor()`, which drops the tight tracking for Arabic: Android draws
   Arabic without letter spacing, and with it the line breaker would move the last letter to a new line.
 

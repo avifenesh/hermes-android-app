@@ -30,6 +30,18 @@ class StringResourcesTest {
         assertTrue(problems.joinToString("\n"), problems.isEmpty())
     }
 
+    @Test fun hebrewJoinsAPrefixToALatinWordWithAMaqaf() {
+        // "ל-Hermes" with a hyphen: in a right-to-left line the line breaker measures the hyphen run wider than it is
+        // drawn, so a one-line label wraps its last word. The maqaf (U+05BE) is the Hebrew joiner and does not.
+        val hyphen = Regex("[\u05D0-\u05EA]-(?=[A-Za-z%])")
+        val problems = SETS.flatMap { set ->
+            val t = ResFiles.load(ResDirs.res(set).resolve("values-iw")) ?: return@flatMap emptyList()
+            (t.strings + t.plurals.flatMap { (k, q) -> q.map { (n, v) -> "$k[$n]" to v } }).filter { hyphen.containsMatchIn(it.value) }
+                .map { "$set/values-iw ${it.key}: ${it.value}" }
+        }
+        assertTrue(problems.joinToString("\n"), problems.isEmpty())
+    }
+
     @Test fun checkerCatchesBrokenTranslations() {
         val base = ResFiles.parse("""
             <resources>
