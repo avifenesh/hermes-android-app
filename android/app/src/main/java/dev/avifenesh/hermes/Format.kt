@@ -58,13 +58,14 @@ object Fmt {
     /** Stopwatch reading under ten minutes ("4:07"). */
     fun stopwatch(sec: Long): String = String.format(locale(), "%d:%02d", sec / 60, sec % 60)
 
-    /** US dollars (the only currency the server reports), with a third decimal for sub-cent amounts. The narrow
-     * symbol keeps "$" in every language (Arabic's default "US$" broke apart in right-to-left lines). */
+    /** US dollars (the only currency the server reports), with a third decimal for sub-cent amounts, always shown as
+     * "$". The narrow width gives "$" in every app language except Arabic, which keeps "US$" (ICU 78); that one broke
+     * apart as "$US" in right-to-left lines, so it is replaced. */
     fun money(x: Double): String = NumberFormatter.withLocale(locale())
         .unit(android.icu.util.Currency.getInstance("USD"))
         .unitWidth(NumberFormatter.UnitWidth.NARROW)
         .precision(Precision.fixedFraction(if (x > 0 && x < 0.01) 3 else 2))
-        .format(x).toString()
+        .format(x).toString().replace("US$", "$")
 
     /** Counts in the app language's digits, like every other number on screen (Arabic uses its own digits). */
     fun int(n: Long): String = NumberFormat.getIntegerInstance(locale()).format(n)

@@ -100,8 +100,8 @@ fun PulseScreen() {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Stat(stringResource(R.string.pulse_stat_spent_today), pulse?.optDouble("spend_today")?.takeIf { !it.isNaN() }?.let { money(it) } ?: "–", Modifier.weight(1f))
-                Stat(stringResource(R.string.pulse_stat_runs_today), pulse?.optInt("runs_today")?.toString() ?: "–", Modifier.weight(1f))
-                Stat(stringResource(R.string.pulse_stat_cron_fails), pulse?.optInt("failures_today")?.toString() ?: "–", Modifier.weight(1f))
+                Stat(stringResource(R.string.pulse_stat_runs_today), pulse?.optInt("runs_today")?.let { Fmt.int(it) } ?: "–", Modifier.weight(1f))
+                Stat(stringResource(R.string.pulse_stat_cron_fails), pulse?.optInt("failures_today")?.let { Fmt.int(it) } ?: "–", Modifier.weight(1f))
             }
         }
         item { Box(Modifier.clickable { Ui.push(Route.UsageR) }) { SpendBars(pulse) } }
@@ -695,7 +695,7 @@ fun MeScreen() {
                         else -> stringResource(R.string.me_radar_sub_both)
                     }
                     NavRow(Ic.zap, stringResource(R.string.me_radar), sub,
-                        badge = if (needs > 99) "99+" else if (needs > 0) "$needs" else null,
+                        badge = if (needs > 0) Fmt.capped(needs, 99) else null,
                         badgeHot = fresh > 0,
                         badgeLabel = if (fresh > 0) pluralStringResource(R.plurals.me_radar_decisions_new_desc, needs, needs, fresh)
                             else pluralStringResource(R.plurals.me_radar_decisions_desc, needs, needs)) { Ui.push(Route.RadarR) }
