@@ -1,6 +1,7 @@
 package dev.avifenesh.hermes
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,13 +38,17 @@ internal object AiNotice {
         str(R.string.ai_notice_privacy, bidiIsolate(EDITION_PUBLISHER)),
         str(R.string.ai_notice_report),
     )
-    // Acknowledged on this phone only: app-private preferences, never sent anywhere (backup is off).
+    // Acknowledged on this phone only: app-private preferences, never sent anywhere (backup is off). Written before
+    // the dialog closes, so a kill right after "Got it" does not show the notice again.
     private const val PREFS = "edition"
     private const val SEEN = "ai_notice_seen"
 
     fun shouldShow(paired: Boolean, seen: Boolean): Boolean = paired && !seen
-    fun seen(c: Context): Boolean = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(SEEN, false)
-    fun acknowledge(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean(SEEN, true) }
+    fun seen(c: Context): Boolean = seen(prefs(c))
+    fun acknowledge(c: Context) = acknowledge(prefs(c))
+    fun seen(prefs: SharedPreferences): Boolean = prefs.getBoolean(SEEN, false)
+    fun acknowledge(prefs: SharedPreferences) = prefs.edit(commit = true) { putBoolean(SEEN, true) }
+    private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }
 
 @Composable
