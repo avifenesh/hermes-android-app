@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -520,14 +521,7 @@ fun WakeSettingsScreen(modifier: Modifier = Modifier.fillMaxSize(), embedded: Bo
     var owner by remember { mutableStateOf("") }
     var wa by remember { mutableStateOf("") }
     var permissionRevision by remember { mutableStateOf(0) }
-    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) permissionRevision++
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
+    OnResume { permissionRevision++ }
     val access = remember(permissionRevision) { listOf(Wake.canExact(ctx), Wake.notificationsReady(ctx), Wake.canFullScreen(ctx),
         ctx.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName)) }
     val proofPermissions = remember {
@@ -800,4 +794,27 @@ private fun PwField(v: String, on: (String) -> Unit, ph: String) {
                 if (v.isEmpty()) Text(ph, style = mono(16f, 400, p.dim), modifier = Modifier.fillMaxWidth()); inner()
             }
         })
+}
+
+/** Runs [block] each time the screen resumes: grants such as exact alarms change in Settings, outside the app. */
+@Composable
+fun OnResume(block: () -> Unit) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    val latest by rememberUpdatedState(block)
+    DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) latest()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+}
+
+/** Whether Wake can ring: exact alarm access, read again on every resume so a grant or a revoke shows at once. */
+@Composable
+fun rememberExactAlarmAccess(): Boolean {
+    val ctx = LocalContext.current
+    var revision by remember { mutableStateOf(0) }
+    OnResume { revision++ }
+    return remember(revision) { Wake.canExact(ctx) }
 }

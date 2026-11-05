@@ -178,9 +178,10 @@ fun CronScreen() {
     val ptr = rememberPullToRefreshState()
     val wov by Wake.overview.collectAsState()
     val wnext = wov?.optJSONObject("next")
+    val exact = rememberExactAlarmAccess()
     Column(Modifier.fillMaxSize()) {
         Header(if (seg == "alarms") stringResource(R.string.cron_alarm_clock) else stringResource(R.string.cron_title),
-            if (seg == "alarms") wnext?.let { stringResource(R.string.cron_alarm_next, clock(it.getDouble("ts")), until(it.getDouble("ts"))) } ?: stringResource(R.string.cron_no_alarm)
+            if (seg == "alarms") (if (!exact) stringResource(R.string.alarm_exact_off) else wnext?.let { stringResource(R.string.cron_alarm_next, clock(it.getDouble("ts")), until(it.getDouble("ts"))) } ?: stringResource(R.string.cron_no_alarm))
             else jobs?.let { pluralStringResource(R.plurals.cron_active_count, on.size, on.size) + " · " + pluralStringResource(R.plurals.cron_paused_count, off.size, off.size) }) {
             if (seg == "jobs") IconBtn(Ic.plus, p.ink, 44.dp, p.acc) { Ui.push(Route.CronEditR(null)) }
         }
@@ -504,7 +505,7 @@ fun SessionScreen(r: Route.SessR) {
             readOnly -> stringResource(R.string.session_sub_read_only, bidiIsolate(r.source))
             running -> stringResource(R.string.session_sub_working, bidiIsolate(r.source))
             else -> stringResource(R.string.session_sub_live, bidiIsolate(r.source))
-        }, right = {
+        }, contentTitle = true, right = {
             Icn(Ic.refresh, p.tx2, 20.dp, Modifier.clip(RoundedCornerShape(8.dp))
                 .clickable { scope.launch { load() } }.padding(7.dp))
         })

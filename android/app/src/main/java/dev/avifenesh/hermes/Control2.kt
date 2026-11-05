@@ -202,9 +202,9 @@ fun SearchHit(r: JSONObject) {
 fun snippet(s: String, prefix: String, suffix: String = "") = buildAnnotatedString {
     val framed = prefix.isNotEmpty() || suffix.isNotEmpty()
     append(prefix)
-    if (framed) append('\u2068') // the excerpt keeps its own direction inside the template
-
-    var rest = s.replace("\n", " ")
+    // Inside the template the excerpt keeps its own direction; bidiIsolate also balances any direction controls the
+    // excerpt carries, so a stray PDI cannot close the isolate early. The >>> <<< markers are ASCII and survive it.
+    var rest = s.replace("\n", " ").let { if (framed) bidiIsolate(it) else it }
     while (true) {
         val a = rest.indexOf(">>>"); if (a < 0) { append(rest); break }
         val b = rest.indexOf("<<<", a + 3); if (b < 0) { append(rest); break }
@@ -212,7 +212,6 @@ fun snippet(s: String, prefix: String, suffix: String = "") = buildAnnotatedStri
         withStyle(SpanStyle(color = P.acct, fontWeight = FontWeight.SemiBold)) { append(rest.substring(a + 3, b)) }
         rest = rest.substring(b + 3)
     }
-    if (framed) append('\u2069')
     append(suffix)
 }
 
