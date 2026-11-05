@@ -1,5 +1,6 @@
 package dev.avifenesh.hermes
 
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -23,6 +24,13 @@ class BidiTest {
     @Test fun contentAndCodeChooseTheirDirection() {
         assertEquals(TextDirection.Content, sans(14f).content().textDirection)
         assertEquals(TextDirection.Ltr, mono(13f).ltr().textDirection)
+    }
+
+    @Test fun shortTextBreaksBetweenPhrasesWithoutBalancing() {
+        // Phrase breaks keep Japanese words whole; balanced lines would narrow a long row subtitle.
+        val lb = sans(13f).short().lineBreak
+        assertEquals(LineBreak.WordBreak.Phrase, lb.wordBreak)
+        assertEquals(LineBreak.Strategy.Simple, lb.strategy)
     }
 
     @Test fun isolateWrapsContentInAFirstStrongIsolate() {

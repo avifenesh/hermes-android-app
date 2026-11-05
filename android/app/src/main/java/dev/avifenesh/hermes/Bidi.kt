@@ -70,10 +70,11 @@ fun TextStyle.alignToLayoutStart(): TextStyle =
     copy(textAlign = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left)
 
 /**
- * Short text (titles, labels, row subtitles, buttons): break lines between phrases, not inside a word, and balance the
- * lines. Japanese and Chinese otherwise break between any two characters ("覚えているこ/と"); API 33+.
+ * Short text (labels, row subtitles, buttons): Japanese and Chinese break between phrases, not between any two
+ * characters ("覚えているこ/と"); API 33+. Lines still fill greedily: balancing (LineBreak.Heading) would narrow a
+ * four-line row subtitle into an even, ragged block. Other scripts break as before.
  */
-fun TextStyle.short(): TextStyle = copy(lineBreak = LineBreak.Heading)
+fun TextStyle.short(): TextStyle = copy(lineBreak = LineBreak.Simple.copy(wordBreak = LineBreak.WordBreak.Phrase))
 
 /** Code blocks, terminals and other left-to-right surfaces: their scroll starts at the left and clips on the right. */
 @Composable
