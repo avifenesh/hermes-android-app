@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -84,6 +85,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -839,16 +841,43 @@ fun TopBar(title: String, sub: String? = null, subColor: Color = P.mu, contentTi
             Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                 Text(title, style = sans(17f, 600, P.tx).let { if (contentTitle) it.content() else it }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val subStyle = mono(12f, 500, subColor).let { if (contentSub) it.content() else it }
-                // [subTail] stays whole (counts and amounts); only [sub] before it shortens on a narrow line.
                 if (subTail.isNullOrEmpty()) { if (sub != null) Text(sub, style = subStyle, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                else Row {
-                    if (!sub.isNullOrEmpty()) Text(sub, style = subStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Text(if (sub.isNullOrEmpty()) subTail else " · $subTail", style = subStyle, maxLines = 1, softWrap = false)
-                }
+                else SubLine(sub, subTail, subStyle)
             }
             right()
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(P.line))
+    }
+}
+
+/** One line when [tailWidth] and the separator leave the lead at least [minLead]; otherwise the tail goes under it. */
+internal fun subTailInline(tailWidth: Int, sepWidth: Int, maxWidth: Int, minLead: Int) = tailWidth + sepWidth + minLead <= maxWidth
+
+/** "lead · tail" on one line where only [lead] shortens, so counts and amounts in [tail] stay whole. When the tail
+ *  alone leaves the lead no room (a narrow screen or large text), the tail moves to its own line under the lead. */
+@Composable
+private fun SubLine(lead: String?, tail: String, style: TextStyle) {
+    val hasLead = !lead.isNullOrEmpty()
+    Layout({
+        Text(tail, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (hasLead) {
+            Text(" · ", style = style, maxLines = 1, softWrap = false)
+            Text(lead.orEmpty(), style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }) { ms, c ->
+        val loose = c.copy(minWidth = 0, minHeight = 0)
+        val tailP = ms[0].measure(loose)
+        if (!hasLead) return@Layout layout(tailP.width, tailP.height) { tailP.placeRelative(0, 0) }
+        val sepP = ms[1].measure(loose)
+        if (!c.hasBoundedWidth || subTailInline(tailP.width, sepP.width, c.maxWidth, 48.dp.roundToPx())) {
+            val leadP = ms[2].measure(if (c.hasBoundedWidth) loose.copy(maxWidth = c.maxWidth - tailP.width - sepP.width) else loose)
+            layout(leadP.width + sepP.width + tailP.width, maxOf(leadP.height, sepP.height, tailP.height)) {
+                leadP.placeRelative(0, 0); sepP.placeRelative(leadP.width, 0); tailP.placeRelative(leadP.width + sepP.width, 0)
+            }
+        } else {
+            val leadP = ms[2].measure(loose)
+            layout(maxOf(leadP.width, tailP.width), leadP.height + tailP.height) { leadP.placeRelative(0, 0); tailP.placeRelative(0, leadP.height) }
+        }
     }
 }
 

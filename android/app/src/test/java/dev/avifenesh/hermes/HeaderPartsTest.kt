@@ -36,4 +36,11 @@ class HeaderPartsTest {
         assertEquals(null, headerParts(JSONObject(), null))
         assertEquals(included, headerParts(JSONObject().put("cost_status", "included"), null)!!.toString())
     }
+
+    @Test fun theTailMovesUnderTheModelOnlyWhenItLeavesNoRoom() {
+        // 200 px column, 48 px kept for the model, 12 px separator.
+        assertEquals(true, subTailInline(tailWidth = 140, sepWidth = 12, maxWidth = 200, minLead = 48))
+        assertEquals(false, subTailInline(tailWidth = 141, sepWidth = 12, maxWidth = 200, minLead = 48))
+        assertEquals(false, subTailInline(tailWidth = 260, sepWidth = 12, maxWidth = 200, minLead = 48))
+    }
 }
