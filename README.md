@@ -8,6 +8,11 @@ Your [Hermes Agent](https://github.com/NousResearch/hermes-agent), in your pocke
 client for the gateway **you** run. Chat, approvals, cron, fleet and optional phone control, with
 every request signed by a key that never leaves the phone.
 
+> **Try Herms on Google Play.** The Play edition is in a closed test and anyone can join:
+> join [herms-testers](https://groups.google.com/g/herms-testers), then open the
+> [opt-in page](https://play.google.com/apps/testing/dev.avifenesh.hermes.play) and tap
+> **Become a tester**. Details and feedback: [#41](https://github.com/avifenesh/hermes-android-app/issues/41).
+
 No publisher-hosted chat backend or publisher account registration. No automatic publisher analytics
 or crash-reporting program. The app pairs to your own server over an authenticated API; gateway,
 provider, Google SDK and voluntary support/reporting data flows are described in the privacy policy.
@@ -49,7 +54,7 @@ A Play edition, **Herms for Hermes Agent** (package `dev.avifenesh.hermes.play`)
 Google Play closed test. To test it, join
 [herms-testers](https://groups.google.com/g/herms-testers) with your Google account, then open
 the [opt-in page](https://play.google.com/apps/testing/dev.avifenesh.hermes.play) and tap **Become a tester**.
-It installs next to the full APK.
+It installs next to the full APK. Questions and feedback go in [#41](https://github.com/avifenesh/hermes-android-app/issues/41).
 
 ## Install the full APK
 
