@@ -137,7 +137,7 @@ fun RoomRow(r: Room, onOpen: () -> Unit, onMarkRead: () -> Unit = {}) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.name, style = sans(15.5f, if (r.unread > 0) 650 else 550, p.tx).content(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(r.name, style = sans(15.5f, if (r.unread > 0) 650 else 550, p.tx).contentLine(), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     Spacer(Modifier.width(6.dp))
                     Pill(Fmt.int(r.members.size), p.tx2, p.s2)
                     Spacer(Modifier.weight(1f))

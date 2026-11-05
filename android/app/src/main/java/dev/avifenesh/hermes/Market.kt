@@ -263,7 +263,8 @@ fun HubSkillsTab(prof: String) {
         }
         items(list, key = { "skill:" + it.str("identifier").ifBlank { it.str("inventory_id").ifBlank { it.str("name") } } }) { s ->
             if (s.optBoolean("installed") && !s.optBoolean("managed") && s.str("identifier").isBlank()) {
-                NavRow(Ic.blocks, s.str("name"), s.str("description").ifBlank { stringResource(R.string.hub_installed_locally) }) { Ui.push(Route.ExtR) }
+                NavRow(Ic.blocks, s.str("name"), s.str("description").ifBlank { stringResource(R.string.hub_installed_locally) },
+                    contentTitle = true, contentSub = s.str("description").isNotBlank()) { Ui.push(Route.ExtR) }
             } else SkillRow(s)
         }
         item { Spacer(Modifier.height(30.dp)) }

@@ -411,7 +411,8 @@ fun RestartBanner() {
 
 @Composable
 fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose.ui.graphics.Color? = null,
-           badge: String? = null, badgeHot: Boolean = false, badgeLabel: String? = null, onClick: () -> Unit) {
+           badge: String? = null, badgeHot: Boolean = false, badgeLabel: String? = null,
+           contentTitle: Boolean = false, contentSub: Boolean = false, onClick: () -> Unit) {
     val p = P
     ListRow({ Icn(icon, tint ?: p.acct, 21.dp) }, title, sub, {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -425,7 +426,7 @@ fun NavRow(icon: ImageVector, title: String, sub: String, tint: androidx.compose
             }
             Icn(Ic.chevR, p.mu, 18.dp)
         }
-    }, onClick, titleColor = tint)
+    }, onClick, titleColor = tint, contentTitle = contentTitle, contentSub = contentSub)
 }
 
 // ---------------------------------------------------------------- settings
