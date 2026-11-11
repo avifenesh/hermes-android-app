@@ -1,7 +1,7 @@
 """Fleet: every coding agent on this machine in one list, steerable from the phone.
 
 Source of truth is ``claude-ctrl`` (the owner's agent view): ``list --json`` for the sessions
-(Claude Code background/interactive, Codex, in tmux or bare terminals), ``tail`` for a
+(Claude Code background/interactive, Codex, Antigravity CLI, in tmux or bare terminals), ``tail`` for a
 screen/activity preview and ``send`` for replies. Its status agent keeps
 ``~/.cache/claude-ctrl/status.json`` current; we watch that file (cheap) and push the phone
 when a session moves to *waiting on you*. Hermes' own runs (mobile chats, other platforms)
@@ -143,7 +143,7 @@ def unguarded(a: Dict[str, Any]) -> bool:
     return True
 
 
-AGENT_BINS = ("claude", "codex", "node", "bun", "opencode", "hermes", "python3", "python")
+AGENT_BINS = ("claude", "codex", "agy", "node", "bun", "opencode", "hermes", "python3", "python")
 
 
 def _pane_runs_agent(pane: str) -> bool:
@@ -165,7 +165,7 @@ def _pid_runs_agent(pid: int) -> bool:
         argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
     except OSError:
         return False
-    return any(os.path.basename(x.decode(errors="replace")).startswith(("claude", "codex", "opencode", "hermes"))
+    return any(os.path.basename(x.decode(errors="replace")).startswith(("claude", "codex", "agy", "opencode", "hermes"))
                or b"claude" in x or b"codex" in x for x in argv[:4])
 
 
