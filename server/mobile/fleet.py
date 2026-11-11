@@ -165,7 +165,7 @@ def _pid_runs_agent(pid: int) -> bool:
         argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
     except OSError:
         return False
-    return any(os.path.basename(x.decode(errors="replace")).startswith(("claude", "codex", "agy", "opencode", "hermes"))
+    return any(os.path.basename(x.decode(errors="replace")).startswith(("claude", "codex", "opencode", "hermes"))
                or b"claude" in x or b"codex" in x for x in argv[:4])
 
 
@@ -174,6 +174,10 @@ def can_reply(a: Dict[str, Any]) -> bool:
         return False
     if a.get("host"):
         return bool(a.get("session") or a.get("thread") or a.get("job") or a.get("pane"))
+    if a.get("tool") == "agy":
+        # Antigravity CLI is typed into through its tmux pane only: there the pane's foreground command is
+        # checked right before the send. A pid alone does not prove agy still holds a bare terminal.
+        return bool(a.get("live") and a.get("pane"))
     if a.get("live") and kitty_target(a):
         return True
     if not a.get("live"):

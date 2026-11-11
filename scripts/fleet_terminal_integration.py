@@ -178,6 +178,20 @@ class RemoteFleet(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(stale['can_reply'])
         self.assertEqual(stale['host_error'], 'offline')
 
+    async def test_agy_replies_only_through_a_tmux_pane(self):
+        agy = {'tool': 'agy', 'name': 'agy', 'live': True, 'pid': os.getpid(), 'session': 'c0ffee'}
+        with patch('mobile.fleet.kitty_target', return_value=('unix:/x', '1')):
+            self.assertFalse(F.can_reply(agy))  # a bare terminal, even one with remote control
+            self.assertTrue(F.can_reply({**agy, 'pane': '%1'}))
+        self.assertFalse(F.can_reply({**agy, 'pane': '%1', 'live': False}))
+        self.assertTrue(F.unguarded({**agy, 'pane': '%1'}))  # every send needs the proof
+        self.assertIn('agy', F.AGENT_BINS)
+        self.assertNotIn('bash', F.AGENT_BINS)
+        with patch('subprocess.run', return_value=SimpleNamespace(stdout='agy\n')):
+            self.assertTrue(F._pane_runs_agent('%1'))
+        with patch('subprocess.run', return_value=SimpleNamespace(stdout='bash\n')):
+            self.assertFalse(F._pane_runs_agent('%1'))
+
     async def test_find_distinguishes_same_native_id_on_two_hosts(self):
         local = {**self.agent, 'host': ''}
         self.fleet.raw = AsyncMock(return_value=[local, self.agent])
