@@ -184,6 +184,16 @@ class RemoteFleet(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(F.can_reply(agy))  # a bare terminal, even one with remote control
             self.assertTrue(F.can_reply({**agy, 'pane': '%1'}))
         self.assertFalse(F.can_reply({**agy, 'pane': '%1', 'live': False}))
+        remote = {**agy, 'host': 'mini'}  # a reply queued for a bare agy on another host is never delivered
+        self.assertFalse(F.can_reply(remote))
+        self.assertFalse(F.view(remote)['can_reply'])
+        self.assertTrue(F.can_reply({**remote, 'pane': '%1'}))
+        self.assertFalse(F.can_reply({**remote, 'pane': '%1', 'stale': True}))
+        self.fleet.raw = AsyncMock(return_value=[remote])
+        with patch('mobile.fleet._run', new=AsyncMock(return_value=(0, '{"state":"queued"}', ''))) as run:
+            refused = await self.fleet.send(F.agent_id(remote), 'hello')
+        self.assertFalse(refused['ok'], refused)
+        run.assert_not_awaited()
         self.assertTrue(F.unguarded({**agy, 'pane': '%1'}))  # every send needs the proof
         self.assertIn('agy', F.AGENT_BINS)
         self.assertNotIn('bash', F.AGENT_BINS)
