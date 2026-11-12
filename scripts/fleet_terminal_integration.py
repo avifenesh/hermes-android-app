@@ -192,8 +192,16 @@ class RemoteFleet(unittest.IsolatedAsyncioTestCase):
         self.fleet.raw = AsyncMock(return_value=[remote])
         with patch('mobile.fleet._run', new=AsyncMock(return_value=(0, '{"state":"queued"}', ''))) as run:
             refused = await self.fleet.send(F.agent_id(remote), 'hello')
-        self.assertFalse(refused['ok'], refused)
-        run.assert_not_awaited()
+            self.assertFalse(refused['ok'], refused)
+            self.assertIn('outside tmux on mini', refused['error'])
+            run.assert_not_awaited()
+            paned = {**remote, 'pane': '%1', 'remote_identity': {'pid': 7}}
+            self.fleet.raw = AsyncMock(return_value=[paned])
+            sent = await self.fleet.send(F.agent_id(paned), 'hello')
+        self.assertTrue(sent['ok'], sent)
+        self.assertEqual(run.await_args.args[:3], ('hosts', 'rpc', 'mini'))
+        request = json.loads(run.await_args.args[3])
+        self.assertEqual((request['op'], request['key'], request['body']), ('enqueue', 'c0ffee', 'hello'))
         self.assertTrue(F.unguarded({**agy, 'pane': '%1'}))  # every send needs the proof
         self.assertIn('agy', F.AGENT_BINS)
         self.assertNotIn('bash', F.AGENT_BINS)

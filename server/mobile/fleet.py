@@ -179,9 +179,9 @@ def can_reply(a: Dict[str, Any]) -> bool:
     if a.get("stale"):
         return False
     if a.get("tool") == "agy":
-        # Antigravity CLI is typed into through its tmux pane only, on this machine and on a remote host: there
-        # the pane's foreground command is checked right before the send. A pid alone does not prove agy still
-        # holds a bare terminal, and claude-ctrl never delivers a reply queued for one.
+        # Antigravity CLI is typed into through its tmux pane only, on this machine and on a remote host. A pid
+        # alone does not prove agy still holds a bare terminal, and claude-ctrl never delivers a reply queued
+        # for one. What sits in the pane is checked right before the send: here, or by claude-ctrl on the host.
         return bool(a.get("live") and a.get("pane"))
     if a.get("host"):
         return bool(a.get("session") or a.get("thread") or a.get("job") or a.get("pane"))
@@ -376,7 +376,9 @@ class Fleet:
         if not a:
             return {"ok": False, "error": "no such session"}
         if not can_reply(a):
+            where = f" on {a['host']}" if a.get("host") else ""
             why = ("is unreachable; reconnect its host before replying" if a.get("stale")
+                   else f"runs outside tmux{where}; reply in its terminal" if a.get("tool") == "agy"
                    else "lives in the Claude desktop app; reply there (or enable /remote-control in it)" if desktop_session(a)
                    else "runs in a terminal without remote control; reply there")
             return {"ok": False, "error": f"{a.get('name') or 'it'} {why}"}
