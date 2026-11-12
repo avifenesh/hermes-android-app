@@ -196,16 +196,36 @@ class RemoteFleet(unittest.IsolatedAsyncioTestCase):
         fresh = {'tool': 'agy', 'name': 'agy', 'live': True, 'pid': 4321, 'pane': '%7', 'session': '', 'host': ''}
         prompted = {**fresh, 'session': 'c0ffee'}  # agy opens the conversation at the first prompt
         switched = {**fresh, 'session': 'decaf'}  # and can switch to another one
-        self.assertEqual(F.agent_id(fresh), 'agy:7:4321')
+        self.assertEqual(F.agent_id(fresh), 'agy:%7:4321')
         self.assertEqual(F.agent_id(prompted), F.agent_id(fresh))
         self.assertEqual(F.agent_id(switched), F.agent_id(fresh))
         self.assertEqual(F.agent_id({**prompted, 'pane': ''}), 'agy:tty:4321')
-        self.assertEqual(F.agent_id({**prompted, 'host': 'mini'}), 'remote:mini:agy:7:4321')
+        self.assertEqual(F.agent_id({**prompted, 'pid': '4321'}), F.agent_id(prompted))
         self.assertNotEqual(F.agent_id({**prompted, 'pid': 4322}), F.agent_id(prompted))
-        self.assertEqual(F.agent_id({**prompted, 'live': False, 'pid': 0}), 'c0ffee')  # an ended one is its conversation
-        self.fleet.raw = AsyncMock(return_value=[prompted])
+        # without a live process the conversation is all that names it
+        self.assertEqual(F.agent_id({**prompted, 'live': False}), 'c0ffee')
+        self.assertEqual(F.agent_id({**prompted, 'pid': 0}), 'c0ffee')
+        self.assertEqual(F.agent_id({**prompted, 'pid': '0'}), 'c0ffee')
+        remote = {**prompted, 'host': 'mini'}  # the same pane and pid on another machine
+        self.assertEqual(F.agent_id(remote), 'remote:mini:agy:%7:4321')
+        self.fleet.raw = AsyncMock(return_value=[remote, prompted])
         self.assertIs(await self.fleet.find(F.agent_id(fresh)), prompted)  # a screen opened before the prompt
-        self.assertEqual(F.Fleet._q(prompted), 'c0ffee')  # claude-ctrl is still addressed by conversation
+        self.assertIs(await self.fleet.find('remote:mini:agy:%7:4321'), remote)
+        self.assertIsNone(await self.fleet.find('c0ffee'))  # a running session no longer answers to its conversation
+
+    async def test_agy_send_by_process_id_checks_the_pane_and_addresses_the_conversation(self):
+        agy = {'tool': 'agy', 'name': 'agy', 'live': True, 'pid': 4321, 'pane': '%7', 'session': 'c0ffee', 'host': ''}
+        self.fleet.raw = AsyncMock(return_value=[agy])
+        with patch('mobile.fleet._run', new=AsyncMock(return_value=(0, 'sent', ''))) as run, \
+             patch('mobile.fleet._pane_runs_agent', return_value=False) as pane:
+            gone = await self.fleet.send('agy:%7:4321', 'hello')
+            pane.return_value = True
+            sent = await self.fleet.send('agy:%7:4321', 'hello')
+        self.assertFalse(gone['ok'], gone)  # the pane fell back to a shell: nothing is typed
+        self.assertTrue(sent['ok'], sent)
+        pane.assert_called_with('%7')
+        run.assert_awaited_once()
+        self.assertEqual(run.await_args.args[:3], ('send', 'c0ffee', 'hello'))  # claude-ctrl is addressed by conversation
 
     async def test_find_distinguishes_same_native_id_on_two_hosts(self):
         local = {**self.agent, 'host': ''}
