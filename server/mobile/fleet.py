@@ -59,8 +59,13 @@ async def _run(*args: str, timeout: float = 30) -> tuple[int, str, str]:
 
 
 def agent_id(a: Dict[str, Any]) -> str:
-    native = a.get("session") or a.get("thread") or ((("job:" + a["job"]) if a.get("job") else "") or a.get("pane") or a.get("name") or "?")
     host = str(a.get("host") or "").strip()
+    if a.get("tool") == "agy" and a.get("live") and a.get("pid"):
+        # Antigravity CLI opens its conversation at the first prompt and can switch to another one, so the
+        # conversation is not a stable name for a running session. The process in its pane is.
+        native = f"agy:{str(a.get('pane') or 'tty').lstrip('%')}:{a['pid']}"
+        return f"remote:{host}:{native}" if host else native
+    native = a.get("session") or a.get("thread") or ((("job:" + a["job"]) if a.get("job") else "") or a.get("pane") or a.get("name") or "?")
     return f"remote:{host}:{native}" if host else native
 
 

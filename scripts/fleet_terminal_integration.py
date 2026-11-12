@@ -192,6 +192,21 @@ class RemoteFleet(unittest.IsolatedAsyncioTestCase):
         with patch('subprocess.run', return_value=SimpleNamespace(stdout='bash\n')):
             self.assertFalse(F._pane_runs_agent('%1'))
 
+    async def test_agy_id_follows_the_process_not_the_conversation(self):
+        fresh = {'tool': 'agy', 'name': 'agy', 'live': True, 'pid': 4321, 'pane': '%7', 'session': '', 'host': ''}
+        prompted = {**fresh, 'session': 'c0ffee'}  # agy opens the conversation at the first prompt
+        switched = {**fresh, 'session': 'decaf'}  # and can switch to another one
+        self.assertEqual(F.agent_id(fresh), 'agy:7:4321')
+        self.assertEqual(F.agent_id(prompted), F.agent_id(fresh))
+        self.assertEqual(F.agent_id(switched), F.agent_id(fresh))
+        self.assertEqual(F.agent_id({**prompted, 'pane': ''}), 'agy:tty:4321')
+        self.assertEqual(F.agent_id({**prompted, 'host': 'mini'}), 'remote:mini:agy:7:4321')
+        self.assertNotEqual(F.agent_id({**prompted, 'pid': 4322}), F.agent_id(prompted))
+        self.assertEqual(F.agent_id({**prompted, 'live': False, 'pid': 0}), 'c0ffee')  # an ended one is its conversation
+        self.fleet.raw = AsyncMock(return_value=[prompted])
+        self.assertIs(await self.fleet.find(F.agent_id(fresh)), prompted)  # a screen opened before the prompt
+        self.assertEqual(F.Fleet._q(prompted), 'c0ffee')  # claude-ctrl is still addressed by conversation
+
     async def test_find_distinguishes_same_native_id_on_two_hosts(self):
         local = {**self.agent, 'host': ''}
         self.fleet.raw = AsyncMock(return_value=[local, self.agent])
