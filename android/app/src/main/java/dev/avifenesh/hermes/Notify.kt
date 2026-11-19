@@ -94,6 +94,22 @@ object Notify {
         if (a.state != "pending") { cancelApproval(c, a.id); return }
         if (Hub.foreground && Hub.openChat == a.chatId) return
         val chat = Hub.chats.value[a.chatId]
+        // A question is answered in its chat, with words: the notification opens it.
+        if (a.isQuestion()) {
+            val q = NotificationCompat.Builder(c, CH_APPR)
+                .setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
+                .setContentTitle(str(R.string.session_agent_asking, bidiIsolate(Hub.agent.value)))
+                .setContentText(a.command).setSubText(chat?.title)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(a.command))
+                .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).setAutoCancel(true)
+                .setContentIntent(openIntent(c, a.chatId))
+                .setPublicVersion(NotificationCompat.Builder(c, CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
+                    .setContentTitle(str(R.string.session_agent_asking, bidiIsolate(Hub.agent.value))).setContentText(chat?.title ?: HERMES).build())
+                .build()
+            postApproval(c, a.id, q.also { it.extras.putString(CHAT, a.chatId) })
+            return
+        }
         val approve = PendingIntent.getActivity(c, nid("ap${a.id}"),
             Intent(c, ApproveActivity::class.java).putExtra("aid", a.id).putExtra("choice", "once").putExtra("cmd", a.command)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY), PI)
@@ -119,7 +135,39 @@ object Notify {
             .setPublicVersion(NotificationCompat.Builder(c, CH_APPR).setSmallIcon(R.drawable.ic_stat).setColor(ORANGE)
                 .setContentTitle(str(R.string.notify_approval_needed)).setContentText(chat?.title ?: HERMES).build())
             .build()
-        post(c, nid("a${a.id}"), n)
+        postApproval(c, a.id, n.also { it.extras.putString(CHAT, a.chatId) })
+    }
+
+    private const val CHAT = "hm_chat"
+    /** The machine says nothing in [cid] waits any more (answered or read elsewhere): its notifications go. */
+    fun withdraw(c: Context, cid: String) {
+        if (cid.isBlank()) return
+        cancelChat(c, cid)
+        val nm = c.getSystemService(android.app.NotificationManager::class.java) ?: return
+        runCatching { nm.activeNotifications }.getOrNull().orEmpty()
+            .filter { it.notification.extras.getString(CHAT) == cid }
+            .forEach { nm.cancel(it.tag, it.id) }
+    }
+
+    /** Card notifications carry the card id in their tag, so the ones whose card closed elsewhere can be found. */
+    private const val CARD = "card:"
+    private fun postApproval(c: Context, aid: String, n: Notification) {
+        if (!can(c)) return
+        try { NotificationManagerCompat.from(c).notify(CARD + aid, 0, n) } catch (_: SecurityException) { }
+    }
+
+    /** Cancels every card notification whose card is not in [pending], the full set the server holds open. */
+    fun dropClosedApprovals(c: Context, pending: Set<String>) {
+        val nm = c.getSystemService(android.app.NotificationManager::class.java) ?: return
+        runCatching { nm.activeNotifications }.getOrNull().orEmpty()
+            .filter { it.tag?.startsWith(CARD) == true && it.tag.removePrefix(CARD) !in pending }
+            .forEach { nm.cancel(it.tag, it.id) }
+    }
+
+    /** A test push from the machine: shown as it came, so the owner sees push works. */
+    fun test(c: Context, title: String, body: String) {
+        post(c, nid("test"), NotificationCompat.Builder(c, CH_MSG).setSmallIcon(R.drawable.ic_stat).setColor(LIME)
+            .setContentTitle(title.ifBlank { HERMES }).setContentText(body).setAutoCancel(true).build())
     }
 
     /** A Bot answered in a group chat nobody is looking at. Only the newest reply rides along (the SSE event
@@ -165,6 +213,6 @@ object Notify {
 
     private fun roomApprovalId(rid: String, a: RoomAction) = nid("ra$rid:${a.taskId}:${a.generation}:${a.requestId}")
 
-    fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(nid("a$aid"))
+    fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(CARD + aid, 0)
     fun cancelChat(c: Context, cid: String) = NotificationManagerCompat.from(c).cancel(nid("c$cid"))
 }

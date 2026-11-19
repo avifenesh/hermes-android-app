@@ -53,7 +53,8 @@ private fun modelPrefix(m: String): List<String> {
     val rest = m.substringAfterLast('/')
     val dot = rest.substringAfterLast('.', rest)
     val tail = if (dot.firstOrNull()?.isDigit() == true || dot.length < 4) rest else dot
-    return (m.substringBeforeLast('/', "").split('/') + rest.removeSuffix(tail).split('.')).filter { it.isNotBlank() }
+    // A provider named before a colon ("bedrock:global.anthropic.x") is one more segment.
+    return (m.substringBeforeLast('/', "").split('/') + rest.removeSuffix(tail).split('.', ':')).filter { it.isNotBlank() }
 }
 
 /**
@@ -71,9 +72,10 @@ fun labelsFor(ids: Collection<String>): Map<String, String> {
         fun qualify(q: (List<String>) -> List<String>) = group.associateWith { id ->
             q(pre.getValue(id)).joinToString(".").let { if (it.isEmpty()) short else "$short ($it)" }
         }
-        // Fewest collisions wins, shortest form first; whatever still collides shows its full id.
+        // Fewest collisions wins, then the shortest labels; whatever still collides shows its full id.
         val tries = listOf(qualify { it.filter { s -> s !in shared } }, qualify { it.take(1) }, qualify { it })
-        val best = tries.minBy { t -> t.values.groupingBy { it }.eachCount().values.filter { it > 1 }.sum() }
+        val best = tries.minWith(compareBy<Map<String, String>> { t -> t.values.groupingBy { it }.eachCount().values.filter { it > 1 }.sum() }
+            .thenBy { t -> t.values.sumOf { it.length } })
         val counts = best.values.groupingBy { it }.eachCount()
         for (id in group) out[id] = best.getValue(id).takeIf { counts.getValue(it) == 1 } ?: id
     }

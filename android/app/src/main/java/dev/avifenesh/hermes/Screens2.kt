@@ -559,7 +559,7 @@ fun SessionScreen(r: Route.SessR) {
 }
 
 @Composable
-private fun ChoiceChip(label: String, selected: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun ChoiceChip(label: String, selected: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val p = P
     Text(label, style = sans(13.5f, 550, if (selected) p.acct else p.tx2).content(), maxLines = 2,
         modifier = Modifier.clip(RoundedCornerShape(12.dp))

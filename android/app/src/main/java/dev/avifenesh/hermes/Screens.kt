@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -115,7 +116,9 @@ fun InboxScreen(initialFilter: String = "all") {
             .thenByDescending { (_, v) -> if (v is Chat) v.updated else (v as Room).updated })
     Column(Modifier.fillMaxSize()) {
         val me by Hub.meta.collectAsState()
-        val metaLine = bidiJoin(listOf("name", "profile", "model").map { me.str(it).trim() }.filter { it.isNotBlank() })
+        val label = modelLabeler()
+        // The model by its short name, as the chat header names it, not the raw provider id.
+        val metaLine = bidiJoin(listOf(me.str("name"), me.str("profile"), label(me.str("model"))).map { it.trim() }.filter { it.isNotBlank() })
         Header(stringResource(R.string.inbox_title), if (online) null else stringResource(R.string.inbox_offline), meta = {
             Row(Modifier.padding(top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Dot(if (online) p.good else p.mu, 7.dp)
@@ -303,6 +306,9 @@ fun ChatScreen(cid: String) {
         finally { loading = false }
     }
     LaunchedEffect(cid) { runCatching { Hub.loadCmds() } }
+    val hasOlder = Hub.older.collectAsState().value[cid] != null
+    val draft = Hub.drafts.collectAsState().value[cid]
+    var loadingOlder by remember(cid) { mutableStateOf(false) }
     var first by remember(cid) { mutableStateOf(true) }
     var pending by remember(cid) { mutableStateOf(false) }
     var following by remember(cid) { mutableStateOf(false) }
@@ -333,6 +339,8 @@ fun ChatScreen(cid: String) {
             ChatScroll.flush()
         }
     }
+    // A reply being written keeps the view at its end while the owner is there.
+    LaunchedEffect(draft?.length?.div(200)) { if (draft != null && nearEnd && !dragging) runCatching { list.scrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1) } }
     LaunchedEffect(msgs.size, chat?.unread, loading) {
         if (msgs.isNotEmpty()) {
             if (!dragging && (first || following || nearEnd)) {
@@ -433,6 +441,14 @@ fun ChatScreen(cid: String) {
                 val next = msgs.getOrNull(i + 1)
                 val day = remember(m.ts) { dayLabel(m.ts) }
                 val prevDay = remember(prev?.ts) { prev?.ts?.let { dayLabel(it) } }
+                // The chat opens on its newest page; the start is one tap away, a page at a time. It sits in the
+                // first message's item, so message indexes (the saved reading spot) do not move.
+                if (i == 0 && hasOlder) Text(if (loadingOlder) stringResource(R.string.session_loading_older) else stringResource(R.string.room_earlier),
+                    style = sans(13.5f, 600, if (loadingOlder) p.mu else p.acct), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().clickable(enabled = !loadingOlder, role = androidx.compose.ui.semantics.Role.Button) {
+                        loadingOlder = true
+                        scope.launch { runCatching { Hub.loadOlder(cid) }.onFailure { Ui.say(it.message) }; loadingOlder = false }
+                    }.heightIn(min = 48.dp).padding(vertical = 14.dp))
                 if (i == 0 || day != prevDay) {
                     Text(day, style = mono(11f, 600, p.dim), modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
@@ -449,6 +465,8 @@ fun ChatScreen(cid: String) {
                 val lead = leadsRun(msgs, i, ::quietInRun) { a, b -> dayLabel(a.ts) == dayLabel(b.ts) }
                 MsgView(m, appr, i > 0 && msgs[i - 1].role == m.role && m.kind == "trace" && msgs[i - 1].kind == "trace", last, lead)
             }
+            // The reply as it is written, in the agent's place; the working pill stays under it.
+            if (running && !draft.isNullOrBlank()) item(key = "draft") { DraftReply(draft) }
             if (running) item { WorkingRow(since!!) { Ui.push(Route.RunR(cid)) } }
             item { Spacer(Modifier.height(8.dp)) }
         }
@@ -700,10 +718,13 @@ private fun actLabel(a: Act): String = approvalChoiceLabel(a.choice)?.let { stri
 
 @Composable
 fun ApprovalCard(a: Appr?, m: Msg) {
+    // The agent asking: answered with words, not approved.
+    if (a?.isQuestion() == true || (a == null && m.meta.str("card") == "question")) { QuestionCard(a, m); return }
     val p = P
     val act = LocalAct.current
     var busy by remember { mutableStateOf(false) }
-    val state = a?.state ?: "pending"
+    // A card this phone no longer holds goes by the state the message carries: a closed card offers no decision.
+    val state = a?.state ?: m.meta.str("state").ifBlank { "pending" }
     val pending = state == "pending"
     val cmd = a?.command ?: m.meta.str("command")
     val desc = a?.description ?: m.meta.str("description")
@@ -834,5 +855,74 @@ fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier.clip(RoundedCornerShape(16.dp)).background(P.s1).border(1.dp, P.line, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 10.dp)) {
         Text(value, style = mono(18f, 600, P.tx), maxLines = 1)
         Text(label, style = mono(11f, 500, P.mu))
+    }
+}
+
+/**
+ * A question card: each question's options as chips, and a line for other words. One question with one pick is
+ * answered by the tap; otherwise every question is answered first and one Send carries them all.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun QuestionCard(a: Appr?, m: Msg) {
+    val p = P
+    val act = LocalAct.current
+    val id = a?.id ?: m.meta.str("approval_id")
+    val state = a?.state ?: m.meta.str("state").ifBlank { "pending" }
+    val pending = state == "pending" && a != null
+    val qs = a?.questions.orEmpty().ifEmpty { listOf(Question("0", a?.command ?: m.meta.str("command"), emptyList(), false)) }
+    var busy by remember(id) { mutableStateOf(false) }
+    val picks = remember(id) { androidx.compose.runtime.mutableStateMapOf<String, Set<String>>() }
+    val typed = remember(id) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+    fun answerOf(q: Question): List<String> = (picks[q.id].orEmpty().toList() + listOfNotNull(typed[q.id]?.trim()?.takeIf { it.isNotEmpty() }))
+    fun send(answer: Answer) {
+        if (busy || id.isBlank()) return
+        busy = true
+        Approvals.run(act, id, "once", qs.joinToString("\n") { it.text }, answer) { err -> busy = false; if (!err.isNullOrEmpty()) Ui.say(err) }
+    }
+    fun sendAll() {
+        if (qs.size == 1) send(Answer.one(answerOf(qs[0]).joinToString(", ")))
+        else send(Answer.each(qs.associate { it.id to answerOf(it) }))
+    }
+    val ready = qs.all { answerOf(it).isNotEmpty() }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp).clip(RoundedCornerShape(22.dp))
+        .background(if (pending) p.accd else p.s1).border(1.dp, if (pending) p.acct.copy(alpha = 0.45f) else p.line, RoundedCornerShape(22.dp))
+        .padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icn(Ic.blocks, if (pending) p.acct else p.mu, 18.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(if (pending) stringResource(R.string.session_agent_asking, bidiIsolate(agentName())) else if (state == "approved") stringResource(R.string.session_answer_sent) else stringResource(R.string.approval_expired),
+                style = sans(14.5f, 650, if (pending) p.acct else p.mu), modifier = Modifier.weight(1f))
+            Text(clock(m.ts), style = mono(11f, 500, p.mu))
+        }
+        for (q in qs) {
+            if (q.text.isNotBlank()) Text(q.text, style = sans(15f, 500, p.tx, 21f).content())
+            if (!pending) continue
+            if (q.options.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (o in q.options) {
+                    val on = o in picks[q.id].orEmpty()
+                    ChoiceChip(o, selected = on, enabled = !busy) {
+                        val cur = picks[q.id].orEmpty()
+                        picks[q.id] = if (q.multi) (if (on) cur - o else cur + o) else if (on) emptySet() else setOf(o)
+                        // One question, one pick, nothing typed: the tap is the answer.
+                        if (qs.size == 1 && !q.multi && !on && typed[q.id].isNullOrBlank()) send(Answer.one(o))
+                    }
+                }
+            }
+            InputBox(typed[q.id].orEmpty(), { typed[q.id] = it }, if (q.options.isEmpty()) stringResource(R.string.session_type_answer) else stringResource(R.string.session_other_detail), Modifier.fillMaxWidth())
+        }
+        if (pending && (qs.size > 1 || qs.any { it.multi } || typed.values.any { it.isNotBlank() }))
+            Btn(if (busy) "…" else stringResource(R.string.session_send_answer), Modifier.fillMaxWidth(), enabled = !busy && ready) { sendAll() }
+    }
+}
+
+/** The agent's reply while it streams: the same place and type as a finished reply, with a live mark. */
+@Composable
+fun DraftReply(text: String) {
+    val p = P
+    Row(Modifier.fillMaxWidth().padding(start = AVATAR_START, end = 14.dp, top = 8.dp, bottom = 1.dp)) {
+        Box(Modifier.padding(top = 4.dp).width(AVATAR)) { AgentOrb(AVATAR, live = true) }
+        Spacer(Modifier.width(AVATAR_GAP))
+        Box(Modifier.weight(1f).padding(horizontal = 6.dp, vertical = 4.dp)) { Md(remember(text) { Talker.stripReasoning(text) }) }
     }
 }

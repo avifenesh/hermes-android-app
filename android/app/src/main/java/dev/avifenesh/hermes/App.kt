@@ -49,6 +49,9 @@ class App : Application() {
             override fun onActivityDestroyed(a: Activity) {}
         })
         if (Prefs.paired) schedule(this)
+        getSystemService(android.net.ConnectivityManager::class.java)?.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) { Hub.onNetwork(network) }
+        })
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {

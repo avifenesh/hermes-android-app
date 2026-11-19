@@ -302,7 +302,8 @@ object Api {
                 catch (e: Exception) { throw IOException(str(R.string.net_request_signing_failed), e) }
             }).build()
     }
-    val sse: OkHttpClient by lazy { http.newBuilder().readTimeout(75, TimeUnit.SECONDS).build() }
+    // The server writes at least every 15 s: three missed beats mean the stream is dead.
+    val sse: OkHttpClient by lazy { http.newBuilder().readTimeout(45, TimeUnit.SECONDS).build() }
     /** Media downloads get their own dispatcher. A body streams while its call holds a dispatcher slot, and
      *  OkHttp allows 5 per host per dispatcher, so a chat full of voice notes on the shared one would queue
      *  the event stream and API calls behind it. Two transfers at a time. */

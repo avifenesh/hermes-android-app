@@ -40,8 +40,15 @@ class FcmService : FirebaseMessagingService() {
         if (!Prefs.paired) return
         if (message.data["t"] == "phone") { PhoneService.pull(); return }
         if (message.data["t"] == "wake") { Wake.onPush(this, message.data["a"].orEmpty()); return }
+        // A test push says what it carries at once: that is all it is for. Every push is shown or synced, never
+        // dropped silently (the push service lowers the priority of high-priority pushes that show nothing).
+        if (message.data["t"] == "test") Notify.test(this, message.data["title"].orEmpty(), message.data["body"].orEmpty())
+        if (message.data["t"] == "withdraw") Notify.withdraw(this, message.data["c"].orEmpty())
+        // The receipt goes with the sync, off this callback (no network call before the notification).
+        val ack = message.data["n"].orEmpty()
         WorkManager.getInstance(this).enqueueUniqueWork("wake", ExistingWorkPolicy.APPEND_OR_REPLACE,
-            OneTimeWorkRequestBuilder<SyncWorker>().setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build())
+            OneTimeWorkRequestBuilder<SyncWorker>().setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setInputData(androidx.work.workDataOf("ack" to ack)).build())
     }
 }
 
@@ -49,6 +56,10 @@ class SyncWorker(c: Context, p: WorkerParameters) : CoroutineWorker(c, p) {
     override suspend fun doWork(): Result {
         if (!Prefs.paired) return Result.success()
         val ticket = Api.epoch.capture()
+        // The server counts a push as delivered when the phone says so; a server without receipts sends no id.
+        inputData.getString("ack")?.takeIf { it.isNotBlank() }?.let { id ->
+            try { Api.post("/v1/push/ack", JSONObject().put("id", id)) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+        }
         return try {
             Hub.sync()
             Api.epoch.commit(ticket) { }
@@ -116,11 +127,11 @@ class ActionReceiver : BroadcastReceiver() {
 
 object Approvals {
     /** done(null) = success, done("") = cancelled, done(msg) = error */
-    fun run(act: FragmentActivity, aid: String, choice: String, cmd: String, done: (String?) -> Unit) {
+    fun run(act: FragmentActivity, aid: String, choice: String, cmd: String, answer: Answer? = null, done: (String?) -> Unit) {
         val ticket = Api.epoch.capture()
         fun submit(ts: String?, sig: String?) {
             Hub.scope.launch {
-                val r = runCatching { Api.epoch.commit(ticket) { }; Hub.resolve(aid, choice, ts, sig) }
+                val r = runCatching { Api.epoch.commit(ticket) { }; Hub.resolve(aid, choice, ts, sig, answer) }
                 withContext(Dispatchers.Main) {
                     val a = r.getOrNull()
                     when {
@@ -133,7 +144,9 @@ object Approvals {
         }
         if (choice == "deny") { submit(null, null); return }
         val ts = (System.currentTimeMillis() / 1000).toString()
-        val payload = "approve\n$aid\n$choice\n$ts".toByteArray()
+        // An answer is part of what is signed: the server checks its hash (approve2).
+        val payload = (if (answer != null) "approve2\n$aid\n$choice\n${Api.sha256(answer.signed.toByteArray())}\n$ts"
+            else "approve\n$aid\n$choice\n$ts").toByteArray()
         val sig = try { Keys.approvalSignature() } catch (e: Exception) { done(str(R.string.approvals_key_unavailable, e.message?.let(::bidiIsolate))); return }
         if (Prefs.noLock) {
             val s = runCatching { sig.update(payload); Base64.encodeToString(sig.sign(), Base64.NO_WRAP) }.getOrNull()

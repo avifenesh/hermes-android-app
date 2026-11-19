@@ -50,8 +50,13 @@ fun readOnlyNotice(readonly: String): String? {
 data class Msg(val id: String, val chatId: String, val role: String, val kind: String, val content: String,
                val meta: JSONObject, val ts: Double, val seq: Long)
 data class Act(val label: String, val choice: String, val style: String)
+/** [kind] "question" is the agent asking the owner: [questions] are answered by words, not approved. */
 data class Appr(val id: String, val chatId: String, val command: String, val description: String,
-                val actions: List<Act>, val state: String, val choice: String, val ts: Double)
+                val actions: List<Act>, val state: String, val choice: String, val ts: Double,
+                val kind: String = "permission", val questions: List<Question> = emptyList())
+/** One question of a card: pick [options] (several when [multi]) or type an answer. */
+data class Question(val id: String, val text: String, val options: List<String>, val multi: Boolean)
+fun Appr.isQuestion() = kind == "question"
 
 /** Optional server surfaces from /v1/me `features`. All-true default: pre-fetch (no flicker) and old servers without the key (back-compat). */
 data class Features(val radar: Boolean = true, val fleet: Boolean = true, val wakeWa: Boolean = true, val projects: Boolean = true,
@@ -94,6 +99,8 @@ object Hub {
     val msgs = MutableStateFlow<Map<String, List<Msg>>>(emptyMap())
     val approvals = MutableStateFlow<Map<String, Appr>>(emptyMap())
     val working = MutableStateFlow<Map<String, Double>>(emptyMap())
+    /** The reply the agent is writing now, per chat, from the server's text deltas; it goes when the message lands. */
+    val drafts = MutableStateFlow<Map<String, String>>(emptyMap())
     val online = MutableStateFlow(false)
     private val metadata = MutableStateFlow(JSONObject())
     val meta: StateFlow<JSONObject> = metadata.asStateFlow()
@@ -175,8 +182,11 @@ object Hub {
                 is JSONObject -> acts += Act(x.str("label"), x.str("choice", x.str("value")), x.str("style"))
             }
         }
+        val qs = o.optJSONArray("questions").objs().map { q ->
+            Question(q.str("id"), q.str("question"), q.optJSONArray("options").strs(), q.optBoolean("multi"))
+        }
         return Appr(o.getString("id"), o.str("chat_id"), o.str("command"), o.str("description"), acts,
-            o.str("state", "pending"), o.str("choice"), o.optDouble("ts", 0.0))
+            o.str("state", "pending"), o.str("choice"), o.optDouble("ts", 0.0), o.str("kind", "permission"), qs)
     }
 
     // Gateway progress/housekeeping lines: see isNoticeMsg (mirrors store.is_notice on the server).
@@ -212,10 +222,34 @@ object Hub {
         working.value = (0 until a.length()).associate { val j = a.getJSONObject(it); j.getString("chat_id") to j.optDouble("since", nowS()) }
     }
 
-    fun apply(o: JSONObject) {
-        o.optJSONArray("chats")?.let { a -> for (i in 0 until a.length()) { val j = a.getJSONObject(i); upsertChat(chat(j), j.has("preview")) } }
+    /** [complete]: the response lists every chat there is (a full sync, or a server that says so), so a chat
+     *  this phone holds that is not among them was deleted elsewhere and goes. Every sync lists every pending
+     *  card, so a card held as pending that is not among them closed elsewhere: it goes with its notification. */
+    // Chats and cards the live stream brought while a sync was on its way: its answer was read before them, so
+    // their absence from it says nothing. Guarded by the epoch lock (handle and the sync's publication share it).
+    private val liveChats = HashSet<String>()
+    private val liveCards = HashSet<String>()
+
+    fun apply(o: JSONObject, complete: Boolean = false) {
+        o.optJSONArray("chats")?.let { a ->
+            val listed = (0 until a.length()).map { a.getJSONObject(it) }
+            listed.forEach { j -> upsertChat(chat(j), j.has("preview")) }
+            if (complete || o.optBoolean("complete")) {
+                val keep = listed.mapTo(HashSet()) { it.getString("id") }
+                (chats.value.keys - keep - liveChats).forEach { removeChat(it) }
+            }
+        }
         o.optJSONArray("messages")?.let { a -> upsertMsgs((0 until a.length()).map { msg(a.getJSONObject(it)) }) }
-        o.optJSONArray("approvals")?.let { a -> val l = (0 until a.length()).map { appr(a.getJSONObject(it)) }; approvals.update { m -> m + l.associateBy { it.id } } }
+        o.optJSONArray("approvals")?.let { a ->
+            val l = (0 until a.length()).map { appr(a.getJSONObject(it)) }
+            val listed = l.mapTo(HashSet()) { it.id }
+            val gone = approvals.value.values.filter { it.state == "pending" && it.id !in listed && it.id !in liveCards }
+            approvals.update { m -> m - gone.map { it.id }.toSet() + l.associateBy { it.id } }
+            if (::app.isInitialized) {
+                gone.forEach { Notify.cancelApproval(app, it.id) }
+                Notify.dropClosedApprovals(app, l.filter { it.state == "pending" }.mapTo(HashSet()) { it.id } + liveCards)
+            }
+        }
         o.optJSONArray("working")?.let { setWorking(it) }
         val s = o.optLong("seq")
         if (s > Prefs.seq) Prefs.seq = s
@@ -225,9 +259,25 @@ object Hub {
     suspend fun sync(full: Boolean = false): JSONObject = mx.withLock {
         // State is in memory only, so a fresh process (killed in background, app update) must pull everything once;
         // a delta from Prefs.seq would leave the inbox holding only chats that changed since.
-        sessionRequest({ Api.get("/v1/sync?since=${if (full || chats.value.isEmpty()) 0 else Prefs.seq}") }) {
-            apply(it); it
+        val fromZero = full || chats.value.isEmpty()
+        var since = if (fromZero) 0 else Prefs.seq
+        // A long absence spans several pages: read until the server says there is no more.
+        for (page in 0 until 50) {
+            synchronized(Api.epoch) { liveChats.clear(); liveCards.clear() }
+            val o = sessionRequest({ Api.get("/v1/sync?since=$since") }) { apply(it, complete = since == 0L); it }
+            val next = o.optLong("seq")
+            if (!o.optBoolean("more") || next <= since) return@withLock o
+            since = next
         }
+        JSONObject()
+    }
+
+    /** A chat deleted elsewhere: it leaves the inbox with its messages, cards and notifications. */
+    private fun removeChat(cid: String) {
+        val cards = approvals.value.values.filter { it.chatId == cid }.map { it.id }.toSet()
+        chats.update { it - cid }; msgs.update { it - cid }; working.update { it - cid }
+        approvals.update { it - cards }
+        if (::app.isInitialized) { Notify.cancelChat(app, cid); cards.forEach { Notify.cancelApproval(app, it) } }
     }
 
     /** After a sync in the background: notify for anything new, and for pending approvals. */
@@ -267,9 +317,25 @@ object Hub {
         retry = scope.launch {
             delay(backoff)
             Api.epoch.commit(ticket) {
-                if (wanted) { backoff = (backoff * 2).coerceAtMost(30_000); connect() }
+                // On screen, a restarted machine is back within seconds; in the background a slower retry saves battery.
+                if (wanted) { backoff = (backoff * 2).coerceAtMost(if (foreground) 4_000 else 30_000); connect() }
             }
         }
+    }
+
+    private var network: android.net.Network? = null
+
+    /** The phone got a network. Back from none: connect now instead of at the end of a backoff wait. Moved to
+     *  another one (Wi-Fi to mobile): the stream's socket belonged to the old one and can sit silent until the
+     *  read timeout, so it starts over. Either way one sync covers what passed meanwhile. */
+    fun onNetwork(n: android.net.Network): Unit = synchronized(Api.epoch) {
+        val moved = network != null && network != n
+        network = n
+        if (!wanted || (es != null && !moved)) return@synchronized
+        es?.let { old -> es = null; old.cancel() }
+        retry?.cancel(); retry = null; backoff = 1000
+        connect()
+        scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }
     }
 
     fun disconnect(): Unit = synchronized(Api.epoch) {
@@ -285,6 +351,9 @@ object Hub {
             "session_event" -> sessionEvents.tryEmit(e)
             "room" -> if (features.value.rooms) e.optJSONObject("room")?.let { Rooms.onRoom(app, it) }
             "room_removed" -> Rooms.onRemoved(e.str("room_id"))
+            "chat_removed" -> { removeChat(e.str("chat_id")); bump(e) }
+            // The stream fell behind and dropped events: one sync catches up.
+            "resync" -> scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }
             "hello", "seq" -> {
                 // A hello from a restarted gateway: its restart state (and anything else in /v1/me) is new.
                 if (e.optString("type") == "hello" && bootChanged(meta.value, e.optString("boot"))) scope.launch { runCatching { refreshMe() } }
@@ -294,15 +363,23 @@ object Hub {
                 e.optJSONArray("working")?.let { setWorking(it) }
                 if (e.optLong("seq") > Prefs.seq) scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }
             }
+            "delta" -> {
+                val cid = e.str("chat_id")
+                if (cid.isNotBlank()) drafts.update { it + (cid to (it[cid].orEmpty() + e.str("delta"))) }
+            }
             "message" -> {
                 val m = msg(e.getJSONObject("message"))
+                liveChats += m.chatId
+                if (m.kind == "approval") liveCards += m.meta.str("approval_id")
+                if (m.role != "user") drafts.update { it - m.chatId }
                 e.optJSONObject("chat")?.let { upsertChat(chat(it), it.has("preview")) }
                 upsertMsgs(listOf(m)); bump(e)
                 Notify.consider(app, m)
             }
-            "chat" -> { e.optJSONObject("chat")?.let { upsertChat(chat(it), it.has("preview")) }; bump(e) }
+            "chat" -> { e.optJSONObject("chat")?.let { liveChats += it.str("id"); upsertChat(chat(it), it.has("preview")) }; bump(e) }
             "approval" -> {
                 val a = appr(e.getJSONObject("approval"))
+                liveCards += a.id
                 approvals.update { it + (a.id to a) }; bump(e)
                 Notify.approval(app, a)
             }
@@ -318,6 +395,7 @@ object Hub {
             "working" -> {
                 val cid = e.getString("chat_id")
                 working.update { if (e.optBoolean("working")) it + (cid to e.optDouble("since", nowS())) else it - cid }
+                if (!e.optBoolean("working")) drafts.update { it - cid }
             }
         }
     }
@@ -366,16 +444,41 @@ object Hub {
         sessionRequest({ Api.get("/v1/chats/$cid/usage") }) { o -> usage.update { it + (cid to o) } }
     }
 
+    /** Where "Earlier messages" reads from, per chat: the server's `older` cursor, or the oldest timestamp for a
+     *  server that pages by time. Absent: the chat's start is loaded. */
+    val older = MutableStateFlow<Map<String, String>>(emptyMap())
+
     suspend fun loadChat(cid: String) {
-        sessionRequest({ Api.get("/v1/chats/$cid/messages?limit=150") }) { o ->
-            val a = o.getJSONArray("messages")
-            upsertMsgs((0 until a.length()).map { msg(a.getJSONObject(it)) })
-        }
+        sessionRequest({ Api.get("/v1/chats/$cid/messages?limit=$PAGE&paged=1") }) { o -> absorbPage(cid, o, first = true) }
     }
+
+    /** The page before the oldest loaded one. False when there is nothing earlier. */
+    suspend fun loadOlder(cid: String): Boolean {
+        val cursor = older.value[cid] ?: return false
+        sessionRequest({ Api.get("/v1/chats/$cid/messages?limit=$PAGE&paged=1&before=${android.net.Uri.encode(cursor)}") }) { o -> absorbPage(cid, o, first = false) }
+        return true
+    }
+
+    private fun absorbPage(cid: String, o: JSONObject, first: Boolean) {
+        val list = o.getJSONArray("messages").objs().map(::msg)
+        upsertMsgs(list)
+        val shown = list.filter { it.kind != "deleted" }
+        val next = when {
+            o.has("older") -> if (o.isNull("older")) null else o.str("older")
+            // A server without cursors pages by time: a full page may have more before it.
+            shown.size >= PAGE -> shown.minOf { it.ts }.toString()
+            else -> null
+        }
+        // A refresh of the newest page keeps a cursor already walked further back.
+        older.update { m -> when { next == null -> m - cid; first && m[cid] != null -> m; else -> m + (cid to next) } }
+    }
+    private const val PAGE = 100
 
     suspend fun markRead(cid: String) {
         chats.update { m -> m[cid]?.let { m + (cid to it.copy(unread = 0)) } ?: m }
         Notify.cancelChat(app, cid)
+        // The chat is open: its cards are on screen, so their notifications go too.
+        approvals.value.values.filter { it.chatId == cid }.forEach { Notify.cancelApproval(app, it.id) }
         try { Api.post("/v1/chats/$cid/read") } catch (e: CancellationException) { throw e } catch (_: Exception) { }
     }
 
@@ -397,7 +500,7 @@ object Hub {
 
     suspend fun newChat(title: String, profile: String = "default"): String {
         return sessionRequest({ Api.post("/v1/chats", JSONObject().put("title", title).put("profile", profile)) }) { o ->
-            val c = chat(o.getJSONObject("chat")); upsertChat(c, false); c.id
+            val c = chat(o.getJSONObject("chat")); liveChats += c.id; upsertChat(c, false); c.id
         }
     }
 
@@ -409,14 +512,17 @@ object Hub {
 
     suspend fun stop(cid: String) { Api.post("/v1/chats/$cid/stop") }
 
-    suspend fun resolve(aid: String, choice: String, ts: String?, asig: String?): Appr? {
+    suspend fun resolve(aid: String, choice: String, ts: String?, asig: String?, answer: Answer? = null): Appr? {
         val h = HashMap<String, String>()
         if (ts != null) h["X-HM-Ts"] = ts
         if (asig != null) h["X-HM-ASig"] = asig
+        // An answer is signed with the decision (approve2: the hash of what it says).
+        if (answer != null && asig != null) h["X-HM-ASig-V"] = "2"
+        val body = JSONObject().put("choice", choice).also { answer?.into(it) }
         // A decision resumes the waiting run (or lets it react to a denial): follow it before awaiting the request.
         val follow = approvals.value[aid]?.chatId?.takeIf { it.isNotBlank() }?.let { LiveService.starting(app, it, Prefs.seq, false) }
         try {
-            return sessionRequest({ Api.post("/v1/approvals/$aid", JSONObject().put("choice", choice), h) }) { o ->
+            return sessionRequest({ Api.post("/v1/approvals/$aid", body, h) }) { o ->
                 val a = o.optJSONObject("approval")?.let { appr(it) }
                 if (a != null) approvals.update { it + (a.id to a) }
                 val resumed = a != null && approvalResumesRun(if (o.has("resolved")) o.optInt("resolved") else null, a.state)
@@ -439,7 +545,7 @@ object Hub {
             LiveService.reset()
             capabilityEpoch.invalidate()
             otherCapabilityEpochs.values.forEach { it.invalidate() }
-            chats.value = emptyMap(); msgs.value = emptyMap(); approvals.value = emptyMap(); working.value = emptyMap()
+            chats.value = emptyMap(); msgs.value = emptyMap(); approvals.value = emptyMap(); working.value = emptyMap(); older.value = emptyMap(); drafts.value = emptyMap()
             metadata.value = JSONObject(); capabilities.value = Features()
             cmds.value = emptyList(); usage.value = emptyMap(); degraded.value = emptyList()
             openChat = null; agent.value = "Hermes"; Prefs.agentName = "Hermes"
