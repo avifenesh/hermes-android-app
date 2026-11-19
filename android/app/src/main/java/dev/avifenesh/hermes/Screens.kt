@@ -881,8 +881,9 @@ fun QuestionCard(a: Appr?, m: Msg) {
         Approvals.run(act, id, "once", qs.joinToString("\n") { it.text }, answer) { err -> busy = false; if (!err.isNullOrEmpty()) Ui.say(err) }
     }
     fun sendAll() {
-        if (qs.size == 1) send(Answer.one(answerOf(qs[0]).joinToString(", ")))
-        else send(Answer.each(qs.associate { it.id to answerOf(it) }))
+        // One value for one question goes as words; anything more goes by question id, so each pick stays a pick.
+        val one = qs.singleOrNull()?.let(::answerOf)?.singleOrNull()
+        if (one != null) send(Answer.one(one)) else send(Answer.each(qs.associate { it.id to answerOf(it) }))
     }
     val ready = qs.all { answerOf(it).isNotEmpty() }
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp).clip(RoundedCornerShape(22.dp))

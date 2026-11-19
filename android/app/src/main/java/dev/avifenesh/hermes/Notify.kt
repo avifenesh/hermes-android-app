@@ -90,9 +90,13 @@ object Notify {
         post(c, nid("c${m.chatId}"), b.build())
     }
 
+    /** Cards this process already notified about or took down: a later sync does not ring for them again. */
+    private val handled = java.util.Collections.synchronizedSet(HashSet<String>())
+
     fun approval(c: Context, a: Appr) {
         if (a.state != "pending") { cancelApproval(c, a.id); return }
         if (Hub.foreground && Hub.openChat == a.chatId) return
+        if (!handled.add(a.id)) return
         val chat = Hub.chats.value[a.chatId]
         // A question is answered in its chat, with words: the notification opens it.
         if (a.isQuestion()) {
@@ -143,10 +147,11 @@ object Notify {
     fun withdraw(c: Context, cid: String) {
         if (cid.isBlank()) return
         cancelChat(c, cid)
+        Hub.approvals.value.values.filter { it.chatId == cid }.forEach { handled += it.id }
         val nm = c.getSystemService(android.app.NotificationManager::class.java) ?: return
         runCatching { nm.activeNotifications }.getOrNull().orEmpty()
             .filter { it.notification.extras.getString(CHAT) == cid }
-            .forEach { nm.cancel(it.tag, it.id) }
+            .forEach { it.tag?.removePrefix(CARD)?.let(handled::add); nm.cancel(it.tag, it.id) }
     }
 
     /** Card notifications carry the card id in their tag, so the ones whose card closed elsewhere can be found. */
@@ -213,6 +218,6 @@ object Notify {
 
     private fun roomApprovalId(rid: String, a: RoomAction) = nid("ra$rid:${a.taskId}:${a.generation}:${a.requestId}")
 
-    fun cancelApproval(c: Context, aid: String) = NotificationManagerCompat.from(c).cancel(CARD + aid, 0)
+    fun cancelApproval(c: Context, aid: String) { handled += aid; NotificationManagerCompat.from(c).cancel(CARD + aid, 0) }
     fun cancelChat(c: Context, cid: String) = NotificationManagerCompat.from(c).cancel(nid("c$cid"))
 }

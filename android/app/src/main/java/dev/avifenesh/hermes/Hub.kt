@@ -229,11 +229,13 @@ object Hub {
     // their absence from it says nothing. Guarded by the epoch lock (handle and the sync's publication share it).
     private val liveChats = HashSet<String>()
     private val liveCards = HashSet<String>()
+    private val liveRemoved = HashSet<String>()
 
     fun apply(o: JSONObject, complete: Boolean = false) {
         o.optJSONArray("chats")?.let { a ->
             val listed = (0 until a.length()).map { a.getJSONObject(it) }
-            listed.forEach { j -> upsertChat(chat(j), j.has("preview")) }
+            // A chat deleted while this answer was on its way does not come back from it.
+            listed.filter { it.getString("id") !in liveRemoved }.forEach { j -> upsertChat(chat(j), j.has("preview")) }
             if (complete || o.optBoolean("complete")) {
                 val keep = listed.mapTo(HashSet()) { it.getString("id") }
                 (chats.value.keys - keep - liveChats).forEach { removeChat(it) }
@@ -244,7 +246,8 @@ object Hub {
             val l = (0 until a.length()).map { appr(a.getJSONObject(it)) }
             val listed = l.mapTo(HashSet()) { it.id }
             val gone = approvals.value.values.filter { it.state == "pending" && it.id !in listed && it.id !in liveCards }
-            approvals.update { m -> m - gone.map { it.id }.toSet() + l.associateBy { it.id } }
+            // A closed card stays known as closed: its message in the chat offers no decision.
+            approvals.update { m -> m + gone.associate { it.id to it.copy(state = "expired") } + l.associateBy { it.id } }
             if (::app.isInitialized) {
                 gone.forEach { Notify.cancelApproval(app, it.id) }
                 Notify.dropClosedApprovals(app, l.filter { it.state == "pending" }.mapTo(HashSet()) { it.id } + liveCards)
@@ -263,7 +266,7 @@ object Hub {
         var since = if (fromZero) 0 else Prefs.seq
         // A long absence spans several pages: read until the server says there is no more.
         for (page in 0 until 50) {
-            synchronized(Api.epoch) { liveChats.clear(); liveCards.clear() }
+            synchronized(Api.epoch) { liveChats.clear(); liveCards.clear(); liveRemoved.clear() }
             val o = sessionRequest({ Api.get("/v1/sync?since=$since") }) { apply(it, complete = since == 0L); it }
             val next = o.optLong("seq")
             if (!o.optBoolean("more") || next <= since) return@withLock o
@@ -311,6 +314,8 @@ object Hub {
         if (es !== src) return@synchronized
         es = null
         online.value = false
+        // A reply cut mid-stream comes back whole as its message; a stale draft would join the next one.
+        drafts.value = emptyMap()
         if (!wanted || !(foreground || LiveService.keepConnected())) return@synchronized
         retry?.cancel()
         val ticket = Api.epoch.capture()
@@ -331,7 +336,7 @@ object Hub {
     fun onNetwork(n: android.net.Network): Unit = synchronized(Api.epoch) {
         val moved = network != null && network != n
         network = n
-        if (!wanted || (es != null && !moved)) return@synchronized
+        if (!wanted || (es != null && !moved) || !(foreground || LiveService.keepConnected())) return@synchronized
         es?.let { old -> es = null; old.cancel() }
         retry?.cancel(); retry = null; backoff = 1000
         connect()
@@ -351,7 +356,7 @@ object Hub {
             "session_event" -> sessionEvents.tryEmit(e)
             "room" -> if (features.value.rooms) e.optJSONObject("room")?.let { Rooms.onRoom(app, it) }
             "room_removed" -> Rooms.onRemoved(e.str("room_id"))
-            "chat_removed" -> { removeChat(e.str("chat_id")); bump(e) }
+            "chat_removed" -> { liveRemoved += e.str("chat_id"); removeChat(e.str("chat_id")); bump(e) }
             // The stream fell behind and dropped events: one sync catches up.
             "resync" -> scope.launch { runCatching { sync(); if (!foreground) notifyPending(app) } }
             "hello", "seq" -> {
@@ -466,7 +471,8 @@ object Hub {
         val next = when {
             o.has("older") -> if (o.isNull("older")) null else o.str("older")
             // A server without cursors pages by time: a full page may have more before it.
-            shown.size >= PAGE -> shown.minOf { it.ts }.toString()
+            // (its deleted rows count toward the page too)
+            list.size >= PAGE -> list.minOf { it.ts }.toString()
             else -> null
         }
         // A refresh of the newest page keeps a cursor already walked further back.

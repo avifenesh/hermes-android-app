@@ -43,12 +43,14 @@ class FcmService : FirebaseMessagingService() {
         // A test push says what it carries at once: that is all it is for. Every push is shown or synced, never
         // dropped silently (the push service lowers the priority of high-priority pushes that show nothing).
         if (message.data["t"] == "test") Notify.test(this, message.data["title"].orEmpty(), message.data["body"].orEmpty())
-        if (message.data["t"] == "withdraw") Notify.withdraw(this, message.data["c"].orEmpty())
+        // A withdraw is the whole message: nothing to fetch (a sync would only post the chat's cards again), just its receipt.
+        val withdraw = message.data["t"] == "withdraw"
+        if (withdraw) Notify.withdraw(this, message.data["c"].orEmpty())
         // The receipt goes with the sync, off this callback (no network call before the notification).
         val ack = message.data["n"].orEmpty()
         WorkManager.getInstance(this).enqueueUniqueWork("wake", ExistingWorkPolicy.APPEND_OR_REPLACE,
             OneTimeWorkRequestBuilder<SyncWorker>().setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                .setInputData(androidx.work.workDataOf("ack" to ack)).build())
+                .setInputData(androidx.work.workDataOf("ack" to ack, "ack_only" to withdraw)).build())
     }
 }
 
@@ -60,6 +62,7 @@ class SyncWorker(c: Context, p: WorkerParameters) : CoroutineWorker(c, p) {
         inputData.getString("ack")?.takeIf { it.isNotBlank() }?.let { id ->
             try { Api.post("/v1/push/ack", JSONObject().put("id", id)) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
         }
+        if (inputData.getBoolean("ack_only", false)) return Result.success()
         return try {
             Hub.sync()
             Api.epoch.commit(ticket) { }
